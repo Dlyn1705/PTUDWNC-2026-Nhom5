@@ -60,7 +60,7 @@
       <td align="center" style="border: 1px solid #d0d7de;"><b>2312567</b></td>
       <td style="border: 1px solid #d0d7de;"><b>Võ Thị Minh Ân</b></td>
       <td align="center" style="border: 1px solid #d0d7de;">
-        <a href="https://github.com/github_user_2">github_user_2</a>
+        <a href="https://github.com/anvodangiu">anvodangiu</a>
       </td>
       <td style="border: 1px solid #d0d7de; text-align: left;">
         <b>Quản lý Danh mục, Tìm kiếm &amp; Giám sát hệ thống</b>
