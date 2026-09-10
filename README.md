@@ -188,15 +188,10 @@
 
 <h3>2. Cú pháp đặt tên nhánh (Branch Naming Convention)</h3>
 <p><b>Đối với tính năng mới:</b></p>
-<pre><code>feature/tên-thành-viên/tên-chức-năng</code></pre>
-
-<p><b>Đối với việc sửa lỗi (bugfix):</b></p>
-<pre><code>bugfix/tên-thành-viên/mô-tả-lỗi</code></pre>
+<pre><code>mssv/tên-thành-viên/tên-chức-năng</code></pre>
 
 <p><b>Ví dụ minh họa:</b></p>
-<pre><code>feature/linh/dang-nhap-oauth
-feature/an/quan-ly-danh-muc
-bugfix/tuan/sua-loi-validate-recipe</code></pre>
+<pre><code>2312663/linh/dang-nhap-oauth</code></pre>
 
 <h3>3. Quy trình làm việc nhóm (Workflow)</h3>
 <p><b>Lấy code mới nhất từ nhánh chính:</b></p>
