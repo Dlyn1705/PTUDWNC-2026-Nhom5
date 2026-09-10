@@ -1,0 +1,296 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\CulinaryBlog.API.csproj": {}
+  },
+  "projects": {
+    "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\CulinaryBlog.API.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\CulinaryBlog.API.csproj",
+        "projectName": "CulinaryBlog.API",
+        "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\CulinaryBlog.API.csproj",
+        "packagesPath": "C:\\Users\\Maxsys\\.nuget\\packages\\",
+        "outputPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Maxsys\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net10.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net10.0": {
+            "targetAlias": "net10.0",
+            "projectReferences": {
+              "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj": {
+                "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj"
+              },
+              "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\CulinaryBlog.Infrastructure.csproj": {
+                "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\CulinaryBlog.Infrastructure.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "all"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net10.0": {
+          "targetAlias": "net10.0",
+          "dependencies": {
+            "Microsoft.AspNetCore.OpenApi": {
+              "target": "Package",
+              "version": "[9.0.20, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.318/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj",
+        "projectName": "CulinaryBlog.Application",
+        "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj",
+        "packagesPath": "C:\\Users\\Maxsys\\.nuget\\packages\\",
+        "outputPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Maxsys\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net10.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net10.0": {
+            "targetAlias": "net10.0",
+            "projectReferences": {
+              "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\CulinaryBlog.Domain.csproj": {
+                "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\CulinaryBlog.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "all"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net10.0": {
+          "targetAlias": "net10.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.318/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\CulinaryBlog.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\CulinaryBlog.Domain.csproj",
+        "projectName": "CulinaryBlog.Domain",
+        "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\CulinaryBlog.Domain.csproj",
+        "packagesPath": "C:\\Users\\Maxsys\\.nuget\\packages\\",
+        "outputPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Domain\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Maxsys\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net10.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net10.0": {
+            "targetAlias": "net10.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "all"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net10.0": {
+          "targetAlias": "net10.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.318/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\CulinaryBlog.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\CulinaryBlog.Infrastructure.csproj",
+        "projectName": "CulinaryBlog.Infrastructure",
+        "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\CulinaryBlog.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\Maxsys\\.nuget\\packages\\",
+        "outputPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Infrastructure\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Maxsys\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net10.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net10.0": {
+            "targetAlias": "net10.0",
+            "projectReferences": {
+              "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj": {
+                "projectPath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.Application\\CulinaryBlog.Application.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "all"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net10.0": {
+          "targetAlias": "net10.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.318/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

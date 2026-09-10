@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "nLEMHAJsMEo=",
+  "success": true,
+  "projectFilePath": "C:\\projects\\Ứng dụng web NC\\Culinary_Blog_Nhom5\\CulinaryBlog.API\\CulinaryBlog.API.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Maxsys\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.20\\microsoft.aspnetcore.openapi.9.0.20.nupkg.sha512",
+    "C:\\Users\\Maxsys\\.nuget\\packages\\microsoft.openapi\\1.6.30\\microsoft.openapi.1.6.30.nupkg.sha512"
+  ],
+  "logs": []
+}

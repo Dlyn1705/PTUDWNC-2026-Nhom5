@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mapster" Version="10.0.12" />
+    <PackageReference Include="Mapster.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="MediatR" Version="14.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CulinaryBlog.Domain\CulinaryBlog.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\Models\" />
+    <Folder Include="Common\Mappings\" />
+    <Folder Include="Contracts\Presistence\" />
+    <Folder Include="Features\Categories\Commands\CreateCategory\" />
+    <Folder Include="Features\Categories\Commands\UpdateCategory\" />
+    <Folder Include="DTOs\" />
+    <Folder Include="Features\Categories\Queries\GetCategories\" />
+    <Folder Include="Recipes\" />
+  </ItemGroup>
+
+</Project>
