@@ -188,10 +188,10 @@
 
 <h3>2. Cú pháp đặt tên nhánh (Branch Naming Convention)</h3>
 <p><b>Đối với tính năng mới:</b></p>
-<pre><code>mssv-tên-thành-viên-tên-chức-năng</code></pre>
+<pre><code>mssv-hoten-tenchucnang</code></pre>
 
 <p><b>Ví dụ minh họa:</b></p>
-<pre><code>2312663-DoDangDieuLinh-dang-nhap-oauth</code></pre>
+<pre><code>2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
 
 <h3>3. Quy trình làm việc nhóm (Workflow)</h3>
 <p><b>Lấy code mới nhất từ nhánh chính:</b></p>
@@ -199,12 +199,12 @@
 git pull origin main</code></pre>
 
 <p><b>Tạo và chuyển sang nhánh làm việc riêng:</b></p>
-<pre><code>git checkout -b 2312663-DoDangDieuLinh-dang-nhap-oauth</code></pre>
+<pre><code>git checkout -b 2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
 
 <p><b>Tiến hành lập trình, commit và đẩy nhánh lên Remote Repository:</b></p>
 <pre><code>git add .
 git commit -m "feat: implement google oauth authentication"
-git push origin 2312663-DoDangDieuLinh-dang-nhap-oauth</code></pre>
+git push origin 2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
 
 <p><b>Tạo Pull Request (PR):</b></p>
 <ul>
