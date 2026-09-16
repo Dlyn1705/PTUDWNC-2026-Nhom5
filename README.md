@@ -127,54 +127,50 @@
 
 <h2>📂 3. Cấu trúc Thư mục Dự án</h2>
 
-<pre><code>CulinaryBlog.sln
-├── src/
-│   ├── CulinaryBlog.Domain/                          ← Tầng trong cùng, không phụ thuộc gì
-│   │   ├── Entities/
-│   │   │   ├── Category.cs
-│   │   │   ├── Recipe.cs
-│   │   │   └── RecipeStep.cs
-│   │   ├── Interfaces/                               ← Interfaces cho Repository (abstraction)
-│   │   │   └── IRepository.cs
-│   │   └── Exceptions/
-│   │       └── DomainException.cs
-│   │
-│   ├── CulinaryBlog.Application/                     ← Use cases, phụ thuộc Domain
-│   │   ├── Features/                                 ← Vertical Slices theo tính năng
-│   │   │   ├── Categories/
-│   │   │   │   ├── Commands/
-│   │   │   │   │   ├── CreateCategory/
-│   │   │   │   │   └── UpdateCategory/
-│   │   │   │   └── Queries/
-│   │   │   │       └── GetCategories/
-│   │   │   └── Recipes/
-│   │   ├── DTOs/                                     ← Data Transfer Objects
+<pre><code>Culinary_Blog_Nhom5/
+│
+├── src/                                  # BACKEND (.NET 10 - Clean Architecture)
+│   ├── CulinaryBlog.Domain/              # 1. Tầng Domain: Entities, Enums, Exceptions, Value Objects
 │   │   ├── Common/
-│   │   │   ├── Models/PaginatedResult.cs
-│   │   │   └── Mappings/MappingConfig.cs
-│   │   ├── Contracts/
-│   │   │   └── Persistence/IApplicationDbContext.cs
-│   │   └── DependencyInjection.cs                    ← Extension method đăng ký DI
+│   │   ├── Entities/
+│   │   ├── Enums/
+│   │   └── Exceptions/
 │   │
-│   ├── CulinaryBlog.Infrastructure/                  ← EF Core, file storage, ...
-│   │   ├── Persistence/
-│   │   │   ├── ApplicationDbContext.cs
-│   │   │   └── Configurations/                       ← Fluent API entity configurations
-│   │   ├── Repositories/
-│   │   └── DependencyInjection.cs
+│   ├── CulinaryBlog.Application/         # 2. Tầng Application: CQRS, Features, DTOs, Behaviors
+│   │   ├── Common/
+│   │   ├── Contracts/                    # Interfaces (Persistence, Services)
+│   │   ├── DTOs/
+│   │   └── Features/                     # Slices: Auth, Categories, Recipes
 │   │
-│   └── CulinaryBlog.API/                             ← Presentation layer (Minimal APIs)
-│       ├── Endpoints/
-│       │   ├── CategoryEndpoints.cs
-│       │   └── RecipeEndpoints.cs
+│   ├── CulinaryBlog.Infrastructure/      # 3. Tầng Infrastructure: EF Core, PostgreSQL, Services ngoài
+│   │   ├── Authorization/
+│   │   ├── Persistence/                  # DbContext, Repositories, Configurations, Migrations
+│   │   └── Services/                     # JwtService, MinIO, MailKit, Redis
+│   │
+│   └── CulinaryBlog.API/                 # 4. Tầng Presentation: Minimal APIs, Endpoints, Middleware
+│       ├── Endpoints/                    # AuthEndpoints, CategoryEndpoints, RecipeEndpoints
+│       ├── Middleware/                   # GlobalException, CorrelationId
+│       ├── appsettings.json
 │       └── Program.cs
 │
-├── tests/
-│   ├── CulinaryBlog.Application.Tests/               ← Unit tests cho handlers
-│   └── CulinaryBlog.Integration.Tests/               ← Integration tests với TestContainers
+├── culinary-blog-web/                    # FRONTEND (Next.js 15 App Router)
+│   ├── app/                              # Định tuyến trang (Routing & Layouts)
+│   │   ├── (public)/                     # Trang công khai: recipes, categories, search
+│   │   ├── (auth)/                       # Trang xác thực: login, register
+│   │   ├── (dashboard)/                  # Trang bảo vệ: dashboard, recipes management
+│   │   ├── layout.tsx
+│   │   └── providers.tsx                 # QueryClientProvider, SessionProvider
+│   │
+│   ├── components/                       # UI Components (RecipeCard, RecipeDetail, Forms...)
+│   ├── hooks/                            # Custom hooks (TanStack Query, Infinite scroll)
+│   ├── lib/                              # Axios instance, Auth.js v5 setup
+│   ├── store/                            # Client state (Zustand)
+│   ├── types/                            # TypeScript types & Zod schemas
+│   ├── middleware.ts                     # Route protection
+│   └── next.config.ts                    # Image domains & config
 │
-├── docker-compose.yml                                ← Hạ tầng dịch vụ: PostgreSQL, Redis, MinIO, Seq
-└── README.md</code></pre>
+├── docker-compose.yml                    # Môi trường chạy PostgreSQL, Redis, MinIO
+└── Culinary_Blog_Nhom5.sln               # Solution file liên kết 4 projects backend
 
 ---
 
