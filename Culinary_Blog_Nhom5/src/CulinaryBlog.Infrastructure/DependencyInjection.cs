@@ -1,7 +1,65 @@
-﻿namespace CulinaryBlog.Infrastructure
-{
-    public class DependencyInjection
-    {
+using CulinaryBlog.Application.Contracts;
+using CulinaryBlog.Domain.Entities;
+using CulinaryBlog.Domain.Interfaces;
+using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Infrastructure.Persistence.Interceptors;
+using CulinaryBlog.Infrastructure.Repositories;
+using CulinaryBlog.Infrastructure.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
+namespace CulinaryBlog.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        // 1. Interceptors
+        services.AddScoped<AuditInterceptor>();
+
+        // 2. DbContext
+        string connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? "Host=localhost;Port=5432;Database=culinary_blog;Username=postgres;Password=postgres";
+
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
+            var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+            {
+                npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+            })
+            .AddInterceptors(auditInterceptor);
+        });
+
+        // 3. ASP.NET Core Identity
+        services.AddIdentityCore<ApplicationUser>(options =>
+        {
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequiredLength = 8;
+            options.User.RequireUniqueEmail = true;
+        })
+        .AddRoles<IdentityRole>()
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddDefaultTokenProviders();
+
+        // 4. Repositories & Unit of Work
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IRecipeRepository, RecipeRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // 5. Common Infrastructure Services
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        return services;
     }
 }
