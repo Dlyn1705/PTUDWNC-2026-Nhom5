@@ -36,13 +36,13 @@
   <tbody>
     <tr>
       <td align="center" style="border: 1px solid #d0d7de;">1</td>
-      <td align="center" style="border: 1px solid #d0d7de;"><b>2312663</b></td>
-      <td style="border: 1px solid #d0d7de;"><b>Đỗ Đặng Diệu Linh</b></td>
+      <td align="center" style="border: 1px solid #d0d7de;"><b>2312567</b></td>
+      <td style="border: 1px solid #d0d7de;"><b>Võ Thị Minh Ân</b></td>
       <td align="center" style="border: 1px solid #d0d7de;">
-        <a href="https://github.com/Dlyn1705">Dlyn1705</a>
+        <a href="https://github.com/anvodangiu">anvodangiu</a>
       </td>
       <td style="border: 1px solid #d0d7de; text-align: left;">
-        <b>Xác thực và Quản lý tài khoản</b>
+        <b>Xác thực, Quản lý tài khoản &amp; Giám sát cơ bản</b>
         <ul>
           <li><code>FR-AUTH-001</code>: Đăng ký tài khoản</li>
           <li><code>FR-AUTH-002</code>: Đăng nhập bằng Email / Mật khẩu</li>
@@ -51,30 +51,28 @@
           <li><code>FR-AUTH-005</code>: Đăng xuất</li>
           <li><code>FR-AUTH-006</code>: Xem hồ sơ cá nhân</li>
           <li><code>FR-AUTH-007</code>: Cập nhật Hồ sơ cá nhân</li>
-          <li><code>FR-JOB-001</code>: Welcome Email Job</li>
+          <li><code>FR-OBS-001</code>: Health Check Endpoints</li>
         </ul>
       </td>
     </tr>
     <tr>
       <td align="center" style="border: 1px solid #d0d7de;">2</td>
-      <td align="center" style="border: 1px solid #d0d7de;"><b>2312567</b></td>
-      <td style="border: 1px solid #d0d7de;"><b>Võ Thị Minh Ân</b></td>
+      <td align="center" style="border: 1px solid #d0d7de;"><b>2312663</b></td>
+      <td style="border: 1px solid #d0d7de;"><b>Đỗ Đặng Diệu Linh</b></td>
       <td align="center" style="border: 1px solid #d0d7de;">
-        <a href="https://github.com/anvodangiu">anvodangiu</a>
+        <a href="https://github.com/Dlyn1705">Dlyn1705</a>
       </td>
       <td style="border: 1px solid #d0d7de; text-align: left;">
-        <b>Quản lý Danh mục, Tìm kiếm &amp; Giám sát hệ thống</b>
+        <b>Quản lý Danh mục, Xem Công thức &amp; Sitemap</b>
         <ul>
           <li><code>FR-CAT-001</code>: Xem danh sách danh mục</li>
           <li><code>FR-CAT-002</code>: Xem chi tiết danh mục và công thức</li>
           <li><code>FR-CAT-003</code>: Tạo danh mục mới (Phân quyền Admin)</li>
           <li><code>FR-CAT-004</code>: Cập nhật danh mục (Phân quyền Admin)</li>
           <li><code>FR-CAT-005</code>: Xóa danh mục (Phân quyền Admin)</li>
-          <li><code>FR-SRCH-001</code>: Tìm kiếm toàn văn bản (FTS)</li>
-          <li><code>FR-SRCH-002/003/004</code>: Lọc, sắp xếp và phân trang</li>
-          <li><code>FR-OBS-001</code>: Health Check Endpoints</li>
-          <li><code>FR-OBS-002</code>: Structured Logging</li>
-          <li><code>FR-OBS-003</code>: Distributed Tracing &amp; Metrics</li>
+          <li><code>FR-RCP-001</code>: Xem danh sách công thức</li>
+          <li><code>FR-RCP-002</code>: Xem chi tiết công thức</li>
+          <li><code>FR-JOB-003</code>: Sitemap Generation Job*</li>
         </ul>
       </td>
     </tr>
@@ -86,15 +84,16 @@
         <a href="https://github.com/anhtuan101">anhtuan101</a>
       </td>
       <td style="border: 1px solid #d0d7de; text-align: left;">
-        <b>Soạn thảo, Vòng đời Công thức &amp; Lưu trữ File</b>
+        <b>Tìm kiếm, Lưu trữ File &amp; Vòng đời Công thức</b>
         <ul>
-          <li><code>FR-RCP-001</code>: Xem danh sách công thức</li>
-          <li><code>FR-RCP-002</code>: Xem chi tiết công thức</li>
-          <li><code>FR-RCP-003</code>: Tạo công thức nấu ăn mới (Phân quyền tác giả/Admin)</li>
-          <li><code>FR-RCP-004</code>: Cập nhật công thức (Phân quyền)</li>
+          <li><code>FR-SRCH-001</code>: Tìm kiếm toàn văn bản</li>
+          <li><code>FR-SRCH-002/003/004</code>: Lọc, sắp xếp và phân trang*</li>
+          <li><code>FR-FILE-001</code>: Upload File lên MinIO*</li>
+          <li><code>FR-FILE-002</code>: Xóa File khỏi MinIO*</li>
+          <li><code>FR-OBS-002</code>: Structured Logging*</li>
+          <li><code>FR-OBS-003</code>: Distributed Tracing &amp; Metrics*</li>
           <li><code>FR-RCP-005</code>: Xuất bản / Hủy xuất bản công thức</li>
-          <li><code>FR-FILE-001</code>: Upload File lên MinIO</li>
-          <li><code>FR-FILE-002</code>: Xóa File khỏi MinIO</li>
+          <li><code>FR-RCP-006</code>: Lưu trữ công thức (Archive)</li>
         </ul>
       </td>
     </tr>
@@ -106,15 +105,16 @@
         <a href="https://github.com/btram0812">btram0812</a>
       </td>
       <td style="border: 1px solid #d0d7de; text-align: left;">
-        <b>Hiển thị Chi tiết Công thức &amp; Background Jobs</b>
+        <b>Soạn thảo Chi tiết Công thức &amp; Background Jobs</b>
         <ul>
-          <li><code>FR-RCP-006</code>: Lưu trữ công thức (Archive)</li>
+          <li><code>FR-RCP-003</code>: Tạo công thức nấu ăn mới (Phân quyền tác giả/Admin)</li>
+          <li><code>FR-RCP-004</code>: Cập nhật công thức (Phân quyền)</li>
           <li><code>FR-RCP-007</code>: Xóa công thức</li>
           <li><code>FR-RCP-008</code>: Quản lý ảnh công thức</li>
           <li><code>FR-RCP-009</code>: Quản lý nguyên liệu</li>
           <li><code>FR-RCP-010</code>: Quản lý các bước thực hiện</li>
-          <li><code>FR-JOB-002</code>: Image Resize / Thumbnail Job</li>
-          <li><code>FR-JOB-003</code>: Sitemap Generation Job</li>
+          <li><code>FR-JOB-001</code>: Welcome Email Job*</li>
+          <li><code>FR-JOB-002</code>: Image Resize / Thumbnail Job*</li>
         </ul>
       </td>
     </tr>
@@ -127,54 +127,50 @@
 
 <h2>📂 3. Cấu trúc Thư mục Dự án</h2>
 
-<pre><code>CulinaryBlog.sln
-├── src/
-│   ├── CulinaryBlog.Domain/                          ← Tầng trong cùng, không phụ thuộc gì
-│   │   ├── Entities/
-│   │   │   ├── Category.cs
-│   │   │   ├── Recipe.cs
-│   │   │   └── RecipeStep.cs
-│   │   ├── Interfaces/                               ← Interfaces cho Repository (abstraction)
-│   │   │   └── IRepository.cs
-│   │   └── Exceptions/
-│   │       └── DomainException.cs
-│   │
-│   ├── CulinaryBlog.Application/                     ← Use cases, phụ thuộc Domain
-│   │   ├── Features/                                 ← Vertical Slices theo tính năng
-│   │   │   ├── Categories/
-│   │   │   │   ├── Commands/
-│   │   │   │   │   ├── CreateCategory/
-│   │   │   │   │   └── UpdateCategory/
-│   │   │   │   └── Queries/
-│   │   │   │       └── GetCategories/
-│   │   │   └── Recipes/
-│   │   ├── DTOs/                                     ← Data Transfer Objects
+<pre><code>Culinary_Blog_Nhom5/
+│
+├── src/                                  # BACKEND (.NET 10 - Clean Architecture)
+│   ├── CulinaryBlog.Domain/              # 1. Tầng Domain: Entities, Enums, Exceptions, Value Objects
 │   │   ├── Common/
-│   │   │   ├── Models/PaginatedResult.cs
-│   │   │   └── Mappings/MappingConfig.cs
-│   │   ├── Contracts/
-│   │   │   └── Persistence/IApplicationDbContext.cs
-│   │   └── DependencyInjection.cs                    ← Extension method đăng ký DI
+│   │   ├── Entities/
+│   │   ├── Enums/
+│   │   └── Exceptions/
 │   │
-│   ├── CulinaryBlog.Infrastructure/                  ← EF Core, file storage, ...
-│   │   ├── Persistence/
-│   │   │   ├── ApplicationDbContext.cs
-│   │   │   └── Configurations/                       ← Fluent API entity configurations
-│   │   ├── Repositories/
-│   │   └── DependencyInjection.cs
+│   ├── CulinaryBlog.Application/         # 2. Tầng Application: CQRS, Features, DTOs, Behaviors
+│   │   ├── Common/
+│   │   ├── Contracts/                    # Interfaces (Persistence, Services)
+│   │   ├── DTOs/
+│   │   └── Features/                     # Slices: Auth, Categories, Recipes
 │   │
-│   └── CulinaryBlog.API/                             ← Presentation layer (Minimal APIs)
-│       ├── Endpoints/
-│       │   ├── CategoryEndpoints.cs
-│       │   └── RecipeEndpoints.cs
+│   ├── CulinaryBlog.Infrastructure/      # 3. Tầng Infrastructure: EF Core, PostgreSQL, Services ngoài
+│   │   ├── Authorization/
+│   │   ├── Persistence/                  # DbContext, Repositories, Configurations, Migrations
+│   │   └── Services/                     # JwtService, MinIO, MailKit, Redis
+│   │
+│   └── CulinaryBlog.API/                 # 4. Tầng Presentation: Minimal APIs, Endpoints, Middleware
+│       ├── Endpoints/                    # AuthEndpoints, CategoryEndpoints, RecipeEndpoints
+│       ├── Middleware/                   # GlobalException, CorrelationId
+│       ├── appsettings.json
 │       └── Program.cs
 │
-├── tests/
-│   ├── CulinaryBlog.Application.Tests/               ← Unit tests cho handlers
-│   └── CulinaryBlog.Integration.Tests/               ← Integration tests với TestContainers
+├── culinary-blog-web/                    # FRONTEND (Next.js 15 App Router)
+│   ├── app/                              # Định tuyến trang (Routing & Layouts)
+│   │   ├── (public)/                     # Trang công khai: recipes, categories, search
+│   │   ├── (auth)/                       # Trang xác thực: login, register
+│   │   ├── (dashboard)/                  # Trang bảo vệ: dashboard, recipes management
+│   │   ├── layout.tsx
+│   │   └── providers.tsx                 # QueryClientProvider, SessionProvider
+│   │
+│   ├── components/                       # UI Components (RecipeCard, RecipeDetail, Forms...)
+│   ├── hooks/                            # Custom hooks (TanStack Query, Infinite scroll)
+│   ├── lib/                              # Axios instance, Auth.js v5 setup
+│   ├── store/                            # Client state (Zustand)
+│   ├── types/                            # TypeScript types & Zod schemas
+│   ├── middleware.ts                     # Route protection
+│   └── next.config.ts                    # Image domains & config
 │
-├── docker-compose.yml                                ← Hạ tầng dịch vụ: PostgreSQL, Redis, MinIO, Seq
-└── README.md</code></pre>
+├── docker-compose.yml                    # Môi trường chạy PostgreSQL, Redis, MinIO
+└── Culinary_Blog_Nhom5.sln               # Solution file liên kết 4 projects backend
 
 ---
 
