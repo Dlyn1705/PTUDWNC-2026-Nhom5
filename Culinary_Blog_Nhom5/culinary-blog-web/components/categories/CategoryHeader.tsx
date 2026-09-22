@@ -1,57 +1,50 @@
 import React from "react";
 import Link from "next/link";
-import { UtensilsIcon } from "../common/Icons";
+import { UtensilsCrossed } from "lucide-react";
 
 interface CategoryHeaderProps {
   totalCategories: number;
   totalRecipes: number;
 }
 
-export default function CategoryHeader({
+export function CategoryHeader({
   totalCategories,
   totalRecipes,
 }: CategoryHeaderProps) {
   return (
     <div className="pt-8 pb-10">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-sm text-zinc-500 mb-6 font-medium">
-        <Link href="/" className="hover:text-zinc-900 transition-colors">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
+        <Link href="/" className="transition-colors hover:text-primary">
           Home
         </Link>
         <span>/</span>
-        <span className="text-zinc-800">Categories</span>
+        <span className="font-medium text-foreground">Categories</span>
       </nav>
 
-      {/* Main Header Content with Badges */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-        <div className="space-y-3 max-w-2xl">
-          {/* Eyebrow */}
-          <span className="inline-block text-xs font-bold tracking-widest text-[#DC4E3D] uppercase">
+      {/* Header Content */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             Explore
-          </span>
-
-          {/* Headline H1 */}
-          <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 tracking-tight">
+          </p>
+          <h1 className="mt-2 font-display text-4xl font-semibold text-foreground">
             All categories
           </h1>
-
-          {/* Description */}
-          <p className="text-zinc-600 text-base sm:text-lg leading-relaxed">
+          <p className="mt-3 max-w-prose text-muted-foreground text-sm sm:text-base leading-relaxed">
             Every corner of the kitchen, organised. Pick a category to see its full recipe collection.
           </p>
         </div>
 
-        {/* Counter Pill Badge */}
-        <div className="self-start md:self-end">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-200/80 bg-white text-zinc-700 text-sm font-medium shadow-2xs">
-            <UtensilsIcon className="w-4 h-4 text-[#DC4E3D]" />
-            <span>
-              {totalCategories} {totalCategories === 1 ? "category" : "categories"} ·{" "}
-              {totalRecipes} {totalRecipes === 1 ? "recipe" : "recipes"}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm text-muted-foreground shadow-soft">
+          <UtensilsCrossed className="size-4 text-primary" />
+          <span className="tabular-nums font-medium">
+            {totalCategories} categories · {totalRecipes} recipes
+          </span>
         </div>
       </div>
     </div>
   );
 }
+
+export default CategoryHeader;

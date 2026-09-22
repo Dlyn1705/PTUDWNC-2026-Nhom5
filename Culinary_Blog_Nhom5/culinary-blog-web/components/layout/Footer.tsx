@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ChefHatIcon } from "../common/Icons";
+import { ChefHat, Heart, Sparkles, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
@@ -12,109 +14,158 @@ export default function Footer() {
     e.preventDefault();
     if (email.trim()) {
       setSubscribed(true);
+      setEmail("");
     }
   };
 
   return (
-    <footer className="bg-[#f9fafb] border-t border-zinc-200/80 mt-auto text-zinc-600">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16">
-          {/* Column 1: Brand & Slogan */}
-          <div className="md:col-span-4 space-y-4">
-            <Link href="/" className="flex items-center gap-3 group inline-flex">
-              <div className="w-9 h-9 rounded-full bg-[#DC4E3D] text-white flex items-center justify-center">
-                <ChefHatIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-zinc-900">
-                Culinary Blog
-              </span>
-            </Link>
-            <p className="text-zinc-600 text-sm leading-relaxed max-w-sm">
-              Slow recipes, tested twice, written for real kitchens and imperfect ovens.
-            </p>
-          </div>
+    <footer className="mt-28 border-t border-border bg-card/70 backdrop-blur-sm">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
+        {/* Brand & Slogan */}
+        <div className="space-y-4 md:col-span-2 lg:col-span-1">
+          <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
+              <ChefHat className="size-5" />
+            </span>
+            <span className="font-display text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+              Culinary Blog
+            </span>
+          </Link>
 
-          {/* Column 2: Sitemap */}
-          <div className="md:col-span-3 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-900">
-              Sitemap
-            </h3>
-            <ul className="space-y-2.5 text-sm">
-              <li>
-                <Link href="/" className="hover:text-zinc-900 transition-colors">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories" className="hover:text-zinc-900 transition-colors">
-                  All Categories
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories/pasta" className="hover:text-zinc-900 transition-colors">
-                  Pasta
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories/mains" className="hover:text-zinc-900 transition-colors">
-                  Mains
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories/baking" className="hover:text-zinc-900 transition-colors">
-                  Baking
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories/salads" className="hover:text-zinc-900 transition-colors">
-                  Salads
-                </Link>
-              </li>
-              <li>
-                <Link href="/dashboard" className="hover:text-zinc-900 transition-colors">
-                  Dashboard
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground max-w-xs">
+            Slow, tested-twice recipes for real home kitchens and everyday ovens. Inspired by seasonal produce and mindful cooking.
+          </p>
 
-          {/* Column 3: Newsletter */}
-          <div className="md:col-span-5 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-900">
-              Newsletter
-            </h3>
-            <p className="text-sm text-zinc-600">
-              One recipe every Friday. No spam, no ten-paragraph preamble.
-            </p>
-
-            {subscribed ? (
-              <div className="p-3 bg-[#FDF3EE] border border-[#F6D0BE] text-[#C2410C] rounded-xl text-sm font-medium">
-                Thank you for subscribing! Check your inbox soon.
-              </div>
-            ) : (
-              <form onSubmit={handleSubscribe} className="flex items-center gap-2 max-w-md">
-                <input
-                  type="email"
-                  required
-                  placeholder="you@kitchen.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-full border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#DC4E3D]/30 focus:border-[#DC4E3D] transition-all"
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-full bg-[#DC4E3D] hover:bg-[#C43D2C] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer"
-                >
-                  Join
-                </button>
-              </form>
-            )}
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground shadow-2xs">
+            <Sparkles className="size-3.5 text-primary" />
+            <span>Honest food, clear steps</span>
           </div>
         </div>
 
-        {/* Bottom Bar: Copyright */}
-        <div className="mt-16 pt-8 border-t border-zinc-200/60 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
-          <p>© 2026 Culinary Blog. All rights reserved.</p>
+        {/* Explore Navigation */}
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-foreground">
+            Explore
+          </h3>
+          <ul className="space-y-2.5 text-sm text-muted-foreground">
+            <li>
+              <Link href="/" className="transition-colors hover:text-primary">
+                Home Page
+              </Link>
+            </li>
+            <li>
+              <Link href="/recipes" className="transition-colors hover:text-primary">
+                All Recipes Catalog
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories" className="transition-colors hover:text-primary">
+                Recipe Categories
+              </Link>
+            </li>
+            <li>
+              <Link href="/search" className="transition-colors hover:text-primary">
+                Search & Filters
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/categories" className="transition-colors hover:text-primary">
+                Admin Management
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* Featured Categories */}
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-foreground">
+            Categories
+          </h3>
+          <ul className="space-y-2.5 text-sm text-muted-foreground">
+            <li>
+              <Link href="/categories/pasta" className="transition-colors hover:text-primary">
+                Handmade Pasta
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories/mains" className="transition-colors hover:text-primary">
+                Slow Mains & Roasts
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories/baking" className="transition-colors hover:text-primary">
+                Artisan Baking
+              </Link>
+            </li>
+            <li>
+              <Link href="/categories/salads" className="transition-colors hover:text-primary">
+                Crisp Garden Salads
+              </Link>
+            </li>
+            <li>
+              <Link href="/sitemap.xml" className="transition-colors hover:text-primary font-medium text-xs text-primary">
+                XML Sitemap (SEO)
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* Newsletter Subscription */}
+        <div className="space-y-3.5">
+          <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-foreground">
+            Kitchen Newsletter
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            One tested recipe every Friday. No clutter, no ten-page preambles.
+          </p>
+
+          {subscribed ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50/70 p-3.5 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <span>Thank you! We have added you to our Friday dispatch.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSubscribe} className="space-y-2">
+              <div className="relative">
+                <Input
+                  type="email"
+                  required
+                  placeholder="chef@kitchen.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-xl h-10 pr-20 bg-background border-border text-sm"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="absolute right-1 top-1 h-8 rounded-lg px-3.5 text-xs shadow-2xs font-semibold"
+                >
+                  Join
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground/80">
+                Zero spam. Unsubscribe anytime with one click.
+              </p>
+            </form>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="border-t border-border/80 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+          <p>
+            © {new Date().getFullYear()} Culinary Blog. Designed with care for passionate cooks.
+          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/sitemap.xml" className="hover:text-primary transition-colors">
+              Sitemap
+            </Link>
+            <span className="text-border">•</span>
+            <span className="inline-flex items-center gap-1">
+              Cooked with <Heart className="size-3 text-primary fill-primary" /> twice tested
+            </span>
+          </div>
         </div>
       </div>
     </footer>

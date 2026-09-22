@@ -1,48 +1,8 @@
 import axiosClient from "./axiosClient";
-import { CategoryDto } from "@/types/category.types";
+import { CategoryDto, CreateCategoryDto, UpdateCategoryDto } from "@/types/category.types";
+import { mockCategories } from "../mock-data";
 
-export const FALLBACK_CATEGORIES: CategoryDto[] = [
-  {
-    id: "c1-pasta",
-    name: "Pasta",
-    slug: "pasta",
-    description: "Hand-rolled, baked and skillet pastas for every night of the week.",
-    imageUrl: "https://images.unsplash.com/photo-1621996346565-e3d5d6281292?q=80&w=800&auto=format&fit=crop",
-    orderIndex: 1,
-    recipeCount: 1,
-    avgCookTimeMinutes: 40,
-  },
-  {
-    id: "c2-mains",
-    name: "Mains",
-    slug: "mains",
-    description: "Centerpiece dishes worth gathering around.",
-    imageUrl: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?q=80&w=800&auto=format&fit=crop",
-    orderIndex: 2,
-    recipeCount: 2,
-    avgCookTimeMinutes: 123,
-  },
-  {
-    id: "c3-baking",
-    name: "Baking",
-    slug: "baking",
-    description: "Cakes, breads and slow afternoons with the oven on.",
-    imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop",
-    orderIndex: 3,
-    recipeCount: 1,
-    avgCookTimeMinutes: 57,
-  },
-  {
-    id: "c4-salads",
-    name: "Salads",
-    slug: "salads",
-    description: "Crisp greens, robust grains, and vibrant dressings for all seasons.",
-    imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop",
-    orderIndex: 4,
-    recipeCount: 0,
-    avgCookTimeMinutes: null,
-  },
-];
+let localCategories: CategoryDto[] = [...mockCategories];
 
 export const categoryApi = {
   async getAll(): Promise<CategoryDto[]> {
@@ -51,10 +11,9 @@ export const categoryApi = {
       if (response.data && response.data.length > 0) {
         return response.data;
       }
-      return FALLBACK_CATEGORIES;
+      return localCategories;
     } catch {
-      // Return high-fidelity fallback when API is not yet available or offline
-      return FALLBACK_CATEGORIES;
+      return localCategories;
     }
   },
 
@@ -63,7 +22,76 @@ export const categoryApi = {
       const categories = await this.getAll();
       return categories.find((c) => c.slug.toLowerCase() === slug.toLowerCase()) || null;
     } catch {
-      return FALLBACK_CATEGORIES.find((c) => c.slug.toLowerCase() === slug.toLowerCase()) || null;
+      return localCategories.find((c) => c.slug.toLowerCase() === slug.toLowerCase()) || null;
     }
+  },
+
+  async create(dto: CreateCategoryDto): Promise<CategoryDto> {
+    const slug = dto.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    try {
+      const response = await axiosClient.post<CategoryDto>("/api/v1/categories", dto);
+      if (response.data) {
+        return response.data;
+      }
+    } catch {
+      // Offline fallback handling
+    }
+
+    const newCategory: CategoryDto = {
+      id: `c-${Date.now()}`,
+      name: dto.name,
+      slug,
+      description: dto.description || null,
+      imageUrl: dto.imageUrl || null,
+      orderIndex: dto.orderIndex || localCategories.length + 1,
+      recipeCount: 0,
+      avgCookTimeMinutes: null,
+    };
+    localCategories = [newCategory, ...localCategories];
+    return newCategory;
+  },
+
+  async update(id: string, dto: UpdateCategoryDto): Promise<CategoryDto> {
+    try {
+      const response = await axiosClient.put<CategoryDto>(`/api/v1/categories/${id}`, dto);
+      if (response.data) {
+        return response.data;
+      }
+    } catch {
+      // Offline fallback handling
+    }
+
+    const index = localCategories.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      localCategories[index] = {
+        ...localCategories[index],
+        name: dto.name,
+        description: dto.description ?? localCategories[index].description,
+        imageUrl: dto.imageUrl ?? localCategories[index].imageUrl,
+        orderIndex: dto.orderIndex ?? localCategories[index].orderIndex,
+      };
+      return localCategories[index];
+    }
+    throw new Error("Category not found");
+  },
+
+  async delete(id: string): Promise<void> {
+    // Check if category has recipes
+    const cat = localCategories.find((c) => c.id === id);
+    if (cat && cat.recipeCount > 0) {
+      throw new Error("Cannot delete category with associated recipes.");
+    }
+
+    try {
+      await axiosClient.delete(`/api/v1/categories/${id}`);
+    } catch {
+      // Offline fallback
+    }
+    localCategories = localCategories.filter((c) => c.id !== id);
   },
 };
