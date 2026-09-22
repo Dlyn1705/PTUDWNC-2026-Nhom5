@@ -23,8 +23,10 @@ public class RecipeStepConfiguration : IEntityTypeConfiguration<RecipeStep>
         builder.Property(s => s.ImageUrl)
             .HasMaxLength(500);
 
-        builder.Property(s => s.RowVersion)
-            .IsRowVersion();
+        builder.Property(r => r.RowVersion)
+            .IsConcurrencyToken()
+            .ValueGeneratedNever()
+            .IsRequired();
 
         builder.HasOne(s => s.Recipe)
             .WithMany(r => r.Steps)

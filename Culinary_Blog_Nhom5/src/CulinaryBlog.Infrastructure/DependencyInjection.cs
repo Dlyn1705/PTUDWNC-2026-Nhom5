@@ -20,8 +20,11 @@ public static class DependencyInjection
         services.AddScoped<AuditInterceptor>();
 
         // 2. DbContext
-        string connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? "Host=localhost;Port=5432;Database=culinary_blog;Username=postgres;Password=postgres";
+        string connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' was not found.");
+        
+        Console.WriteLine($"[DB] ConnectionString: {connectionString}");
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
