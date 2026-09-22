@@ -1,6 +1,7 @@
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Interfaces;
+using CulinaryBlog.Domain.Settings;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Interceptors;
 using CulinaryBlog.Infrastructure.Repositories;
@@ -34,6 +35,8 @@ public static class DependencyInjection
             .AddInterceptors(auditInterceptor);
         });
 
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+
         // 3. ASP.NET Core Identity
         services.AddIdentityCore<ApplicationUser>(options =>
         {
@@ -57,6 +60,7 @@ public static class DependencyInjection
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
