@@ -24,7 +24,8 @@ public class RecipeStepConfiguration : IEntityTypeConfiguration<RecipeStep>
             .HasMaxLength(500);
 
         builder.Property(s => s.RowVersion)
-            .IsRowVersion();
+            .IsConcurrencyToken()
+            .ValueGeneratedNever();
 
         builder.HasOne(s => s.Recipe)
             .WithMany(r => r.Steps)

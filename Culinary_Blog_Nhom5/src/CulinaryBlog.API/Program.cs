@@ -3,7 +3,10 @@ using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
 using CulinaryBlog.Infrastructure;
+using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Infrastructure.Persistence.Seeders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
@@ -73,6 +76,17 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Apply pending migrations and seed deterministic demo data in Development.
+if (app.Environment.IsDevelopment())
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+
+    var databaseSeeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    await databaseSeeder.SeedAsync();
+}
 
 // 6. Request Pipeline & Middlewares
 app.UseMiddleware<CorrelationIdMiddleware>();

@@ -33,7 +33,8 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasDefaultValue(0);
 
         builder.Property(c => c.RowVersion)
-            .IsRowVersion();
+            .IsConcurrencyToken()
+            .ValueGeneratedNever();
 
         // Soft delete global query filter
         builder.HasQueryFilter(c => !c.IsDeleted);

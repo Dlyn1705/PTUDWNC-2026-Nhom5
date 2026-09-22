@@ -32,7 +32,8 @@ public class RecipeImageConfiguration : IEntityTypeConfiguration<RecipeImage>
             .HasDefaultValue(0);
 
         builder.Property(img => img.RowVersion)
-            .IsRowVersion();
+            .IsConcurrencyToken()
+            .ValueGeneratedNever();
 
         builder.HasOne(img => img.Recipe)
             .WithMany(r => r.Images)
