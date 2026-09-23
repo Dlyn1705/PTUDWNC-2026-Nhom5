@@ -32,8 +32,11 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.OrderIndex)
             .HasDefaultValue(0);
 
+        // PostgreSQL: dùng concurrency token, không dùng SQL Server rowversion
         builder.Property(c => c.RowVersion)
-            .IsRowVersion();
+            .IsConcurrencyToken()
+            .ValueGeneratedNever()
+            .IsRequired();
 
         // Soft delete global query filter
         builder.HasQueryFilter(c => !c.IsDeleted);
