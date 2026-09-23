@@ -257,10 +257,7 @@ export default async function HomePage() {
                     </p>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-                    <span>
-                      {category.avgCookTimeMinutes ? `~${category.avgCookTimeMinutes} min avg` : "Hand-tested"}
-                    </span>
+                  <div className="mt-4 flex items-center justify-end border-t border-border pt-3 text-xs text-muted-foreground">
                     <span className="font-semibold text-primary inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                       Explore <ArrowRight className="size-3" />
                     </span>

@@ -1,9 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChefHat, Clock, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
 import { categoryApi } from "@/lib/api/categoryApi";
-import { recipeApi } from "@/lib/api/recipeApi";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { Button } from "@/components/ui/button";
 
@@ -14,11 +13,13 @@ interface CategoryDetailPageProps {
 
 export async function generateMetadata({ params }: CategoryDetailPageProps) {
   const { slug } = await params;
-  const category = await categoryApi.getBySlug(slug);
+  const result = await categoryApi.getBySlug(slug, 1, 1);
 
-  if (!category) {
+  if (!result) {
     return { title: "Category Not Found — Culinary Blog" };
   }
+
+  const { category } = result;
 
   return {
     title: `${category.name} Recipes — Culinary Blog`,
@@ -42,45 +43,26 @@ export default async function CategoryDetailPage({
   const currentPage = Math.max(1, Number(sp.page || 1));
   const PAGE_SIZE = 12;
 
-  const category = await categoryApi.getBySlug(slug);
-
-  if (!category) {
-    notFound();
-  }
-
-  const [allRecipes, allCategories] = await Promise.all([
-    recipeApi.getAll(),
+  const [result, allCategories] = await Promise.all([
+    categoryApi.getBySlug(slug, currentPage, PAGE_SIZE),
     categoryApi.getAll(),
   ]);
 
-  const categoryRecipes = allRecipes.filter(
-    (r) =>
-      r.categoryId === category.id ||
-      r.categoryName?.toLowerCase() === category.name.toLowerCase()
-  );
+  if (!result) {
+    notFound();
+  }
 
-  const totalTime = categoryRecipes.reduce(
-    (sum, r) => sum + (r.prepTimeMinutes || 0) + (r.cookTimeMinutes || 0),
-    0
-  );
-  const avgTime = categoryRecipes.length
-    ? Math.round(totalTime / categoryRecipes.length)
-    : category.avgCookTimeMinutes || 0;
+  const { category, recipes: paginatedRecipes, meta } = result;
 
   const cover =
     category.imageUrl ||
-    categoryRecipes[0]?.images?.find((i) => i.isPrimary)?.url ||
-    categoryRecipes[0]?.images?.[0]?.url;
+    paginatedRecipes[0]?.images?.find((i) => i.isPrimary)?.url ||
+    paginatedRecipes[0]?.images?.[0]?.url;
 
   const otherCategories = allCategories.filter((c) => c.id !== category.id).slice(0, 3);
 
-  // Pagination if recipes count > 12
-  const totalRecipes = categoryRecipes.length;
-  const totalPages = Math.ceil(totalRecipes / PAGE_SIZE);
-  const paginatedRecipes = categoryRecipes.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+  const totalRecipes = meta.totalCount;
+  const totalPages = meta.totalPages;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-12">
@@ -118,12 +100,6 @@ export default async function CategoryDetailPage({
               {totalRecipes} {totalRecipes === 1 ? "recipe" : "recipes"}
             </span>
 
-            {avgTime > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 tabular-nums shadow-2xs font-semibold text-foreground">
-                <Clock className="size-3.5 text-primary" />
-                ~{avgTime} min avg cook time
-              </span>
-            )}
           </div>
         </div>
 

@@ -1,11 +1,11 @@
 import React from "react";
-import { RecipeDto } from "@/types/recipe.types";
+import { RecipeCardDto } from "@/types/recipe.types";
 import { RecipeCard } from "./RecipeCard";
 import { ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RecipeGridProps {
-  recipes: RecipeDto[];
+  recipes: RecipeCardDto[];
   isLoading?: boolean;
   emptyMessage?: string;
   viewMode?: "grid" | "list";

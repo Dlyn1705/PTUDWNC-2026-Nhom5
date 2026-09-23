@@ -2,11 +2,11 @@ import React from "react";
 import Link from "next/link";
 import { Clock, Flame, Users, ChefHat } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { difficultyLabel, type RecipeDto, type DifficultyValue } from "@/types/recipe.types";
+import { difficultyLabel, type RecipeCardDto, type DifficultyValue } from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
 
 interface RecipeCardProps {
-  recipe: RecipeDto;
+  recipe: RecipeCardDto;
   viewMode?: "grid" | "list";
   showStatusBadge?: boolean;
 }

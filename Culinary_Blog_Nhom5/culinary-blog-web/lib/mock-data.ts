@@ -31,7 +31,6 @@ export const mockCategories: CategoryDto[] = [
     imageUrl: "https://images.unsplash.com/photo-1621996346565-e3d5d6281292?q=80&w=800&auto=format&fit=crop",
     recipeCount: 2,
     orderIndex: 1,
-    avgCookTimeMinutes: 25,
   },
   {
     id: "c-2",
@@ -41,7 +40,6 @@ export const mockCategories: CategoryDto[] = [
     imageUrl: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?q=80&w=800&auto=format&fit=crop",
     recipeCount: 3,
     orderIndex: 2,
-    avgCookTimeMinutes: 75,
   },
   {
     id: "c-3",
@@ -51,7 +49,6 @@ export const mockCategories: CategoryDto[] = [
     imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop",
     recipeCount: 1,
     orderIndex: 3,
-    avgCookTimeMinutes: 40,
   },
   {
     id: "c-4",
@@ -61,7 +58,6 @@ export const mockCategories: CategoryDto[] = [
     imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop",
     recipeCount: 1,
     orderIndex: 4,
-    avgCookTimeMinutes: 10,
   },
 ];
 
