@@ -1,4 +1,4 @@
-# 🍳 PTUDWNC-2026-Nhom5: Culinary Blog
+#  PTUDWNC-2026-Nhom5: Culinary Blog
 
 > <b>Đồ án môn học:</b> Phát triển Ứng dụng Web Nâng cao (V4)<br/>
 > <b>Kiến trúc:</b> Clean Architecture + CQRS (.NET 10 Minimal APIs) & Next.js 15 App Router
@@ -19,7 +19,7 @@
 
 ---
 
-<h2>👥 2. Thành viên Nhóm &amp; Phân công Công việc</h2>
+<h2> 2. Thành viên Nhóm &amp; Phân công Công việc</h2>
 
 <div align="center">
 
@@ -125,7 +125,7 @@
 
 ---
 
-<h2>📂 3. Cấu trúc Thư mục Dự án</h2>
+<h2> 3. Cấu trúc Thư mục Dự án</h2>
 
 <pre><code>PTUDWNC-2026-Nhom5/
 │
@@ -156,7 +156,7 @@
 
 ---
 
-<h2>🌿 4. Quy ước Làm việc Nhóm với Git (Git Workflow)</h2>
+<h2> 4. Quy ước Làm việc Nhóm với Git (Git Workflow)</h2>
 
 <p>Toàn bộ thành viên trong nhóm bắt buộc phải tuân thủ nghiêm ngặt các quy ước Git dưới đây nhằm đảm bảo tính đồng nhất, an toàn và chuyên nghiệp cho mã nguồn dự án.</p>
 
@@ -417,7 +417,7 @@ git commit -m "feat(categories): thêm api xem danh mục công thức"</code></
 </table>
 
 <h4>Mô tả PR (PR Template)</h4>
-<p>⚠️ <b>PR không có mô tả sẽ bị đóng.</b> Mô tả phải trả lời được: làm gì, tại sao, và kiểm thử thế nào.</p>
+<p> <b>PR không có mô tả sẽ bị đóng.</b> Mô tả phải trả lời được: làm gì, tại sao, và kiểm thử thế nào.</p>
 
 <pre><code>## Mô tả
 Ngắn gọn PR này làm gì và giải quyết vấn đề gì.
@@ -509,7 +509,7 @@ cd PTUDWNC-2026-Nhom5</code></pre>
 <pre><code>"ConnectionStrings": {
   "DefaultConnection": "Host=localhost;Port=5432;Database=culinary_blog_db;Username=postgres;Password=Password123!"
 }</code></pre>
-<p>⚠️ <i>Lưu ý: Tuyệt đối không commit file cấu hình chứa mật khẩu nhạy cảm của cá nhân lên Git.</i></p>
+<p> <i>Lưu ý: Tuyệt đối không commit file cấu hình chứa mật khẩu nhạy cảm của cá nhân lên Git.</i></p>
 
 <p><b>3. Khởi chạy Backend API bằng .NET CLI:</b></p>
 <pre><code>dotnet run --project src/CulinaryBlog.API</code></pre>
@@ -536,7 +536,7 @@ cd PTUDWNC-2026-Nhom5</code></pre>
 
 ---
 
-<h3>⚡ 5.3. Khởi động Nhanh Toàn bộ Hệ thống (One-Click Dev Script)</h3>
+<h3> 5.3. Khởi động Nhanh Toàn bộ Hệ thống (One-Click Dev Script)</h3>
 <p>Dự án đã tích hợp sẵn script tự động kích hoạt đồng thời cả Backend (.NET 10) và Frontend (Next.js) trong 2 cửa sổ dòng lệnh riêng biệt:</p>
 
 <p><b>Dành cho Windows Command Prompt / Batch:</b></p>
@@ -549,7 +549,7 @@ run-dev.bat</code></pre>
 
 ---
 
-<h3>🌐 5.4. Bảng Tổng hợp URL &amp; Cổng Dịch vụ</h3>
+<h3> 5.4. Bảng Tổng hợp URL &amp; Cổng Dịch vụ</h3>
 <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
   <thead>
     <tr bgcolor="#f6f8fa">
@@ -599,7 +599,7 @@ run-dev.bat</code></pre>
 
 ---
 
-<h3>🛠️ 5.5. Các Lệnh Thường Dùng (Cheatsheet)</h3>
+<h3> 5.5. Các Lệnh Thường Dùng (Cheatsheet)</h3>
 <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
   <thead>
     <tr bgcolor="#f6f8fa">
