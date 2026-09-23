@@ -1,7 +1,13 @@
 using System;
+using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
@@ -34,6 +40,19 @@ public static class RecipeEndpoints
         })
         .WithName("GetRecipes")
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc");
+
+        group.MapGet("/search", async (
+            [AsParameters] SearchRecipesQuery query,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var response = await sender.Send(query, ct);
+            return Results.Ok(response);
+        })
+        .WithName("SearchRecipes")
+        .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
+        .Produces<ApiResponse<PagedResult<RecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         return app;
     }
