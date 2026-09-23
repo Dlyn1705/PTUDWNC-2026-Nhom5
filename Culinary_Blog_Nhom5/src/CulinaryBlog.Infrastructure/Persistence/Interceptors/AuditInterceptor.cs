@@ -36,10 +36,12 @@ public class AuditInterceptor : SaveChangesInterceptor
             if (entry.State == EntityState.Added)
             {
                 entry.Entity.CreatedAt = now;
+                entry.Entity.RowVersion = Guid.NewGuid().ToByteArray();
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAt = now;
+                entry.Entity.RowVersion = Guid.NewGuid().ToByteArray();
             }
         }
     }

@@ -6,26 +6,27 @@ using System.Security.Cryptography;
 using System.Text;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
+using CulinaryBlog.Domain.Settings;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
 public class JwtService : IJwtService
 {
-    private readonly IConfiguration _configuration;
     private readonly string _secretKey;
     private readonly string _issuer;
     private readonly string _audience;
     private readonly int _accessTokenMinutes;
 
-    public JwtService(IConfiguration configuration)
+    public JwtService(IOptions<JwtSettings> options)
     {
-        _configuration = configuration;
-        _secretKey = _configuration["Jwt:Key"] ?? "CulinaryBlog_SuperSecretKey_For_Development_Must_Be_Long_Enough_2026";
-        _issuer = _configuration["Jwt:Issuer"] ?? "CulinaryBlog";
-        _audience = _configuration["Jwt:Audience"] ?? "CulinaryBlogWeb";
-        _accessTokenMinutes = int.TryParse(_configuration["Jwt:AccessTokenDurationInMinutes"], out int mins) ? mins : 15;
+        var settings = options.Value;
+        _secretKey = settings.Key;
+        _issuer = settings.Issuer;
+        _audience = settings.Audience;
+        _accessTokenMinutes = settings.AccessTokenDurationInMinutes;
     }
 
     public (string Token, int ExpiresInSeconds) GenerateAccessToken(ApplicationUser user, IList<string> roles)

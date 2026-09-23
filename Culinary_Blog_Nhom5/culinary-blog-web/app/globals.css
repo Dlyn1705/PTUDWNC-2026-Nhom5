@@ -1,26 +1,339 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f3ed;
+  --foreground: #29231e;
+  --ink: #29231e;
+  --muted: #766d64;
+  --orange: #c45b2d;
+  --orange-dark: #9f4321;
+  --cream: #fffdf9;
+  --line: #e7ded3;
 }
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Culinary Blog design system.
+ * Warm culinary palette: terracotta + amber accents on warm slate neutrals.
+ * All colors use oklch.
+ */
 
 @theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-body);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), sans-serif;
+}
+
+.register-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(460px, 1.08fr);
+  background: var(--cream);
+}
+
+.register-brand-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2.5rem, 8vw, 7rem);
+  color: #fffaf4;
+  background: #25251f;
+  isolation: isolate;
+}
+
+.register-brand-panel::before,
+.register-brand-panel::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(255, 244, 226, 0.18);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.register-brand-panel::before { width: 38rem; height: 38rem; right: -18rem; top: 8%; }
+.register-brand-panel::after { width: 25rem; height: 25rem; left: -13rem; bottom: -8rem; }
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 3.5rem;
+  border: 1px solid #e89763;
+  border-radius: 50%;
+  color: #f2aa78;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  color: #e89763;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.register-brand-panel h1,
+.form-heading h2 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.register-brand-panel h1 {
+  max-width: 30rem;
+  margin: 0;
+  font-size: clamp(3rem, 5.4vw, 5.75rem);
+  line-height: 0.98;
+}
+
+.brand-copy {
+  max-width: 28rem;
+  margin: 2rem 0 0;
+  color: #d4cbc1;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.recipe-stamp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: fit-content;
+  margin-top: 4rem;
+  color: #d9a06f;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+}
+
+.recipe-stamp strong {
+  color: #fff4e3;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.5rem;
+  letter-spacing: 0;
+}
+
+.register-form-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: min(100%, 38rem);
+  padding: 4rem clamp(2rem, 7vw, 7rem);
+  background: var(--cream);
+}
+
+.form-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1.05;
+}
+
+.form-heading > p:last-child {
+  margin: 1rem 0 2.5rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.field-input {
+  width: 100%;
+  min-height: 3.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: #fff;
+  padding: 0.8rem 0.95rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field-input::placeholder { color: #aaa097; }
+.field-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(196, 91, 45, 0.12); }
+.field-input-error { border-color: #c2413b; background: #fffafa; }
+
+.submit-button {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: var(--orange);
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.submit-button:hover { background: var(--orange-dark); transform: translateY(-1px); }
+.submit-button:disabled { cursor: wait; opacity: 0.65; transform: none; }
+
+.form-footnote {
+  margin: 2rem 0 0;
+  color: #988e84;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .register-shell { display: block; }
+  .register-brand-panel { min-height: 24rem; padding: 3rem 1.5rem; }
+  .brand-mark { margin-bottom: 2rem; }
+  .register-brand-panel h1 { max-width: 34rem; font-size: clamp(2.8rem, 12vw, 4.5rem); }
+  .brand-copy { margin-top: 1.25rem; font-size: 0.95rem; }
+  .recipe-stamp { display: none; }
+  .register-form-panel { width: 100%; padding: 3.5rem 1.5rem 4rem; }
+}
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-ember: var(--ember);
+  --color-ember-foreground: var(--ember-foreground);
+  --color-draft: var(--draft);
+  --color-draft-foreground: var(--draft-foreground);
+  --color-published: var(--published);
+  --color-published-foreground: var(--published-foreground);
+  --color-archived: var(--archived);
+  --color-archived-foreground: var(--archived-foreground);
+  --color-surface: var(--surface);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --font-serif: var(--font-serif, "Playfair Display", Georgia, serif);
+  --font-sans: var(--font-sans, "Inter", ui-sans-serif, system-ui, sans-serif);
+  --shadow-soft: 0 1px 2px oklch(0.2 0.03 40 / 6%), 0 12px 32px -16px oklch(0.2 0.03 40 / 18%);
+  --shadow-lift: 0 2px 6px oklch(0.2 0.03 40 / 8%), 0 24px 48px -24px oklch(0.2 0.03 40 / 28%);
+}
+
+:root {
+  --radius: 1rem;
+  /* #F8FAFC warm slate */
+  --background: oklch(0.984 0.003 247.858);
+  /* #0F172A deep charcoal */
+  --foreground: oklch(0.208 0.042 265.755);
+  --surface: oklch(0.968 0.007 247.896);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.042 265.755);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+  /* #E05A47 terracotta */
+  --primary: oklch(0.626 0.163 30.5);
+  --primary-foreground: oklch(0.995 0.005 60);
+  /* #F97316 amber */
+  --ember: oklch(0.705 0.187 47.6);
+  --ember-foreground: oklch(0.995 0.005 60);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  /* #475569 muted body */
+  --muted-foreground: oklch(0.446 0.03 256.802);
+  --accent: oklch(0.955 0.023 60);
+  --accent-foreground: oklch(0.45 0.14 33);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.99 0.005 60);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.626 0.163 30.5);
+  --draft: oklch(0.93 0.006 250);
+  --draft-foreground: oklch(0.42 0.02 256);
+  --published: oklch(0.93 0.06 160);
+  --published-foreground: oklch(0.44 0.11 160);
+  --archived: oklch(0.94 0.07 85);
+  --archived-foreground: oklch(0.48 0.12 65);
+}
+
+.dark {
+  --background: oklch(0.19 0.02 265);
+  --foreground: oklch(0.97 0.005 250);
+  --surface: oklch(0.23 0.02 265);
+  --card: oklch(0.24 0.02 265);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.24 0.02 265);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.68 0.16 32);
+  --primary-foreground: oklch(0.18 0.02 265);
+  --ember: oklch(0.74 0.18 50);
+  --ember-foreground: oklch(0.18 0.02 265);
+  --secondary: oklch(0.28 0.02 265);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.28 0.02 265);
+  --muted-foreground: oklch(0.72 0.02 256);
+  --accent: oklch(0.3 0.04 40);
+  --accent-foreground: oklch(0.92 0.05 60);
+  --destructive: oklch(0.7 0.19 22);
+  --destructive-foreground: oklch(0.18 0.02 265);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.68 0.16 32);
+  --draft: oklch(0.32 0.01 250);
+  --draft-foreground: oklch(0.85 0.01 250);
+  --published: oklch(0.34 0.06 160);
+  --published-foreground: oklch(0.88 0.09 160);
+  --archived: oklch(0.35 0.07 80);
+  --archived-foreground: oklch(0.9 0.1 85);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+}
+
+@utility text-balance-title {
+  text-wrap: balance;
+  letter-spacing: -0.015em;
 }
