@@ -17,7 +17,12 @@ public class NotFoundException : DomainException
 
 public class ConflictException : DomainException
 {
-    public ConflictException(string message) : base(message) { }
+    public string Code { get; }
+
+    public ConflictException(string message, string code = "CONFLICT") : base(message)
+    {
+        Code = code;
+    }
 }
 
 public class ForbiddenException : DomainException
