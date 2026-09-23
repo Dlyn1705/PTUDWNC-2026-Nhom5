@@ -127,120 +127,514 @@
 
 <h2>📂 3. Cấu trúc Thư mục Dự án</h2>
 
-<pre><code>Culinary_Blog_Nhom5/
+<pre><code>PTUDWNC-2026-Nhom5/
 │
-├── src/                                  # BACKEND (.NET 10 - Clean Architecture)
-│   ├── CulinaryBlog.Domain/              # 1. Tầng Domain: Entities, Enums, Exceptions, Value Objects
-│   │   ├── Common/
-│   │   ├── Entities/
-│   │   ├── Enums/
-│   │   └── Exceptions/
-│   │
-│   ├── CulinaryBlog.Application/         # 2. Tầng Application: CQRS, Features, DTOs, Behaviors
-│   │   ├── Common/
-│   │   ├── Contracts/                    # Interfaces (Persistence, Services)
-│   │   ├── DTOs/
-│   │   └── Features/                     # Slices: Auth, Categories, Recipes
-│   │
-│   ├── CulinaryBlog.Infrastructure/      # 3. Tầng Infrastructure: EF Core, PostgreSQL, Services ngoài
-│   │   ├── Authorization/
-│   │   ├── Persistence/                  # DbContext, Repositories, Configurations, Migrations
-│   │   └── Services/                     # JwtService, MinIO, MailKit, Redis
-│   │
-│   └── CulinaryBlog.API/                 # 4. Tầng Presentation: Minimal APIs, Endpoints, Middleware
-│       ├── Endpoints/                    # AuthEndpoints, CategoryEndpoints, RecipeEndpoints
-│       ├── Middleware/                   # GlobalException, CorrelationId
-│       ├── appsettings.json
-│       └── Program.cs
+├── docker-compose.yml                    # Hạ tầng Docker: PostgreSQL 16, Redis 7, MinIO, Seq
+├── README.md                             # Tài liệu tổng quan dự án &amp; quy ước làm việc nhóm
 │
-├── culinary-blog-web/                    # FRONTEND (Next.js 15 App Router)
-│   ├── app/                              # Định tuyến trang (Routing & Layouts)
-│   │   ├── (public)/                     # Trang công khai: recipes, categories, search
-│   │   ├── (auth)/                       # Trang xác thực: login, register
-│   │   ├── (dashboard)/                  # Trang bảo vệ: dashboard, recipes management
-│   │   ├── layout.tsx
-│   │   └── providers.tsx                 # QueryClientProvider, SessionProvider
-│   │
-│   ├── components/                       # UI Components (RecipeCard, RecipeDetail, Forms...)
-│   ├── hooks/                            # Custom hooks (TanStack Query, Infinite scroll)
-│   ├── lib/                              # Axios instance, Auth.js v5 setup
-│   ├── store/                            # Client state (Zustand)
-│   ├── types/                            # TypeScript types & Zod schemas
-│   ├── middleware.ts                     # Route protection
-│   └── next.config.ts                    # Image domains & config
-│
-├── docker-compose.yml                    # Môi trường chạy PostgreSQL, Redis, MinIO
-└── Culinary_Blog_Nhom5.sln               # Solution file liên kết 4 projects backend
+└── Culinary_Blog_Nhom5/                  # Thư mục mã nguồn chính của hệ thống
+    ├── Culinary_Blog_Nhom5.sln           # Solution liên kết 4 projects Backend
+    ├── run-dev.bat                       # Script Windows Command Prompt khởi chạy Full-stack
+    ├── run-dev.ps1                       # Script Windows PowerShell khởi chạy Full-stack
+    │
+    ├── src/                              # BACKEND (.NET 10 - Clean Architecture + CQRS)
+    │   ├── CulinaryBlog.Domain/          # 1. Tầng Domain: Entities, Enums, Exceptions, Value Objects
+    │   ├── CulinaryBlog.Application/     # 2. Tầng Application: CQRS Commands/Queries, DTOs, Behaviors
+    │   ├── CulinaryBlog.Infrastructure/  # 3. Tầng Infrastructure: EF Core, PostgreSQL, Repositories, MinIO, Redis
+    │   └── CulinaryBlog.API/             # 4. Tầng Presentation: Minimal APIs, Endpoints, Scalar UI, Middlewares
+    │
+    └── culinary-blog-web/                # FRONTEND (Next.js 15 App Router, TypeScript, Tailwind CSS)
+        ├── app/                          # Định tuyến trang &amp; Layouts ((public), (auth), (dashboard))
+        ├── components/                   # UI Components (Navbar, Footer, CategoryCard, Forms...)
+        ├── hooks/                        # Custom hooks (TanStack Query, Infinite scroll)
+        ├── lib/                          # Axios Client, Auth setup
+        ├── store/                        # Quản lý State phía client (Zustand)
+        ├── types/                        # TypeScript types &amp; DTO schemas
+        ├── .env.local                    # Cấu hình biến môi trường kết nối Backend (Port 5156)
+        └── package.json                  # Dependencies frontend
+</code></pre>
 
 ---
 
 <h2>🌿 4. Quy ước Làm việc Nhóm với Git (Git Workflow)</h2>
 
-<h3>1. Nguyên tắc cơ bản</h3>
+<p>Toàn bộ thành viên trong nhóm bắt buộc phải tuân thủ nghiêm ngặt các quy ước Git dưới đây nhằm đảm bảo tính đồng nhất, an toàn và chuyên nghiệp cho mã nguồn dự án.</p>
+
+<h3>4.1. Nguyên tắc An toàn &amp; Bảo mật</h3>
 <ul>
-  <li><b>Không được phép push trực tiếp code lên nhánh chính (<code>main</code> hoặc <code>master</code>).</b></li>
-  <li>Mỗi khi bắt đầu thực hiện một chức năng mới hoặc sửa một lỗi (bug), bắt buộc phải tạo nhánh riêng biệt xuất phát từ nhánh phát triển mới nhất.</li>
+  <li><b>Tuyệt đối không commit trực tiếp lên nhánh <code>main</code></b> — mọi thay đổi đều phải thông qua Pull Request (PR).</li>
+  <li><b>Tuyệt đối không commit file <code>.env</code></b> hoặc các file chứa mật khẩu, connection string máy cá nhân, secret key lên Git.</li>
+  <li>Mỗi khi thực hiện một chức năng mới hoặc sửa lỗi, bắt buộc phải tạo nhánh riêng biệt từ nhánh <code>main</code> cập nhật nhất.</li>
 </ul>
 
-<h3>2. Cú pháp đặt tên nhánh (Branch Naming Convention)</h3>
-<p><b>Đối với tính năng mới:</b></p>
+<h3>4.2. Quy ước Commit (Conventional Commits)</h3>
+<p>Nhóm áp dụng chuẩn <b>Conventional Commits</b>. Mọi commit bắt buộc theo định dạng:</p>
+
+<pre><code>&lt;type&gt;(&lt;scope&gt;): &lt;mô tả ngắn&gt;</code></pre>
+
+<h4>Danh sách Type</h4>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 15%;">Type</th>
+      <th style="border: 1px solid #d0d7de; width: 45%;">Dùng khi</th>
+      <th style="border: 1px solid #d0d7de; width: 40%;">Ví dụ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>feat</code></td>
+      <td style="border: 1px solid #d0d7de;">Thêm tính năng mới</td>
+      <td style="border: 1px solid #d0d7de;"><code>feat(recipes): thêm api tạo công thức</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>fix</code></td>
+      <td style="border: 1px solid #d0d7de;">Sửa lỗi</td>
+      <td style="border: 1px solid #d0d7de;"><code>fix(auth): sửa lỗi refresh token bị revoke sớm</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>chore</code></td>
+      <td style="border: 1px solid #d0d7de;">Việc lặt vặt, cấu hình, không đổi logic</td>
+      <td style="border: 1px solid #d0d7de;"><code>chore(deps): cập nhật ef core lên bản mới</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>docs</code></td>
+      <td style="border: 1px solid #d0d7de;">Sửa tài liệu, README</td>
+      <td style="border: 1px solid #d0d7de;"><code>docs(readme): bổ sung hướng dẫn cài minio</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>style</code></td>
+      <td style="border: 1px solid #d0d7de;">Format code, không đổi logic</td>
+      <td style="border: 1px solid #d0d7de;"><code>style(frontend): format lại theo prettier</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>refactor</code></td>
+      <td style="border: 1px solid #d0d7de;">Sửa cấu trúc, không thêm tính năng</td>
+      <td style="border: 1px solid #d0d7de;"><code>refactor(categories): tách query handler</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>perf</code></td>
+      <td style="border: 1px solid #d0d7de;">Tối ưu hiệu năng, caching, query</td>
+      <td style="border: 1px solid #d0d7de;"><code>perf(search): thêm index cho tsvector</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>test</code></td>
+      <td style="border: 1px solid #d0d7de;">Thêm hoặc sửa test</td>
+      <td style="border: 1px solid #d0d7de;"><code>test(auth): thêm unit test cho login handler</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>build</code></td>
+      <td style="border: 1px solid #d0d7de;">Sửa Dockerfile, cấu hình build</td>
+      <td style="border: 1px solid #d0d7de;"><code>build(docker): tối ưu layer cache backend</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>ci</code></td>
+      <td style="border: 1px solid #d0d7de;">Sửa GitHub Actions</td>
+      <td style="border: 1px solid #d0d7de;"><code>ci: thêm workflow chạy test và lint</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>revert</code></td>
+      <td style="border: 1px solid #d0d7de;">Hoàn tác commit trước</td>
+      <td style="border: 1px solid #d0d7de;"><code>revert: feat(recipes): thêm api tạo công thức</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>Danh sách Scope</h4>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 25%;">Scope</th>
+      <th style="border: 1px solid #d0d7de;">Phạm vi ảnh hưởng</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>auth</code></td>
+      <td style="border: 1px solid #d0d7de;">Xác thực, JWT, Refresh Token, Google OAuth, Profile</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>categories</code></td>
+      <td style="border: 1px solid #d0d7de;">Danh mục công thức</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>recipes</code></td>
+      <td style="border: 1px solid #d0d7de;">Công thức, nguyên liệu, các bước, trạng thái bài viết</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>search</code></td>
+      <td style="border: 1px solid #d0d7de;">Tìm kiếm (FTS), lọc, sắp xếp, phân trang</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>media</code></td>
+      <td style="border: 1px solid #d0d7de;">Upload và quản lý ảnh trên MinIO</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>jobs</code></td>
+      <td style="border: 1px solid #d0d7de;">Background jobs (email, thumbnail, sitemap)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>shared</code></td>
+      <td style="border: 1px solid #d0d7de;">Package/thư viện types dùng chung</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>backend</code></td>
+      <td style="border: 1px solid #d0d7de;">Thay đổi chung phía backend (.NET 10)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>frontend</code></td>
+      <td style="border: 1px solid #d0d7de;">Thay đổi chung phía frontend (Next.js 15)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>docker</code></td>
+      <td style="border: 1px solid #d0d7de;">Docker, Docker Compose, Nginx, Seq</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>deps</code></td>
+      <td style="border: 1px solid #d0d7de;">Cập nhật dependencies, NuGet packages, npm packages</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>Quy tắc viết mô tả</h4>
+<ul>
+  <li>Viết bằng <b>tiếng Việt có dấu</b>.</li>
+  <li>Dùng <b>động từ nguyên thể</b>: "thêm", "sửa", "xóa" — không dùng "đã thêm", "đang sửa".</li>
+  <li><b>Không viết hoa</b> chữ cái đầu, <b>không có dấu chấm</b> cuối câu.</li>
+  <li>Dòng đầu giới hạn tối đa <b>72 ký tự</b>.</li>
+  <li>Cần giải thích thêm thì để trống một dòng rồi viết phần body.</li>
+</ul>
+
+<h4>Ví dụ commit đầy đủ</h4>
+<pre><code>feat(auth): thêm cơ chế refresh token rotation
+
+Mỗi lần refresh, token cũ được đánh dấu isRevoked = true và sinh
+token mới. Phát hiện reuse attack sẽ ghi log cảnh báo mức WARNING.
+
+Closes #12</code></pre>
+
+<h4>Commit chung nhiều người</h4>
+<p>Khi hai người trở lên cùng làm một commit, thêm dòng <code>Co-authored-by</code> ở cuối, cách phần trên <b>hai dòng trống</b>:</p>
+<pre><code>feat(recipes): thêm api upload ảnh công thức
+
+
+Co-authored-by: Phan Thị Bảo Trâm &lt;2312778@dlu.edu.vn&gt;</code></pre>
+
+<h3>4.3. Quy ước Branch</h3>
+<p>Định dạng tên nhánh bắt buộc:</p>
 <pre><code>mssv-hoten-tenchucnang</code></pre>
 
-<p><b>Ví dụ minh họa:</b></p>
-<pre><code>2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 45%;">Ví dụ nhánh mẫu</th>
+      <th style="border: 1px solid #d0d7de;">Ý nghĩa</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>2312567-VoThiMinhAn-dangnhapoauth</code></td>
+      <td style="border: 1px solid #d0d7de;">Thêm đăng nhập Google OAuth 2.0 (Minh Ân)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>2312663-DoDangDieuLinh-danhmuccongthuc</code></td>
+      <td style="border: 1px solid #d0d7de;">Quản lý danh mục công thức (Diệu Linh)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>2300003-NguyenLeAnhTuan-timkiemfts</code></td>
+      <td style="border: 1px solid #d0d7de;">Tìm kiếm Full-Text Search tiếng Việt (Anh Tuấn)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>2312778-PhanThiBaoTram-uploadanhminio</code></td>
+      <td style="border: 1px solid #d0d7de;">Tích hợp upload ảnh lên MinIO (Bảo Trâm)</td>
+    </tr>
+  </tbody>
+</table>
 
-<h3>3. Quy trình làm việc nhóm (Workflow)</h3>
-<p><b>Lấy code mới nhất từ nhánh chính:</b></p>
+<ul>
+  <li>Tên nhánh viết <b>không dấu tiếng Việt</b>, các phần ngăn cách bằng dấu gạch ngang (<code>-</code>).</li>
+  <li><b>Không commit trực tiếp vào <code>main</code></b> — mọi thay đổi phải qua Pull Request.</li>
+  <li><b>Xóa branch</b> sau khi PR đã merge thành công.</li>
+</ul>
+
+<h4>Quy trình thao tác chi tiết</h4>
+<p><b>Bước 1: Lấy code mới nhất từ nhánh chính:</b></p>
 <pre><code>git checkout main
 git pull origin main</code></pre>
 
-<p><b>Tạo và chuyển sang nhánh làm việc riêng:</b></p>
-<pre><code>git checkout -b 2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
+<p><b>Bước 2: Tạo và chuyển sang nhánh làm việc riêng:</b></p>
+<pre><code>git checkout -b 2312663-DoDangDieuLinh-danhmuccongthuc</code></pre>
 
-<p><b>Tiến hành lập trình, commit và đẩy nhánh lên Remote Repository:</b></p>
+<p><b>Bước 3: Lập trình, kiểm thử và commit đúng chuẩn:</b></p>
 <pre><code>git add .
-git commit -m "feat: implement google oauth authentication"
-git push origin 2312663-DoDangDieuLinh-dangnhapoauth</code></pre>
+git commit -m "feat(categories): thêm api xem danh mục công thức"</code></pre>
 
-<p><b>Tạo Pull Request (PR):</b></p>
+<p><b>Bước 4: Đẩy nhánh lên Remote Repository:</b></p>
+<pre><code>git push -u origin 2312663-DoDangDieuLinh-danhmuccongthuc</code></pre>
+
+<h3>4.4. Quy ước Pull Request (PR)</h3>
+
+<h4>Tiêu đề PR</h4>
+<p>Tiêu đề PR <b>bắt buộc</b> theo định dạng:</p>
+<pre><code>Tên-MSSV: Title</code></pre>
+
+<p><b>Ví dụ tiêu đề PR theo từng thành viên nhóm:</b></p>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 25%;">Thành viên</th>
+      <th style="border: 1px solid #d0d7de; width: 15%;">MSSV</th>
+      <th style="border: 1px solid #d0d7de; width: 20%;">Scope chính</th>
+      <th style="border: 1px solid #d0d7de;">Tiêu đề PR mẫu</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;">Võ Thị Minh Ân</td>
+      <td align="center" style="border: 1px solid #d0d7de;">2312567</td>
+      <td align="center" style="border: 1px solid #d0d7de;"><code>auth</code>, <code>docker</code></td>
+      <td style="border: 1px solid #d0d7de;"><code>Ân-2312567: Thêm cơ chế refresh token rotation</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;">Đỗ Đặng Diệu Linh</td>
+      <td align="center" style="border: 1px solid #d0d7de;">2312663</td>
+      <td align="center" style="border: 1px solid #d0d7de;"><code>categories</code>, <code>jobs</code></td>
+      <td style="border: 1px solid #d0d7de;"><code>Linh-2312663: Thêm CRUD danh mục công thức</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;">Nguyễn Lê Anh Tuấn</td>
+      <td align="center" style="border: 1px solid #d0d7de;">2300003</td>
+      <td align="center" style="border: 1px solid #d0d7de;"><code>search</code>, <code>media</code></td>
+      <td style="border: 1px solid #d0d7de;"><code>Tuấn-2300003: Hoàn thiện Full-Text Search tiếng Việt</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;">Phan Thị Bảo Trâm</td>
+      <td align="center" style="border: 1px solid #d0d7de;">2312778</td>
+      <td align="center" style="border: 1px solid #d0d7de;"><code>recipes</code>, <code>jobs</code></td>
+      <td style="border: 1px solid #d0d7de;"><code>Trâm-2312778: Tích hợp upload ảnh lên MinIO</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>Mô tả PR (PR Template)</h4>
+<p>⚠️ <b>PR không có mô tả sẽ bị đóng.</b> Mô tả phải trả lời được: làm gì, tại sao, và kiểm thử thế nào.</p>
+
+<pre><code>## Mô tả
+Ngắn gọn PR này làm gì và giải quyết vấn đề gì.
+
+## Yêu cầu liên quan
+- FR-AUTH-004: Làm mới Access Token
+
+## Thay đổi chính
+- Thêm RefreshTokenCommand và handler tương ứng
+- Cập nhật schema bảng refresh_tokens
+- Thêm logic phát hiện reuse attack
+
+## Cách kiểm thử
+1. Đăng nhập để lấy cặp token
+2. Gọi POST /api/v1/auth/refresh với refresh token
+3. Xác nhận token cũ bị revoke, token mới được cấp
+
+## Ảnh chụp màn hình
+(Đính kèm nếu có thay đổi giao diện)
+
+## Checklist
+- [ ] Code chạy được ở local và build thành công
+- [ ] Đã kiểm tra format, không còn cảnh báo thừa
+- [ ] Không commit file `.env` hoặc thông tin nhạy cảm
+- [ ] Đã tự review lại diff trước khi tạo PR</code></pre>
+
+<h4>Quy tắc review</h4>
 <ul>
-  <li>Truy cập giao diện quản lý Git (GitHub), tạo Pull Request từ nhánh cá nhân vào nhánh <code>main</code>.</li>
-  <li>Thêm ít nhất 1 thành viên khác trong nhóm làm Reviewer để kiểm tra mã nguồn trước khi tiến hành Merge.</li>
+  <li>Mỗi PR cần <b>ít nhất một approve</b> trước khi merge.</li>
+  <li>Người phụ trách hạ tầng (<code>FR-AUTH</code> / <code>FR-OBS</code>) review các PR chạm vào cấu hình chung, <code>docker-compose.yml</code> hoặc các thành phần dùng chung.</li>
+  <li>PR nên <b>dưới 400 dòng thay đổi</b> — quá lớn thì tách nhỏ.</li>
+  <li>Merge bằng <b>Squash and merge</b> để giữ lịch sử <code>main</code> gọn.</li>
+  <li>Người tạo PR chịu trách nhiệm giải quyết conflict trước khi merge.</li>
 </ul>
 
 ---
 
 <h2>🚀 5. Hướng dẫn Thiết lập Môi trường Cục bộ (Local Setup)</h2>
 
-<h3>1. Khởi chạy hạ tầng dịch vụ (Docker)</h3>
-<p>Đảm bảo đã mở Docker Desktop, sau đó chạy lệnh:</p>
-<pre><code>docker compose up -d</code></pre>
-<p><i>Lệnh này khởi chạy PostgreSQL (5432), Redis (6379), MinIO (9000/9001), và Seq (5341).</i></p>
+<h3>5.1. Yêu cầu Môi trường (Prerequisites)</h3>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 25%;">Công cụ</th>
+      <th style="border: 1px solid #d0d7de; width: 25%;">Phiên bản yêu cầu</th>
+      <th style="border: 1px solid #d0d7de;">Mục đích sử dụng</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>.NET SDK</b></td>
+      <td style="border: 1px solid #d0d7de;">.NET 10.0 (hoặc 9.0+)</td>
+      <td style="border: 1px solid #d0d7de;">Biên dịch và chạy Backend Clean Architecture API</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Node.js &amp; npm</b></td>
+      <td style="border: 1px solid #d0d7de;">Node 20.x+ / npm 10.x+</td>
+      <td style="border: 1px solid #d0d7de;">Chạy Frontend Next.js 15 App Router</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Docker &amp; Docker Desktop</b></td>
+      <td style="border: 1px solid #d0d7de;">Bản mới nhất</td>
+      <td style="border: 1px solid #d0d7de;">Chạy PostgreSQL, Redis, MinIO và Seq</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>IDE / Code Editor</b></td>
+      <td style="border: 1px solid #d0d7de;">VS 2022 (v17.12+) / VS Code</td>
+      <td style="border: 1px solid #d0d7de;">Môi trường phát triển lập trình</td>
+    </tr>
+  </tbody>
+</table>
 
-<h3>2. Cấu hình &amp; Chạy Backend (.NET 10)</h3>
-<p><b>Clone dự án về máy:</b></p>
+<h3>5.2. Các Bước Thiết lập Chi tiết</h3>
+
+<h4>Bước 1: Clone mã nguồn về máy</h4>
 <pre><code>git clone https://github.com/Dlyn1705/PTUDWNC-2026-Nhom5.git
 cd PTUDWNC-2026-Nhom5</code></pre>
 
-<p><b>Cấu hình chuỗi kết nối cơ sở dữ liệu:</b></p>
+<h4>Bước 2: Khởi chạy hạ tầng dịch vụ với Docker</h4>
+<p>Đảm bảo ứng dụng <b>Docker Desktop</b> đang hoạt động trên máy tính của bạn, sau đó mở terminal tại thư mục gốc của repository và chạy lệnh:</p>
+<pre><code>docker compose up -d</code></pre>
+<p><i>Lệnh này sẽ khởi động 4 dịch vụ container chạy ngầm: PostgreSQL (5432), Redis (6379), MinIO (9000/9001), và Seq (5341).</i></p>
+
+<h4>Bước 3: Cấu hình và Khởi chạy Backend (.NET 10)</h4>
+<p><b>1. Di chuyển vào thư mục chứa mã nguồn dự án:</b></p>
+<pre><code>cd Culinary_Blog_Nhom5</code></pre>
+
+<p><b>2. Kiểm tra thông số kết nối Database trong file <code>src/CulinaryBlog.API/appsettings.json</code>:</b></p>
+<pre><code>"ConnectionStrings": {
+  "DefaultConnection": "Host=localhost;Port=5432;Database=culinary_blog_db;Username=postgres;Password=Password123!"
+}</code></pre>
+<p>⚠️ <i>Lưu ý: Tuyệt đối không commit file cấu hình chứa mật khẩu nhạy cảm của cá nhân lên Git.</i></p>
+
+<p><b>3. Khởi chạy Backend API bằng .NET CLI:</b></p>
+<pre><code>dotnet run --project src/CulinaryBlog.API</code></pre>
+<p><i>(Hoặc mở file solution <code>Culinary_Blog_Nhom5.sln</code> bằng Visual Studio 2022, chọn <code>CulinaryBlog.API</code> làm Startup Project và nhấn <code>F5</code> / <code>Ctrl + F5</code>).</i></p>
+
+<p>Khi khởi động thành công, tài liệu OpenAPI tương tác (Scalar UI) có sẵn tại:</p>
 <ul>
-  <li>Mở file <code>appsettings.Development.json</code> trong project <code>src/CulinaryBlog.API</code>.</li>
-  <li>Cập nhật thông số kết nối PostgreSQL (Host, Port, Database, Username, Password) cho phù hợp với máy cá nhân.</li>
+  <li>Scalar API Reference: <code>http://localhost:5156/scalar/v1</code></li>
 </ul>
 
-<p><b>Chạy ứng dụng:</b></p>
-<ul>
-  <li>Mở file solution <code>CulinaryBlog.sln</code> bằng Visual Studio 2022 (đã cập nhật .NET 10 SDK).</li>
-  <li>Đặt project <code>CulinaryBlog.API</code> làm Startup Project và nhấn <code>F5</code> hoặc <code>Ctrl + F5</code>.</li>
-</ul>
+<h4>Bước 4: Cài đặt và Khởi chạy Frontend (Next.js 15)</h4>
+<p><b>1. Mở cửa sổ terminal mới và di chuyển vào thư mục giao diện:</b></p>
+<pre><code>cd Culinary_Blog_Nhom5/culinary-blog-web</code></pre>
 
-<p><b>Trải nghiệm tài liệu API trực quan:</b></p>
-<ul>
-  <li>Truy cập đường dẫn: <code>https://localhost:5001/scalar/v1</code> trên trình duyệt để khám phá giao diện Scalar UI và kiểm thử API.</li>
-</ul>
+<p><b>2. Cài đặt các gói thư viện phụ thuộc:</b></p>
+<pre><code>npm install</code></pre>
 
-<h3>3. Chạy Frontend (Next.js 15)</h3>
-<pre><code>cd frontend
-npm install
-npm run dev</code></pre>
-<p><i>Giao diện người dùng sẽ chạy tại: <code>http://localhost:3000</code>.</i></p>
+<p><b>3. Kiểm tra biến môi trường kết nối Backend tại file <code>.env.local</code>:</b></p>
+<pre><code>NEXT_PUBLIC_API_URL=http://localhost:5156</code></pre>
+
+<p><b>4. Khởi chạy máy chủ phát triển (Dev server):</b></p>
+<pre><code>npm run dev</code></pre>
+<p><i>Giao diện người dùng sẽ chạy sẵn sàng tại: <code>http://localhost:3000</code>.</i></p>
+
+---
+
+<h3>⚡ 5.3. Khởi động Nhanh Toàn bộ Hệ thống (One-Click Dev Script)</h3>
+<p>Dự án đã tích hợp sẵn script tự động kích hoạt đồng thời cả Backend (.NET 10) và Frontend (Next.js) trong 2 cửa sổ dòng lệnh riêng biệt:</p>
+
+<p><b>Dành cho Windows Command Prompt / Batch:</b></p>
+<pre><code>cd Culinary_Blog_Nhom5
+run-dev.bat</code></pre>
+
+<p><b>Dành cho Windows PowerShell:</b></p>
+<pre><code>cd Culinary_Blog_Nhom5
+.\run-dev.ps1</code></pre>
+
+---
+
+<h3>🌐 5.4. Bảng Tổng hợp URL &amp; Cổng Dịch vụ</h3>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 25%;">Dịch vụ</th>
+      <th style="border: 1px solid #d0d7de; width: 35%;">Địa chỉ (URL / Port)</th>
+      <th style="border: 1px solid #d0d7de;">Thông tin xác thực / Ghi chú</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Frontend Web App</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>http://localhost:3000</code></td>
+      <td style="border: 1px solid #d0d7de;">Giao diện người dùng Next.js 15 App Router</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Backend API Docs (Scalar)</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>http://localhost:5156/scalar/v1</code></td>
+      <td style="border: 1px solid #d0d7de;">Khám phá và kiểm thử tương tác API trực tiếp</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>MinIO Console Web UI</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>http://localhost:9001</code></td>
+      <td style="border: 1px solid #d0d7de;">User: <code>minioadmin</code> | Pass: <code>minioadminpassword</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>MinIO S3 API Endpoint</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>http://localhost:9000</code></td>
+      <td style="border: 1px solid #d0d7de;">Cổng kết nối lưu trữ tệp media và ảnh</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Seq Log Dashboard</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>http://localhost:5341</code></td>
+      <td style="border: 1px solid #d0d7de;">Trực quan hóa structured logs và tracing</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>PostgreSQL Database</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>localhost:5432</code></td>
+      <td style="border: 1px solid #d0d7de;">DB: <code>culinary_blog_db</code> | User: <code>postgres</code> | Pass: <code>Password123!</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><b>Redis Caching</b></td>
+      <td style="border: 1px solid #d0d7de;"><code>localhost:6379</code></td>
+      <td style="border: 1px solid #d0d7de;">Bộ nhớ đệm phân tán</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+<h3>🛠️ 5.5. Các Lệnh Thường Dùng (Cheatsheet)</h3>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border: 1px solid #d0d7de;">
+  <thead>
+    <tr bgcolor="#f6f8fa">
+      <th style="border: 1px solid #d0d7de; width: 40%;">Lệnh</th>
+      <th style="border: 1px solid #d0d7de;">Chức năng</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>docker compose up -d</code></td>
+      <td style="border: 1px solid #d0d7de;">Khởi động các dịch vụ hạ tầng (Postgres, Redis, MinIO, Seq)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>docker compose down</code></td>
+      <td style="border: 1px solid #d0d7de;">Dừng và gỡ bỏ các container hạ tầng</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>dotnet run --project src/CulinaryBlog.API</code></td>
+      <td style="border: 1px solid #d0d7de;">Chạy Backend .NET 10 API (trong thư mục <code>Culinary_Blog_Nhom5</code>)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>dotnet build Culinary_Blog_Nhom5.sln</code></td>
+      <td style="border: 1px solid #d0d7de;">Biên dịch toàn bộ solution backend</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>npm run dev</code></td>
+      <td style="border: 1px solid #d0d7de;">Chạy Frontend Next.js (trong thư mục <code>culinary-blog-web</code>)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>npm run build</code></td>
+      <td style="border: 1px solid #d0d7de;">Đóng gói kiểm tra build production của Frontend</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #d0d7de;"><code>npm run lint</code></td>
+      <td style="border: 1px solid #d0d7de;">Kiểm tra lỗi cú pháp và lint của Frontend</td>
+    </tr>
+  </tbody>
+</table>
