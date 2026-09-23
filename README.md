@@ -9,7 +9,7 @@
 
 <p><b>Culinary Blog</b> là hệ thống web cho phép người dùng chia sẻ, tìm kiếm và quản lý các công thức nấu ăn từ nhiều nền ẩm thực khác nhau. Dự án áp dụng mô hình <b>API-Driven Architecture</b>, tách biệt độc lập giữa Backend (.NET 10) và Frontend (Next.js 15) giao tiếp hoàn toàn qua chuẩn RESTful API.</p>
 
-<h3>🌟 Tính năng chính</h3>
+<h3> Tính năng chính</h3>
 <ul>
   <li><b>Quản lý công thức:</b> Đăng tải, tùy chỉnh công thức với nguyên liệu, các bước thực hiện tuần tự và bảng dinh dưỡng.</li>
   <li><b>Tìm kiếm thông minh:</b> Tìm kiếm tiếng Việt không dấu sử dụng PostgreSQL <code>tsvector</code>, <code>tsquery</code> và <code>unaccent</code>.</li>
