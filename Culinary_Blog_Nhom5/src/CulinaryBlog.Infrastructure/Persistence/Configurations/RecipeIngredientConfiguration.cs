@@ -28,9 +28,10 @@ public class RecipeIngredientConfiguration : IEntityTypeConfiguration<RecipeIngr
         builder.Property(i => i.OrderIndex)
             .HasDefaultValue(0);
 
-        builder.Property(i => i.RowVersion)
+        builder.Property(r => r.RowVersion)
             .IsConcurrencyToken()
-            .ValueGeneratedNever();
+            .ValueGeneratedNever()
+            .IsRequired();
 
         builder.HasOne(i => i.Recipe)
             .WithMany(r => r.Ingredients)

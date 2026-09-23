@@ -39,7 +39,8 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
 
         builder.Property(r => r.RowVersion)
             .IsConcurrencyToken()
-            .ValueGeneratedNever();
+            .ValueGeneratedNever()
+            .IsRequired();
 
         // Owned Entity: RecipeNutrition (nhúng cột tiền tố Nutrition_)
         builder.OwnsOne(r => r.Nutrition, n =>
