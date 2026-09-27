@@ -29,15 +29,15 @@ export const statusLabel: Record<RecipeStatusValue, string> = {
 export interface AuthorDto {
   id: string;
   displayName: string;
-  avatarUrl: string;
-  bio?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 export interface RecipeImageDto {
   id: string;
   url: string;
   isPrimary: boolean;
-  alt: string;
+  alt?: string | null;
 }
 
 export interface RecipeNutritionDto {
@@ -66,7 +66,7 @@ export interface RecipeIngredientDto {
   notes?: string;
 }
 
-export interface RecipeDto {
+export interface RecipeCardDto {
   id: string;
   title: string;
   slug: string;
@@ -83,6 +83,9 @@ export interface RecipeDto {
   categorySlug?: string;
   author: AuthorDto;
   images: RecipeImageDto[];
+}
+
+export interface RecipeDto extends RecipeCardDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];

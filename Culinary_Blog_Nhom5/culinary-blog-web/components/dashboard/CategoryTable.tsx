@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Pencil, Trash2, ExternalLink, ChefHat, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,9 +80,12 @@ export function CategoryTable({
                 <TableCell className="p-3 text-center">
                   <div className="mx-auto size-11 overflow-hidden rounded-xl border border-border bg-muted">
                     {cat.imageUrl ? (
-                      <img
+                      <Image
                         src={cat.imageUrl}
                         alt={cat.name}
+                        width={44}
+                        height={44}
+                        unoptimized
                         className="size-full object-cover"
                       />
                     ) : (
