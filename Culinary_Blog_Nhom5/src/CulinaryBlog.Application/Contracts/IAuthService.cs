@@ -7,4 +7,5 @@ namespace CulinaryBlog.Application.Contracts;
 public interface IAuthService
 {
     Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken);
+    Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken);
 }

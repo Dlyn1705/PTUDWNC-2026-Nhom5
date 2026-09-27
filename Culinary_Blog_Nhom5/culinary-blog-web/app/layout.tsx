@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description:
     "Seasonal, twice-tested recipes: pasta, roasts, baking and salads, written for real home kitchens.",
   openGraph: {
-    title: "Culinary Blog — Recipes worth cooking twice",
+    title: "Culinary Blog | Recipes worth cooking twice",
     description: "Seasonal, twice-tested recipes for real home kitchens.",
     type: "website",
   },
