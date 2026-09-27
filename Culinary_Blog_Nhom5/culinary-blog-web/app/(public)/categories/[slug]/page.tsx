@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
 import { categoryApi } from "@/lib/api/categoryApi";
@@ -105,9 +106,12 @@ export default async function CategoryDetailPage({
 
         <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft">
           {cover ? (
-            <img
+            <Image
               src={cover}
               alt={category.name}
+              width={1200}
+              height={675}
+              unoptimized
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
               loading="eager"
             />

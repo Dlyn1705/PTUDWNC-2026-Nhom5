@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, ChefHat } from "lucide-react";
 import { CategoryDto } from "@/types/category.types";
 
@@ -22,9 +23,12 @@ export function CategoryCard({ category }: CategoryCardProps) {
       {/* Category Image with Count Badge */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
         {category.imageUrl || fallbackImage ? (
-          <img
+          <Image
             src={category.imageUrl || fallbackImage}
             alt={category.name}
+            width={800}
+            height={450}
+            unoptimized
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />

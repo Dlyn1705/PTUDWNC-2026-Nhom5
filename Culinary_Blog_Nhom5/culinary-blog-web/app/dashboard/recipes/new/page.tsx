@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 
 type Ingredient = {
   name: string;
@@ -341,9 +342,12 @@ export default function NewRecipePage() {
             <div className="mt-5">
               {image ? (
                 <div className="relative overflow-hidden rounded-2xl">
-                  <img
+                  <Image
                     src={image}
                     alt="Ảnh món ăn"
+                    width={1024}
+                    height={576}
+                    unoptimized
                     className="h-64 w-full object-cover"
                   />
 

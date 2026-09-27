@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Clock,
@@ -159,9 +160,12 @@ export default async function HomePage() {
                 {featured.author && (
                   <span className="inline-flex items-center gap-2 font-medium">
                     {featured.author.avatarUrl ? (
-                      <img
+                      <Image
                         src={featured.author.avatarUrl}
                         alt={featured.author.displayName}
+                        width={20}
+                        height={20}
+                        unoptimized
                         className="size-5 rounded-full object-cover border"
                       />
                     ) : (
@@ -188,9 +192,12 @@ export default async function HomePage() {
             <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft md:col-span-6 lg:col-span-5">
               {featuredImage ? (
                 <Link href={`/recipes/${featured.slug}`} className="block group">
-                  <img
+                  <Image
                     src={featuredImage.url}
                     alt={featuredImage.alt || featured.title}
+                    width={1200}
+                    height={900}
+                    unoptimized
                     className="aspect-[4/3] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     loading="eager"
                   />
@@ -231,9 +238,12 @@ export default async function HomePage() {
                 {/* Category Thumbnail */}
                 <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
                   {category.imageUrl ? (
-                    <img
+                    <Image
                       src={category.imageUrl}
                       alt={category.name}
+                      width={800}
+                      height={500}
+                      unoptimized
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />

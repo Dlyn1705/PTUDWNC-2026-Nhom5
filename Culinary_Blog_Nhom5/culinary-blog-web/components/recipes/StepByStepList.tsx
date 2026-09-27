@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { RecipeStepDto } from "@/types/recipe.types";
 import { RecipeTimer } from "./RecipeTimer";
 import { Check, RotateCcw } from "lucide-react";
@@ -120,9 +121,12 @@ export function StepByStepList({ steps }: StepByStepListProps) {
                   {/* Step Image */}
                   {step.imageUrl && (
                     <div className="mt-3 overflow-hidden rounded-xl border border-border max-w-lg shadow-2xs">
-                      <img
+                      <Image
                         src={step.imageUrl}
                         alt={step.title || `Step ${stepNumber}`}
+                        width={960}
+                        height={540}
+                        unoptimized
                         className="aspect-video w-full object-cover"
                         loading="lazy"
                       />

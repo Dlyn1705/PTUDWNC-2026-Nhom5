@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,9 +219,12 @@ export function CategoryModal({
 
               {imageUrl && (
                 <div className="mt-2 relative aspect-[16/9] max-w-xs overflow-hidden rounded-xl border border-border bg-muted">
-                  <img
+                  <Image
                     src={imageUrl}
                     alt="Preview"
+                    width={640}
+                    height={360}
+                    unoptimized
                     className="size-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none";
