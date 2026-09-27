@@ -3,7 +3,8 @@ import Link from "next/link";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
-import { UtensilsCrossed, Sparkles } from "lucide-react";
+import { UtensilsCrossed, Sparkles, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "All Recipes — Culinary Blog",
@@ -50,11 +51,20 @@ export default async function RecipesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
-          <UtensilsCrossed className="size-4 text-primary" />
-          <span className="tabular-nums font-semibold text-foreground">
-            {recipes.length} recipes published
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
+            <UtensilsCrossed className="size-4 text-primary" />
+            <span className="tabular-nums font-semibold text-foreground">
+              {recipes.length} recipes published
+            </span>
+          </div>
+
+          <Button asChild className="rounded-2xl gap-2 shadow-soft h-11 px-5 font-medium">
+            <Link href="/dashboard/recipes/new">
+              <Plus className="size-4" />
+              <span>Tạo công thức</span>
+            </Link>
+          </Button>
         </div>
       </div>
 

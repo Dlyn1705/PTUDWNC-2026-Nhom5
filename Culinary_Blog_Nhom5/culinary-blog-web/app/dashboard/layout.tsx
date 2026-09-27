@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft } from "lucide-react";
+import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
@@ -43,6 +43,13 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            <Button asChild size="sm" className="rounded-full gap-1.5 text-xs shadow-soft">
+              <Link href="/dashboard/recipes/new">
+                <Plus className="size-3.5" />
+                <span>Tạo công thức</span>
+              </Link>
+            </Button>
+
             <Button asChild variant="ghost" size="sm" className="rounded-full gap-1.5 text-xs">
               <Link href="/">
                 <ArrowLeft className="size-3.5" />
