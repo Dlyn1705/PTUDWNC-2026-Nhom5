@@ -51,7 +51,7 @@ public static class RecipeEndpoints
         })
         .WithName("SearchRecipes")
         .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
-        .Produces<ApiResponse<PagedResult<RecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         return app;
