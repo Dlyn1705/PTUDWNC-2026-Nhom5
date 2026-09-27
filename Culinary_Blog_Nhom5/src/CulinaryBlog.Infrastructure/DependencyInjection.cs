@@ -50,8 +50,12 @@ public static class DependencyInjection
             options.Password.RequireNonAlphanumeric = true;
             options.Password.RequiredLength = 8;
             options.User.RequireUniqueEmail = true;
+            options.Lockout.AllowedForNewUsers = true;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         })
         .AddRoles<IdentityRole>()
+        .AddSignInManager<SignInManager<ApplicationUser>>()
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 

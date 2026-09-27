@@ -86,12 +86,20 @@ public class GlobalExceptionMiddleware
                 problemDetails.Detail = forbiddenEx.Message;
                 break;
 
-            case UnauthorizedAccessException:
+            case UnauthorizedAccessException unauthorizedEx:
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 problemDetails.Status = StatusCodes.Status401Unauthorized;
                 problemDetails.Title = "Yêu cầu xác thực.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7235#section-3.1";
-                problemDetails.Detail = "Bạn cần đăng nhập để truy cập tài nguyên này.";
+                problemDetails.Detail = unauthorizedEx.Message;
+                break;
+
+            case LockedException lockedEx:
+                context.Response.StatusCode = StatusCodes.Status423Locked;
+                problemDetails.Status = StatusCodes.Status423Locked;
+                problemDetails.Title = "Tài khoản bị tạm khóa.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.3";
+                problemDetails.Detail = lockedEx.Message;
                 break;
 
             default:

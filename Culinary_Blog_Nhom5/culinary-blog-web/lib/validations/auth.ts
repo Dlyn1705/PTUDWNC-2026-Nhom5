@@ -28,3 +28,15 @@ export const registerSchema = z
   });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+export const loginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập email")
+    .email("Địa chỉ email không đúng định dạng")
+    .max(256, "Email không được vượt quá 256 ký tự"),
+  password: z.string().min(1, "Vui lòng nhập mật khẩu"),
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;
