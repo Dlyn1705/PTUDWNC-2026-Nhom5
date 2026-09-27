@@ -1,6 +1,7 @@
 using System;
 using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Interfaces;
@@ -53,6 +54,20 @@ public static class RecipeEndpoints
         .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
         .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
+
+        // FR-RCP-002: Xem chi tiết công thức đã xuất bản (Public)
+        group.MapGet("/{slug}", async (
+            string slug,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
+            return Results.Ok(recipe);
+        })
+        .WithName("GetRecipeBySlug")
+        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug")
+        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return app;
     }
