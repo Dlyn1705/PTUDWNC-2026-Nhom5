@@ -49,6 +49,54 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         return await _dbSet.CountAsync(r => r.CategoryId == categoryId, ct);
     }
 
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> SearchRecipesAsync(
+        string sanitizedTsQuery,
+        int page,
+        int pageSize,
+        Guid? categoryId = null,
+        RecipeDifficulty? difficulty = null,
+        string? sortBy = null,
+        CancellationToken ct = default)
+    {
+        var query = _dbSet
+            .AsNoTracking()
+            .Include(r => r.Category)
+            .Include(r => r.Author)
+            .Include(r => r.Images)
+            .Where(r => r.Status == RecipeStatus.Published && !r.IsDeleted);
+
+        if (categoryId.HasValue)
+        {
+            query = query.Where(r => r.CategoryId == categoryId.Value);
+        }
+
+        if (difficulty.HasValue)
+        {
+            query = query.Where(r => r.Difficulty == difficulty.Value);
+        }
+
+        var tsQuery = EF.Functions.ToTsQuery("simple", sanitizedTsQuery);
+        query = query.Where(r => r.SearchVector != null && r.SearchVector.Matches(tsQuery));
+
+        query = sortBy?.ToLowerInvariant() switch
+        {
+            "title" => query.OrderBy(r => r.Title),
+            "-title" => query.OrderByDescending(r => r.Title),
+            "cooktime" => query.OrderBy(r => r.CookTime),
+            "-cooktime" => query.OrderByDescending(r => r.CookTime),
+            "createdat" => query.OrderBy(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.SearchVector != null ? r.SearchVector.Rank(tsQuery) : 0)
+        };
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
+
     public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
         int page,
         int pageSize,
@@ -102,7 +150,7 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             "cooktime" => query.OrderBy(r => r.CookTime),
             "-cooktime" => query.OrderByDescending(r => r.CookTime),
             "createdat" => query.OrderBy(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt) // Mặc định: -createdAt
+            _ => query.OrderByDescending(r => r.CreatedAt)
         };
 
         int totalCount = await query.CountAsync(ct);
