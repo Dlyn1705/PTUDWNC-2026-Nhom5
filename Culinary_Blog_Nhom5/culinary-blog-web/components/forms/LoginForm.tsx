@@ -128,7 +128,7 @@ export function LoginForm() {
           </label>
           <button
             type="button"
-            className="mb-2 text-xs font-semibold text-orange-700 hover:underline"
+            className="mb-2 text-xs font-semibold text-primary hover:underline"
           >
             Quên mật khẩu?
           </button>
@@ -152,7 +152,7 @@ export function LoginForm() {
         Chưa có tài khoản?{" "}
         <Link
           href="/register"
-          className="font-semibold text-orange-700 underline-offset-4 hover:underline"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Tạo tài khoản
         </Link>
