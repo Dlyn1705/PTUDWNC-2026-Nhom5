@@ -114,6 +114,7 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         string? sortBy = null,
         string? authorId = null,
         bool includeDrafts = false,
+        RecipeStatus? status = null,
         CancellationToken ct = default)
     {
         var query = _dbSet
@@ -123,13 +124,21 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             .AsNoTracking();
 
         // Lọc trạng thái hiển thị
-        if (!includeDrafts)
+        if (includeDrafts)
+        {
+            if (!string.IsNullOrEmpty(authorId))
+            {
+                query = query.Where(r => r.AuthorId == authorId);
+            }
+        }
+        else
         {
             query = query.Where(r => r.Status == RecipeStatus.Published);
         }
-        else if (!string.IsNullOrEmpty(authorId))
+
+        if (status.HasValue)
         {
-            query = query.Where(r => r.Status == RecipeStatus.Published || (r.AuthorId == authorId));
+            query = query.Where(r => r.Status == status.Value);
         }
 
         // Lọc theo Category
