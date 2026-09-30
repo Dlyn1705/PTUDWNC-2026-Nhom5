@@ -104,6 +104,7 @@ public class Recipe : BaseEntity
     public void Unpublish()
     {
         Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 
