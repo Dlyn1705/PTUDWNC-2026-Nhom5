@@ -1,14 +1,17 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+using NpgsqlTypes;
 
 #nullable disable
 
 namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 {
-    public partial class AddSearchVectorToRecipes : Migration
+    /// <inheritdoc />
+    public partial class SyncRecipeSearchVectorModel : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<NpgsqlTypes.NpgsqlTsVector>(
+            migrationBuilder.AddColumn<NpgsqlTsVector>(
                 name: "SearchVector",
                 table: "Recipes",
                 type: "tsvector",
@@ -46,6 +49,7 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
             ");
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"DROP TRIGGER IF EXISTS trg_recipes_search_vector_update ON ""Recipes"";");
