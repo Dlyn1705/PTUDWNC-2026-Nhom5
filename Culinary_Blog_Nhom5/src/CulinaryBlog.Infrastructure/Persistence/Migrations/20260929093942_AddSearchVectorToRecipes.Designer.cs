@@ -13,8 +13,8 @@ using NpgsqlTypes;
 namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260929042645_SyncRecipeSearchVectorModel")]
-    partial class SyncRecipeSearchVectorModel
+    [Migration("20260929093942_AddSearchVectorToRecipes")]
+    partial class AddSearchVectorToRecipes
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

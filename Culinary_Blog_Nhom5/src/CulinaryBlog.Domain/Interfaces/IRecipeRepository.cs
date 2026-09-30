@@ -13,7 +13,7 @@ public interface IRecipeRepository : IRepository<Recipe>
     Task<Recipe?> GetDetailsByIdAsync(Guid id, CancellationToken ct = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default);
     Task<int> CountByCategoryIdAsync(Guid categoryId, CancellationToken ct = default);
-    Task<(IReadOnlyList<Recipe> Items, int TotalCount)> SearchRecipesAsync(
+    Task<(IReadOnlyList<Recipe> Items, int TotalCount, IReadOnlyDictionary<Guid, double> RelevanceScores)> SearchRecipesAsync(
         string sanitizedTsQuery,
         int page,
         int pageSize,
