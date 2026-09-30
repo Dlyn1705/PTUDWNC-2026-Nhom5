@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Clock, Flame, Printer, Share2, Timer, Users, Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -127,9 +128,12 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
       <div className="flex items-center justify-between border-y border-border py-4">
         <div className="flex items-center gap-3">
           {recipe.author?.avatarUrl ? (
-            <img
+            <Image
               src={recipe.author.avatarUrl}
               alt={recipe.author.displayName}
+              width={44}
+              height={44}
+              unoptimized
               className="size-11 rounded-full object-cover border-2 border-border shadow-2xs"
             />
           ) : (
@@ -201,9 +205,12 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
       {activeImage && (
         <div className="space-y-3">
           <div className="overflow-hidden rounded-3xl border border-border bg-muted shadow-soft">
-            <img
+            <Image
               src={activeImage.url}
               alt={activeImage.alt || recipe.title}
+              width={1280}
+              height={720}
+              unoptimized
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
               loading="eager"
             />
@@ -224,9 +231,12 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
                       : "border-transparent opacity-70 hover:opacity-100"
                   )}
                 >
-                  <img
+                  <Image
                     src={img.url}
                     alt={img.alt || `Thumbnail ${idx + 1}`}
+                    width={160}
+                    height={90}
+                    unoptimized
                     className="size-full object-cover"
                   />
                 </button>

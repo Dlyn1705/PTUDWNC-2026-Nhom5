@@ -1,7 +1,14 @@
 using System;
+using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
+using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
@@ -34,6 +41,33 @@ public static class RecipeEndpoints
         })
         .WithName("GetRecipes")
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc");
+
+        group.MapGet("/search", async (
+            [AsParameters] SearchRecipesQuery query,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var response = await sender.Send(query, ct);
+            return Results.Ok(response);
+        })
+        .WithName("SearchRecipes")
+        .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
+        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
+
+        // FR-RCP-002: Xem chi tiết công thức đã xuất bản (Public)
+        group.MapGet("/{slug}", async (
+            string slug,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
+            return Results.Ok(recipe);
+        })
+        .WithName("GetRecipeBySlug")
+        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug")
+        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return app;
     }

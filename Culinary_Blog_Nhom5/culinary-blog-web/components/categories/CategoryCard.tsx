@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { Clock, ArrowRight, ChefHat } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, ChefHat } from "lucide-react";
 import { CategoryDto } from "@/types/category.types";
 
 interface CategoryCardProps {
@@ -22,9 +23,12 @@ export function CategoryCard({ category }: CategoryCardProps) {
       {/* Category Image with Count Badge */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
         {category.imageUrl || fallbackImage ? (
-          <img
+          <Image
             src={category.imageUrl || fallbackImage}
             alt={category.name}
+            width={800}
+            height={450}
+            unoptimized
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
@@ -50,17 +54,8 @@ export function CategoryCard({ category }: CategoryCardProps) {
           {category.description || "Explore delicious recipes and cooking techniques in this category."}
         </p>
 
-        {/* Card Footer: Avg cook time and View recipes */}
-        <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-xs sm:text-sm">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="size-3.5 text-primary" />
-            <span className="tabular-nums">
-              {category.recipeCount > 0 && category.avgCookTimeMinutes
-                ? `~${category.avgCookTimeMinutes} min avg`
-                : "No recipes yet"}
-            </span>
-          </div>
-
+        {/* Card Footer */}
+        <div className="mt-5 flex items-center justify-end border-t border-border pt-4 text-xs sm:text-sm">
           <div className="inline-flex items-center gap-1 font-semibold text-primary group-hover:translate-x-0.5 transition-transform text-xs">
             <span>View recipes</span>
             <ArrowRight className="size-3.5" />

@@ -1,28 +1,86 @@
+import axios from "axios";
 import axiosClient from "./axiosClient";
-import { CategoryDto, CreateCategoryDto, UpdateCategoryDto } from "@/types/category.types";
-import { mockCategories } from "../mock-data";
+import type { ApiResponse, PaginationMeta } from "@/types/api.types";
+import {
+  CategoryDetailResult,
+  CategoryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from "@/types/category.types";
+import type { RecipeCardDto } from "@/types/recipe.types";
+import { mockCategories, mockRecipes } from "../mock-data";
 
 let localCategories: CategoryDto[] = [...mockCategories];
+const mockModeEnabled =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+
+interface CategoryDetailApiResponse {
+  data: {
+    category: CategoryDto;
+    recipes: RecipeCardDto[];
+  };
+  meta: PaginationMeta;
+}
 
 export const categoryApi = {
   async getAll(): Promise<CategoryDto[]> {
     try {
-      const response = await axiosClient.get<CategoryDto[]>("/api/v1/categories");
-      if (response.data && response.data.length > 0) {
-        return response.data;
-      }
-      return localCategories;
-    } catch {
-      return localCategories;
+      const response = await axiosClient.get<ApiResponse<CategoryDto[]>>(
+        "/api/v1/categories",
+      );
+      return response.data.data;
+    } catch (error) {
+      if (mockModeEnabled) return localCategories;
+      throw error;
     }
   },
 
-  async getBySlug(slug: string): Promise<CategoryDto | null> {
+  async getBySlug(
+    slug: string,
+    page = 1,
+    pageSize = 12,
+  ): Promise<CategoryDetailResult | null> {
     try {
-      const categories = await this.getAll();
-      return categories.find((c) => c.slug.toLowerCase() === slug.toLowerCase()) || null;
-    } catch {
-      return localCategories.find((c) => c.slug.toLowerCase() === slug.toLowerCase()) || null;
+      const response = await axiosClient.get<CategoryDetailApiResponse>(
+        `/api/v1/categories/${encodeURIComponent(slug)}`,
+        { params: { page, pageSize } },
+      );
+      return {
+        category: response.data.data.category,
+        recipes: response.data.data.recipes,
+        meta: response.data.meta,
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) return null;
+      if (!mockModeEnabled) throw error;
+
+      const category = localCategories.find(
+        (item) => item.slug.toLowerCase() === slug.toLowerCase(),
+      );
+      if (!category) return null;
+
+      const recipes = mockRecipes.filter(
+        (recipe) =>
+          recipe.status === 1 &&
+          (recipe.categoryId === category.id ||
+            recipe.categoryName?.toLowerCase() === category.name.toLowerCase()),
+      );
+      const start = (page - 1) * pageSize;
+      const totalPages = Math.ceil(recipes.length / pageSize);
+
+      return {
+        category: { ...category, recipeCount: recipes.length },
+        recipes: recipes.slice(start, start + pageSize),
+        meta: {
+          page,
+          pageSize,
+          totalCount: recipes.length,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      };
     }
   },
 
@@ -34,12 +92,13 @@ export const categoryApi = {
       .replace(/(^-|-$)/g, "");
 
     try {
-      const response = await axiosClient.post<CategoryDto>("/api/v1/categories", dto);
-      if (response.data) {
-        return response.data;
-      }
-    } catch {
-      // Offline fallback handling
+      const response = await axiosClient.post<ApiResponse<CategoryDto>>(
+        "/api/v1/categories",
+        dto,
+      );
+      return response.data.data;
+    } catch (error) {
+      if (!mockModeEnabled) throw error;
     }
 
     const newCategory: CategoryDto = {
@@ -50,7 +109,6 @@ export const categoryApi = {
       imageUrl: dto.imageUrl || null,
       orderIndex: dto.orderIndex || localCategories.length + 1,
       recipeCount: 0,
-      avgCookTimeMinutes: null,
     };
     localCategories = [newCategory, ...localCategories];
     return newCategory;
@@ -58,12 +116,13 @@ export const categoryApi = {
 
   async update(id: string, dto: UpdateCategoryDto): Promise<CategoryDto> {
     try {
-      const response = await axiosClient.put<CategoryDto>(`/api/v1/categories/${id}`, dto);
-      if (response.data) {
-        return response.data;
-      }
-    } catch {
-      // Offline fallback handling
+      const response = await axiosClient.put<ApiResponse<CategoryDto>>(
+        `/api/v1/categories/${id}`,
+        dto,
+      );
+      return response.data.data;
+    } catch (error) {
+      if (!mockModeEnabled) throw error;
     }
 
     const index = localCategories.findIndex((c) => c.id === id);
@@ -81,16 +140,16 @@ export const categoryApi = {
   },
 
   async delete(id: string): Promise<void> {
-    // Check if category has recipes
+    try {
+      await axiosClient.delete(`/api/v1/categories/${id}`);
+      return;
+    } catch (error) {
+      if (!mockModeEnabled) throw error;
+    }
+
     const cat = localCategories.find((c) => c.id === id);
     if (cat && cat.recipeCount > 0) {
       throw new Error("Cannot delete category with associated recipes.");
-    }
-
-    try {
-      await axiosClient.delete(`/api/v1/categories/${id}`);
-    } catch {
-      // Offline fallback
     }
     localCategories = localCategories.filter((c) => c.id !== id);
   },

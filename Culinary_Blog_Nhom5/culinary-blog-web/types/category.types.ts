@@ -1,3 +1,6 @@
+import type { PaginationMeta } from "./api.types";
+import type { RecipeCardDto } from "./recipe.types";
+
 export interface CategoryDto {
   id: string;
   name: string;
@@ -6,7 +9,12 @@ export interface CategoryDto {
   imageUrl?: string | null;
   orderIndex: number;
   recipeCount: number;
-  avgCookTimeMinutes?: number | null;
+}
+
+export interface CategoryDetailResult {
+  category: CategoryDto;
+  recipes: RecipeCardDto[];
+  meta: PaginationMeta;
 }
 
 export interface CreateCategoryDto {
