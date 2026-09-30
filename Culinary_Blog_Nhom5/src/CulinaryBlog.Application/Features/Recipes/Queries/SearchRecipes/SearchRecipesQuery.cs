@@ -20,13 +20,14 @@ public record SearchRecipesQuery(
     int PageSize = 12,
     Guid? CategoryId = null,
     RecipeDifficulty? Difficulty = null,
-    string? SortBy = null) : IRequest<ApiResponse<PagedResult<RecipeSummaryDto>>>;
+    string? Sort = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
 
 public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
 {
     public SearchRecipesQueryValidator()
     {
         RuleFor(x => x.Q)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Từ khóa tìm kiếm không được để trống.")
             .Must(q => !string.IsNullOrWhiteSpace(q)).WithMessage("Từ khóa tìm kiếm không được để trống.")
             .Must(q => q.Trim().Length >= 2).WithMessage("Từ khóa tìm kiếm phải có ít nhất 2 ký tự.")
@@ -37,10 +38,17 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
 
         RuleFor(x => x.PageSize)
             .InclusiveBetween(1, 50).WithMessage("PageSize phải nằm trong khoảng từ 1 đến 50.");
+
+        RuleFor(x => x.Sort)
+            .Must(sort => string.IsNullOrWhiteSpace(sort) || new[]
+            {
+                "relevance", "createdat", "-createdat", "cooktime", "-cooktime", "title"
+            }.Contains(sort.Trim(), StringComparer.OrdinalIgnoreCase))
+            .WithMessage("Sort không được hỗ trợ.");
     }
 }
 
-public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<RecipeSummaryDto>>>
+public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<SearchRecipeSummaryDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -49,22 +57,22 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<ApiResponse<PagedResult<RecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
     {
         var keyword = request.Q.Trim();
         var normalized = NormalizeKeyword(keyword);
         var tsQuery = BuildTsQuery(normalized);
 
-        var (items, totalCount) = await _unitOfWork.Recipes.SearchRecipesAsync(
+        var (items, totalCount, scores) = await _unitOfWork.Recipes.SearchRecipesAsync(
             tsQuery,
             request.Page,
             request.PageSize,
             request.CategoryId,
             request.Difficulty,
-            request.SortBy,
+            request.Sort,
             cancellationToken);
 
-        var mapped = items.Select(r => new RecipeSummaryDto
+        var mapped = items.Select(r => new SearchRecipeSummaryDto
         {
             Id = r.Id,
             Title = r.Title,
@@ -72,13 +80,13 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             Description = r.Description,
             PrimaryImageUrl = r.Images.FirstOrDefault(img => img.IsPrimary)?.OriginalUrl
                 ?? r.Images.FirstOrDefault()?.OriginalUrl,
-            Category = new RecipeCategorySummaryDto
+            Category = new SearchRecipeCategorySummaryDto
             {
                 Id = r.Category.Id,
                 Name = r.Category.Name,
                 Slug = r.Category.Slug
             },
-            Author = new RecipeAuthorSummaryDto
+            Author = new SearchRecipeAuthorSummaryDto
             {
                 Id = r.AuthorId,
                 DisplayName = r.Author.DisplayName,
@@ -88,12 +96,12 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             PrepTime = r.PrepTime,
             CookTime = r.CookTime,
             Servings = r.Servings,
-            RelevanceScore = 0,
+            RelevanceScore = scores.TryGetValue(r.Id, out var score) ? score : 0,
             CreatedAt = r.CreatedAt
         }).ToList();
 
-        var paged = new PagedResult<RecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
-        return ApiResponse<PagedResult<RecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
+        var paged = new PagedResult<SearchRecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
+        return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
     }
 
     private static string NormalizeKeyword(string input)
@@ -104,7 +112,8 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         }
 
         var normalized = input.Trim();
-        normalized = normalized.Normalize(System.Text.NormalizationForm.FormD);
+        normalized = normalized.ToLowerInvariant().Replace('đ', 'd');
+        normalized = normalized.Normalize(NormalizationForm.FormD);
 
         var builder = new StringBuilder();
         foreach (var ch in normalized)
@@ -112,7 +121,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch);
             if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
             {
-                builder.Append(char.ToLowerInvariant(ch));
+                builder.Append(ch);
             }
         }
 

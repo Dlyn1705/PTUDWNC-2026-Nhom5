@@ -10,8 +10,9 @@ using CulinaryBlog.Infrastructure.Persistence.Seed;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
-
+using System.Threading.RateLimiting;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -119,8 +120,19 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
 
-// ============================================================
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
 builder.Services.AddOpenApi();
@@ -133,18 +145,14 @@ var app = builder.Build();
 
 
 // ============================================================
-// 6. DATABASE SEEDING
+// 6. OPTIONAL DATABASE MIGRATION & SEEDING
 // ============================================================
-// Chạy Migration + tạo dữ liệu mẫu:
-// - Roles
-// - Users
-// - 20 Categories
-// - 100 Recipes
-// - 1000 RecipeIngredients
-// - 500 RecipeSteps
+// Chỉ chạy khi Database:SeedOnStartup=true để không tự ý thay đổi
+// database đã có dữ liệu trong lúc API khởi động.
 // ============================================================
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
 
     var context =
@@ -196,6 +204,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 
 app.UseAuthorization();
+app.UseRateLimiter();
 
 
 // ============================================================

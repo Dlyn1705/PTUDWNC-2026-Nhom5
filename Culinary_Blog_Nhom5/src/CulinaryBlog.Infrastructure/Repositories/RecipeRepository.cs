@@ -49,7 +49,7 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         return await _dbSet.CountAsync(r => r.CategoryId == categoryId, ct);
     }
 
-    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> SearchRecipesAsync(
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount, IReadOnlyDictionary<Guid, double> RelevanceScores)> SearchRecipesAsync(
         string sanitizedTsQuery,
         int page,
         int pageSize,
@@ -78,23 +78,31 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         var tsQuery = EF.Functions.ToTsQuery("simple", sanitizedTsQuery);
         query = query.Where(r => r.SearchVector != null && r.SearchVector.Matches(tsQuery));
 
-        query = sortBy?.ToLowerInvariant() switch
+        var rankedQuery = query.Select(r => new
         {
-            "title" => query.OrderBy(r => r.Title),
-            "-title" => query.OrderByDescending(r => r.Title),
-            "cooktime" => query.OrderBy(r => r.CookTime),
-            "-cooktime" => query.OrderByDescending(r => r.CookTime),
-            "createdat" => query.OrderBy(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.SearchVector != null ? r.SearchVector.Rank(tsQuery) : 0)
+            Recipe = r,
+            Score = r.SearchVector!.Rank(tsQuery)
+        });
+
+        rankedQuery = sortBy?.ToLowerInvariant() switch
+        {
+            "title" => rankedQuery.OrderBy(x => x.Recipe.Title),
+            "cooktime" => rankedQuery.OrderBy(x => x.Recipe.CookTime),
+            "-cooktime" => rankedQuery.OrderByDescending(x => x.Recipe.CookTime),
+            "createdat" => rankedQuery.OrderBy(x => x.Recipe.CreatedAt),
+            "-createdat" => rankedQuery.OrderByDescending(x => x.Recipe.CreatedAt),
+            _ => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt)
         };
 
-        var totalCount = await query.CountAsync(ct);
-        var items = await query
+        var totalCount = await rankedQuery.CountAsync(ct);
+        var pageItems = await rankedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
 
-        return (items, totalCount);
+        var items = pageItems.Select(x => x.Recipe).ToList();
+        var scores = pageItems.ToDictionary(x => x.Recipe.Id, x => (double)x.Score);
+        return (items, totalCount, scores);
     }
 
     public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
