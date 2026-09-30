@@ -17,147 +17,292 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
     {
     }
 
-    public async Task<Recipe?> GetBySlugAsync(string slug, CancellationToken ct = default)
-    {
-        return await _dbSet
-            .Include(r => r.Category)
-            .Include(r => r.Author)
-            .Include(r => r.Steps.OrderBy(s => s.StepNumber))
-            .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
-            .Include(r => r.Images.OrderBy(img => img.OrderIndex))
-            .FirstOrDefaultAsync(r => r.Slug == slug, ct);
-    }
-
-    public async Task<Recipe?> GetDetailsByIdAsync(Guid id, CancellationToken ct = default)
-    {
-        return await _dbSet
-            .Include(r => r.Category)
-            .Include(r => r.Author)
-            .Include(r => r.Steps.OrderBy(s => s.StepNumber))
-            .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
-            .Include(r => r.Images.OrderBy(img => img.OrderIndex))
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
-    }
-
-    public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default)
-    {
-        return await _dbSet.AnyAsync(r => r.Slug == slug, ct);
-    }
-
-    public async Task<int> CountByCategoryIdAsync(Guid categoryId, CancellationToken ct = default)
-    {
-        return await _dbSet.CountAsync(r => r.CategoryId == categoryId, ct);
-    }
-
-    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> SearchRecipesAsync(
-        string sanitizedTsQuery,
-        int page,
-        int pageSize,
-        Guid? categoryId = null,
-        RecipeDifficulty? difficulty = null,
-        string? sortBy = null,
+    // ============================================================
+    // GET RECIPE BY SLUG
+    // ============================================================
+    public async Task<Recipe?> GetBySlugAsync(
+        string slug,
         CancellationToken ct = default)
+    {
+        return await _dbSet
+            .Include(r => r.Category)
+            .Include(r => r.Author)
+            .Include(r => r.Steps.OrderBy(s => s.StepNumber))
+            .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
+            .Include(r => r.Images.OrderBy(img => img.OrderIndex))
+            .FirstOrDefaultAsync(
+                r => r.Slug == slug && !r.IsDeleted,
+                ct);
+    }
+
+    // ============================================================
+    // GET RECIPE DETAILS BY ID
+    // ============================================================
+    public async Task<Recipe?> GetDetailsByIdAsync(
+        Guid id,
+        CancellationToken ct = default)
+    {
+        return await _dbSet
+            .Include(r => r.Category)
+            .Include(r => r.Author)
+            .Include(r => r.Steps.OrderBy(s => s.StepNumber))
+            .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
+            .Include(r => r.Images.OrderBy(img => img.OrderIndex))
+            .FirstOrDefaultAsync(
+                r => r.Id == id && !r.IsDeleted,
+                ct);
+    }
+
+    // ============================================================
+    // CHECK SLUG EXISTS
+    // ============================================================
+    public async Task<bool> ExistsBySlugAsync(
+        string slug,
+        CancellationToken ct = default)
+    {
+        return await _dbSet
+            .AnyAsync(
+                r => r.Slug == slug && !r.IsDeleted,
+                ct);
+    }
+
+    // ============================================================
+    // COUNT RECIPES BY CATEGORY
+    // ============================================================
+    public async Task<int> CountByCategoryIdAsync(
+        Guid categoryId,
+        CancellationToken ct = default)
+    {
+        return await _dbSet
+            .CountAsync(
+                r => r.CategoryId == categoryId &&
+                     !r.IsDeleted,
+                ct);
+    }
+
+    // ============================================================
+    // SEARCH RECIPES
+    // FR-SRCH-001
+    //
+    // Không dùng ToTsQuery để tránh lỗi EF Core client evaluation.
+    // Dùng PostgreSQL ILIKE.
+    // ============================================================
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)>
+        SearchRecipesAsync(
+            string sanitizedTsQuery,
+            int page,
+            int pageSize,
+            Guid? categoryId = null,
+            RecipeDifficulty? difficulty = null,
+            string? sortBy = null,
+            CancellationToken ct = default)
     {
         var query = _dbSet
             .AsNoTracking()
             .Include(r => r.Category)
             .Include(r => r.Author)
             .Include(r => r.Images)
-            .Where(r => r.Status == RecipeStatus.Published && !r.IsDeleted);
+            .Where(r =>
+                r.Status == RecipeStatus.Published &&
+                !r.IsDeleted);
 
+        // --------------------------------------------------------
+        // SEARCH KEYWORD
+        // --------------------------------------------------------
+        if (!string.IsNullOrWhiteSpace(sanitizedTsQuery))
+        {
+            var keyword = sanitizedTsQuery.Trim();
+
+            query = query.Where(r =>
+                EF.Functions.ILike(
+                    r.Title,
+                    $"%{keyword}%")
+
+                ||
+
+                EF.Functions.ILike(
+                    r.Description,
+                    $"%{keyword}%")
+
+                ||
+
+                EF.Functions.ILike(
+                    r.Instructions,
+                    $"%{keyword}%"));
+        }
+
+        // --------------------------------------------------------
+        // CATEGORY FILTER
+        // --------------------------------------------------------
         if (categoryId.HasValue)
         {
-            query = query.Where(r => r.CategoryId == categoryId.Value);
+            query = query.Where(
+                r => r.CategoryId == categoryId.Value);
         }
 
+        // --------------------------------------------------------
+        // DIFFICULTY FILTER
+        // --------------------------------------------------------
         if (difficulty.HasValue)
         {
-            query = query.Where(r => r.Difficulty == difficulty.Value);
+            query = query.Where(
+                r => r.Difficulty == difficulty.Value);
         }
 
-        var tsQuery = EF.Functions.ToTsQuery("simple", sanitizedTsQuery);
-        query = query.Where(r => r.SearchVector != null && r.SearchVector.Matches(tsQuery));
-
+        // --------------------------------------------------------
+        // SORT
+        // --------------------------------------------------------
         query = sortBy?.ToLowerInvariant() switch
         {
-            "title" => query.OrderBy(r => r.Title),
-            "-title" => query.OrderByDescending(r => r.Title),
-            "cooktime" => query.OrderBy(r => r.CookTime),
-            "-cooktime" => query.OrderByDescending(r => r.CookTime),
-            "createdat" => query.OrderBy(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.SearchVector != null ? r.SearchVector.Rank(tsQuery) : 0)
+            "title" =>
+                query.OrderBy(r => r.Title),
+
+            "-title" =>
+                query.OrderByDescending(r => r.Title),
+
+            "cooktime" =>
+                query.OrderBy(r => r.CookTime),
+
+            "-cooktime" =>
+                query.OrderByDescending(r => r.CookTime),
+
+            "createdat" =>
+                query.OrderBy(r => r.CreatedAt),
+
+            "-createdat" =>
+                query.OrderByDescending(r => r.CreatedAt),
+
+            _ =>
+                query.OrderByDescending(r => r.CreatedAt)
         };
 
-        var totalCount = await query.CountAsync(ct);
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+        // --------------------------------------------------------
+        // COUNT
+        // --------------------------------------------------------
+        var totalCount =
+            await query.CountAsync(ct);
+
+        // --------------------------------------------------------
+        // PAGINATION
+        // --------------------------------------------------------
+        var items =
+            await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
 
         return (items, totalCount);
     }
 
-    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
-        int page,
-        int pageSize,
-        Guid? categoryId = null,
-        RecipeDifficulty? difficulty = null,
-        int? maxCookTime = null,
-        string? sortBy = null,
-        string? authorId = null,
-        bool includeDrafts = false,
-        CancellationToken ct = default)
+    // ============================================================
+    // GET PAGED RECIPES
+    // FR-RCP-001
+    // ============================================================
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)>
+        GetPagedAsync(
+            int page,
+            int pageSize,
+            Guid? categoryId = null,
+            RecipeDifficulty? difficulty = null,
+            int? maxCookTime = null,
+            string? sortBy = null,
+            string? authorId = null,
+            bool includeDrafts = false,
+            CancellationToken ct = default)
     {
         var query = _dbSet
             .Include(r => r.Category)
             .Include(r => r.Author)
-            .Include(r => r.Images.Where(img => img.IsPrimary))
-            .AsNoTracking();
+            .Include(r =>
+                r.Images.Where(img => img.IsPrimary))
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted);
 
-        // Lọc trạng thái hiển thị
+        // --------------------------------------------------------
+        // STATUS
+        // --------------------------------------------------------
         if (!includeDrafts)
         {
-            query = query.Where(r => r.Status == RecipeStatus.Published);
+            query = query.Where(
+                r => r.Status == RecipeStatus.Published);
         }
-        else if (!string.IsNullOrEmpty(authorId))
+        else if (!string.IsNullOrWhiteSpace(authorId))
         {
-            query = query.Where(r => r.Status == RecipeStatus.Published || (r.AuthorId == authorId));
+            query = query.Where(
+                r =>
+                    r.Status == RecipeStatus.Published
+                    ||
+                    r.AuthorId == authorId);
         }
 
-        // Lọc theo Category
+        // --------------------------------------------------------
+        // CATEGORY
+        // --------------------------------------------------------
         if (categoryId.HasValue)
         {
-            query = query.Where(r => r.CategoryId == categoryId.Value);
+            query = query.Where(
+                r => r.CategoryId == categoryId.Value);
         }
 
-        // Lọc theo Difficulty
+        // --------------------------------------------------------
+        // DIFFICULTY
+        // --------------------------------------------------------
         if (difficulty.HasValue)
         {
-            query = query.Where(r => r.Difficulty == difficulty.Value);
+            query = query.Where(
+                r => r.Difficulty == difficulty.Value);
         }
 
-        // Lọc theo CookTime tối đa
+        // --------------------------------------------------------
+        // MAX COOK TIME
+        // --------------------------------------------------------
         if (maxCookTime.HasValue)
         {
-            query = query.Where(r => r.CookTime <= maxCookTime.Value);
+            query = query.Where(
+                r => r.CookTime <= maxCookTime.Value);
         }
 
-        // Sắp xếp
+        // --------------------------------------------------------
+        // SORT
+        // --------------------------------------------------------
         query = sortBy?.ToLowerInvariant() switch
         {
-            "title" => query.OrderBy(r => r.Title),
-            "-title" => query.OrderByDescending(r => r.Title),
-            "cooktime" => query.OrderBy(r => r.CookTime),
-            "-cooktime" => query.OrderByDescending(r => r.CookTime),
-            "createdat" => query.OrderBy(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt)
+            "title" =>
+                query.OrderBy(r => r.Title),
+
+            "-title" =>
+                query.OrderByDescending(r => r.Title),
+
+            "cooktime" =>
+                query.OrderBy(r => r.CookTime),
+
+            "-cooktime" =>
+                query.OrderByDescending(r => r.CookTime),
+
+            "createdat" =>
+                query.OrderBy(r => r.CreatedAt),
+
+            "-createdat" =>
+                query.OrderByDescending(r => r.CreatedAt),
+
+            _ =>
+                query.OrderByDescending(r => r.CreatedAt)
         };
 
-        int totalCount = await query.CountAsync(ct);
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+        // --------------------------------------------------------
+        // COUNT
+        // --------------------------------------------------------
+        var totalCount =
+            await query.CountAsync(ct);
+
+        // --------------------------------------------------------
+        // PAGINATION
+        // --------------------------------------------------------
+        var items =
+            await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
 
         return (items, totalCount);
     }

@@ -2,12 +2,17 @@ using System;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
@@ -68,6 +73,27 @@ public static class RecipeEndpoints
 
 
         // ============================================================
+        // GET - FR-SRCH-001: Tìm kiếm công thức
+        // QUAN TRỌNG: phải đặt TRƯỚC /{slug}
+        // ============================================================
+        group.MapGet("/search", async (
+            [AsParameters] SearchRecipesQuery query,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var response = await sender.Send(query, ct);
+
+            return Results.Ok(response);
+        })
+        .WithName("SearchRecipes")
+        .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn")
+        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
+            StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(
+            StatusCodes.Status422UnprocessableEntity);
+
+
+        // ============================================================
         // GET - FR-RCP-002: Chi tiết công thức
         // ============================================================
         group.MapGet("/{slug}", async (
@@ -97,7 +123,6 @@ public static class RecipeEndpoints
             IUnitOfWork unitOfWork,
             CancellationToken ct) =>
         {
-            // Lấy UserId từ JWT
             var authorId =
                 httpContext.User.FindFirstValue(
                     ClaimTypes.NameIdentifier);
@@ -108,7 +133,6 @@ public static class RecipeEndpoints
                     "Không xác định được người dùng đăng nhập.");
             }
 
-            // Kiểm tra dữ liệu cơ bản
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 throw new ValidationException(
@@ -144,7 +168,6 @@ public static class RecipeEndpoints
                     "Thời gian nấu không được âm.");
             }
 
-            // Kiểm tra Category
             var category =
                 await unitOfWork.Categories.GetByIdAsync(
                     request.CategoryId,
@@ -157,16 +180,13 @@ public static class RecipeEndpoints
                     request.CategoryId);
             }
 
-            // Tạo slug
             var slug = GenerateSlug(request.Title);
 
-            // Nếu slug đã tồn tại thì thêm timestamp
             if (await unitOfWork.Recipes.ExistsBySlugAsync(slug, ct))
             {
                 slug = $"{slug}-{DateTime.UtcNow:yyyyMMddHHmmss}";
             }
 
-            // Tạo Recipe thông qua Domain Entity
             var recipe = Recipe.Create(
                 request.Title.Trim(),
                 slug,
@@ -179,10 +199,8 @@ public static class RecipeEndpoints
                 request.CategoryId,
                 authorId);
 
-            // Thêm vào repository
             await unitOfWork.Recipes.AddAsync(recipe, ct);
 
-            // Lưu database
             await unitOfWork.SaveChangesAsync(ct);
 
             return Results.Created(
@@ -196,8 +214,7 @@ public static class RecipeEndpoints
         })
         .RequireAuthorization("AuthorPolicy")
         .WithName("CreateRecipe")
-        .WithSummary(
-            "Tạo công thức mới - Author/Admin")
+        .WithSummary("Tạo công thức mới - Author/Admin")
         .Produces(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -213,7 +230,6 @@ public static class RecipeEndpoints
             IUnitOfWork unitOfWork,
             CancellationToken ct) =>
         {
-            // Lấy UserId từ JWT
             var currentUserId =
                 httpContext.User.FindFirstValue(
                     ClaimTypes.NameIdentifier);
@@ -224,7 +240,6 @@ public static class RecipeEndpoints
                     "Không xác định được người dùng đăng nhập.");
             }
 
-            // Tìm Recipe
             var recipe =
                 await unitOfWork.Recipes.GetDetailsByIdAsync(
                     id,
@@ -235,11 +250,6 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Recipe", id);
             }
 
-            // ========================================================
-            // Phân quyền:
-            // Author chỉ được sửa recipe của chính mình.
-            // Admin được sửa tất cả.
-            // ========================================================
             bool isAdmin =
                 httpContext.User.IsInRole("Admin");
 
@@ -253,7 +263,6 @@ public static class RecipeEndpoints
                     "Bạn chỉ được cập nhật công thức do chính mình tạo.");
             }
 
-            // Validate
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 throw new ValidationException(
@@ -289,7 +298,6 @@ public static class RecipeEndpoints
                     "Thời gian nấu không được âm.");
             }
 
-            // Kiểm tra Category
             var category =
                 await unitOfWork.Categories.GetByIdAsync(
                     request.CategoryId,
@@ -302,7 +310,6 @@ public static class RecipeEndpoints
                     request.CategoryId);
             }
 
-            // Cập nhật entity thông qua Domain method
             recipe.Update(
                 request.Title.Trim(),
                 request.Description?.Trim() ?? string.Empty,
@@ -326,8 +333,7 @@ public static class RecipeEndpoints
         })
         .RequireAuthorization("AuthorPolicy")
         .WithName("UpdateRecipe")
-        .WithSummary(
-            "Cập nhật công thức - Author/Admin")
+        .WithSummary("Cập nhật công thức - Author/Admin")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -352,7 +358,8 @@ public static class RecipeEndpoints
                 .Normalize(
                     System.Text.NormalizationForm.FormD);
 
-        var result = new System.Text.StringBuilder();
+        var result =
+            new System.Text.StringBuilder();
 
         foreach (var c in normalized)
         {
@@ -402,7 +409,6 @@ public sealed record CreateRecipeRequest(
     RecipeDifficulty Difficulty,
     Guid CategoryId
 );
-
 
 public sealed record UpdateRecipeRequest(
     string Title,
