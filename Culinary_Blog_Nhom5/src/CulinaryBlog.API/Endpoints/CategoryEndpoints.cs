@@ -71,7 +71,8 @@ public static class CategoryEndpoints
                 ApiResponse<CategoryDto>.Ok(result));
         })
         .WithName("CreateCategory")
-        .WithSummary("Tạo danh mục mới (Admin)");
+        .WithSummary("Tạo danh mục mới (Admin)")
+        .RequireAuthorization("AdminOnly");
 
         // FR-CAT-005: Xóa Danh mục [Admin]
         group.MapDelete("/{id:guid}", async (Guid id, ISender sender) =>
@@ -80,7 +81,8 @@ public static class CategoryEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteCategory")
-        .WithSummary("Xóa danh mục (không được xóa nếu còn công thức)");
+        .WithSummary("Xóa danh mục (không được xóa nếu còn công thức)")
+        .RequireAuthorization("AdminOnly");
 
         return app;
     }

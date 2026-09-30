@@ -109,17 +109,6 @@ builder.Services
             };
     });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(
-        "AuthorPolicy",
-        policy => policy.RequireRole("Author", "Admin"));
-
-    options.AddPolicy(
-        "AdminPolicy",
-        policy => policy.RequireRole("Admin"));
-});
-
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

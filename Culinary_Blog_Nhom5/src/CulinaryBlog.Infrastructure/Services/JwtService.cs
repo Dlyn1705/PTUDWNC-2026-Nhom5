@@ -38,6 +38,7 @@ public class JwtService : IJwtService
             new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim("displayName", user.DisplayName ?? string.Empty),
+            new Claim("email_verified", user.EmailConfirmed ? "true" : "false"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

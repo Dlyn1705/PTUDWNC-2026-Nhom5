@@ -1,13 +1,18 @@
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  if (!session) redirect("/login?callbackUrl=/dashboard");
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Dashboard Header */}
@@ -24,13 +29,15 @@ export default function DashboardLayout({
             </Link>
 
             <nav className="hidden sm:flex items-center gap-2 text-sm">
-              <Link
-                href="/dashboard/categories"
-                className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
-              >
-                <FolderTree className="size-4" />
-                <span>Categories</span>
-              </Link>
+              {session.user.role === "Admin" && (
+                <Link
+                  href="/dashboard/categories"
+                  className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
+                >
+                  <FolderTree className="size-4" />
+                  <span>Categories</span>
+                </Link>
+              )}
 
               <Link
                 href="/dashboard/recipes"
@@ -43,14 +50,23 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <Button asChild size="sm" className="rounded-full gap-1.5 text-xs shadow-soft">
+            <Button
+              asChild
+              size="sm"
+              className="rounded-full gap-1.5 text-xs shadow-soft"
+            >
               <Link href="/dashboard/recipes/new">
                 <Plus className="size-3.5" />
                 <span>Tạo công thức</span>
               </Link>
             </Button>
 
-            <Button asChild variant="ghost" size="sm" className="rounded-full gap-1.5 text-xs">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="rounded-full gap-1.5 text-xs"
+            >
               <Link href="/">
                 <ArrowLeft className="size-3.5" />
                 <span>Back to Site</span>

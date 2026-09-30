@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Helpers;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
@@ -31,14 +32,21 @@ public class CreateCategoryCommandValidator : AbstractValidator<CreateCategoryCo
 public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, CategoryDto>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateCategoryCommandHandler(IUnitOfWork unitOfWork)
+    public CreateCategoryCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUser)
     {
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
     }
 
     public async Task<CategoryDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsAdmin)
+        {
+            throw new ForbiddenException();
+        }
+
         if (await _unitOfWork.Categories.ExistsByNameAsync(request.Name, cancellationToken))
         {
             throw new ConflictException($"Danh mục với tên '{request.Name}' đã tồn tại.");

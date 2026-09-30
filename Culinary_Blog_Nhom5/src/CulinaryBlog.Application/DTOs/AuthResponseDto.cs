@@ -6,4 +6,5 @@ public sealed record AuthResponseDto(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiry,
-    UserDto User);
+    UserDto User,
+    IReadOnlyList<string> Roles);
