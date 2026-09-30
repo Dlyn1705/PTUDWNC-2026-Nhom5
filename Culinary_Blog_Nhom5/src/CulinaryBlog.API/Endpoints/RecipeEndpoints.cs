@@ -45,9 +45,11 @@ public static class RecipeEndpoints
         group.MapGet("/search", async (
             [AsParameters] SearchRecipesQuery query,
             ISender sender,
+            HttpContext context,
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
+            context.Response.Headers.CacheControl = "public, max-age=60";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")

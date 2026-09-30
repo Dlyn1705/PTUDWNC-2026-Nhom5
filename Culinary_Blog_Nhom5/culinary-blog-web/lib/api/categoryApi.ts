@@ -26,10 +26,10 @@ interface CategoryDetailApiResponse {
 export const categoryApi = {
   async getAll(): Promise<CategoryDto[]> {
     try {
-      const response = await axiosClient.get<ApiResponse<CategoryDto[]>>(
+      const response = await axiosClient.get<ApiResponse<CategoryDto[]> | CategoryDto[]>(
         "/api/v1/categories",
       );
-      return response.data.data;
+      return Array.isArray(response.data) ? response.data : response.data.data;
     } catch (error) {
       if (mockModeEnabled) return localCategories;
       throw error;

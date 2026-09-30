@@ -96,4 +96,23 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+}
+
+export interface SearchRecipeSummaryDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  primaryImageUrl?: string | null;
+  category: { id: string; name: string; slug: string };
+  author: AuthorDto;
+  difficulty: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  relevanceScore: number;
+  createdAt: string;
 }
