@@ -103,37 +103,72 @@ export default function NewRecipePage() {
   };
 
   const handleSubmit = (status: "draft" | "continue") => {
-    if (!title.trim()) {
-      alert("Vui lòng nhập tên món ăn.");
+    // Kiểm tra tên món ăn
+    if (title.trim().length < 3) {
+      alert("Tên món ăn phải có ít nhất 3 ký tự.");
       return;
     }
 
+    // Kiểm tra danh mục
     if (!category) {
       alert("Vui lòng chọn danh mục.");
       return;
     }
 
-    console.log({
-      title,
+    // Kiểm tra thời gian
+    if (prepTime && Number(prepTime) < 0) {
+      alert("Thời gian chuẩn bị không hợp lệ.");
+      return;
+    }
+
+    if (cookTime && Number(cookTime) < 0) {
+      alert("Thời gian nấu không hợp lệ.");
+      return;
+    }
+
+    // Kiểm tra nguyên liệu
+    const invalidIngredient = ingredients.some(
+      (ingredient) => !ingredient.name.trim()
+    );
+
+    if (invalidIngredient) {
+      alert("Vui lòng nhập đầy đủ tên nguyên liệu.");
+      return;
+    }
+
+    // Kiểm tra các bước
+    const invalidStep = steps.some(
+      (step) => !step.description.trim()
+    );
+
+    if (invalidStep) {
+      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
+      return;
+    }
+
+    const recipeData = {
+      title: title.trim(),
       slug,
-      description,
+      description: description.trim(),
       category,
       difficulty,
-      prepTime,
-      cookTime,
-      servings,
+      prepTime: Number(prepTime) || 0,
+      cookTime: Number(cookTime) || 0,
+      servings: Number(servings) || 0,
       nutrition: {
-        calories,
-        protein,
-        carbs,
-        fat,
-        fiber,
-        sodium,
+        calories: Number(calories) || 0,
+        protein: Number(protein) || 0,
+        carbs: Number(carbs) || 0,
+        fat: Number(fat) || 0,
+        fiber: Number(fiber) || 0,
+        sodium: Number(sodium) || 0,
       },
       ingredients,
       steps,
       status,
-    });
+    };
+
+    console.log("Recipe data:", recipeData);
 
     alert(
       status === "draft"
@@ -143,9 +178,8 @@ export default function NewRecipePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Header */}
+    <main className="min-h-screen bg-gray-50 py-10">
+      <div className="mx-auto max-w-5xl px-4">
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium text-primary">
             Dashboard / Recipes / New
