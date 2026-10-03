@@ -16,6 +16,7 @@ export interface AuthResponse {
   refreshToken: string;
   accessTokenExpiry: string;
   user: AuthUser;
+  roles: string[];
 }
 
 export interface ProblemDetails {

@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import { signIn } from "next-auth/react";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -30,63 +29,30 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/login",
-        data,
-      );
-      if (response.status === 200) {
-        window.localStorage.setItem(
-          "culinary_access_token",
-          response.data.accessToken,
-        );
-        window.localStorage.setItem(
-          "culinary_refresh_token",
-          response.data.refreshToken,
-        );
-        router.push("/");
-      }
-    } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 422 && problem?.errors) {
-        Object.entries(problem.errors).forEach(([field, messages]) => {
-          const target = field.toLowerCase() as keyof LoginFormData;
-          if ((target === "email" || target === "password") && messages[0]) {
-            setError(target, { type: "server", message: messages[0] });
-          }
-        });
-        return;
-      }
-      if (response?.status === 401) {
+      if (result?.error) {
         setError("password", {
           type: "server",
           message: "Email hoặc mật khẩu không chính xác.",
         });
         return;
       }
-      if (response?.status === 423) {
-        setServerError(
-          problem?.detail ??
-            "Tài khoản đang bị tạm khóa. Vui lòng thử lại sau.",
-        );
-        return;
-      }
-      if (response?.status === 429) {
-        setServerError(
-          "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ một phút rồi thử lại.",
-        );
-        return;
-      }
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+
+      const requestedPath = searchParams.get("callbackUrl");
+      const destination =
+        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/";
+      router.replace(destination);
+      router.refresh();
+    } catch (error: unknown) {
+      console.error("Auth.js sign-in failed", error);
+      setServerError("Không thể đăng nhập. Vui lòng thử lại sau.");
     }
   };
 

@@ -73,18 +73,7 @@ public static class CategoryEndpoints
         })
         .WithName("CreateCategory")
         .WithSummary("Tạo danh mục mới (Admin)")
-        .RequireAuthorization("AdminPolicy");
-
-        // FR-CAT-004: Cập nhật Danh mục [Admin]
-        group.MapPut("/{id:guid}", async (Guid id, UpdateCategoryDto dto, ISender sender) =>
-        {
-            var command = new UpdateCategoryCommand(id, dto.Name, dto.Description, dto.ImageUrl, dto.OrderIndex);
-            var result = await sender.Send(command);
-            return Results.Ok(ApiResponse<CategoryDto>.Ok(result));
-        })
-        .WithName("UpdateCategory")
-        .WithSummary("Cập nhật thông tin danh mục (Admin - bảo toàn slug cũ)")
-        .RequireAuthorization("AdminPolicy");
+        .RequireAuthorization("AdminOnly");
 
         // FR-CAT-005: Xóa Danh mục [Admin]
         group.MapDelete("/{id:guid}", async (Guid id, ISender sender) =>
@@ -93,8 +82,8 @@ public static class CategoryEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteCategory")
-        .WithSummary("Xóa danh mục (chặn nếu còn công thức)")
-        .RequireAuthorization("AdminPolicy");
+        .WithSummary("Xóa danh mục (không được xóa nếu còn công thức)")
+        .RequireAuthorization("AdminOnly");
 
         return app;
     }

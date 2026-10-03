@@ -23,6 +23,12 @@ Write-Host "===================================================" -ForegroundColo
 Write-Host "  Dang khoi dong Culinary Blog (Backend + Frontend)" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
+if ([string]::IsNullOrWhiteSpace($env:AUTH_SECRET) -and [string]::IsNullOrWhiteSpace($env:NEXTAUTH_SECRET)) {
+    $secretBytes = [byte[]]::new(32)
+    [System.Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
+    $env:AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
+}
+
 Write-Host "[1/2] Dang chay Backend .NET API (Port 5156)..." -ForegroundColor Yellow
 $dotnetPath = (Get-Command dotnet -ErrorAction Stop).Source
 $backendProcess = Start-ConsoleProcess `

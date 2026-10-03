@@ -121,6 +121,7 @@ public sealed class AuthService : IAuthService
             accessToken,
             refreshToken,
             DateTime.UtcNow.AddSeconds(expiresInSeconds),
-            new UserDto(user.Id, user.Email!, user.DisplayName));
+            new UserDto(user.Id, user.Email!, user.DisplayName),
+            roles.ToArray());
     }
 }
