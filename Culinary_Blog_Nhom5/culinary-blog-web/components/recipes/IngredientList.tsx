@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Minus, Plus, RotateCcw } from "lucide-react";
+import { Minus, Plus, RotateCcw, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RecipeIngredientDto } from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +59,7 @@ export function IngredientList({
           <Button
             size="icon"
             variant="ghost"
-            className="size-6 rounded-full"
+            className="size-6 rounded-full hover:bg-accent"
             disabled={servings <= 1}
             onClick={() => setServings((s) => Math.max(1, s - 1))}
             title="Decrease servings"
@@ -73,7 +72,7 @@ export function IngredientList({
           <Button
             size="icon"
             variant="ghost"
-            className="size-6 rounded-full"
+            className="size-6 rounded-full hover:bg-accent"
             onClick={() => setServings((s) => s + 1)}
             title="Increase servings"
           >
@@ -85,7 +84,10 @@ export function IngredientList({
       {/* Quick Action Bar if items are checked */}
       {checkedCount > 0 && (
         <div className="flex items-center justify-between pt-3 text-xs text-muted-foreground">
-          <span>{Math.round((checkedCount / ingredients.length) * 100)}% ready</span>
+          <span className="font-medium text-herb flex items-center gap-1">
+            <Check className="size-3.5" />
+            {Math.round((checkedCount / ingredients.length) * 100)}% prepared
+          </span>
           <button
             onClick={clearAllChecks}
             className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
@@ -99,7 +101,9 @@ export function IngredientList({
       <ul className="mt-3 divide-y divide-border/60">
         {ingredients.map((item) => {
           const isChecked = !!checked[item.id];
-          const scaledQuantity = item.quantity ? formatQuantity(item.quantity * scale) : "";
+          const hasQuantity = item.quantity !== null && item.quantity !== undefined;
+          const scaledQuantity = hasQuantity ? formatQuantity((item.quantity as number) * scale) : "";
+          const hasUnit = Boolean(item.unit && item.unit.trim());
 
           return (
             <li
@@ -107,11 +111,20 @@ export function IngredientList({
               onClick={() => toggleCheck(item.id)}
               className={cn(
                 "flex items-start gap-3 py-3 text-sm cursor-pointer select-none transition-colors -mx-2 px-2 rounded-lg",
-                isChecked ? "bg-muted/20 text-muted-foreground" : "hover:bg-muted/40"
+                isChecked ? "bg-muted/30 text-muted-foreground" : "hover:bg-accent/40"
               )}
             >
               <div className="pt-0.5 pointer-events-none">
-                <Checkbox checked={isChecked} />
+                <span
+                  className={cn(
+                    "flex size-4.5 items-center justify-center rounded border transition-colors",
+                    isChecked
+                      ? "border-herb bg-herb text-herb-foreground"
+                      : "border-muted-foreground/40 bg-background"
+                  )}
+                >
+                  {isChecked && <Check className="size-3 stroke-[3]" />}
+                </span>
               </div>
 
               <div className="flex-1">
@@ -121,9 +134,12 @@ export function IngredientList({
                     isChecked ? "line-through text-muted-foreground" : "text-foreground"
                   )}
                 >
-                  <span className="font-semibold tabular-nums text-primary mr-1.5">
-                    {scaledQuantity} {item.unit}
-                  </span>
+                  {(scaledQuantity || hasUnit) && (
+                    <span className="font-semibold tabular-nums text-primary mr-1.5">
+                      {scaledQuantity}
+                      {hasUnit ? (scaledQuantity ? ` ${item.unit}` : item.unit) : ""}
+                    </span>
+                  )}
                   {item.name}
                 </span>
 

@@ -1,17 +1,17 @@
 using System;
 using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
-using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
@@ -24,27 +24,33 @@ public static class RecipeEndpoints
         var group = app.MapGroup("/api/v1/recipes")
             .WithTags("Recipes");
 
-        // FR-RCP-001: Xem Danh sách Công thức (Paginated + Filtered)
+        // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
         group.MapGet("/", async (
             int? page,
             int? pageSize,
             Guid? categoryId,
+            RecipeDifficulty? difficulty,
+            int? maxCookTime,
             string? sortBy,
-            IRecipeRepository recipeRepo) =>
+            string? sortOrder,
+            ISender sender,
+            CancellationToken ct) =>
         {
-            int p = page.GetValueOrDefault(1);
-            int ps = pageSize.GetValueOrDefault(12);
-            var (items, totalCount) = await recipeRepo.GetPagedAsync(p, ps, categoryId: categoryId, sortBy: sortBy);
-            return Results.Ok(new
-            {
-                items,
-                totalCount,
-                page = p,
-                pageSize = ps
-            });
+            var query = new GetPublicRecipesQuery(
+                page.GetValueOrDefault(1),
+                pageSize.GetValueOrDefault(12),
+                categoryId,
+                difficulty,
+                maxCookTime,
+                sortBy,
+                sortOrder);
+
+            var result = await sender.Send(query, ct);
+            return Results.Ok(result);
         })
         .WithName("GetRecipes")
-        .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc");
+        .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
+        .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/mine", async (
             int? page,
@@ -239,7 +245,7 @@ public static class RecipeEndpoints
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
-        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug")
+        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug (FR-RCP-002)")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 

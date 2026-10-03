@@ -3,6 +3,7 @@ using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Categories.Commands.CreateCategory;
 using CulinaryBlog.Application.Features.Categories.Commands.DeleteCategory;
+using CulinaryBlog.Application.Features.Categories.Commands.UpdateCategory;
 using CulinaryBlog.Application.Features.Categories.Queries.GetCategories;
 using CulinaryBlog.Application.Features.Categories.Queries.GetCategoryBySlug;
 using MediatR;
@@ -71,7 +72,19 @@ public static class CategoryEndpoints
                 ApiResponse<CategoryDto>.Ok(result));
         })
         .WithName("CreateCategory")
-        .WithSummary("Tạo danh mục mới (Admin)");
+        .WithSummary("Tạo danh mục mới (Admin)")
+        .RequireAuthorization("AdminPolicy");
+
+        // FR-CAT-004: Cập nhật Danh mục [Admin]
+        group.MapPut("/{id:guid}", async (Guid id, UpdateCategoryDto dto, ISender sender) =>
+        {
+            var command = new UpdateCategoryCommand(id, dto.Name, dto.Description, dto.ImageUrl, dto.OrderIndex);
+            var result = await sender.Send(command);
+            return Results.Ok(ApiResponse<CategoryDto>.Ok(result));
+        })
+        .WithName("UpdateCategory")
+        .WithSummary("Cập nhật thông tin danh mục (Admin - bảo toàn slug cũ)")
+        .RequireAuthorization("AdminPolicy");
 
         // FR-CAT-005: Xóa Danh mục [Admin]
         group.MapDelete("/{id:guid}", async (Guid id, ISender sender) =>
@@ -80,7 +93,8 @@ public static class CategoryEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteCategory")
-        .WithSummary("Xóa danh mục (không được xóa nếu còn công thức)");
+        .WithSummary("Xóa danh mục (chặn nếu còn công thức)")
+        .RequireAuthorization("AdminPolicy");
 
         return app;
     }

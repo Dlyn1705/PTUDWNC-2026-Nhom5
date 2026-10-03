@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Clock,
   Users,
-  Sparkles,
   Search,
   CheckCircle2,
   Timer,
@@ -17,6 +16,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { DifficultyBadge } from "@/components/recipes/RecipeCard";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { recipeApi } from "@/lib/api/recipeApi";
 
@@ -53,10 +53,6 @@ export default async function HomePage() {
         {/* Hero Introduction Banner */}
         <section className="relative overflow-hidden rounded-3xl border border-border bg-radial from-card via-card to-muted/40 p-8 sm:p-12 lg:p-16 text-center shadow-soft">
           <div className="mx-auto max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-primary">
-              <Sparkles className="size-3.5" />
-              <span>Tested Twice for Guaranteed Deliciousness</span>
-            </div>
 
             <h1 className="font-display text-4xl sm:text-6xl font-bold tracking-tight text-foreground leading-[1.12]">
               Slow recipes written for real home kitchens.
@@ -74,7 +70,7 @@ export default async function HomePage() {
                 className="flex items-center gap-2 rounded-full border border-border bg-background p-1.5 shadow-soft transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
               >
                 <div className="flex items-center pl-4 text-muted-foreground">
-                  <Search className="size-4" />
+                  <Search className="size-4 text-primary" />
                 </div>
                 <input
                   type="text"
@@ -89,28 +85,28 @@ export default async function HomePage() {
 
               {/* Popular Tags */}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium">Trending:</span>
+                <span className="font-medium text-foreground">Trending:</span>
                 <Link
                   href="/categories/pasta"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Pasta
                 </Link>
                 <Link
                   href="/categories/mains"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Roast Chicken
                 </Link>
                 <Link
                   href="/categories/baking"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Olive Oil Cake
                 </Link>
                 <Link
                   href="/recipes/pho-bo-truyen-thong-ha-noi"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Phở Bò
                 </Link>
@@ -183,7 +179,7 @@ export default async function HomePage() {
                   </Link>
                 </Button>
 
-                <Button asChild variant="outline" className="h-11 rounded-full px-6">
+                <Button asChild variant="outline" className="h-11 rounded-full px-6 hover:bg-accent">
                   <Link href="/recipes">Explore All Recipes</Link>
                 </Button>
               </div>
@@ -207,7 +203,7 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        {/* Browse by Category Section */}
+        {/* Browse by Category Section (FR-CAT-001) */}
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -228,57 +224,14 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {categories.slice(0, 4).map((category) => (
-              <Link
-                key={category.id}
-                href={`/categories/${category.slug}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-1"
-              >
-                {/* Category Thumbnail */}
-                <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-                  {category.imageUrl ? (
-                    <Image
-                      src={category.imageUrl}
-                      alt={category.name}
-                      width={800}
-                      height={500}
-                      unoptimized
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground/40">
-                      <ChefHat className="size-8" />
-                    </div>
-                  )}
-                  <span className="absolute left-3 top-3 rounded-full bg-primary/95 px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-2xs backdrop-blur-xs">
-                    {category.recipeCount} {category.recipeCount === 1 ? "recipe" : "recipes"}
-                  </span>
-                </div>
-
-                <div className="p-5 flex flex-1 flex-col justify-between">
-                  <div>
-                    <h3 className="font-display text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                      {category.name}
-                    </h3>
-                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                      {category.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-end border-t border-border pt-3 text-xs text-muted-foreground">
-                    <span className="font-semibold text-primary inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                      Explore <ArrowRight className="size-3" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
+              <CategoryCard key={category.id || category.slug} category={category} />
             ))}
           </div>
         </section>
 
-        {/* Latest Recipes Section */}
+        {/* Latest Recipes Section (FR-RCP-001) */}
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -317,7 +270,7 @@ export default async function HomePage() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
               <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
                 <CheckCircle2 className="size-5" />
               </div>
@@ -329,8 +282,8 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
-              <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
+              <div className="size-10 rounded-xl bg-ember/15 text-ember flex items-center justify-center font-bold">
                 <Timer className="size-5" />
               </div>
               <h3 className="font-display font-semibold text-lg text-foreground">
@@ -341,8 +294,8 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
-              <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
+              <div className="size-10 rounded-xl bg-herb/20 text-herb flex items-center justify-center font-bold">
                 <Heart className="size-5" />
               </div>
               <h3 className="font-display font-semibold text-lg text-foreground">

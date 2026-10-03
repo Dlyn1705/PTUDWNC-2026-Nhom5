@@ -43,16 +43,19 @@ export interface RecipeImageDto {
 export interface RecipeNutritionDto {
   calories: number;
   protein: number;
-  carbs: number;
+  carbohydrates?: number;
+  carbs?: number; // legacy alias
   fat: number;
-  fiber?: number;
+  fiber?: number | null;
   sodium: number;
 }
 
 export interface RecipeStepDto {
   id: string;
+  stepNumber?: number;
   order: number;
   title?: string;
+  description?: string;
   text: string;
   imageUrl?: string;
   timerMinutes?: number;
@@ -60,10 +63,12 @@ export interface RecipeStepDto {
 
 export interface RecipeIngredientDto {
   id: string;
+  recipeId?: string;
   name: string;
-  quantity: number;
-  unit: string;
+  quantity?: number | null;
+  unit?: string | null;
   notes?: string;
+  orderIndex?: number;
 }
 
 export interface RecipeCardDto {
