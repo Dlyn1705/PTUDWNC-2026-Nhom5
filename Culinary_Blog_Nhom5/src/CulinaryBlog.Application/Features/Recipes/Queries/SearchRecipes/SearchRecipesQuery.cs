@@ -22,6 +22,7 @@ public record SearchRecipesQuery(
     RecipeDifficulty? Difficulty = null,
     string? Sort = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
 
+
 public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
 {
     public SearchRecipesQueryValidator()
