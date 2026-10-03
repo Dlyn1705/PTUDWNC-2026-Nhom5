@@ -88,8 +88,8 @@ export function CategoryModal({
     const errs: Record<string, string> = {};
     if (!name.trim() || name.trim().length < 2) {
       errs.name = "Tên danh mục phải có ít nhất 2 ký tự.";
-    } else if (name.trim().length > 50) {
-      errs.name = "Tên danh mục không được vượt quá 50 ký tự.";
+    } else if (name.trim().length > 100) {
+      errs.name = "Tên danh mục không được vượt quá 100 ký tự.";
     }
 
     if (!slug.trim()) {

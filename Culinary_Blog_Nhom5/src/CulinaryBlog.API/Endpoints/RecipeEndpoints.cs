@@ -3,12 +3,16 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
+using CulinaryBlog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -19,15 +23,12 @@ namespace CulinaryBlog.API.Endpoints;
 
 public static class RecipeEndpoints
 {
-    public static IEndpointRouteBuilder MapRecipeEndpoints(
-        this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/recipes")
             .WithTags("Recipes");
 
-        // ============================================================
-        // GET - FR-RCP-001: Danh sách công thức
-        // ============================================================
+        // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
         group.MapGet("/", async (
             int? page,
             int? pageSize,
@@ -35,87 +36,226 @@ public static class RecipeEndpoints
             RecipeDifficulty? difficulty,
             int? maxCookTime,
             string? sortBy,
-            IRecipeRepository recipeRepo,
-            CancellationToken ct) =>
-        {
-            int p = page.GetValueOrDefault(1);
-            int ps = pageSize.GetValueOrDefault(12);
-
-            if (p < 1)
-                p = 1;
-
-            if (ps < 1)
-                ps = 12;
-
-            if (ps > 100)
-                ps = 100;
-
-            var (items, totalCount) =
-                await recipeRepo.GetPagedAsync(
-                    p,
-                    ps,
-                    categoryId,
-                    difficulty,
-                    maxCookTime,
-                    sortBy,
-                    ct: ct);
-
-            return Results.Ok(new
-            {
-                items,
-                totalCount,
-                page = p,
-                pageSize = ps
-            });
-        })
-        .WithName("GetRecipes")
-        .WithSummary("Lấy danh sách công thức đã xuất bản");
-
-
-        // ============================================================
-        // GET - FR-SRCH-001: Tìm kiếm công thức
-        // QUAN TRỌNG: phải đặt TRƯỚC /{slug}
-        // ============================================================
-        group.MapGet("/search", async (
-            [AsParameters] SearchRecipesQuery query,
+            string? sortOrder,
             ISender sender,
             CancellationToken ct) =>
         {
-            var response = await sender.Send(query, ct);
+            var query = new GetPublicRecipesQuery(
+                page.GetValueOrDefault(1),
+                pageSize.GetValueOrDefault(12),
+                categoryId,
+                difficulty,
+                maxCookTime,
+                sortBy,
+                sortOrder);
 
+            var result = await sender.Send(query, ct);
+            return Results.Ok(result);
+        })
+        .WithName("GetRecipes")
+        .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
+        .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
+
+        group.MapGet("/mine", async (
+            int? page,
+            int? pageSize,
+            RecipeStatus? status,
+            string? sortBy,
+            IRecipeRepository recipeRepo,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            int p = Math.Max(1, page.GetValueOrDefault(1));
+            int ps = Math.Clamp(pageSize.GetValueOrDefault(12), 1, 50);
+            var (items, totalCount) = await recipeRepo.GetPagedAsync(
+                p,
+                ps,
+                sortBy: sortBy,
+                authorId: currentUser.IsAdmin ? null : currentUser.UserId,
+                includeDrafts: true,
+                status: status,
+                ct: ct);
+
+            return Results.Ok(new { items, totalCount, page = p, pageSize = ps });
+        })
+        .WithName("GetManagedRecipes")
+        .WithSummary("Lấy danh sách công thức của tác giả hoặc toàn bộ công thức cho Admin")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        // FR-SRCH-001: Tìm kiếm toàn văn bản công thức nấu ăn
+        group.MapGet("/search", async (
+            [AsParameters] SearchRecipesQuery query,
+            ISender sender,
+            HttpContext context,
+            CancellationToken ct) =>
+        {
+            var response = await sender.Send(query, ct);
+            context.Response.Headers.CacheControl = "public, max-age=60";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")
-        .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn")
-        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
-            StatusCodes.Status200OK)
-        .Produces<ProblemDetails>(
-            StatusCodes.Status422UnprocessableEntity);
+        .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
+        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
-
-        // ============================================================
-        // GET - FR-RCP-002: Chi tiết công thức
-        // ============================================================
-        group.MapGet("/{slug}", async (
-            string slug,
+        // FR-RCP-006: Lưu trữ công thức
+        group.MapPost("/{id:guid}/archive", async (
+            Guid id,
             IRecipeRepository recipeRepo,
+            ICurrentUserService currentUser,
+            IUnitOfWork unitOfWork,
             CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetBySlugAsync(slug, ct);
+            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
 
-            if (recipe is null)
+            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
+                throw new ForbiddenException();
+
+            recipe.Archive();
+            await unitOfWork.SaveChangesAsync(ct);
+            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+        })
+        .WithName("ArchiveRecipe")
+        .WithSummary("Lưu trữ công thức, giữ nguyên dữ liệu và ẩn khỏi danh sách công khai")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+        .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{id:guid}/restore", async (
+            Guid id,
+            IRecipeRepository recipeRepo,
+            ICurrentUserService currentUser,
+            IUnitOfWork unitOfWork,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
+
+            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
+                throw new ForbiddenException();
+
+            try
             {
-                throw new NotFoundException("Recipe", slug);
+                recipe.RestoreFromArchive();
+            }
+            catch (DomainException ex)
+            {
+                throw new ConflictException(ex.Message);
             }
 
+            await unitOfWork.SaveChangesAsync(ct);
+            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+        })
+        .WithName("RestoreRecipe")
+        .WithSummary("Khôi phục công thức đã lưu trữ về bản nháp")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+        .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
+
+        // FR-RCP-005: Xuất bản công thức
+        group.MapPost("/{id:guid}/publish", async (
+            Guid id,
+            IRecipeRepository recipeRepo,
+            ICurrentUserService currentUser,
+            ApplicationDbContext db,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
+
+            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
+                throw new ForbiddenException();
+
+            if (recipe.Status == RecipeStatus.Published)
+                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+
+            if (recipe.Status == RecipeStatus.Archived)
+                throw new ConflictException("Không thể xuất bản công thức đang lưu trữ. Hãy khôi phục về bản nháp trước.");
+
+            try
+            {
+                recipe.Publish();
+            }
+            catch (DomainException ex)
+            {
+                throw new ValidationException("Steps", ex.Message);
+            }
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+        })
+        .WithName("PublishRecipe")
+        .WithSummary("Xuất bản công thức (yêu cầu ít nhất một bước thực hiện)")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+        .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+        .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/{id:guid}/unpublish", async (
+            Guid id,
+            IRecipeRepository recipeRepo,
+            ICurrentUserService currentUser,
+            ApplicationDbContext db,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
+
+            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
+                throw new ForbiddenException();
+
+            if (recipe.Status == RecipeStatus.Draft)
+                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+
+            if (recipe.Status == RecipeStatus.Archived)
+                throw new ConflictException("Không thể hủy xuất bản công thức đang lưu trữ.");
+
+            recipe.Unpublish();
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+        })
+        .WithName("UnpublishRecipe")
+        .WithSummary("Hủy xuất bản công thức và chuyển về bản nháp")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
+        .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+        .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
+
+        // FR-RCP-002: Xem chi tiết công thức đã xuất bản theo slug
+        group.MapGet("/{slug}", async (
+            string slug,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
-        .WithSummary("Lấy chi tiết công thức theo slug");
-
+        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug (FR-RCP-002)")
+        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         // ============================================================
-        // POST - FR-RCP-003: Tạo công thức mới
+        // POST - FR-RCP-003: Tạo công thức mới (từ Bảo Trâm)
         // ============================================================
         group.MapPost("/", async (
             CreateRecipeRequest request,
@@ -123,65 +263,45 @@ public static class RecipeEndpoints
             IUnitOfWork unitOfWork,
             CancellationToken ct) =>
         {
-            var authorId =
-                httpContext.User.FindFirstValue(
-                    ClaimTypes.NameIdentifier);
+            var authorId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrWhiteSpace(authorId))
             {
-                throw new UnauthorizedAccessException(
-                    "Không xác định được người dùng đăng nhập.");
+                throw new UnauthorizedAccessException("Không xác định được người dùng đăng nhập.");
             }
 
             if (string.IsNullOrWhiteSpace(request.Title))
             {
-                throw new ValidationException(
-                    "Title",
-                    "Tên công thức không được để trống.");
+                throw new ValidationException("Title", "Tên công thức không được để trống.");
             }
 
             if (request.Title.Trim().Length < 3)
             {
-                throw new ValidationException(
-                    "Title",
-                    "Tên công thức phải có ít nhất 3 ký tự.");
+                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
             }
 
             if (request.Servings <= 0)
             {
-                throw new ValidationException(
-                    "Servings",
-                    "Số khẩu phần phải lớn hơn 0.");
+                throw new ValidationException("Servings", "Số khẩu phần phải lớn hơn 0.");
             }
 
             if (request.PrepTime < 0)
             {
-                throw new ValidationException(
-                    "PrepTime",
-                    "Thời gian chuẩn bị không được âm.");
+                throw new ValidationException("PrepTime", "Thời gian chuẩn bị không được âm.");
             }
 
             if (request.CookTime < 0)
             {
-                throw new ValidationException(
-                    "CookTime",
-                    "Thời gian nấu không được âm.");
+                throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
-            var category =
-                await unitOfWork.Categories.GetByIdAsync(
-                    request.CategoryId,
-                    ct);
-
+            var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
             if (category is null)
             {
-                throw new NotFoundException(
-                    "Category",
-                    request.CategoryId);
+                throw new NotFoundException("Category", request.CategoryId);
             }
 
             var slug = GenerateSlug(request.Title);
-
             if (await unitOfWork.Recipes.ExistsBySlugAsync(slug, ct))
             {
                 slug = $"{slug}-{DateTime.UtcNow:yyyyMMddHHmmss}";
@@ -200,7 +320,6 @@ public static class RecipeEndpoints
                 authorId);
 
             await unitOfWork.Recipes.AddAsync(recipe, ct);
-
             await unitOfWork.SaveChangesAsync(ct);
 
             return Results.Created(
@@ -219,9 +338,8 @@ public static class RecipeEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden);
 
-
         // ============================================================
-        // PUT - FR-RCP-004: Cập nhật công thức
+        // PUT - FR-RCP-004: Cập nhật công thức (từ Bảo Trâm)
         // ============================================================
         group.MapPut("/{id:guid}", async (
             Guid id,
@@ -230,84 +348,54 @@ public static class RecipeEndpoints
             IUnitOfWork unitOfWork,
             CancellationToken ct) =>
         {
-            var currentUserId =
-                httpContext.User.FindFirstValue(
-                    ClaimTypes.NameIdentifier);
+            var currentUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrWhiteSpace(currentUserId))
             {
-                throw new UnauthorizedAccessException(
-                    "Không xác định được người dùng đăng nhập.");
+                throw new UnauthorizedAccessException("Không xác định được người dùng đăng nhập.");
             }
 
-            var recipe =
-                await unitOfWork.Recipes.GetDetailsByIdAsync(
-                    id,
-                    ct);
-
+            var recipe = await unitOfWork.Recipes.GetDetailsByIdAsync(id, ct);
             if (recipe is null)
             {
                 throw new NotFoundException("Recipe", id);
             }
 
-            bool isAdmin =
-                httpContext.User.IsInRole("Admin");
-
-            if (!isAdmin &&
-                !string.Equals(
-                    recipe.AuthorId,
-                    currentUserId,
-                    StringComparison.Ordinal))
+            bool isAdmin = httpContext.User.IsInRole("Admin");
+            if (!isAdmin && !string.Equals(recipe.AuthorId, currentUserId, StringComparison.Ordinal))
             {
-                throw new ForbiddenException(
-                    "Bạn chỉ được cập nhật công thức do chính mình tạo.");
+                throw new ForbiddenException("Bạn chỉ được cập nhật công thức do chính mình tạo.");
             }
 
             if (string.IsNullOrWhiteSpace(request.Title))
             {
-                throw new ValidationException(
-                    "Title",
-                    "Tên công thức không được để trống.");
+                throw new ValidationException("Title", "Tên công thức không được để trống.");
             }
 
             if (request.Title.Trim().Length < 3)
             {
-                throw new ValidationException(
-                    "Title",
-                    "Tên công thức phải có ít nhất 3 ký tự.");
+                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
             }
 
             if (request.Servings <= 0)
             {
-                throw new ValidationException(
-                    "Servings",
-                    "Số khẩu phần phải lớn hơn 0.");
+                throw new ValidationException("Servings", "Số khẩu phần phải lớn hơn 0.");
             }
 
             if (request.PrepTime < 0)
             {
-                throw new ValidationException(
-                    "PrepTime",
-                    "Thời gian chuẩn bị không được âm.");
+                throw new ValidationException("PrepTime", "Thời gian chuẩn bị không được âm.");
             }
 
             if (request.CookTime < 0)
             {
-                throw new ValidationException(
-                    "CookTime",
-                    "Thời gian nấu không được âm.");
+                throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
-            var category =
-                await unitOfWork.Categories.GetByIdAsync(
-                    request.CategoryId,
-                    ct);
-
+            var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
             if (category is null)
             {
-                throw new NotFoundException(
-                    "Category",
-                    request.CategoryId);
+                throw new NotFoundException("Category", request.CategoryId);
             }
 
             recipe.Update(
@@ -321,7 +409,6 @@ public static class RecipeEndpoints
                 request.CategoryId);
 
             unitOfWork.Recipes.Update(recipe);
-
             await unitOfWork.SaveChangesAsync(ct);
 
             return Results.Ok(new
@@ -339,52 +426,30 @@ public static class RecipeEndpoints
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
-
         return app;
     }
 
-
-    // ================================================================
-    // Tạo slug từ Title
-    // ================================================================
     private static string GenerateSlug(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return $"recipe-{Guid.NewGuid():N}";
 
-        var normalized =
-            text.Trim()
-                .ToLowerInvariant()
-                .Normalize(
-                    System.Text.NormalizationForm.FormD);
-
-        var result =
-            new System.Text.StringBuilder();
+        var normalized = text.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        var result = new System.Text.StringBuilder();
 
         foreach (var c in normalized)
         {
-            var category =
-                System.Globalization.CharUnicodeInfo
-                    .GetUnicodeCategory(c);
-
-            if (category ==
-                System.Globalization.UnicodeCategory.NonSpacingMark)
-            {
+            var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+            if (category == System.Globalization.UnicodeCategory.NonSpacingMark)
                 continue;
-            }
 
             if (char.IsLetterOrDigit(c))
-            {
                 result.Append(c);
-            }
             else
-            {
                 result.Append('-');
-            }
         }
 
         var slug = result.ToString();
-
         while (slug.Contains("--"))
         {
             slug = slug.Replace("--", "-");
@@ -393,11 +458,6 @@ public static class RecipeEndpoints
         return slug.Trim('-');
     }
 }
-
-
-// ====================================================================
-// Request models
-// ====================================================================
 
 public sealed record CreateRecipeRequest(
     string Title,

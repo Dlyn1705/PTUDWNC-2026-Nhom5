@@ -6,13 +6,14 @@ interface NutritionCardProps {
 }
 
 export function NutritionCard({ nutrition }: NutritionCardProps) {
+  const carbsValue = nutrition.carbohydrates ?? nutrition.carbs ?? 0;
   const metrics = [
     { label: "Calories", value: nutrition.calories, unit: "kcal", max: 900, color: "bg-primary" },
-    { label: "Protein", value: nutrition.protein, unit: "g", max: 60, color: "bg-amber-500" },
-    { label: "Carbohydrates", value: nutrition.carbs, unit: "g", max: 120, color: "bg-orange-500" },
-    { label: "Fat", value: nutrition.fat, unit: "g", max: 60, color: "bg-rose-500" },
-    { label: "Fiber", value: nutrition.fiber ?? 0, unit: "g", max: 35, color: "bg-emerald-500" },
-    { label: "Sodium", value: nutrition.sodium, unit: "mg", max: 1500, color: "bg-blue-500" },
+    { label: "Protein", value: nutrition.protein, unit: "g", max: 60, color: "bg-ember" },
+    { label: "Carbohydrates", value: carbsValue, unit: "g", max: 120, color: "bg-maroon" },
+    { label: "Fat", value: nutrition.fat, unit: "g", max: 60, color: "bg-primary/80" },
+    { label: "Fiber", value: nutrition.fiber ?? 0, unit: "g", max: 35, color: "bg-herb" },
+    { label: "Sodium", value: nutrition.sodium, unit: "mg", max: 1500, color: "bg-maroon/60" },
   ];
 
   return (

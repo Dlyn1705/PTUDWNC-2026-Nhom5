@@ -3,7 +3,7 @@ import Link from "next/link";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
-import { UtensilsCrossed, Sparkles, Plus } from "lucide-react";
+import { UtensilsCrossed, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
@@ -37,11 +37,7 @@ export default async function RecipesPage() {
       {/* Header Banner */}
       <div className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-8">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            <Sparkles className="size-3" />
-            <span>The Complete Collection</span>
-          </div>
-
+          
           <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
             All Recipes
           </h1>
