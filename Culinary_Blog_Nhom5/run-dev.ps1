@@ -25,7 +25,13 @@ Write-Host "===================================================" -ForegroundColo
 
 if ([string]::IsNullOrWhiteSpace($env:AUTH_SECRET) -and [string]::IsNullOrWhiteSpace($env:NEXTAUTH_SECRET)) {
     $secretBytes = [byte[]]::new(32)
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
+    $randomNumberGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $randomNumberGenerator.GetBytes($secretBytes)
+    }
+    finally {
+        $randomNumberGenerator.Dispose()
+    }
     $env:AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
 }
 
@@ -49,10 +55,23 @@ Write-Host "- Backend Scalar UI: http://localhost:5156/scalar/v1" -ForegroundCol
 Write-Host "- Nhan Ctrl + C de dung." -ForegroundColor DarkGray
 
 try {
-    while (-not $backendProcess.HasExited -and -not $frontendProcess.HasExited) {
+    $backendExitReported = $false
+    $frontendExitReported = $false
+
+    while (-not ($backendProcess.HasExited -and $frontendProcess.HasExited)) {
         Start-Sleep -Milliseconds 500
         $backendProcess.Refresh()
         $frontendProcess.Refresh()
+
+        if ($backendProcess.HasExited -and -not $backendExitReported) {
+            Write-Warning "Backend da dung voi exit code $($backendProcess.ExitCode). Frontend (neu con chay) se khong bi tat."
+            $backendExitReported = $true
+        }
+
+        if ($frontendProcess.HasExited -and -not $frontendExitReported) {
+            Write-Warning "Frontend da dung voi exit code $($frontendProcess.ExitCode). Backend (neu con chay) se tiep tuc hoat dong."
+            $frontendExitReported = $true
+        }
     }
 }
 finally {
