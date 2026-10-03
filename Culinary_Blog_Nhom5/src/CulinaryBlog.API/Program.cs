@@ -9,6 +9,7 @@ using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -37,6 +38,18 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+if (builder.Environment.IsDevelopment())
+{
+    var keyDirectory = Path.Combine(
+        builder.Environment.ContentRootPath,
+        ".data-protection-keys");
+
+    builder.Services
+        .AddDataProtection()
+        .SetApplicationName("CulinaryBlog")
+        .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+}
 
 
 // ============================================================

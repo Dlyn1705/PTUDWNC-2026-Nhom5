@@ -22,6 +22,7 @@ public static class DependencyInjection
     {
         services.AddAuthorizationBuilder()
             .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+            .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))
             .AddPolicy("AuthorOrAdmin", policy => policy.RequireRole("Author", "Admin"))
             .AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser())
             .AddPolicy("VerifiedAuthorPolicy", policy => policy.RequireAssertion(context =>
@@ -39,8 +40,6 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' was not found.");
         
-        Console.WriteLine($"[DB] ConnectionString: {connectionString}");
-
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();

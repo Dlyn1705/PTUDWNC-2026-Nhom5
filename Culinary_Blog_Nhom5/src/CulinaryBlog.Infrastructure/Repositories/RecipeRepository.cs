@@ -109,13 +109,16 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             query = query.Where(r => r.Difficulty == difficulty.Value);
         }
 
-        var tsQuery = EF.Functions.ToTsQuery("simple", sanitizedTsQuery);
-        query = query.Where(r => r.SearchVector != null && r.SearchVector.Matches(tsQuery));
+        query = query.Where(r =>
+            r.SearchVector != null &&
+            r.SearchVector.Matches(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery)));
 
         var rankedQuery = query.Select(r => new
         {
             Recipe = r,
-            Score = r.SearchVector!.Rank(tsQuery)
+            Score = r.SearchVector!.Rank(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery))
         });
 
         rankedQuery = sortBy?.ToLowerInvariant() switch
