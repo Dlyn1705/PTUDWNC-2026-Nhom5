@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using CulinaryBlog.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.API.Middlewares;
@@ -13,13 +12,11 @@ public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
-    private readonly IHostEnvironment _env;
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IHostEnvironment env)
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
     {
         _next = next;
         _logger = logger;
-        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -78,6 +75,7 @@ public class GlobalExceptionMiddleware
                 problemDetails.Title = "Xung đột dữ liệu.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.5.8";
                 problemDetails.Detail = conflictEx.Message;
+                problemDetails.Extensions["code"] = conflictEx.Code;
                 break;
 
             case ForbiddenException forbiddenEx:
@@ -88,12 +86,20 @@ public class GlobalExceptionMiddleware
                 problemDetails.Detail = forbiddenEx.Message;
                 break;
 
-            case UnauthorizedAccessException:
+            case UnauthorizedAccessException unauthorizedEx:
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 problemDetails.Status = StatusCodes.Status401Unauthorized;
                 problemDetails.Title = "Yêu cầu xác thực.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7235#section-3.1";
-                problemDetails.Detail = "Bạn cần đăng nhập để truy cập tài nguyên này.";
+                problemDetails.Detail = unauthorizedEx.Message;
+                break;
+
+            case LockedException lockedEx:
+                context.Response.StatusCode = StatusCodes.Status423Locked;
+                problemDetails.Status = StatusCodes.Status423Locked;
+                problemDetails.Title = "Tài khoản bị tạm khóa.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.3";
+                problemDetails.Detail = lockedEx.Message;
                 break;
 
             default:
@@ -101,7 +107,7 @@ public class GlobalExceptionMiddleware
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = _env.IsDevelopment() ? exception.ToString() : "Đã xảy ra lỗi không mong muốn trên hệ thống.";
+                problemDetails.Detail = "Đã xảy ra lỗi không mong muốn trên hệ thống.";
                 break;
         }
 

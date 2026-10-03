@@ -99,10 +99,9 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             .Take(pageSize)
             .ToListAsync(ct);
 
-        var orderedItems = pageItems.Select(x => x.Recipe).ToList();
+        var items = pageItems.Select(x => x.Recipe).ToList();
         var scores = pageItems.ToDictionary(x => x.Recipe.Id, x => (double)x.Score);
-
-        return (orderedItems, totalCount, scores);
+        return (items, totalCount, scores);
     }
 
     public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(

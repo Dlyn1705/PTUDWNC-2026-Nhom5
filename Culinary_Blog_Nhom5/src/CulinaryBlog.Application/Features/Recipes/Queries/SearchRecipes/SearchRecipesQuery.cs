@@ -20,7 +20,8 @@ public record SearchRecipesQuery(
     int PageSize = 12,
     Guid? CategoryId = null,
     RecipeDifficulty? Difficulty = null,
-    string? Sort = null) : IRequest<ApiResponse<PagedResult<RecipeSummaryDto>>>;
+    string? Sort = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
+
 
 public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
 {
@@ -48,7 +49,7 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
     }
 }
 
-public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<RecipeSummaryDto>>>
+public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<SearchRecipeSummaryDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -57,7 +58,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<ApiResponse<PagedResult<RecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
     {
         var keyword = request.Q.Trim();
         var normalized = NormalizeKeyword(keyword);
@@ -72,7 +73,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             request.Sort,
             cancellationToken);
 
-        var mapped = items.Select(r => new RecipeSummaryDto
+        var mapped = items.Select(r => new SearchRecipeSummaryDto
         {
             Id = r.Id,
             Title = r.Title,
@@ -80,13 +81,13 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             Description = r.Description,
             PrimaryImageUrl = r.Images.FirstOrDefault(img => img.IsPrimary)?.OriginalUrl
                 ?? r.Images.FirstOrDefault()?.OriginalUrl,
-            Category = new RecipeCategorySummaryDto
+            Category = new SearchRecipeCategorySummaryDto
             {
                 Id = r.Category.Id,
                 Name = r.Category.Name,
                 Slug = r.Category.Slug
             },
-            Author = new RecipeAuthorSummaryDto
+            Author = new SearchRecipeAuthorSummaryDto
             {
                 Id = r.AuthorId,
                 DisplayName = r.Author.DisplayName,
@@ -100,8 +101,8 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             CreatedAt = r.CreatedAt
         }).ToList();
 
-        var paged = new PagedResult<RecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
-        return ApiResponse<PagedResult<RecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
+        var paged = new PagedResult<SearchRecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
+        return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
     }
 
     private static string NormalizeKeyword(string input)
