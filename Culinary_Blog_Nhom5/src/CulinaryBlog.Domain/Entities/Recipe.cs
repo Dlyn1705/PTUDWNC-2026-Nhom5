@@ -104,12 +104,30 @@ public class Recipe : BaseEntity
     public void Unpublish()
     {
         Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void Archive()
     {
+        if (Status == RecipeStatus.Archived)
+        {
+            return;
+        }
+
         Status = RecipeStatus.Archived;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RestoreFromArchive()
+    {
+        if (Status != RecipeStatus.Archived)
+        {
+            throw new DomainException("Chỉ có thể khôi phục công thức đang ở trạng thái lưu trữ.");
+        }
+
+        Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

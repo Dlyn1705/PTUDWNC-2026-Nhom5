@@ -30,5 +30,6 @@ public interface IRecipeRepository : IRepository<Recipe>
         string? sortBy = null,
         string? authorId = null,
         bool includeDrafts = false,
+        RecipeStatus? status = null,
         CancellationToken ct = default);
 }

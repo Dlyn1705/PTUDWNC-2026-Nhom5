@@ -165,7 +165,7 @@ export function RegisterForm() {
         Đã có tài khoản?{" "}
         <Link
           href="/login"
-          className="font-semibold text-orange-700 underline-offset-4 hover:underline"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Đăng nhập ngay
         </Link>

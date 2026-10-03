@@ -17,7 +17,12 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
     {
     }
 
-    public async Task<Recipe?> GetBySlugAsync(string slug, CancellationToken ct = default)
+    // ============================================================
+    // GET RECIPE BY SLUG
+    // ============================================================
+    public async Task<Recipe?> GetBySlugAsync(
+        string slug,
+        CancellationToken ct = default)
     {
         return await _dbSet
             .Include(r => r.Category)
@@ -25,10 +30,17 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             .Include(r => r.Steps.OrderBy(s => s.StepNumber))
             .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
             .Include(r => r.Images.OrderBy(img => img.OrderIndex))
-            .FirstOrDefaultAsync(r => r.Slug == slug, ct);
+            .FirstOrDefaultAsync(
+                r => r.Slug == slug && !r.IsDeleted,
+                ct);
     }
 
-    public async Task<Recipe?> GetDetailsByIdAsync(Guid id, CancellationToken ct = default)
+    // ============================================================
+    // GET RECIPE DETAILS BY ID
+    // ============================================================
+    public async Task<Recipe?> GetDetailsByIdAsync(
+        Guid id,
+        CancellationToken ct = default)
     {
         return await _dbSet
             .Include(r => r.Category)
@@ -36,19 +48,41 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             .Include(r => r.Steps.OrderBy(s => s.StepNumber))
             .Include(r => r.Ingredients.OrderBy(i => i.OrderIndex))
             .Include(r => r.Images.OrderBy(img => img.OrderIndex))
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
+            .FirstOrDefaultAsync(
+                r => r.Id == id && !r.IsDeleted,
+                ct);
     }
 
-    public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default)
+    // ============================================================
+    // CHECK SLUG EXISTS
+    // ============================================================
+    public async Task<bool> ExistsBySlugAsync(
+        string slug,
+        CancellationToken ct = default)
     {
-        return await _dbSet.AnyAsync(r => r.Slug == slug, ct);
+        return await _dbSet
+            .AnyAsync(
+                r => r.Slug == slug && !r.IsDeleted,
+                ct);
     }
 
-    public async Task<int> CountByCategoryIdAsync(Guid categoryId, CancellationToken ct = default)
+    // ============================================================
+    // COUNT RECIPES BY CATEGORY
+    // ============================================================
+    public async Task<int> CountByCategoryIdAsync(
+        Guid categoryId,
+        CancellationToken ct = default)
     {
-        return await _dbSet.CountAsync(r => r.CategoryId == categoryId, ct);
+        return await _dbSet
+            .CountAsync(
+                r => r.CategoryId == categoryId &&
+                     !r.IsDeleted,
+                ct);
     }
 
+    // ============================================================
+    // SEARCH RECIPES (FR-SRCH-001 - PostgreSQL Full-Text Search)
+    // ============================================================
     public async Task<(IReadOnlyList<Recipe> Items, int TotalCount, IReadOnlyDictionary<Guid, double> RelevanceScores)> SearchRecipesAsync(
         string sanitizedTsQuery,
         int page,
@@ -105,6 +139,9 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         return (items, totalCount, scores);
     }
 
+    // ============================================================
+    // GET PAGED RECIPES (FR-RCP-001)
+    // ============================================================
     public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
         int page,
         int pageSize,
@@ -114,22 +151,32 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         string? sortBy = null,
         string? authorId = null,
         bool includeDrafts = false,
+        RecipeStatus? status = null,
         CancellationToken ct = default)
     {
         var query = _dbSet
             .Include(r => r.Category)
             .Include(r => r.Author)
             .Include(r => r.Images.Where(img => img.IsPrimary))
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted);
 
         // Lọc trạng thái hiển thị
-        if (!includeDrafts)
+        if (includeDrafts)
+        {
+            if (!string.IsNullOrEmpty(authorId))
+            {
+                query = query.Where(r => r.AuthorId == authorId);
+            }
+        }
+        else
         {
             query = query.Where(r => r.Status == RecipeStatus.Published);
         }
-        else if (!string.IsNullOrEmpty(authorId))
+
+        if (status.HasValue)
         {
-            query = query.Where(r => r.Status == RecipeStatus.Published || (r.AuthorId == authorId));
+            query = query.Where(r => r.Status == status.Value);
         }
 
         // Lọc theo Category
@@ -158,10 +205,11 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             "cooktime" => query.OrderBy(r => r.CookTime),
             "-cooktime" => query.OrderByDescending(r => r.CookTime),
             "createdat" => query.OrderBy(r => r.CreatedAt),
+            "-createdat" => query.OrderByDescending(r => r.CreatedAt),
             _ => query.OrderByDescending(r => r.CreatedAt)
         };
 
-        int totalCount = await query.CountAsync(ct);
+        var totalCount = await query.CountAsync(ct);
         var items = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
