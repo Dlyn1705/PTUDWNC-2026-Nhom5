@@ -35,6 +35,14 @@ if ([string]::IsNullOrWhiteSpace($env:AUTH_SECRET) -and [string]::IsNullOrWhiteS
     $env:AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
 }
 
+# Match the development MinIO container defaults without storing credentials in API settings.
+if ([string]::IsNullOrWhiteSpace($env:Minio__AccessKey)) {
+    $env:Minio__AccessKey = if ($env:MINIO_ROOT_USER) { $env:MINIO_ROOT_USER } else { "minioadmin" }
+}
+if ([string]::IsNullOrWhiteSpace($env:Minio__SecretKey)) {
+    $env:Minio__SecretKey = if ($env:MINIO_ROOT_PASSWORD) { $env:MINIO_ROOT_PASSWORD } else { "minioadminpassword" }
+}
+
 Write-Host "[1/2] Dang chay Backend .NET API (Port 5156)..." -ForegroundColor Yellow
 $dotnetPath = (Get-Command dotnet -ErrorAction Stop).Source
 $backendProcess = Start-ConsoleProcess `

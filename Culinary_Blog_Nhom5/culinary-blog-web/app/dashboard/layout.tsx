@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus } from "lucide-react";
+import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 
@@ -45,6 +45,13 @@ export default async function DashboardLayout({
               >
                 <BookOpen className="size-4" />
                 <span>Recipes</span>
+              </Link>
+              <Link
+                href="/dashboard/recipes/images"
+                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
+              >
+                <ImageIcon className="size-4" />
+                <span>Images</span>
               </Link>
             </nav>
           </div>

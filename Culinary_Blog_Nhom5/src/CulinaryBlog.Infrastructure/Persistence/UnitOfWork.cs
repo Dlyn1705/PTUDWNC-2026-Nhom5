@@ -22,6 +22,16 @@ public class UnitOfWork : IUnitOfWork
     public ICategoryRepository Categories => _categories ??= new CategoryRepository(_context);
     public IRecipeRepository Recipes => _recipes ??= new RecipeRepository(_context);
 
+    public async Task AddRecipeImageAsync(Domain.Entities.RecipeImage image, CancellationToken ct = default)
+    {
+        await _context.RecipeImages.AddAsync(image, ct);
+    }
+
+    public void RemoveRecipeImage(Domain.Entities.RecipeImage image)
+    {
+        _context.RecipeImages.Remove(image);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         try
