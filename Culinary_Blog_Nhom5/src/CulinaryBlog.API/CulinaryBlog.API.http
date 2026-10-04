@@ -1,6 +1,31 @@
 @CulinaryBlog.API_HostAddress = http://localhost:5156
+@refreshToken = REPLACE_WITH_REFRESH_COOKIE_VALUE
 
 GET {{CulinaryBlog.API_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Register and receive the refresh cookie
+POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+	"email": "chef@example.com",
+	"displayName": "Test Chef",
+	"password": "SecurePass123!",
+	"confirmPassword": "SecurePass123!"
+}
+
+### Login with email and password
+POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+	"email": "chef@example.com",
+	"password": "SecurePass123!"
+}
+
+### Rotate the refresh cookie returned by register or login
+POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/refresh
+Cookie: culinary_refresh_token={{refreshToken}}

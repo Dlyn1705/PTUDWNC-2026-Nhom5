@@ -180,6 +180,8 @@ using (var scope = app.Services.CreateScope())
 // ============================================================
 app.UseMiddleware<CorrelationIdMiddleware>();
 
+app.UseMiddleware<RequestAuditMiddleware>();
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseCors("AllowFrontend");

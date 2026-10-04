@@ -1,3 +1,4 @@
+using CulinaryBlog.Application.Common.Authorization;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Interfaces;
@@ -7,6 +8,7 @@ using CulinaryBlog.Infrastructure.Persistence.Interceptors;
 using CulinaryBlog.Infrastructure.Persistence.Seeders;
 using CulinaryBlog.Infrastructure.Repositories;
 using CulinaryBlog.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +20,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddAuthorizationBuilder()
+            .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+            .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))
+            .AddPolicy("AuthorOrAdmin", policy => policy.RequireRole("Author", "Admin"))
+            .AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser())
+            .AddPolicy("VerifiedAuthorPolicy", policy => policy.RequireAssertion(context =>
+                context.User.IsInRole("Admin")
+                || (context.User.IsInRole("Author")
+                    && context.User.HasClaim("email_verified", "true"))));
+
+        services.AddSingleton<IAuthorizationHandler, RecipeAuthorizationHandler>();
+
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
 

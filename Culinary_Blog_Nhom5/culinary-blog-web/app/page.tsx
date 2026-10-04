@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -16,6 +17,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { DifficultyBadge } from "@/components/recipes/RecipeCard";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { recipeApi } from "@/lib/api/recipeApi";
 
@@ -33,7 +35,7 @@ export const metadata = {
 
 export default async function HomePage() {
   const [categories, recipes] = await Promise.all([
-    categoryApi.getAll(),
+    categoryApi.getAll().catch(() => []),
     recipeApi.getAll(),
   ]);
 
@@ -62,7 +64,9 @@ export default async function HomePage() {
             </h1>
 
             <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-              No twenty-page stories. Just reliable, rigorously tested recipes with smart step timers, precise ingredient measures, and guaranteed comfort.
+              No twenty-page stories. Just reliable, rigorously tested recipes
+              with smart step timers, precise ingredient measures, and
+              guaranteed comfort.
             </p>
 
             {/* Quick Search Box */}
@@ -81,7 +85,10 @@ export default async function HomePage() {
                   placeholder="Search recipes (e.g., Pasta, Roast Chicken, Salad)..."
                   className="w-full bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
                 />
-                <Button type="submit" className="rounded-full px-6 shadow-soft shrink-0">
+                <Button
+                  type="submit"
+                  className="rounded-full px-6 shadow-soft shrink-0"
+                >
                   Search
                 </Button>
               </form>
@@ -159,9 +166,12 @@ export default async function HomePage() {
                 {featured.author && (
                   <span className="inline-flex items-center gap-2 font-medium">
                     {featured.author.avatarUrl ? (
-                      <img
+                      <Image
                         src={featured.author.avatarUrl}
                         alt={featured.author.displayName}
+                        width={20}
+                        height={20}
+                        unoptimized
                         className="size-5 rounded-full object-cover border"
                       />
                     ) : (
@@ -173,13 +183,20 @@ export default async function HomePage() {
               </div>
 
               <div className="pt-2 flex flex-wrap items-center gap-3">
-                <Button asChild className="h-11 rounded-full px-7 shadow-soft font-semibold">
+                <Button
+                  asChild
+                  className="h-11 rounded-full px-7 shadow-soft font-semibold"
+                >
                   <Link href={`/recipes/${featured.slug}`}>
                     View Complete Recipe <ArrowRight className="ml-2 size-4" />
                   </Link>
                 </Button>
 
-                <Button asChild variant="outline" className="h-11 rounded-full px-6">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-11 rounded-full px-6 hover:bg-accent"
+                >
                   <Link href="/recipes">Explore All Recipes</Link>
                 </Button>
               </div>
@@ -187,10 +204,16 @@ export default async function HomePage() {
 
             <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft md:col-span-6 lg:col-span-5">
               {featuredImage ? (
-                <Link href={`/recipes/${featured.slug}`} className="block group">
-                  <img
+                <Link
+                  href={`/recipes/${featured.slug}`}
+                  className="block group"
+                >
+                  <Image
                     src={featuredImage.url}
                     alt={featuredImage.alt || featured.title}
+                    width={1200}
+                    height={900}
+                    unoptimized
                     className="aspect-[4/3] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     loading="eager"
                   />
@@ -223,50 +246,10 @@ export default async function HomePage() {
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {categories.slice(0, 4).map((category) => (
-              <Link
-                key={category.id}
-                href={`/categories/${category.slug}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-1"
-              >
-                {/* Category Thumbnail */}
-                <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-                  {category.imageUrl ? (
-                    <img
-                      src={category.imageUrl}
-                      alt={category.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground/40">
-                      <ChefHat className="size-8" />
-                    </div>
-                  )}
-                  <span className="absolute left-3 top-3 rounded-full bg-primary/95 px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-2xs backdrop-blur-xs">
-                    {category.recipeCount} {category.recipeCount === 1 ? "recipe" : "recipes"}
-                  </span>
-                </div>
-
-                <div className="p-5 flex flex-1 flex-col justify-between">
-                  <div>
-                    <h3 className="font-display text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                      {category.name}
-                    </h3>
-                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                      {category.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-                    <span>
-                      {category.avgCookTimeMinutes ? `~${category.avgCookTimeMinutes} min avg` : "Hand-tested"}
-                    </span>
-                    <span className="font-semibold text-primary inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                      Explore <ArrowRight className="size-3" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
+              <CategoryCard
+                key={category.id || category.slug}
+                category={category}
+              />
             ))}
           </div>
         </section>
@@ -305,7 +288,8 @@ export default async function HomePage() {
               The Culinary Blog Promise
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Cooking should be rewarding, not stressful. Every dish on this site adheres to three principles.
+              Cooking should be rewarding, not stressful. Every dish on this
+              site adheres to three principles.
             </p>
           </div>
 
@@ -318,7 +302,8 @@ export default async function HomePage() {
                 Twice-Tested Recipes
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Tested once for taste, and once again to confirm exact timings, ingredient ratios, and temperature tolerances.
+                Tested once for taste, and once again to confirm exact timings,
+                ingredient ratios, and temperature tolerances.
               </p>
             </div>
 
@@ -330,7 +315,8 @@ export default async function HomePage() {
                 Integrated Step Timers
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                No guessing when tomatoes blister or onions caramelize. Built-in timers count down directly inside each instruction step.
+                No guessing when tomatoes blister or onions caramelize. Built-in
+                timers count down directly inside each instruction step.
               </p>
             </div>
 
@@ -342,7 +328,8 @@ export default async function HomePage() {
                 Everyday Ingredients
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                No elusive pantry items that sit in your cabinet for five years. Accessible, honest foods with clear substitutions.
+                No elusive pantry items that sit in your cabinet for five years.
+                Accessible, honest foods with clear substitutions.
               </p>
             </div>
           </div>

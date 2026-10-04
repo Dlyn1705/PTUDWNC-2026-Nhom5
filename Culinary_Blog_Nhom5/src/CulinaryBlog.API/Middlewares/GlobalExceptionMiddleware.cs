@@ -107,7 +107,7 @@ public class GlobalExceptionMiddleware
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = "Đã xảy ra lỗi không mong muốn trên hệ thống.";
+                problemDetails.Detail = "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.";
                 break;
         }
 

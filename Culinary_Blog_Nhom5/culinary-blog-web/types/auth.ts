@@ -13,7 +13,7 @@ export interface AuthUser {
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   accessTokenExpiry: string;
   user: AuthUser;
 }
