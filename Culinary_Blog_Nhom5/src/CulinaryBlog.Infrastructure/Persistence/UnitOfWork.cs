@@ -27,6 +27,31 @@ public class UnitOfWork : IUnitOfWork
         await _context.RecipeImages.AddAsync(image, ct);
     }
 
+    public Task<Domain.Entities.RecipeImage?> GetRecipeImageIncludingDeletedAsync(Guid imageId, CancellationToken ct = default)
+    {
+        return _context.RecipeImages.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(image => image.Id == imageId, ct);
+    }
+
+    public async Task SoftDeleteRecipeImageAsync(
+        Domain.Entities.RecipeImage image,
+        Domain.Entities.RecipeImage? replacementPrimary,
+        CancellationToken ct = default)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        image.IsPrimary = false;
+        image.IsDeleted = true;
+        await SaveChangesAsync(ct);
+
+        if (replacementPrimary is not null)
+        {
+            replacementPrimary.IsPrimary = true;
+            await SaveChangesAsync(ct);
+        }
+
+        await transaction.CommitAsync(ct);
+    }
+
     public void RemoveRecipeImage(Domain.Entities.RecipeImage image)
     {
         _context.RecipeImages.Remove(image);
