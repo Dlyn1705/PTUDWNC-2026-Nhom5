@@ -19,7 +19,12 @@ public interface IRecipeRepository : IRepository<Recipe>
         int pageSize,
         Guid? categoryId = null,
         RecipeDifficulty? difficulty = null,
+        int? minCookTime = null,
+        int? maxCookTime = null,
+        int? minServings = null,
+        int? maxServings = null,
         string? sortBy = null,
+        string? sortOrder = null,
         CancellationToken ct = default);
     Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
         int page,
