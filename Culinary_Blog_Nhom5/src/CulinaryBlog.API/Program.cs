@@ -43,6 +43,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration);
 
+builder.Services.AddObservability(builder.Configuration);
+
 var databaseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 builder.Services.AddHangfire(configuration => configuration
