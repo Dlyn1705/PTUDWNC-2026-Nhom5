@@ -107,7 +107,7 @@ public class GlobalExceptionMiddleware
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = exception.Message;
+                problemDetails.Detail = "Lỗi máy chủ nội bộ. Hãy cung cấp correlation ID cho bộ phận hỗ trợ.";
                 break;
             }
 
