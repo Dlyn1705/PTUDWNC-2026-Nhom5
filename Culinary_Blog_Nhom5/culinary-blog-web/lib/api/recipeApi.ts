@@ -1,18 +1,11 @@
 import axiosClient from "./axiosClient";
 import { RecipeDto, PagedResult } from "@/types/recipe.types";
-import type { ApiResponse } from "@/types/api.types";
+import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
 
 export const recipeApi = {
-  async search(params: {
-    q: string;
-    page?: number;
-    pageSize?: number;
-    categoryId?: string;
-    difficulty?: number;
-    sort?: string;
-  }): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
+  async search(params: SearchRecipesParams): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
     const response = await axiosClient.get<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
       "/api/v1/recipes/search",
       { params },
