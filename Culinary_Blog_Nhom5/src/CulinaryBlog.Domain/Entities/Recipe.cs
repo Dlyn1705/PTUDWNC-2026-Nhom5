@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CulinaryBlog.Domain.Common;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
+using NpgsqlTypes;
 
 namespace CulinaryBlog.Domain.Entities;
 
@@ -18,6 +19,12 @@ public class Recipe : BaseEntity
     public RecipeDifficulty Difficulty { get; set; } = RecipeDifficulty.Easy;
     public RecipeStatus Status { get; set; } = RecipeStatus.Draft;
     public DateTime? PublishedAt { get; set; }
+
+    /// <summary>
+    /// Vector tìm kiếm toàn văn bản PostgreSQL tsvector (FR-SRCH-001)
+    /// Tự động cập nhật bởi trigger trg_recipes_search_vector_update
+    /// </summary>
+    public NpgsqlTsVector? SearchVector { get; set; }
 
     // Foreign Keys
     public Guid CategoryId { get; set; }
@@ -97,12 +104,30 @@ public class Recipe : BaseEntity
     public void Unpublish()
     {
         Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void Archive()
     {
+        if (Status == RecipeStatus.Archived)
+        {
+            return;
+        }
+
         Status = RecipeStatus.Archived;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RestoreFromArchive()
+    {
+        if (Status != RecipeStatus.Archived)
+        {
+            throw new DomainException("Chỉ có thể khôi phục công thức đang ở trạng thái lưu trữ.");
+        }
+
+        Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

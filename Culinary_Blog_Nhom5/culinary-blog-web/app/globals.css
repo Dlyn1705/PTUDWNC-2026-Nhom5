@@ -2,42 +2,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --radius: 1rem;
-  --background: oklch(0.984 0.003 247.858);
-  --foreground: oklch(0.208 0.042 265.755);
-  --surface: oklch(0.968 0.007 247.896);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.208 0.042 265.755);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.208 0.042 265.755);
-  --primary: oklch(0.626 0.163 30.5);
-  --primary-foreground: oklch(0.995 0.005 60);
-  --ember: oklch(0.705 0.187 47.6);
-  --ember-foreground: oklch(0.995 0.005 60);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.446 0.03 256.802);
-  --accent: oklch(0.955 0.023 60);
-  --accent-foreground: oklch(0.45 0.14 33);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.99 0.005 60);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.626 0.163 30.5);
-  --draft: oklch(0.93 0.006 250);
-  --draft-foreground: oklch(0.42 0.02 256);
-  --published: oklch(0.93 0.06 160);
-  --published-foreground: oklch(0.44 0.11 160);
-  --archived: oklch(0.94 0.07 85);
-  --archived-foreground: oklch(0.48 0.12 65);
-}
+/*
+ * Culinary Blog design system.
+ * Bespoke palette from user palette:
+ * - #661a06: Burnt Terracotta / Rich Rust (Primary brand, buttons, accents)
+ * - #0b0d13: Obsidian Midnight Ink (Deep dark foreground / Dark background)
+ * - #bcaaac: Dusty Heather Rose (Warm neutral accents, borders, soft tints)
+ * - #161926: Slate Midnight Navy (Dark mode surface & cards)
+ * - #211b1c: Warm Espresso Mahogany (Dark panels, deep contrast headings)
+ */
 
 @theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -55,6 +39,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
   --color-ember: var(--ember);
   --color-ember-foreground: var(--ember-foreground);
   --color-draft: var(--draft);
@@ -63,26 +48,155 @@
   --color-published-foreground: var(--published-foreground);
   --color-archived: var(--archived);
   --color-archived-foreground: var(--archived-foreground);
-  --font-serif: var(--font-serif);
-  --font-sans: var(--font-sans);
-  --shadow-soft:
-    0 1px 2px oklch(0.2 0.03 40 / 6%),
-    0 12px 32px -16px oklch(0.2 0.03 40 / 18%);
-  --shadow-lift:
-    0 2px 6px oklch(0.2 0.03 40 / 8%),
-    0 24px 48px -24px oklch(0.2 0.03 40 / 28%);
+  --color-surface: var(--surface);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-maroon: var(--maroon);
+  --color-maroon-foreground: var(--maroon-foreground);
+  --color-cream: var(--cream);
+  --color-cream-foreground: var(--cream-foreground);
+  --color-herb: var(--herb);
+  --color-herb-foreground: var(--herb-foreground);
+  --color-palette-rust: var(--palette-rust);
+  --color-palette-night: var(--palette-night);
+  --color-palette-rose: var(--palette-rose);
+  --color-palette-slate: var(--palette-slate);
+  --color-palette-espresso: var(--palette-espresso);
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow-soft: 0 1px 3px rgba(11, 13, 19, 0.05), 0 12px 28px -12px rgba(102, 26, 6, 0.12);
+  --shadow-lift: 0 4px 12px rgba(11, 13, 19, 0.08), 0 24px 48px -16px rgba(102, 26, 6, 0.20);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
-  -webkit-font-smoothing: antialiased;
+:root {
+  --radius: 1rem;
+  /* Light theme: clean airy backdrop harmonized with #bcaaac */
+  --background: #faf8f8;
+  /* Swatch 2: #0b0d13 deep obsidian ink for maximum crisp legibility */
+  --foreground: #0b0d13;
+  --surface: #f2ecec;
+  --card: #ffffff;
+  --card-foreground: #0b0d13;
+  --popover: #ffffff;
+  --popover-foreground: #0b0d13;
+
+  /* Swatch 1: #661a06 primary rust / burnt terracotta */
+  --primary: #661a06;
+  --primary-foreground: #ffffff;
+
+  /* Rich rust-ember accent */
+  --ember: #82220b;
+  --ember-foreground: #ffffff;
+
+  /* Swatch 5: #211b1c deep warm espresso */
+  --maroon: #211b1c;
+  --maroon-foreground: #bcaaac;
+
+  /* Swatch 3: #bcaaac tint for cream neutrals */
+  --cream: #ede5e6;
+  --cream-foreground: #211b1c;
+
+  /* Fresh culinary herb green */
+  --herb: #496c2e;
+  --herb-foreground: #ffffff;
+
+  /* Direct palette hex variables */
+  --palette-rust: #661a06;
+  --palette-night: #0b0d13;
+  --palette-rose: #bcaaac;
+  --palette-slate: #161926;
+  --palette-espresso: #211b1c;
+
+  --secondary: #ede5e6;
+  --secondary-foreground: #211b1c;
+  --muted: #eee7e8;
+  --muted-foreground: #6e6466;
+
+  /* Accent uses soft heather rose tint #ede5e6 */
+  --accent: #ede5e6;
+  --accent-foreground: #661a06;
+
+  /* Destructive using deep rust #661a06 */
+  --destructive: #661a06;
+  --destructive-foreground: #ffffff;
+
+  --border: #dfd5d6;
+  --input: #dfd5d6;
+  --ring: #661a06;
+
+  --draft: #eae3e4;
+  --draft-foreground: #6e6466;
+  --published: #496c2e;
+  --published-foreground: #ffffff;
+  --archived: #eedcd6;
+  --archived-foreground: #661a06;
+
+  /* Register & Auth custom styles */
+  --ink: #211b1c;
+  --orange: #661a06;
+  --orange-dark: #471204;
+  --line: #dfd5d6;
+  --font-body: var(--font-sans);
+  --font-display: var(--font-serif);
+}
+
+.dark {
+  /* Swatch 2: #0b0d13 deep obsidian night */
+  --background: #0b0d13;
+  --foreground: #f4f0f1;
+  /* Swatch 4: #161926 slate midnight navy surface & cards */
+  --surface: #161926;
+  --card: #161926;
+  --card-foreground: #f4f0f1;
+  --popover: #161926;
+  --popover-foreground: #f4f0f1;
+
+  /* Enhanced high-contrast rust for dark mode */
+  --primary: #942b10;
+  --primary-foreground: #ffffff;
+  --ember: #a83617;
+  --ember-foreground: #ffffff;
+
+  /* Swatch 5: #211b1c warm espresso & Swatch 3: #bcaaac */
+  --maroon: #211b1c;
+  --maroon-foreground: #bcaaac;
+  --cream: #211b1c;
+  --cream-foreground: #bcaaac;
+  --herb: #5a8539;
+  --herb-foreground: #0d1a04;
+
+  --secondary: #211b1c;
+  --secondary-foreground: #bcaaac;
+  --muted: #1d1b24;
+  --muted-foreground: #bcaaac;
+  --accent: #211b1c;
+  --accent-foreground: #bcaaac;
+  --destructive: #942b10;
+  --destructive-foreground: #ffffff;
+  --border: #282736;
+  --input: #282736;
+  --ring: #942b10;
+  --draft: #211b1c;
+  --draft-foreground: #bcaaac;
+  --published: #2d501c;
+  --published-foreground: #d2f0bc;
+  --archived: #3e1b14;
+  --archived-foreground: #f0a38e;
 }
 
 @layer base {
   * {
-    border-color: var(--border);
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
@@ -96,12 +210,14 @@ body {
   letter-spacing: -0.015em;
 }
 
+/* Auth / Register specific styles */
 .register-shell {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(460px, 1.08fr);
-  background: #fffdf9;
+  background: var(--surface);
 }
+
 .register-brand-panel {
   position: relative;
   overflow: hidden;
@@ -109,190 +225,166 @@ body {
   flex-direction: column;
   justify-content: center;
   padding: clamp(2.5rem, 8vw, 7rem);
-  color: #fffaf4;
-  background: #25251f;
+  color: #f7f3f4;
+  background: #211b1c;
   isolation: isolate;
 }
+
 .register-brand-panel::before,
 .register-brand-panel::after {
   content: "";
   position: absolute;
-  border: 1px solid rgba(255, 244, 226, 0.18);
+  border: 1px solid rgba(188, 170, 172, 0.2);
   border-radius: 50%;
   z-index: -1;
 }
-.register-brand-panel::before {
-  width: 38rem;
-  height: 38rem;
-  right: -18rem;
-  top: 8%;
-}
-.register-brand-panel::after {
-  width: 25rem;
-  height: 25rem;
-  left: -13rem;
-  bottom: -8rem;
-}
+
+.register-brand-panel::before { width: 38rem; height: 38rem; right: -18rem; top: 8%; }
+.register-brand-panel::after { width: 25rem; height: 25rem; left: -13rem; bottom: -8rem; }
+
 .brand-mark {
   display: grid;
   place-items: center;
   width: 3.5rem;
   height: 3.5rem;
   margin-bottom: 3.5rem;
-  border: 1px solid #e89763;
+  border: 1.5px solid #661a06;
   border-radius: 50%;
-  color: #f2aa78;
+  color: #bcaaac;
+  background: rgba(102, 26, 6, 0.22);
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.13em;
 }
+
 .eyebrow {
   margin: 0 0 1rem;
-  color: #e89763;
+  color: #661a06;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
+
+.register-brand-panel .eyebrow {
+  color: #bcaaac;
+}
+
 .register-brand-panel h1,
 .form-heading h2 {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-weight: 600;
   letter-spacing: 0;
 }
+
 .register-brand-panel h1 {
   max-width: 30rem;
   margin: 0;
   font-size: clamp(3rem, 5.4vw, 5.75rem);
   line-height: 0.98;
 }
+
 .brand-copy {
   max-width: 28rem;
   margin: 2rem 0 0;
-  color: #d4cbc1;
+  color: #bcaaac;
   font-size: 1.05rem;
   line-height: 1.75;
 }
+
 .recipe-stamp {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   width: fit-content;
   margin-top: 4rem;
-  color: #d9a06f;
+  color: #bcaaac;
   font-size: 0.6rem;
   letter-spacing: 0.22em;
 }
+
 .recipe-stamp strong {
-  color: #fff4e3;
-  font-family: var(--font-serif), Georgia, serif;
+  color: #ffffff;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 1.5rem;
   letter-spacing: 0;
 }
+
 .register-form-panel {
   display: flex;
   flex-direction: column;
   justify-content: center;
   width: min(100%, 38rem);
   padding: 4rem clamp(2rem, 7vw, 7rem);
-  background: #fffdf9;
+  background: var(--background);
 }
+
 .form-heading h2 {
   margin: 0;
-  color: #29231e;
+  color: var(--ink);
   font-size: clamp(2.25rem, 4vw, 3.5rem);
   line-height: 1.05;
 }
+
 .form-heading > p:last-child {
   margin: 1rem 0 2.5rem;
-  color: #766d64;
+  color: var(--muted-foreground);
   line-height: 1.6;
 }
+
 .field-label {
   display: block;
   margin-bottom: 0.55rem;
-  color: #29231e;
+  color: var(--ink);
   font-size: 0.78rem;
   font-weight: 700;
 }
+
 .field-input {
   width: 100%;
   min-height: 3.1rem;
-  border: 1px solid #e7ded3;
+  border: 1px solid var(--line);
   border-radius: 0.7rem;
-  background: #fff;
+  background: #ffffff;
   padding: 0.8rem 0.95rem;
-  color: #29231e;
+  color: var(--foreground);
   outline: none;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.field-input::placeholder {
-  color: #aaa097;
-}
-.field-input:focus {
-  border-color: #c45b2d;
-  box-shadow: 0 0 0 3px rgba(196, 91, 45, 0.12);
-}
-.field-input-error {
-  border-color: #c2413b;
-  background: #fffafa;
-}
+
+.field-input::placeholder { color: #8e8486; }
+.field-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(102, 26, 6, 0.15); }
+.field-input-error { border-color: #661a06; background: #fff8f7; }
+
 .submit-button {
   width: 100%;
   min-height: 3.25rem;
   border: 0;
   border-radius: 0.7rem;
-  background: #c45b2d;
+  background: var(--orange);
   color: white;
   cursor: pointer;
   font-weight: 800;
-  transition:
-    background 160ms ease,
-    transform 160ms ease;
+  transition: background 160ms ease, transform 160ms ease;
 }
-.submit-button:hover {
-  background: #9f4321;
-  transform: translateY(-1px);
-}
-.submit-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
-  transform: none;
-}
+
+.submit-button:hover { background: var(--orange-dark); transform: translateY(-1px); }
+.submit-button:disabled { cursor: wait; opacity: 0.65; transform: none; }
+
 .form-footnote {
   margin: 2rem 0 0;
-  color: #988e84;
+  color: #7d7274;
   font-size: 0.7rem;
   line-height: 1.6;
   text-align: center;
 }
 
 @media (max-width: 860px) {
-  .register-shell {
-    display: block;
-  }
-  .register-brand-panel {
-    min-height: 24rem;
-    padding: 3rem 1.5rem;
-  }
-  .brand-mark {
-    margin-bottom: 2rem;
-  }
-  .register-brand-panel h1 {
-    max-width: 34rem;
-    font-size: clamp(2.8rem, 12vw, 4.5rem);
-  }
-  .brand-copy {
-    margin-top: 1.25rem;
-    font-size: 0.95rem;
-  }
-  .recipe-stamp {
-    display: none;
-  }
-  .register-form-panel {
-    width: 100%;
-    padding: 3.5rem 1.5rem 4rem;
-  }
+  .register-shell { display: block; }
+  .register-brand-panel { min-height: 24rem; padding: 3rem 1.5rem; }
+  .brand-mark { margin-bottom: 2rem; }
+  .register-brand-panel h1 { max-width: 34rem; font-size: clamp(2.8rem, 12vw, 4.5rem); }
+  .brand-copy { margin-top: 1.25rem; font-size: 0.95rem; }
+  .recipe-stamp { display: none; }
+  .register-form-panel { width: 100%; padding: 3.5rem 1.5rem 4rem; }
 }

@@ -1,11 +1,10 @@
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Clock,
   Users,
-  Sparkles,
   Search,
   CheckCircle2,
   Timer,
@@ -35,7 +34,7 @@ export const metadata = {
 
 export default async function HomePage() {
   const [categories, recipes] = await Promise.all([
-    categoryApi.getAll().catch(() => []),
+    categoryApi.getAll(),
     recipeApi.getAll(),
   ]);
 
@@ -54,19 +53,13 @@ export default async function HomePage() {
         {/* Hero Introduction Banner */}
         <section className="relative overflow-hidden rounded-3xl border border-border bg-radial from-card via-card to-muted/40 p-8 sm:p-12 lg:p-16 text-center shadow-soft">
           <div className="mx-auto max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-primary">
-              <Sparkles className="size-3.5" />
-              <span>Tested Twice for Guaranteed Deliciousness</span>
-            </div>
 
             <h1 className="font-display text-4xl sm:text-6xl font-bold tracking-tight text-foreground leading-[1.12]">
               Slow recipes written for real home kitchens.
             </h1>
 
             <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-              No twenty-page stories. Just reliable, rigorously tested recipes
-              with smart step timers, precise ingredient measures, and
-              guaranteed comfort.
+              No twenty-page stories. Just reliable, rigorously tested recipes with smart step timers, precise ingredient measures, and guaranteed comfort.
             </p>
 
             {/* Quick Search Box */}
@@ -77,7 +70,7 @@ export default async function HomePage() {
                 className="flex items-center gap-2 rounded-full border border-border bg-background p-1.5 shadow-soft transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
               >
                 <div className="flex items-center pl-4 text-muted-foreground">
-                  <Search className="size-4" />
+                  <Search className="size-4 text-primary" />
                 </div>
                 <input
                   type="text"
@@ -85,38 +78,35 @@ export default async function HomePage() {
                   placeholder="Search recipes (e.g., Pasta, Roast Chicken, Salad)..."
                   className="w-full bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
                 />
-                <Button
-                  type="submit"
-                  className="rounded-full px-6 shadow-soft shrink-0"
-                >
+                <Button type="submit" className="rounded-full px-6 shadow-soft shrink-0">
                   Search
                 </Button>
               </form>
 
               {/* Popular Tags */}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium">Trending:</span>
+                <span className="font-medium text-foreground">Trending:</span>
                 <Link
                   href="/categories/pasta"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Pasta
                 </Link>
                 <Link
                   href="/categories/mains"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Roast Chicken
                 </Link>
                 <Link
                   href="/categories/baking"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Olive Oil Cake
                 </Link>
                 <Link
                   href="/recipes/pho-bo-truyen-thong-ha-noi"
-                  className="rounded-full bg-muted/60 px-3 py-1 hover:bg-accent hover:text-foreground transition-colors"
+                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
                 >
                   Phở Bò
                 </Link>
@@ -183,20 +173,13 @@ export default async function HomePage() {
               </div>
 
               <div className="pt-2 flex flex-wrap items-center gap-3">
-                <Button
-                  asChild
-                  className="h-11 rounded-full px-7 shadow-soft font-semibold"
-                >
+                <Button asChild className="h-11 rounded-full px-7 shadow-soft font-semibold">
                   <Link href={`/recipes/${featured.slug}`}>
                     View Complete Recipe <ArrowRight className="ml-2 size-4" />
                   </Link>
                 </Button>
 
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-11 rounded-full px-6 hover:bg-accent"
-                >
+                <Button asChild variant="outline" className="h-11 rounded-full px-6 hover:bg-accent">
                   <Link href="/recipes">Explore All Recipes</Link>
                 </Button>
               </div>
@@ -204,10 +187,7 @@ export default async function HomePage() {
 
             <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft md:col-span-6 lg:col-span-5">
               {featuredImage ? (
-                <Link
-                  href={`/recipes/${featured.slug}`}
-                  className="block group"
-                >
+                <Link href={`/recipes/${featured.slug}`} className="block group">
                   <Image
                     src={featuredImage.url}
                     alt={featuredImage.alt || featured.title}
@@ -223,7 +203,7 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        {/* Browse by Category Section */}
+        {/* Browse by Category Section (FR-CAT-001) */}
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -244,17 +224,14 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {categories.slice(0, 4).map((category) => (
-              <CategoryCard
-                key={category.id || category.slug}
-                category={category}
-              />
+              <CategoryCard key={category.id || category.slug} category={category} />
             ))}
           </div>
         </section>
 
-        {/* Latest Recipes Section */}
+        {/* Latest Recipes Section (FR-RCP-001) */}
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -288,13 +265,12 @@ export default async function HomePage() {
               The Culinary Blog Promise
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Cooking should be rewarding, not stressful. Every dish on this
-              site adheres to three principles.
+              Cooking should be rewarding, not stressful. Every dish on this site adheres to three principles.
             </p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
               <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
                 <CheckCircle2 className="size-5" />
               </div>
@@ -302,34 +278,31 @@ export default async function HomePage() {
                 Twice-Tested Recipes
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Tested once for taste, and once again to confirm exact timings,
-                ingredient ratios, and temperature tolerances.
+                Tested once for taste, and once again to confirm exact timings, ingredient ratios, and temperature tolerances.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
-              <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
+              <div className="size-10 rounded-xl bg-ember/15 text-ember flex items-center justify-center font-bold">
                 <Timer className="size-5" />
               </div>
               <h3 className="font-display font-semibold text-lg text-foreground">
                 Integrated Step Timers
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                No guessing when tomatoes blister or onions caramelize. Built-in
-                timers count down directly inside each instruction step.
+                No guessing when tomatoes blister or onions caramelize. Built-in timers count down directly inside each instruction step.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left">
-              <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
+              <div className="size-10 rounded-xl bg-herb/20 text-herb flex items-center justify-center font-bold">
                 <Heart className="size-5" />
               </div>
               <h3 className="font-display font-semibold text-lg text-foreground">
                 Everyday Ingredients
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                No elusive pantry items that sit in your cabinet for five years.
-                Accessible, honest foods with clear substitutions.
+                No elusive pantry items that sit in your cabinet for five years. Accessible, honest foods with clear substitutions.
               </p>
             </div>
           </div>

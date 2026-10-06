@@ -213,6 +213,30 @@ public sealed class AuthService : IAuthService
             roles.ToArray());
     }
 
+    public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var tokenHash = _jwtService.HashToken(refreshToken);
+        var storedToken = await _dbContext.RefreshTokens
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+
+        if (storedToken is null || storedToken.IsRevoked)
+        {
+            return;
+        }
+
+        storedToken.Revoke();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit auth logout succeeded for user {UserId} at {OccurredAtUtc}",
+            storedToken.UserId,
+            DateTimeOffset.UtcNow);
+    }
+
     private Task<int> RevokeActiveTokensAsync(string userId, DateTime now, CancellationToken cancellationToken)
     {
         return _dbContext.RefreshTokens

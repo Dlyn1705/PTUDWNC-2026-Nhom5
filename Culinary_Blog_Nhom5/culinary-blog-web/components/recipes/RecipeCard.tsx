@@ -1,12 +1,13 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Clock, Flame, Users, ChefHat } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { difficultyLabel, type RecipeDto, type DifficultyValue } from "@/types/recipe.types";
+import { difficultyLabel, type RecipeCardDto, type DifficultyValue } from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
 
 interface RecipeCardProps {
-  recipe: RecipeDto;
+  recipe: RecipeCardDto;
   viewMode?: "grid" | "list";
   showStatusBadge?: boolean;
 }
@@ -62,9 +63,12 @@ export function RecipeCard({
           )}
         >
           {image ? (
-            <img
+            <Image
               src={image.url}
               alt={image.alt || recipe.title}
+              width={800}
+              height={450}
+              unoptimized
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
             />
@@ -112,9 +116,12 @@ export function RecipeCard({
             {recipe.author && (
               <div className="flex items-center gap-2">
                 {recipe.author.avatarUrl ? (
-                  <img
+                  <Image
                     src={recipe.author.avatarUrl}
                     alt={recipe.author.displayName}
+                    width={24}
+                    height={24}
+                    unoptimized
                     className="size-6 rounded-full object-cover border border-border"
                   />
                 ) : (

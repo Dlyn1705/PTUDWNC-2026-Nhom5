@@ -9,4 +9,5 @@ public interface IAuthService
     Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken);
     Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken);
     Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
+    Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken);
 }

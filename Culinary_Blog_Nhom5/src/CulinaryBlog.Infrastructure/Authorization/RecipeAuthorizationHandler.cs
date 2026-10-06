@@ -4,7 +4,7 @@ using CulinaryBlog.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 
-namespace CulinaryBlog.Application.Common.Authorization;
+namespace CulinaryBlog.Infrastructure.Authorization;
 
 public sealed class RecipeAuthorizationHandler
     : AuthorizationHandler<OperationAuthorizationRequirement, Recipe>
@@ -21,8 +21,7 @@ public sealed class RecipeAuthorizationHandler
         }
 
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var isOwner = !string.IsNullOrWhiteSpace(userId)
-            && string.Equals(userId, recipe.AuthorId, StringComparison.Ordinal);
+        var isOwner = !string.IsNullOrEmpty(userId) && recipe.AuthorId == userId;
 
         if (requirement.Name == RecipeOperations.Read.Name
             && (recipe.Status == RecipeStatus.Published || isOwner))

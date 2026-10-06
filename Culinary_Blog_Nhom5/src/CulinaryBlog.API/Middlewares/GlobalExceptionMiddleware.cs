@@ -102,14 +102,14 @@ public class GlobalExceptionMiddleware
                 problemDetails.Detail = lockedEx.Message;
                 break;
 
-            default:
+           default:
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.";
+                problemDetails.Detail = "Lỗi máy chủ nội bộ. Hãy cung cấp correlation ID cho bộ phận hỗ trợ.";
                 break;
-        }
+            }
 
         var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
         {

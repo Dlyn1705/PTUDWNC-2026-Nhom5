@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
@@ -82,19 +83,35 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
+        group.MapPost("/logout", async (
+            HttpContext context,
+            IAuthService authService,
+            CancellationToken cancellationToken) =>
+        {
+            var refreshToken = context.Request.Cookies[RefreshCookieName];
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+            }
+
+            ClearRefreshCookie(context);
+            return Results.NoContent();
+        })
+            .RequireAuthorization()
+            .WithName("Logout")
+            .WithSummary("Đăng xuất và thu hồi refresh token")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         return app;
     }
 
     private static void SetRefreshCookie(HttpContext context, AuthResponseDto response)
     {
-        var isLocalhost = context.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || context.Request.Host.Host == "127.0.0.1"
-            || context.Request.Host.Host == "[::1]";
-
         context.Response.Cookies.Append(RefreshCookieName, response.RefreshToken, new CookieOptions
         {
             HttpOnly = true,
-            Secure = context.Request.IsHttps || isLocalhost,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/api/v1/auth",
             Expires = new DateTimeOffset(DateTime.SpecifyKind(response.RefreshTokenExpiry, DateTimeKind.Utc))
@@ -112,14 +129,10 @@ public static class AuthEndpoints
 
     private static void ClearRefreshCookie(HttpContext context)
     {
-        var isLocalhost = context.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || context.Request.Host.Host == "127.0.0.1"
-            || context.Request.Host.Host == "[::1]";
-
         context.Response.Cookies.Delete(RefreshCookieName, new CookieOptions
         {
             HttpOnly = true,
-            Secure = context.Request.IsHttps || isLocalhost,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/api/v1/auth"
         });

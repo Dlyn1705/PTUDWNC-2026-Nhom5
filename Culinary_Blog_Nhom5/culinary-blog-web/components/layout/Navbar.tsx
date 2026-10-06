@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils } from "lucide-react";
+import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Navbar() {
@@ -30,7 +30,6 @@ export default function Navbar() {
 
   const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
   const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
-  const isDashboardActive = pathname.startsWith("/dashboard");
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
@@ -112,19 +111,12 @@ export default function Navbar() {
 
           <Button
             asChild
-            variant={isDashboardActive ? "secondary" : "ghost"}
             size="sm"
-            className="rounded-full gap-1.5 text-xs hidden sm:inline-flex"
+            className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
           >
-            <Link href="/dashboard/categories">
-              <LayoutDashboard className="size-3.5" />
-              <span>Admin</span>
-            </Link>
-          </Button>
-
-          <Button asChild size="sm" className="rounded-full px-4 h-9 shadow-soft hidden xs:inline-flex">
-            <Link href="/auth/login">
-              Sign In
+            <Link href="/register">
+              <UserPlus className="size-3.5" />
+              <span>Đăng ký</span>
             </Link>
           </Button>
 
@@ -213,9 +205,10 @@ export default function Navbar() {
                   <span>Admin Dashboard</span>
                 </Link>
 
-                <Button asChild className="w-full rounded-full h-10 mt-1 shadow-soft">
-                  <Link href="/auth/login">
-                    Sign In to Culinary Blog
+                <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
+                  <Link href="/register">
+                    <UserPlus className="size-4" />
+                    <span>Đăng ký tài khoản</span>
                   </Link>
                 </Button>
               </div>

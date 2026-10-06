@@ -29,30 +29,33 @@ export const statusLabel: Record<RecipeStatusValue, string> = {
 export interface AuthorDto {
   id: string;
   displayName: string;
-  avatarUrl: string;
-  bio?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 export interface RecipeImageDto {
   id: string;
   url: string;
   isPrimary: boolean;
-  alt: string;
+  alt?: string | null;
 }
 
 export interface RecipeNutritionDto {
   calories: number;
   protein: number;
-  carbs: number;
+  carbohydrates?: number;
+  carbs?: number; // legacy alias
   fat: number;
-  fiber?: number;
+  fiber?: number | null;
   sodium: number;
 }
 
 export interface RecipeStepDto {
   id: string;
+  stepNumber?: number;
   order: number;
   title?: string;
+  description?: string;
   text: string;
   imageUrl?: string;
   timerMinutes?: number;
@@ -60,13 +63,15 @@ export interface RecipeStepDto {
 
 export interface RecipeIngredientDto {
   id: string;
+  recipeId?: string;
   name: string;
-  quantity: number;
-  unit: string;
+  quantity?: number | null;
+  unit?: string | null;
   notes?: string;
+  orderIndex?: number;
 }
 
-export interface RecipeDto {
+export interface RecipeCardDto {
   id: string;
   title: string;
   slug: string;
@@ -83,6 +88,9 @@ export interface RecipeDto {
   categorySlug?: string;
   author: AuthorDto;
   images: RecipeImageDto[];
+}
+
+export interface RecipeDto extends RecipeCardDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];
@@ -93,4 +101,23 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+}
+
+export interface SearchRecipeSummaryDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  primaryImageUrl?: string | null;
+  category: { id: string; name: string; slug: string };
+  author: AuthorDto;
+  difficulty: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  relevanceScore: number;
+  createdAt: string;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 
 type Ingredient = {
   name: string;
@@ -102,37 +103,72 @@ export default function NewRecipePage() {
   };
 
   const handleSubmit = (status: "draft" | "continue") => {
-    if (!title.trim()) {
-      alert("Vui lòng nhập tên món ăn.");
+    // Kiểm tra tên món ăn
+    if (title.trim().length < 3) {
+      alert("Tên món ăn phải có ít nhất 3 ký tự.");
       return;
     }
 
+    // Kiểm tra danh mục
     if (!category) {
       alert("Vui lòng chọn danh mục.");
       return;
     }
 
-    console.log({
-      title,
+    // Kiểm tra thời gian
+    if (prepTime && Number(prepTime) < 0) {
+      alert("Thời gian chuẩn bị không hợp lệ.");
+      return;
+    }
+
+    if (cookTime && Number(cookTime) < 0) {
+      alert("Thời gian nấu không hợp lệ.");
+      return;
+    }
+
+    // Kiểm tra nguyên liệu
+    const invalidIngredient = ingredients.some(
+      (ingredient) => !ingredient.name.trim()
+    );
+
+    if (invalidIngredient) {
+      alert("Vui lòng nhập đầy đủ tên nguyên liệu.");
+      return;
+    }
+
+    // Kiểm tra các bước
+    const invalidStep = steps.some(
+      (step) => !step.description.trim()
+    );
+
+    if (invalidStep) {
+      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
+      return;
+    }
+
+    const recipeData = {
+      title: title.trim(),
       slug,
-      description,
+      description: description.trim(),
       category,
       difficulty,
-      prepTime,
-      cookTime,
-      servings,
+      prepTime: Number(prepTime) || 0,
+      cookTime: Number(cookTime) || 0,
+      servings: Number(servings) || 0,
       nutrition: {
-        calories,
-        protein,
-        carbs,
-        fat,
-        fiber,
-        sodium,
+        calories: Number(calories) || 0,
+        protein: Number(protein) || 0,
+        carbs: Number(carbs) || 0,
+        fat: Number(fat) || 0,
+        fiber: Number(fiber) || 0,
+        sodium: Number(sodium) || 0,
       },
       ingredients,
       steps,
       status,
-    });
+    };
+
+    console.log("Recipe data:", recipeData);
 
     alert(
       status === "draft"
@@ -142,11 +178,10 @@ export default function NewRecipePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Header */}
+    <main className="min-h-screen bg-gray-50 py-10">
+      <div className="mx-auto max-w-5xl px-4">
         <div className="mb-8">
-          <p className="mb-2 text-sm font-medium text-orange-600">
+          <p className="mb-2 text-sm font-medium text-primary">
             Dashboard / Recipes / New
           </p>
 
@@ -185,7 +220,7 @@ export default function NewRecipePage() {
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={150}
                   placeholder="Ví dụ: Phở bò truyền thống"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-gray-400">
@@ -219,7 +254,7 @@ export default function NewRecipePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
                     <option value="">Chọn danh mục</option>
                     <option value="vietnamese">
@@ -248,7 +283,7 @@ export default function NewRecipePage() {
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
                     <option value="Easy">Dễ</option>
                     <option value="Medium">Trung bình</option>
@@ -270,7 +305,7 @@ export default function NewRecipePage() {
                   maxLength={500}
                   rows={4}
                   placeholder="Mô tả hương vị và điểm đặc sắc của món ăn..."
-                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <p className="mt-2 text-right text-xs text-gray-400">
@@ -291,7 +326,7 @@ export default function NewRecipePage() {
                     value={prepTime}
                     onChange={(e) => setPrepTime(e.target.value)}
                     placeholder="15"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
 
@@ -306,7 +341,7 @@ export default function NewRecipePage() {
                     value={cookTime}
                     onChange={(e) => setCookTime(e.target.value)}
                     placeholder="30"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
 
@@ -321,7 +356,7 @@ export default function NewRecipePage() {
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
                     placeholder="4"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -341,9 +376,12 @@ export default function NewRecipePage() {
             <div className="mt-5">
               {image ? (
                 <div className="relative overflow-hidden rounded-2xl">
-                  <img
+                  <Image
                     src={image}
                     alt="Ảnh món ăn"
+                    width={1024}
+                    height={576}
+                    unoptimized
                     className="h-64 w-full object-cover"
                   />
 
@@ -356,7 +394,7 @@ export default function NewRecipePage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-orange-400 hover:bg-orange-50">
+                <label className="flex h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-primary hover:bg-primary/5">
                   <span className="mb-3 text-4xl">📷</span>
 
                   <span className="font-medium text-gray-700">
@@ -413,7 +451,7 @@ export default function NewRecipePage() {
                         >)(e.target.value)
                       }
                       placeholder="0"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-14 outline-none focus:border-orange-500"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-14 outline-none focus:border-primary"
                     />
 
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -441,7 +479,7 @@ export default function NewRecipePage() {
               <button
                 type="button"
                 onClick={addIngredient}
-                className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 + Thêm nguyên liệu
               </button>
@@ -463,7 +501,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Tên nguyên liệu"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <input
@@ -476,7 +514,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Số lượng"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <input
@@ -489,7 +527,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Đơn vị"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <button
@@ -520,7 +558,7 @@ export default function NewRecipePage() {
               <button
                 type="button"
                 onClick={addStep}
-                className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 + Thêm bước
               </button>
@@ -532,7 +570,7 @@ export default function NewRecipePage() {
                   key={index}
                   className="flex gap-4 rounded-xl border border-gray-200 p-4"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 font-semibold text-orange-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
                     {index + 1}
                   </div>
 
@@ -543,7 +581,7 @@ export default function NewRecipePage() {
                     }
                     rows={3}
                     placeholder={`Mô tả bước ${index + 1}...`}
-                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <button
@@ -571,7 +609,7 @@ export default function NewRecipePage() {
             <button
               type="button"
               onClick={() => handleSubmit("continue")}
-              className="rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm hover:bg-orange-600"
+              className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
             >
               Lưu và tiếp tục chỉnh sửa
             </button>

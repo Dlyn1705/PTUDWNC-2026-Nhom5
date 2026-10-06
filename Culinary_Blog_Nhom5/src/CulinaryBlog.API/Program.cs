@@ -7,12 +7,17 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
+using CulinaryBlog.Infrastructure.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -37,6 +42,27 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+var databaseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnectionString)));
+builder.Services.AddHangfireServer();
+
+if (builder.Environment.IsDevelopment())
+{
+    var keyDirectory = Path.Combine(
+        builder.Environment.ContentRootPath,
+        ".data-protection-keys");
+
+    builder.Services
+        .AddDataProtection()
+        .SetApplicationName("CulinaryBlog")
+        .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+}
 
 
 // ============================================================
@@ -109,21 +135,18 @@ builder.Services
             };
     });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(
-        "AuthorPolicy",
-        policy => policy.RequireRole("Author", "Admin"));
-
-    options.AddPolicy(
-        "AdminPolicy",
-        policy => policy.RequireRole("Admin"));
-});
-
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    options.AddPolicy("upload", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
@@ -136,6 +159,7 @@ builder.Services.AddRateLimiter(options =>
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
 builder.Services.AddOpenApi();
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 
 // ============================================================
@@ -145,18 +169,14 @@ var app = builder.Build();
 
 
 // ============================================================
-// 6. DATABASE SEEDING
+// 6. OPTIONAL DATABASE MIGRATION & SEEDING
 // ============================================================
-// Chạy Migration + tạo dữ liệu mẫu:
-// - Roles
-// - Users
-// - 20 Categories
-// - 100 Recipes
-// - 1000 RecipeIngredients
-// - 500 RecipeSteps
+// Chỉ chạy khi Database:SeedOnStartup=true để không tự ý thay đổi
+// database đã có dữ liệu trong lúc API khởi động.
 // ============================================================
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
 
     var context =
@@ -223,6 +243,11 @@ app.MapAuthEndpoints();
 app.MapRecipeEndpoints();
 
 app.MapHealthEndpoints();
+
+RecurringJob.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
+    "recover-pending-recipe-image-deletions",
+    job => job.EnqueuePendingAsync(CancellationToken.None),
+    Cron.MinuteInterval(5));
 
 
 // ============================================================
