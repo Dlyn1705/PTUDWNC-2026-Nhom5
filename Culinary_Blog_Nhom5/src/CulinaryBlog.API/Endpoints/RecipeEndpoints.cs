@@ -10,6 +10,7 @@ using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -60,6 +61,24 @@ public static class RecipeEndpoints
         .RequireRateLimiting("upload")
         .DisableAntiforgery()
         .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
+
+        group.MapDelete("/{recipeId:guid}/images/{imageId:guid}", async (
+            Guid recipeId,
+            Guid imageId,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRecipeImageCommand(recipeId, imageId), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteRecipeImage")
+        .WithSummary("Xóa ảnh công thức và dọn các object khỏi MinIO (FR-FILE-002)")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAuthorization("AuthorPolicy");
 
         group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
             Guid recipeId,

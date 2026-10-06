@@ -97,6 +97,9 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();
         services.AddTransient<RecipeImageProcessingJob>();
+        services.AddScoped<IRecipeImageDeletionQueue, HangfireRecipeImageDeletionQueue>();
+        services.AddTransient<RecipeImageDeletionJob>();
+        services.AddTransient<RecipeImageDeletionRecoveryJob>();
 
         return services;
     }

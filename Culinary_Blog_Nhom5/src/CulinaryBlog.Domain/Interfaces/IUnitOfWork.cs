@@ -10,6 +10,8 @@ public interface IUnitOfWork : IDisposable
     ICategoryRepository Categories { get; }
     IRecipeRepository Recipes { get; }
     Task AddRecipeImageAsync(RecipeImage image, CancellationToken ct = default);
+    Task<RecipeImage?> GetRecipeImageIncludingDeletedAsync(Guid imageId, CancellationToken ct = default);
+    Task SoftDeleteRecipeImageAsync(RecipeImage image, RecipeImage? replacementPrimary, CancellationToken ct = default);
     void RemoveRecipeImage(RecipeImage image);
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

@@ -40,6 +40,7 @@ public sealed class RecipeImageProcessingJob(
 
         image.ProcessingStatus = "Processing";
         await db.SaveChangesAsync(cancellationToken);
+        var createdVariantUrls = new List<string>();
         try
         {
             var original = await storage.OpenReadAsync(image.OriginalUrl, cancellationToken);
@@ -51,22 +52,40 @@ public sealed class RecipeImageProcessingJob(
 
                 var mediumKey = $"recipes/{image.RecipeId}/{image.Id:N}-medium.jpg";
                 var thumbnailKey = $"recipes/{image.RecipeId}/{image.Id:N}-thumbnail.jpg";
-                image.MediumUrl = await CreateVariantAsync(decoded, mediumKey, 800, 600, cancellationToken);
-                image.ThumbnailUrl = await CreateVariantAsync(decoded, thumbnailKey, 300, 300, cancellationToken);
+                image.MediumUrl = await CreateVariantAsync(imageId, decoded, mediumKey, 800, 600, createdVariantUrls, cancellationToken);
+                if (image.MediumUrl is null)
+                {
+                    await DeleteCreatedVariantsAsync(createdVariantUrls, cancellationToken);
+                    return;
+                }
+                image.ThumbnailUrl = await CreateVariantAsync(imageId, decoded, thumbnailKey, 300, 300, createdVariantUrls, cancellationToken);
+                if (image.ThumbnailUrl is null)
+                {
+                    await DeleteCreatedVariantsAsync(createdVariantUrls, cancellationToken);
+                    return;
+                }
                 image.ProcessingStatus = "Completed";
                 await db.SaveChangesAsync(cancellationToken);
             }
         }
         catch
         {
-            image.ProcessingStatus = "Failed";
-            await db.SaveChangesAsync(CancellationToken.None);
+            await DeleteCreatedVariantsAsync(createdVariantUrls, CancellationToken.None);
+            var deletionState = await db.RecipeImages.IgnoreQueryFilters().AsNoTracking()
+                .Where(candidate => candidate.Id == imageId)
+                .Select(candidate => (bool?)candidate.IsDeleted)
+                .FirstOrDefaultAsync(CancellationToken.None);
+            if (deletionState == false)
+            {
+                image.ProcessingStatus = "Failed";
+                await db.SaveChangesAsync(CancellationToken.None);
+            }
             throw;
         }
         logger.LogInformation("Recipe image variants processed for {RecipeImageId}", imageId);
     }
 
-    private async Task<string> CreateVariantAsync(MagickImage original, string key, uint width, uint height, CancellationToken ct)
+    private async Task<string?> CreateVariantAsync(Guid imageId, MagickImage original, string key, uint width, uint height, List<string> createdUrls, CancellationToken ct)
     {
         using var variant = (MagickImage)original.Clone();
         variant.Resize(new MagickGeometry(width, height) { IgnoreAspectRatio = false });
@@ -75,6 +94,29 @@ public sealed class RecipeImageProcessingJob(
         await using var buffer = new MemoryStream();
         await variant.WriteAsync(buffer, ct);
         buffer.Position = 0;
-        return await storage.UploadAsync(buffer, key, "image/jpeg", ct);
+        if (await IsMarkedForDeletionAsync(imageId, ct)) return null;
+        var url = await storage.UploadAsync(buffer, key, "image/jpeg", ct);
+        createdUrls.Add(url);
+        if (!await IsMarkedForDeletionAsync(imageId, ct)) return url;
+        await storage.DeleteAsync(url, ct);
+        return null;
+    }
+
+    private async Task<bool> IsMarkedForDeletionAsync(Guid imageId, CancellationToken ct)
+    {
+        var isDeleted = await db.RecipeImages.IgnoreQueryFilters().AsNoTracking()
+            .Where(candidate => candidate.Id == imageId)
+            .Select(candidate => (bool?)candidate.IsDeleted)
+            .FirstOrDefaultAsync(ct);
+        return isDeleted is null or true;
+    }
+
+    private async Task DeleteCreatedVariantsAsync(IEnumerable<string> urls, CancellationToken ct)
+    {
+        foreach (var url in urls.Distinct(StringComparer.Ordinal))
+        {
+            try { await storage.DeleteAsync(url, ct); }
+            catch (Exception exception) { logger.LogWarning(exception, "Could not remove a generated variant during image processing cleanup"); }
+        }
     }
 }
