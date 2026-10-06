@@ -8,10 +8,14 @@ using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Scalar.AspNetCore;
@@ -92,7 +96,12 @@ var jwtAudience =
     builder.Configuration["Jwt:Audience"]
     ?? "CulinaryBlogWeb";
 
-builder.Services
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var googleCallbackPath = builder.Configuration["Authentication:Google:CallbackPath"]
+    ?? "/api/v1/auth/google/callback";
+
+var authenticationBuilder = builder.Services
     .AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme =
@@ -100,6 +109,17 @@ builder.Services
 
         options.DefaultChallengeScheme =
             JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddCookie(IdentityConstants.ExternalScheme, options =>
+    {
+        options.Cookie.Name = ".CulinaryBlog.External";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.Path = "/api/v1/auth";
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        options.SlidingExpiration = false;
     })
     .AddJwtBearer(options =>
     {
@@ -121,6 +141,73 @@ builder.Services
                 ClockSkew = TimeSpan.Zero
             };
     });
+
+if (!string.IsNullOrWhiteSpace(googleClientId)
+    && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authenticationBuilder.AddGoogle(options =>
+    {
+        options.ClientId = googleClientId;
+        options.ClientSecret = googleClientSecret;
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.CallbackPath = googleCallbackPath;
+        options.UsePkce = true;
+        options.SaveTokens = false;
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("email");
+        options.Scope.Add("profile");
+        options.ClaimActions.MapJsonKey("email_verified", "verified_email");
+        options.ClaimActions.MapJsonKey("picture", "picture");
+        options.Events.OnRemoteFailure = async context =>
+        {
+            var isAccessDenied = context.Request.Query["error"] == "access_denied";
+            var isGoogleUnavailable = false;
+            for (var exception = context.Failure; exception is not null; exception = exception.InnerException)
+            {
+                if (exception is HttpRequestException or TimeoutException)
+                {
+                    isGoogleUnavailable = true;
+                    break;
+                }
+            }
+
+            var status = isAccessDenied
+                ? StatusCodes.Status400BadRequest
+                : isGoogleUnavailable
+                    ? StatusCodes.Status502BadGateway
+                    : StatusCodes.Status401Unauthorized;
+
+            context.Response.StatusCode = status;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = status,
+                Title = status switch
+                {
+                    StatusCodes.Status400BadRequest => "Google authorization was denied.",
+                    StatusCodes.Status502BadGateway => "Google authentication service is unavailable.",
+                    _ => "Google authorization code is invalid or expired."
+                },
+                Detail = status == StatusCodes.Status502BadGateway
+                    ? "The server could not reach Google's token service. Please retry."
+                    : "Google sign-in could not be completed. Please start again."
+            });
+            context.HandleResponse();
+        };
+    });
+}
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "AuthorPolicy",
+        policy => policy.RequireRole("Author", "Admin"));
+
+    options.AddPolicy(
+        "AdminPolicy",
+        policy => policy.RequireRole("Admin"));
+});
 
 builder.Services.AddRateLimiter(options =>
 {

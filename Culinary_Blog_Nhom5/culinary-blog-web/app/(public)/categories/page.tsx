@@ -4,6 +4,8 @@ import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import { categoryApi } from "@/lib/api/categoryApi";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "All Categories - Culinary Blog",
   description:
@@ -17,7 +19,12 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriesPage() {
-  const categories = await categoryApi.getAll();
+  let categories: Awaited<ReturnType<typeof categoryApi.getAll>> = [];
+  try {
+    categories = await categoryApi.getAll();
+  } catch {
+    console.warn("Could not load categories from the API; rendering an empty list.");
+  }
 
   const totalCategories = categories.length;
   const totalRecipes = categories.reduce(

@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Security.Claims;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Contracts;
@@ -8,8 +10,11 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Google.Apis.Auth;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
@@ -22,6 +27,8 @@ public sealed class AuthService : IAuthService
     private readonly ApplicationDbContext _dbContext;
     private readonly IJwtService _jwtService;
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
@@ -29,7 +36,9 @@ public sealed class AuthService : IAuthService
         RoleManager<IdentityRole> roleManager,
         ApplicationDbContext dbContext,
         IJwtService jwtService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -37,6 +46,8 @@ public sealed class AuthService : IAuthService
         _dbContext = dbContext;
         _jwtService = jwtService;
         _configuration = configuration;
+        _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
@@ -99,7 +110,273 @@ public sealed class AuthService : IAuthService
             throw new UnauthorizedAccessException("Email hoặc mật khẩu không chính xác.");
         }
 
-        return await CreateAuthResponseAsync(user, cancellationToken);
+        var response = await CreateAuthResponseAsync(user, cancellationToken);
+        _logger.LogInformation(
+            "Audit auth login succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+        return response;
+    }
+
+    public async Task<AuthResponseDto> LoginWithGoogleAsync(
+        ExternalLoginInfo externalLoginInfo,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(externalLoginInfo.LoginProvider, "Google", StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(externalLoginInfo.ProviderKey))
+        {
+            throw new UnauthorizedAccessException("Google login information is invalid or expired.");
+        }
+
+        var principal = externalLoginInfo.Principal;
+        var email = principal.FindFirstValue(ClaimTypes.Email)?.Trim();
+        var emailVerified = principal.FindFirst("email_verified")?.Value;
+        if (string.IsNullOrWhiteSpace(email)
+            || !bool.TryParse(emailVerified, out var isEmailVerified)
+            || !isEmailVerified)
+        {
+            throw new UnauthorizedAccessException("Google did not provide a verified email address.");
+        }
+
+        var displayName = principal.FindFirstValue(ClaimTypes.Name)?.Trim();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = email.Split('@', 2)[0];
+        }
+
+        var avatarUrl = principal.FindFirst("picture")?.Value;
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var user = await _userManager.FindByLoginAsync(
+            externalLoginInfo.LoginProvider,
+            externalLoginInfo.ProviderKey);
+
+        if (user is null)
+        {
+            user = await _userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                user = ApplicationUser.Create(email, email, displayName, avatarUrl);
+                user.EmailConfirmed = true;
+                var createResult = await _userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    throw new ConflictException(
+                        "Không thể tạo tài khoản từ hồ sơ Google.",
+                        "GOOGLE_ACCOUNT_CREATE_FAILED");
+                }
+
+                await EnsureAuthorRoleAsync(user);
+            }
+            else if (!user.IsActive)
+            {
+                throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+            }
+
+            var addLoginResult = await _userManager.AddLoginAsync(
+                user,
+                new UserLoginInfo(
+                    externalLoginInfo.LoginProvider,
+                    externalLoginInfo.ProviderKey,
+                    externalLoginInfo.ProviderDisplayName ?? "Google"));
+
+            if (!addLoginResult.Succeeded)
+            {
+                throw new ConflictException(
+                    "Tài khoản Google đã được liên kết với một tài khoản khác.",
+                    "GOOGLE_LOGIN_ALREADY_LINKED");
+            }
+        }
+        else if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+        }
+
+        var response = await CreateAuthResponseAsync(user, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit Google sign-in succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+        return response;
+    }
+
+    public async Task<AuthResponseDto> LoginWithGoogleIdTokenAsync(
+        string idToken,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+        {
+            throw new BadRequestException("invalid token");
+        }
+
+        var clientId = _configuration["Authentication:Google:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            throw new BadGatewayException("Google token verification is not configured on the server.");
+        }
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(
+                idToken,
+                new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = [clientId]
+                });
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Google ID token is invalid or expired.");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(exception, "Google token verification service is unavailable.");
+            throw new BadGatewayException("Google token verification service is temporarily unavailable.");
+        }
+
+        if (!payload.EmailVerified)
+        {
+            throw new UnauthorizedAccessException("Google account email is not verified.");
+        }
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, payload.Subject),
+            new(ClaimTypes.Email, payload.Email),
+            new(ClaimTypes.Name, payload.Name ?? payload.Email.Split('@', 2)[0]),
+            new("email_verified", payload.EmailVerified.ToString().ToLowerInvariant())
+        };
+        if (!string.IsNullOrWhiteSpace(payload.Picture))
+        {
+            claims.Add(new Claim("picture", payload.Picture));
+        }
+
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Google"));
+        var externalLoginInfo = new ExternalLoginInfo(
+            principal,
+            "Google",
+            payload.Subject,
+            "Google");
+
+        return await LoginWithGoogleAsync(externalLoginInfo, cancellationToken);
+    }
+
+    private async Task EnsureAuthorRoleAsync(ApplicationUser user)
+    {
+        if (!await _roleManager.RoleExistsAsync(AuthorRole))
+        {
+            var roleResult = await _roleManager.CreateAsync(new IdentityRole(AuthorRole));
+            if (!roleResult.Succeeded)
+            {
+                throw new DbUpdateException("Không thể khởi tạo vai trò người dùng.");
+            }
+        }
+
+        var roleAssignment = await _userManager.AddToRoleAsync(user, AuthorRole);
+        if (!roleAssignment.Succeeded)
+        {
+            throw new DbUpdateException("Không thể gán vai trò cho tài khoản Google mới.");
+        }
+    }
+
+    public async Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
+        }
+
+        var now = DateTime.UtcNow;
+        var tokenHash = _jwtService.HashToken(refreshToken);
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var storedToken = await _dbContext.RefreshTokens
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+
+        if (storedToken is null)
+        {
+            throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
+        }
+
+        if (storedToken.IsRevoked)
+        {
+            await RevokeActiveTokensAsync(storedToken.UserId, now, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _logger.LogWarning(
+                "Refresh token reuse detected for user {UserId} at {OccurredAtUtc}",
+                storedToken.UserId,
+                DateTimeOffset.UtcNow);
+            throw new UnauthorizedAccessException("Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.");
+        }
+
+        if (storedToken.ExpiresAt <= now)
+        {
+            throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
+        }
+
+        var user = await _userManager.FindByIdAsync(storedToken.UserId);
+        if (user is null || !user.IsActive)
+        {
+            await RevokeActiveTokensAsync(storedToken.UserId, now, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+        }
+
+        var (newRefreshToken, newRefreshTokenHash) = _jwtService.GenerateRefreshToken();
+        var updatedCount = await _dbContext.RefreshTokens
+            .Where(token => token.Id == storedToken.Id
+                && token.RevokedAt == null
+                && token.ExpiresAt > now)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(token => token.RevokedAt, now)
+                .SetProperty(token => token.ReplacedByTokenHash, newRefreshTokenHash), cancellationToken);
+
+        if (updatedCount != 1)
+        {
+            await RevokeActiveTokensAsync(storedToken.UserId, now, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _logger.LogWarning(
+                "Concurrent refresh token reuse detected for user {UserId} at {OccurredAtUtc}",
+                storedToken.UserId,
+                DateTimeOffset.UtcNow);
+            throw new UnauthorizedAccessException("Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.");
+        }
+
+        var refreshLifetimeDays = _configuration.GetValue("Jwt:RefreshTokenDurationInDays", 7);
+        var refreshTokenExpiry = now.AddDays(refreshLifetimeDays);
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = newRefreshTokenHash,
+            ExpiresAt = refreshTokenExpiry,
+            CreatedByIp = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString()
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var (accessToken, expiresInSeconds) = _jwtService.GenerateAccessToken(user, roles);
+        _logger.LogInformation(
+            "Audit auth refresh succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+
+        return new AuthResponseDto(
+            accessToken,
+            newRefreshToken,
+            DateTime.UtcNow.AddSeconds(expiresInSeconds),
+            refreshTokenExpiry,
+            new UserDto(user.Id, user.Email!, user.DisplayName),
+            roles.ToArray());
+    }
+
+    private Task<int> RevokeActiveTokensAsync(string userId, DateTime now, CancellationToken cancellationToken)
+    {
+        return _dbContext.RefreshTokens
+            .Where(token => token.UserId == userId && token.RevokedAt == null && token.ExpiresAt > now)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.RevokedAt, now), cancellationToken);
     }
 
     private async Task<AuthResponseDto> CreateAuthResponseAsync(ApplicationUser user, CancellationToken cancellationToken)
@@ -108,12 +385,14 @@ public sealed class AuthService : IAuthService
         var (accessToken, expiresInSeconds) = _jwtService.GenerateAccessToken(user, roles);
         var (refreshToken, refreshTokenHash) = _jwtService.GenerateRefreshToken();
         var refreshLifetimeDays = _configuration.GetValue("Jwt:RefreshTokenDurationInDays", 7);
+        var refreshTokenExpiry = DateTime.UtcNow.AddDays(refreshLifetimeDays);
 
         _dbContext.RefreshTokens.Add(new RefreshToken
         {
             UserId = user.Id,
             TokenHash = refreshTokenHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(refreshLifetimeDays)
+            ExpiresAt = refreshTokenExpiry,
+            CreatedByIp = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString()
         });
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -121,6 +400,7 @@ public sealed class AuthService : IAuthService
             accessToken,
             refreshToken,
             DateTime.UtcNow.AddSeconds(expiresInSeconds),
+            refreshTokenExpiry,
             new UserDto(user.Id, user.Email!, user.DisplayName),
             roles.ToArray());
     }

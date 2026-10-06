@@ -78,6 +78,20 @@ public class GlobalExceptionMiddleware
                 problemDetails.Extensions["code"] = conflictEx.Code;
                 break;
 
+            case BadRequestException badRequestEx:
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                problemDetails.Status = StatusCodes.Status400BadRequest;
+                problemDetails.Title = "Yêu cầu không hợp lệ.";
+                problemDetails.Detail = badRequestEx.Message;
+                break;
+
+            case BadGatewayException badGatewayEx:
+                context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                problemDetails.Status = StatusCodes.Status502BadGateway;
+                problemDetails.Title = "Dịch vụ xác thực bên ngoài không khả dụng.";
+                problemDetails.Detail = badGatewayEx.Message;
+                break;
+
             case ForbiddenException forbiddenEx:
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 problemDetails.Status = StatusCodes.Status403Forbidden;

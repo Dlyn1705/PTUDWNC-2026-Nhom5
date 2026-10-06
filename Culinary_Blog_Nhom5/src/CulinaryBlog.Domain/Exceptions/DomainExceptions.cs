@@ -25,6 +25,16 @@ public class ConflictException : DomainException
     }
 }
 
+public class BadRequestException : DomainException
+{
+    public BadRequestException(string message) : base(message) { }
+}
+
+public class BadGatewayException : DomainException
+{
+    public BadGatewayException(string message) : base(message) { }
+}
+
 public class ForbiddenException : DomainException
 {
     public ForbiddenException(string message = "Bạn không có quyền thực hiện thao tác này.") : base(message) { }

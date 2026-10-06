@@ -6,7 +6,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
   const [categories, recipes] = await Promise.all([
-    categoryApi.getAll(),
+    categoryApi.getAll().catch(() => []),
     recipeApi.getAll(),
   ]);
 
