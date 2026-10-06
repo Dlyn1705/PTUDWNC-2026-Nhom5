@@ -77,8 +77,8 @@ export default function RecipeImageUploadPanel() {
           <h2 className="font-semibold">Ảnh cho công thức {recipeId}</h2>
           <FileUploadDropzone
             key={recipeId}
-            recipeId={recipeId}
-            onUploadSuccess={(image) => setImages((current) => [...current, image])}
+              recipeId={recipeId}
+              onUploadSuccess={(image) => setImages((current) => [...current, image])}
           />
           {deleteError && <p role="alert" className="text-sm text-red-600">{deleteError}</p>}
           {images.length > 0 && (

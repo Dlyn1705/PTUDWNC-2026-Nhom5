@@ -7,13 +7,15 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 
 public sealed class DeleteRecipeImageCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUser,
-    IRecipeImageDeletionQueue deletionQueue) : IRequestHandler<DeleteRecipeImageCommand>
+    IRecipeImageDeletionQueue deletionQueue,
+    ILogger<DeleteRecipeImageCommandHandler> logger) : IRequestHandler<DeleteRecipeImageCommand>
 {
     public async Task Handle(DeleteRecipeImageCommand request, CancellationToken cancellationToken)
     {
@@ -43,8 +45,18 @@ public sealed class DeleteRecipeImageCommandHandler(
             await unitOfWork.SoftDeleteRecipeImageAsync(image, replacement, cancellationToken);
         }
 
-        // The soft-deleted row retains all object URLs until the durable Hangfire job succeeds.
-        // Repeating DELETE re-enqueues cleanup if queueing or a previous cleanup attempt failed.
-        await deletionQueue.EnqueueAsync(image.Id, cancellationToken);
+        // IsDeleted and the retained URLs are the durable cleanup record. The recurring
+        // recovery job will enqueue it again if this best-effort fast path is unavailable.
+        try
+        {
+            await deletionQueue.EnqueueAsync(image.Id, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Recipe image {RecipeImageId} was marked for deletion but could not be queued immediately",
+                image.Id);
+        }
     }
 }

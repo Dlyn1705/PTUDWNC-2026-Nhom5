@@ -37,3 +37,37 @@ public sealed class RecipeImageDeletionJob(
         logger.LogInformation("Deleted recipe image objects for {RecipeImageId}", imageId);
     }
 }
+
+public sealed class RecipeImageDeletionRecoveryJob(
+    ApplicationDbContext db,
+    IBackgroundJobClient jobs,
+    ILogger<RecipeImageDeletionRecoveryJob> logger)
+{
+    private const int BatchSize = 100;
+
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
+    public async Task EnqueuePendingAsync(CancellationToken cancellationToken)
+    {
+        var pendingImageIds = await db.RecipeImages
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(image => image.IsDeleted)
+            .OrderBy(image => image.UpdatedAt ?? image.CreatedAt)
+            .Select(image => image.Id)
+            .Take(BatchSize)
+            .ToListAsync(cancellationToken);
+
+        foreach (var imageId in pendingImageIds)
+        {
+            jobs.Enqueue<RecipeImageDeletionJob>(job =>
+                job.DeleteAsync(imageId, CancellationToken.None));
+        }
+
+        if (pendingImageIds.Count > 0)
+        {
+            logger.LogInformation(
+                "Re-enqueued {RecipeImageCount} pending recipe image deletions",
+                pendingImageIds.Count);
+        }
+    }
+}

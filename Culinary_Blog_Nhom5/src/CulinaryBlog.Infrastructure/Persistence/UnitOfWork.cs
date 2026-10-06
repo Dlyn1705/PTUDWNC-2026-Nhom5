@@ -39,17 +39,26 @@ public class UnitOfWork : IUnitOfWork
         CancellationToken ct = default)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        image.IsPrimary = false;
-        image.IsDeleted = true;
-        await SaveChangesAsync(ct);
-
-        if (replacementPrimary is not null)
+        try
         {
-            replacementPrimary.IsPrimary = true;
+            image.IsPrimary = false;
+            image.IsDeleted = true;
             await SaveChangesAsync(ct);
-        }
 
-        await transaction.CommitAsync(ct);
+            if (replacementPrimary is not null)
+            {
+                replacementPrimary.IsPrimary = true;
+                await SaveChangesAsync(ct);
+            }
+
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            throw new ConflictException(
+                "Ảnh hoặc trạng thái ảnh chính vừa được thay đổi. Vui lòng tải lại và thử lại.",
+                "RECIPE_IMAGE_CONFLICT");
+        }
     }
 
     public void RemoveRecipeImage(Domain.Entities.RecipeImage image)

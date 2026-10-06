@@ -7,6 +7,7 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
+using CulinaryBlog.Infrastructure.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -240,6 +241,11 @@ app.MapAuthEndpoints();
 app.MapRecipeEndpoints();
 
 app.MapHealthEndpoints();
+
+RecurringJob.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
+    "recover-pending-recipe-image-deletions",
+    job => job.EnqueuePendingAsync(CancellationToken.None),
+    Cron.MinuteInterval(5));
 
 
 // ============================================================

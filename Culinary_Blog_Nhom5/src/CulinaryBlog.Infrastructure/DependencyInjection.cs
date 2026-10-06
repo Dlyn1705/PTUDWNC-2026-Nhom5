@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddTransient<RecipeImageProcessingJob>();
         services.AddScoped<IRecipeImageDeletionQueue, HangfireRecipeImageDeletionQueue>();
         services.AddTransient<RecipeImageDeletionJob>();
+        services.AddTransient<RecipeImageDeletionRecoveryJob>();
 
         return services;
     }

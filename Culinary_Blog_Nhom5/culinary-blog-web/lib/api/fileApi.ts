@@ -70,7 +70,6 @@ export async function uploadRecipeImage(
   if (image.processingStatus === "Failed") throw new Error("Ảnh đã tải lên nhưng không thể tạo các kích thước xem trước.");
   return image;
 }
-
 export async function deleteRecipeImage(recipeId: string, imageId: string) {
   await axiosClient.delete(`/api/v1/recipes/${recipeId}/images/${imageId}`);
 }
