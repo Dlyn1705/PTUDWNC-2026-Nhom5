@@ -9,11 +9,20 @@ import {
 } from "@/types/category.types";
 import type { RecipeCardDto } from "@/types/recipe.types";
 import { mockCategories, mockRecipes } from "../mock-data";
+import { toApiProblemError } from "./problemDetails";
 
 let localCategories: CategoryDto[] = [...mockCategories];
 const mockModeEnabled =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+
+function canUseMockFallback(error: unknown): boolean {
+  if (mockModeEnabled) return true;
+  if (process.env.NODE_ENV === "development" && axios.isAxiosError(error)) {
+    return !error.response || error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK";
+  }
+  return false;
+}
 
 interface CategoryDetailApiResponse {
   data: {
@@ -31,7 +40,13 @@ export const categoryApi = {
       );
       return Array.isArray(response.data) ? response.data : response.data.data;
     } catch (error) {
-      if (mockModeEnabled) return localCategories;
+      if (canUseMockFallback(error)) {
+        console.warn(
+          "[categoryApi.getAll] Backend API chua san sang hoac khong the ket noi (Port 5156). Dang su dung du lieu mock:",
+          error instanceof Error ? error.message : error
+        );
+        return localCategories;
+      }
       throw error;
     }
   },
@@ -53,7 +68,7 @@ export const categoryApi = {
       };
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return null;
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback(error)) throw error;
 
       const category = localCategories.find(
         (item) => item.slug.toLowerCase() === slug.toLowerCase(),
@@ -98,7 +113,7 @@ export const categoryApi = {
       );
       return response.data.data;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback(error)) throw toApiProblemError(error);
     }
 
     const newCategory: CategoryDto = {
@@ -122,7 +137,7 @@ export const categoryApi = {
       );
       return response.data.data;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback(error)) throw toApiProblemError(error);
     }
 
     const index = localCategories.findIndex((c) => c.id === id);
@@ -144,7 +159,7 @@ export const categoryApi = {
       await axiosClient.delete(`/api/v1/categories/${id}`);
       return;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback(error)) throw error;
     }
 
     const cat = localCategories.find((c) => c.id === id);

@@ -20,8 +20,15 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasMaxLength(120)
             .IsRequired();
 
+        builder.HasIndex(c => c.Name)
+            .HasDatabaseName("UX_Categories_Name_Active")
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
+
         builder.HasIndex(c => c.Slug)
-            .IsUnique();
+            .HasDatabaseName("UX_Categories_Slug_Active")
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(c => c.Description)
             .HasColumnType("text");

@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { categoryApi } from "@/lib/api/categoryApi";
+import { ApiProblemError } from "@/lib/api/problemDetails";
+import {
+  categoryFormSchema,
+  type CategoryFormValues,
+} from "@/lib/validations/category";
 import { CategoryDto } from "@/types/category.types";
 
 interface CategoryModalProps {
@@ -25,8 +32,8 @@ interface CategoryModalProps {
   onError: (msg: string) => void;
 }
 
-function slugifyVietnamese(str: string): string {
-  return str
+function slugifyVietnamese(value: string): string {
+  return value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -37,6 +44,13 @@ function slugifyVietnamese(str: string): string {
     .replace(/-+/g, "-");
 }
 
+const emptyForm: CategoryFormValues = {
+  name: "",
+  description: "",
+  imageUrl: "",
+  orderIndex: 0,
+};
+
 export function CategoryModal({
   open,
   onOpenChange,
@@ -44,224 +58,240 @@ export function CategoryModal({
   onSuccess,
   onError,
 }: CategoryModalProps) {
-  const isEditing = !!editingCategory;
+  const isEditing = Boolean(editingCategory);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: emptyForm,
+  });
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [orderIndex, setOrderIndex] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!open) return;
 
-  const [prevCategory, setPrevCategory] = useState<CategoryDto | null>(editingCategory);
-  const [prevOpen, setPrevOpen] = useState(open);
+    reset(
+      editingCategory
+        ? {
+            name: editingCategory.name,
+            description: editingCategory.description ?? "",
+            imageUrl: editingCategory.imageUrl ?? "",
+            orderIndex: editingCategory.orderIndex,
+          }
+        : emptyForm,
+    );
+  }, [editingCategory, open, reset]);
 
-  if (editingCategory !== prevCategory || open !== prevOpen) {
-    setPrevCategory(editingCategory);
-    setPrevOpen(open);
-    if (editingCategory) {
-      setName(editingCategory.name);
-      setSlug(editingCategory.slug);
-      setDescription(editingCategory.description || "");
-      setImageUrl(editingCategory.imageUrl || "");
-      setOrderIndex(editingCategory.orderIndex || 1);
-    } else {
-      setName("");
-      setSlug("");
-      setDescription("");
-      setImageUrl("");
-      setOrderIndex(1);
+  const name = useWatch({ control, name: "name" });
+  const imageUrl = useWatch({ control, name: "imageUrl" });
+  const slugPreview = editingCategory?.slug ?? slugifyVietnamese(name);
+  const canPreviewImage = /^https?:\/\//i.test(imageUrl);
+
+  const applyApiErrors = (error: ApiProblemError) => {
+    const fields: Record<string, keyof CategoryFormValues> = {
+      name: "name",
+      description: "description",
+      imageurl: "imageUrl",
+      orderindex: "orderIndex",
+    };
+    let mappedFieldError = false;
+
+    for (const [serverField, messages] of Object.entries(error.errors)) {
+      const field = fields[serverField.toLowerCase()];
+      if (!field || messages.length === 0) continue;
+      setError(field, { type: "server", message: messages[0] });
+      mappedFieldError = true;
     }
-    setErrors({});
-  }
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setName(val);
-    if (!isEditing) {
-      setSlug(slugifyVietnamese(val));
+    if (error.status === 401) {
+      onError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    if (error.status === 403) {
+      onError("Bạn không có quyền Admin để thực hiện thao tác này.");
+      return;
+    }
+
+    if (!mappedFieldError || error.status === 409) {
+      onError(error.message);
     }
   };
 
-  const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    if (!name.trim() || name.trim().length < 2) {
-      errs.name = "Tên danh mục phải có ít nhất 2 ký tự.";
-    } else if (name.trim().length > 100) {
-      errs.name = "Tên danh mục không được vượt quá 100 ký tự.";
-    }
-
-    if (!slug.trim()) {
-      errs.slug = "Đường dẫn slug là bắt buộc.";
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    setSubmitting(true);
+  const submitForm = async (values: CategoryFormValues) => {
     try {
-      if (isEditing) {
-        await categoryApi.update(editingCategory.id, {
-          name: name.trim(),
-          description: description.trim() || undefined,
-          imageUrl: imageUrl.trim() || undefined,
-          orderIndex: Number(orderIndex) || 0,
-        });
-        onSuccess(`Đã cập nhật danh mục "${name}" thành công.`);
+      const payload = {
+        name: values.name,
+        description: values.description || undefined,
+        imageUrl: values.imageUrl || undefined,
+        orderIndex: values.orderIndex,
+      };
+
+      if (editingCategory) {
+        await categoryApi.update(editingCategory.id, payload);
+        onSuccess(`Đã cập nhật danh mục "${values.name}" thành công.`);
       } else {
-        await categoryApi.create({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          imageUrl: imageUrl.trim() || undefined,
-          orderIndex: Number(orderIndex) || 0,
-        });
-        onSuccess(`Đã tạo danh mục mới "${name}" thành công.`);
+        await categoryApi.create(payload);
+        onSuccess(`Đã tạo danh mục mới "${values.name}" thành công.`);
       }
+
       onOpenChange(false);
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Thao tác thất bại.";
-      onError(errorMsg);
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      if (error instanceof ApiProblemError) {
+        applyApiErrors(error);
+      } else {
+        onError(error instanceof Error ? error.message : "Thao tác thất bại.");
+      }
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg rounded-2xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="rounded-2xl sm:max-w-lg">
+        <form onSubmit={handleSubmit(submitForm)} className="space-y-4" noValidate>
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-bold">
               {isEditing ? "Chỉnh sửa danh mục" : "Tạo danh mục món ăn mới"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               {isEditing
-                ? "Cập nhật thông tin danh mục món ăn. Hãy cẩn trọng khi thay đổi slug."
-                : "Nhập thông tin để tạo danh mục phân loại món ăn trên blog ẩm thực."}
+                ? "Cập nhật thông tin danh mục món ăn. Slug hiện tại được giữ nguyên."
+                : "Nhập thông tin danh mục. Slug chính thức sẽ được máy chủ tạo tự động."}
             </DialogDescription>
           </DialogHeader>
 
-          {/* SEO warning banner when editing */}
           {isEditing && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300 flex items-start gap-2">
-              <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600" />
+            <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
               <span>
-                <strong>Lưu ý SEO:</strong> Hệ thống giữ nguyên slug ban đầu để bảo toàn thứ hạng tìm kiếm và tránh gãy liên kết người đọc đã lưu.
+                <strong>Lưu ý SEO:</strong> Hệ thống giữ nguyên slug để tránh làm hỏng
+                các liên kết đã được chia sẻ.
               </span>
             </div>
           )}
 
           <div className="space-y-3.5 pt-2">
-            {/* Name */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="category-name" className="text-xs font-semibold text-foreground">
                 Tên danh mục <span className="text-destructive">*</span>
               </label>
               <Input
-                value={name}
-                onChange={handleNameChange}
+                id="category-name"
+                {...register("name")}
                 placeholder="VD: Món Tráng Miệng, Món Chay..."
-                className="rounded-xl h-10 bg-background"
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? "category-name-error" : undefined}
+                className="h-10 rounded-xl bg-background"
               />
               {errors.name && (
-                <p className="text-[11px] text-destructive font-medium">{errors.name}</p>
+                <p id="category-name-error" className="text-[11px] font-medium text-destructive">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
-            {/* Slug */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
-                Slug (Đường dẫn tĩnh) <span className="text-destructive">*</span>
+              <label htmlFor="category-slug" className="text-xs font-semibold text-foreground">
+                Slug xem trước
               </label>
               <Input
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                disabled={isEditing}
-                placeholder="VD: mon-trang-mieng"
-                className="rounded-xl h-10 font-mono text-xs bg-background disabled:opacity-60"
+                id="category-slug"
+                value={slugPreview}
+                readOnly
+                tabIndex={-1}
+                placeholder="Máy chủ sẽ tạo slug"
+                className="h-10 rounded-xl bg-muted font-mono text-xs"
               />
-              {errors.slug && (
-                <p className="text-[11px] text-destructive font-medium">{errors.slug}</p>
-              )}
+              <p className="text-[11px] text-muted-foreground">
+                Chỉ để xem trước; máy chủ quyết định slug cuối cùng và tự thêm hậu tố nếu bị trùng.
+              </p>
             </div>
 
-            {/* Description */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Mô tả ngắn</label>
+              <label htmlFor="category-description" className="text-xs font-semibold text-foreground">
+                Mô tả ngắn
+              </label>
               <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Giới thiệu tóm tắt phong cách và nét đặc sắc của danh mục này..."
+                id="category-description"
+                {...register("description")}
+                placeholder="Giới thiệu tóm tắt về danh mục này..."
                 rows={3}
-                className="rounded-xl bg-background resize-none text-xs"
+                className="resize-none rounded-xl bg-background text-xs"
               />
             </div>
 
-            {/* Image URL & Preview */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
+              <label htmlFor="category-image-url" className="text-xs font-semibold text-foreground">
                 URL ảnh đại diện danh mục
               </label>
-              <div className="flex gap-2 items-center">
-                <Input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="rounded-xl h-10 bg-background text-xs"
-                />
-              </div>
-
-              {imageUrl && (
-                <div className="mt-2 relative aspect-[16/9] max-w-xs overflow-hidden rounded-xl border border-border bg-muted">
+              <Input
+                id="category-image-url"
+                {...register("imageUrl")}
+                placeholder="https://images.example.com/category.jpg"
+                aria-invalid={Boolean(errors.imageUrl)}
+                aria-describedby={errors.imageUrl ? "category-image-url-error" : undefined}
+                className="h-10 rounded-xl bg-background text-xs"
+              />
+              {errors.imageUrl && (
+                <p id="category-image-url-error" className="text-[11px] font-medium text-destructive">
+                  {errors.imageUrl.message}
+                </p>
+              )}
+              {canPreviewImage && (
+                <div className="relative mt-2 aspect-[16/9] max-w-xs overflow-hidden rounded-xl border border-border bg-muted">
                   <Image
                     src={imageUrl}
-                    alt="Preview"
+                    alt="Xem trước ảnh danh mục"
                     width={640}
                     height={360}
                     unoptimized
                     className="size-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
                   />
                 </div>
               )}
             </div>
 
-            {/* Order Index */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Thứ tự hiển thị</label>
+              <label htmlFor="category-order-index" className="text-xs font-semibold text-foreground">
+                Thứ tự hiển thị
+              </label>
               <Input
+                id="category-order-index"
                 type="number"
                 min={0}
-                value={orderIndex}
-                onChange={(e) => setOrderIndex(Number(e.target.value))}
-                className="rounded-xl h-10 bg-background w-32 text-xs"
+                {...register("orderIndex", { valueAsNumber: true })}
+                aria-invalid={Boolean(errors.orderIndex)}
+                aria-describedby={errors.orderIndex ? "category-order-index-error" : undefined}
+                className="h-10 w-32 rounded-xl bg-background text-xs"
               />
+              {errors.orderIndex && (
+                <p id="category-order-index-error" className="text-[11px] font-medium text-destructive">
+                  {errors.orderIndex.message}
+                </p>
+              )}
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-border gap-2">
+          <DialogFooter className="gap-2 border-t border-border pt-4">
             <Button
               type="button"
               variant="outline"
               className="rounded-full px-4"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
             >
               Hủy
             </Button>
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={isSubmitting}
               className="rounded-full px-6 shadow-soft"
             >
-              {submitting ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo danh mục"}
+              {isSubmitting ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo danh mục"}
             </Button>
           </DialogFooter>
         </form>
