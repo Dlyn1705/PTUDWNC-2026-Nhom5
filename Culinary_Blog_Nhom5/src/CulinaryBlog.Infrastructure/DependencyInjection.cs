@@ -72,6 +72,12 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
+        services.Configure<PasswordHasherOptions>(options =>
+        {
+            options.CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV3;
+            options.IterationCount = 100_000;
+        });
+
         services.AddScoped<DatabaseSeeder>();
 
         // 4. Repositories & Unit of Work

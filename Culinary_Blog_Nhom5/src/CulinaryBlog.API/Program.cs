@@ -142,7 +142,7 @@ builder.Services.AddRateLimiter(options =>
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 5,
+            PermitLimit = 10,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
@@ -199,6 +199,8 @@ if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 // 7. Request Pipeline & Middlewares
 // ============================================================
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseMiddleware<RequestAuditMiddleware>();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
