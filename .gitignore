@@ -8,6 +8,8 @@
 [Ll]ogs/
 [Bb]uild/
 [Bb]uilds/
+.local-build-profile/
+.nuget-packages/
 
 # Visual Studio user specific files
 *.suo
