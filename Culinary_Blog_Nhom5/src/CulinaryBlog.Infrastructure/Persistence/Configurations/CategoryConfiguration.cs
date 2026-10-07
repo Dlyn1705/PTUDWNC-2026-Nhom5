@@ -20,6 +20,8 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasMaxLength(120)
             .IsRequired();
 
+        // The migration replaces this metadata index with PostgreSQL's
+        // functional lower(trim("Name")) index to match ExistsByNameAsync.
         builder.HasIndex(c => c.Name)
             .HasDatabaseName("UX_Categories_Name_Active")
             .IsUnique()

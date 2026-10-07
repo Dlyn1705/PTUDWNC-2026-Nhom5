@@ -108,7 +108,8 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
             Description = category.Description,
             ImageUrl = category.ImageUrl,
             OrderIndex = category.OrderIndex,
-            RecipeCount = 0
+            RecipeCount = 0,
+            TotalRecipeCount = 0
         };
     }
 }

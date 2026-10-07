@@ -127,7 +127,8 @@ export function CategoryModal({
       const payload = {
         name: values.name,
         description: values.description || undefined,
-        imageUrl: values.imageUrl || undefined,
+        // Keep the empty value so PUT can explicitly clear an old image URL.
+        imageUrl: values.imageUrl,
         orderIndex: values.orderIndex,
       };
 
