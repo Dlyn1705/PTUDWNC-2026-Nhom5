@@ -153,8 +153,15 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Categories_Name_Active")
+                        .HasFilter("\"IsDeleted\" = false");
+
                     b.HasIndex("Slug")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("UX_Categories_Slug_Active")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Categories", (string)null);
                 });
@@ -281,6 +288,13 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("ProcessingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
                     b.Property<Guid>("RecipeId")
                         .HasColumnType("uuid");
 
@@ -298,7 +312,13 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RecipeId");
+                    b.HasIndex("RecipeId")
+                        .IsUnique()
+                        .HasFilter("\"IsPrimary\" = TRUE AND \"IsDeleted\" = FALSE");
+
+                    b.HasIndex("RecipeId", "OrderIndex")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = FALSE");
 
                     b.ToTable("RecipeImages", (string)null);
                 });

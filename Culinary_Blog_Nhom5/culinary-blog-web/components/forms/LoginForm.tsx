@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import { signIn } from "next-auth/react";
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -20,6 +20,11 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const registered = searchParams.get("registered") === "true";
+  const requestedCallback = searchParams.get("callbackUrl");
+  const googleCallbackUrl =
+    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+      ? requestedCallback
+      : "/";
   const {
     register,
     handleSubmit,
@@ -30,63 +35,30 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/login",
-        data,
-      );
-      if (response.status === 200) {
-        window.localStorage.setItem(
-          "culinary_access_token",
-          response.data.accessToken,
-        );
-        window.localStorage.setItem(
-          "culinary_refresh_token",
-          response.data.refreshToken,
-        );
-        router.push("/");
-      }
-    } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 422 && problem?.errors) {
-        Object.entries(problem.errors).forEach(([field, messages]) => {
-          const target = field.toLowerCase() as keyof LoginFormData;
-          if ((target === "email" || target === "password") && messages[0]) {
-            setError(target, { type: "server", message: messages[0] });
-          }
-        });
-        return;
-      }
-      if (response?.status === 401) {
+      if (result?.error) {
         setError("password", {
           type: "server",
           message: "Email hoặc mật khẩu không chính xác.",
         });
         return;
       }
-      if (response?.status === 423) {
-        setServerError(
-          problem?.detail ??
-            "Tài khoản đang bị tạm khóa. Vui lòng thử lại sau.",
-        );
-        return;
-      }
-      if (response?.status === 429) {
-        setServerError(
-          "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ một phút rồi thử lại.",
-        );
-        return;
-      }
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+
+      const requestedPath = searchParams.get("callbackUrl");
+      const destination =
+        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/";
+      router.replace(destination);
+      router.refresh();
+    } catch (error: unknown) {
+      console.error("Auth.js sign-in failed", error);
+      setServerError("Không thể đăng nhập. Vui lòng thử lại sau.");
     }
   };
 
@@ -128,7 +100,7 @@ export function LoginForm() {
           </label>
           <button
             type="button"
-            className="mb-2 text-xs font-semibold text-orange-700 hover:underline"
+            className="mb-2 text-xs font-semibold text-primary hover:underline"
           >
             Quên mật khẩu?
           </button>
@@ -148,11 +120,19 @@ export function LoginForm() {
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
 
+      <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-stone-400">
+        <span className="h-px flex-1 bg-stone-200" />
+        <span>Hoặc tiếp tục với</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
+
+      <GoogleLoginButton callbackUrl={googleCallbackUrl} />
+
       <p className="text-center text-sm text-stone-600">
         Chưa có tài khoản?{" "}
         <Link
           href="/register"
-          className="font-semibold text-orange-700 underline-offset-4 hover:underline"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Tạo tài khoản
         </Link>

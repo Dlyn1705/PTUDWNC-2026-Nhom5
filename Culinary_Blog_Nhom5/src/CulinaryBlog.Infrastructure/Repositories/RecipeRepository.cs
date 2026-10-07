@@ -81,228 +81,169 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
     }
 
     // ============================================================
-    // SEARCH RECIPES
-    // FR-SRCH-001
-    //
-    // Không dùng ToTsQuery để tránh lỗi EF Core client evaluation.
-    // Dùng PostgreSQL ILIKE.
+    // SEARCH RECIPES (FR-SRCH-001 - PostgreSQL Full-Text Search)
     // ============================================================
-    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)>
-        SearchRecipesAsync(
-            string sanitizedTsQuery,
-            int page,
-            int pageSize,
-            Guid? categoryId = null,
-            RecipeDifficulty? difficulty = null,
-            string? sortBy = null,
-            CancellationToken ct = default)
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount, IReadOnlyDictionary<Guid, double> RelevanceScores)> SearchRecipesAsync(
+        string sanitizedTsQuery,
+        int page,
+        int pageSize,
+        Guid? categoryId = null,
+        RecipeDifficulty? difficulty = null,
+        int? minCookTime = null,
+        int? maxCookTime = null,
+        int? minServings = null,
+        int? maxServings = null,
+        string? sortBy = null,
+        string? sortOrder = null,
+        CancellationToken ct = default)
     {
         var query = _dbSet
             .AsNoTracking()
             .Include(r => r.Category)
             .Include(r => r.Author)
             .Include(r => r.Images)
-            .Where(r =>
-                r.Status == RecipeStatus.Published &&
-                !r.IsDeleted);
+            .Where(r => r.Status == RecipeStatus.Published && !r.IsDeleted);
 
-        // --------------------------------------------------------
-        // SEARCH KEYWORD
-        // --------------------------------------------------------
-        if (!string.IsNullOrWhiteSpace(sanitizedTsQuery))
-        {
-            var keyword = sanitizedTsQuery.Trim();
-
-            query = query.Where(r =>
-                EF.Functions.ILike(
-                    r.Title,
-                    $"%{keyword}%")
-
-                ||
-
-                EF.Functions.ILike(
-                    r.Description,
-                    $"%{keyword}%")
-
-                ||
-
-                EF.Functions.ILike(
-                    r.Instructions,
-                    $"%{keyword}%"));
-        }
-
-        // --------------------------------------------------------
-        // CATEGORY FILTER
-        // --------------------------------------------------------
         if (categoryId.HasValue)
         {
-            query = query.Where(
-                r => r.CategoryId == categoryId.Value);
+            query = query.Where(r => r.CategoryId == categoryId.Value);
         }
 
-        // --------------------------------------------------------
-        // DIFFICULTY FILTER
-        // --------------------------------------------------------
         if (difficulty.HasValue)
         {
-            query = query.Where(
-                r => r.Difficulty == difficulty.Value);
+            query = query.Where(r => r.Difficulty == difficulty.Value);
         }
 
-        // --------------------------------------------------------
-        // SORT
-        // --------------------------------------------------------
-        query = sortBy?.ToLowerInvariant() switch
+        if (minCookTime.HasValue)
         {
-            "title" =>
-                query.OrderBy(r => r.Title),
+            query = query.Where(r => r.CookTime >= minCookTime.Value);
+        }
 
-            "-title" =>
-                query.OrderByDescending(r => r.Title),
+        if (maxCookTime.HasValue)
+        {
+            query = query.Where(r => r.CookTime <= maxCookTime.Value);
+        }
 
-            "cooktime" =>
-                query.OrderBy(r => r.CookTime),
+        if (minServings.HasValue)
+        {
+            query = query.Where(r => r.Servings >= minServings.Value);
+        }
 
-            "-cooktime" =>
-                query.OrderByDescending(r => r.CookTime),
+        if (maxServings.HasValue)
+        {
+            query = query.Where(r => r.Servings <= maxServings.Value);
+        }
 
-            "createdat" =>
-                query.OrderBy(r => r.CreatedAt),
+        query = query.Where(r =>
+            r.SearchVector != null &&
+            r.SearchVector.Matches(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery)));
+        var rankedQuery = query.Select(r => new
+        {
+            Recipe = r,
+            Score = r.SearchVector!.Rank(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery))
+        });
 
-            "-createdat" =>
-                query.OrderByDescending(r => r.CreatedAt),
-
-            _ =>
-                query.OrderByDescending(r => r.CreatedAt)
+        var descending = !string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
+        rankedQuery = sortBy?.ToLowerInvariant() switch
+        {
+            "title" when descending => rankedQuery.OrderByDescending(x => x.Recipe.Title).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "title" => rankedQuery.OrderBy(x => x.Recipe.Title).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "cooktime" when descending => rankedQuery.OrderByDescending(x => x.Recipe.CookTime).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "cooktime" => rankedQuery.OrderBy(x => x.Recipe.CookTime).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "createdat" when descending => rankedQuery.OrderByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "createdat" => rankedQuery.OrderBy(x => x.Recipe.CreatedAt).ThenBy(x => x.Recipe.Id),
+            "relevance" => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            _ => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id)
         };
 
-        // --------------------------------------------------------
-        // COUNT
-        // --------------------------------------------------------
-        var totalCount =
-            await query.CountAsync(ct);
+        var totalCount = await rankedQuery.CountAsync(ct);
+        var pageItems = await rankedQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
 
-        // --------------------------------------------------------
-        // PAGINATION
-        // --------------------------------------------------------
-        var items =
-            await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(ct);
-
-        return (items, totalCount);
+        var items = pageItems.Select(x => x.Recipe).ToList();
+        var scores = pageItems.ToDictionary(x => x.Recipe.Id, x => (double)x.Score);
+        return (items, totalCount, scores);
     }
 
     // ============================================================
-    // GET PAGED RECIPES
-    // FR-RCP-001
+    // GET PAGED RECIPES (FR-RCP-001)
     // ============================================================
-    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)>
-        GetPagedAsync(
-            int page,
-            int pageSize,
-            Guid? categoryId = null,
-            RecipeDifficulty? difficulty = null,
-            int? maxCookTime = null,
-            string? sortBy = null,
-            string? authorId = null,
-            bool includeDrafts = false,
-            CancellationToken ct = default)
+    public async Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
+        int page,
+        int pageSize,
+        Guid? categoryId = null,
+        RecipeDifficulty? difficulty = null,
+        int? maxCookTime = null,
+        string? sortBy = null,
+        string? authorId = null,
+        bool includeDrafts = false,
+        RecipeStatus? status = null,
+        CancellationToken ct = default)
     {
         var query = _dbSet
             .Include(r => r.Category)
             .Include(r => r.Author)
-            .Include(r =>
-                r.Images.Where(img => img.IsPrimary))
+            .Include(r => r.Images.Where(img => img.IsPrimary))
             .AsNoTracking()
             .Where(r => !r.IsDeleted);
 
-        // --------------------------------------------------------
-        // STATUS
-        // --------------------------------------------------------
-        if (!includeDrafts)
+        // Lọc trạng thái hiển thị
+        if (includeDrafts)
         {
-            query = query.Where(
-                r => r.Status == RecipeStatus.Published);
+            if (!string.IsNullOrEmpty(authorId))
+            {
+                query = query.Where(r => r.AuthorId == authorId);
+            }
         }
-        else if (!string.IsNullOrWhiteSpace(authorId))
+        else
         {
-            query = query.Where(
-                r =>
-                    r.Status == RecipeStatus.Published
-                    ||
-                    r.AuthorId == authorId);
+            query = query.Where(r => r.Status == RecipeStatus.Published);
         }
 
-        // --------------------------------------------------------
-        // CATEGORY
-        // --------------------------------------------------------
+        if (status.HasValue)
+        {
+            query = query.Where(r => r.Status == status.Value);
+        }
+
+        // Lọc theo Category
         if (categoryId.HasValue)
         {
-            query = query.Where(
-                r => r.CategoryId == categoryId.Value);
+            query = query.Where(r => r.CategoryId == categoryId.Value);
         }
 
-        // --------------------------------------------------------
-        // DIFFICULTY
-        // --------------------------------------------------------
+        // Lọc theo Difficulty
         if (difficulty.HasValue)
         {
-            query = query.Where(
-                r => r.Difficulty == difficulty.Value);
+            query = query.Where(r => r.Difficulty == difficulty.Value);
         }
 
-        // --------------------------------------------------------
-        // MAX COOK TIME
-        // --------------------------------------------------------
+        // Lọc theo CookTime tối đa
         if (maxCookTime.HasValue)
         {
-            query = query.Where(
-                r => r.CookTime <= maxCookTime.Value);
+            query = query.Where(r => r.CookTime <= maxCookTime.Value);
         }
 
-        // --------------------------------------------------------
-        // SORT
-        // --------------------------------------------------------
+        // Sắp xếp
         query = sortBy?.ToLowerInvariant() switch
         {
-            "title" =>
-                query.OrderBy(r => r.Title),
-
-            "-title" =>
-                query.OrderByDescending(r => r.Title),
-
-            "cooktime" =>
-                query.OrderBy(r => r.CookTime),
-
-            "-cooktime" =>
-                query.OrderByDescending(r => r.CookTime),
-
-            "createdat" =>
-                query.OrderBy(r => r.CreatedAt),
-
-            "-createdat" =>
-                query.OrderByDescending(r => r.CreatedAt),
-
-            _ =>
-                query.OrderByDescending(r => r.CreatedAt)
+            "title" => query.OrderBy(r => r.Title),
+            "-title" => query.OrderByDescending(r => r.Title),
+            "cooktime" => query.OrderBy(r => r.CookTime),
+            "-cooktime" => query.OrderByDescending(r => r.CookTime),
+            "createdat" => query.OrderBy(r => r.CreatedAt),
+            "-createdat" => query.OrderByDescending(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.CreatedAt)
         };
 
-        // --------------------------------------------------------
-        // COUNT
-        // --------------------------------------------------------
-        var totalCount =
-            await query.CountAsync(ct);
-
-        // --------------------------------------------------------
-        // PAGINATION
-        // --------------------------------------------------------
-        var items =
-            await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(ct);
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
 
         return (items, totalCount);
     }

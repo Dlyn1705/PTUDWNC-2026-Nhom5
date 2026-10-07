@@ -1,14 +1,17 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+using NpgsqlTypes;
 
 #nullable disable
 
 namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 {
+    /// <inheritdoc />
     public partial class AddSearchVectorToRecipes : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<NpgsqlTypes.NpgsqlTsVector>(
+            migrationBuilder.AddColumn<NpgsqlTsVector>(
                 name: "SearchVector",
                 table: "Recipes",
                 type: "tsvector",
@@ -18,8 +21,8 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                 CREATE OR REPLACE FUNCTION recipes_search_vector_update() RETURNS trigger AS $$
                 BEGIN
                     NEW.""SearchVector"" :=
-                        setweight(to_tsvector('simple', unaccent(coalesce(NEW.""Title"", ''))), 'A') ||
-                        setweight(to_tsvector('simple', unaccent(coalesce(NEW.""Description"", ''))), 'B');
+                        setweight(to_tsvector('simple', unaccent(replace(replace(coalesce(NEW.""Title"", ''), 'đ', 'd'), 'Đ', 'D'))), 'A') ||
+                        setweight(to_tsvector('simple', unaccent(replace(replace(coalesce(NEW.""Description"", ''), 'đ', 'd'), 'Đ', 'D'))), 'B');
                     RETURN NEW;
                 END
                 $$ LANGUAGE plpgsql;
@@ -41,11 +44,12 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
             migrationBuilder.Sql(@"
                 UPDATE ""Recipes""
                 SET ""SearchVector"" =
-                    setweight(to_tsvector('simple', unaccent(coalesce(""Title"", ''))), 'A') ||
-                    setweight(to_tsvector('simple', unaccent(coalesce(""Description"", ''))), 'B');
+                    setweight(to_tsvector('simple', unaccent(replace(replace(coalesce(""Title"", ''), 'đ', 'd'), 'Đ', 'D'))), 'A') ||
+                    setweight(to_tsvector('simple', unaccent(replace(replace(coalesce(""Description"", ''), 'đ', 'd'), 'Đ', 'D'))), 'B');
             ");
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"DROP TRIGGER IF EXISTS trg_recipes_search_vector_update ON ""Recipes"";");

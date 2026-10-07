@@ -7,10 +7,13 @@ using CulinaryBlog.Infrastructure.Persistence.Interceptors;
 using CulinaryBlog.Infrastructure.Persistence.Seeders;
 using CulinaryBlog.Infrastructure.Repositories;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
 
 namespace CulinaryBlog.Infrastructure;
 
@@ -18,6 +21,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddAuthorizationBuilder()
+            .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+            .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))
+            .AddPolicy("AuthorOrAdmin", policy => policy.RequireRole("Author", "Admin"))
+            .AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser())
+            .AddPolicy("VerifiedAuthorPolicy", policy => policy.RequireAssertion(context =>
+                context.User.IsInRole("Admin")
+                || (context.User.IsInRole("Author")
+                    && context.User.HasClaim("email_verified", "true"))));
+
+        services.AddSingleton<IAuthorizationHandler, RecipeAuthorizationHandler>();
+
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
 
@@ -26,8 +41,6 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' was not found.");
         
-        Console.WriteLine($"[DB] ConnectionString: {connectionString}");
-
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
@@ -59,6 +72,12 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
+        services.Configure<PasswordHasherOptions>(options =>
+        {
+            options.CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV3;
+            options.IterationCount = 100_000;
+        });
+
         services.AddScoped<DatabaseSeeder>();
 
         // 4. Repositories & Unit of Work
@@ -72,7 +91,21 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.Configure<MinioOptions>(configuration.GetSection(MinioOptions.SectionName));
+        var minio = configuration.GetSection(MinioOptions.SectionName).Get<MinioOptions>() ?? new MinioOptions();
+        if (string.IsNullOrWhiteSpace(minio.AccessKey) || string.IsNullOrWhiteSpace(minio.SecretKey))
+            throw new InvalidOperationException("MinIO credentials are required. Configure Minio:AccessKey and Minio:SecretKey through environment variables or user secrets.");
+        services.AddSingleton<IMinioClient>(_ => new MinioClient()
+            .WithEndpoint(minio.Endpoint)
+            .WithCredentials(minio.AccessKey, minio.SecretKey)
+            .WithSSL(minio.UseSSL)
+            .Build());
+        services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();
+        services.AddTransient<RecipeImageProcessingJob>();
+        services.AddScoped<IRecipeImageDeletionQueue, HangfireRecipeImageDeletionQueue>();
+        services.AddTransient<RecipeImageDeletionJob>();
+        services.AddTransient<RecipeImageDeletionRecoveryJob>();
 
         return services;
     }

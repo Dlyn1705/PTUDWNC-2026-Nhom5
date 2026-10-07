@@ -12,6 +12,7 @@ public class CategoryDto
     public string? ImageUrl { get; set; }
     public int OrderIndex { get; set; }
     public int RecipeCount { get; set; }
+    public int TotalRecipeCount { get; set; }
 }
 
 public class CreateCategoryDto

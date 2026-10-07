@@ -11,29 +11,17 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<NpgsqlTsVector>(
-                name: "SearchVector",
-                table: "Recipes",
-                type: "tsvector",
-                nullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Recipes_SearchVector",
-                table: "Recipes",
-                column: "SearchVector")
-                .Annotation("Npgsql:IndexMethod", "GIN");
+            // The preceding AddSearchVectorToRecipes migration already creates both
+            // the column and its GIN index. This scaffolded migration duplicated
+            // those operations and made clean upgrades fail with "already exists".
+            // Keep this migration as a no-op so databases that recorded the earlier
+            // migration can advance their migration history safely.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Recipes_SearchVector",
-                table: "Recipes");
-
-            migrationBuilder.DropColumn(
-                name: "SearchVector",
-                table: "Recipes");
+            // SearchVector belongs to AddSearchVectorToRecipes; do not remove it here.
         }
     }
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Clock, Flame, Users, ChefHat } from "lucide-react";
+import { Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   difficultyLabel,

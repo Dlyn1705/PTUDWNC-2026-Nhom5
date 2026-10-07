@@ -30,7 +30,7 @@ public class Category : BaseEntity
     {
         Name = name;
         Description = description;
-        if (imageUrl != null) ImageUrl = imageUrl;
+        ImageUrl = imageUrl;
         OrderIndex = orderIndex;
         UpdatedAt = System.DateTime.UtcNow;
     }

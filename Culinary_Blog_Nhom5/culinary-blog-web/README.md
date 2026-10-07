@@ -34,3 +34,28 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Google OAuth 2.0
+
+Create a Google OAuth 2.0 **Web application** client. For the frontend login flow in this project, add these values in Google Cloud Console:
+
+- Authorized JavaScript origin: `http://localhost:3000`
+
+Set the frontend variables in `culinary-blog-web/.env.local`:
+
+```env
+API_INTERNAL_URL=http://localhost:5156
+NEXT_PUBLIC_API_URL=http://localhost:5156
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+AUTH_SECRET=generate-a-unique-random-secret
+AUTH_URL=http://localhost:3000
+```
+
+The backend only needs the Google client ID to validate the ID token. Set it in the environment where the API process runs; it is not read from the frontend `.env.local`:
+
+```powershell
+$env:Authentication__Google__ClientId = "your-client-id.apps.googleusercontent.com"
+dotnet run --project src/CulinaryBlog.API
+```
+
+Google Identity Services returns an ID token to the browser. Auth.js forwards it server-side to `POST /api/v1/auth/google`; the API validates its signature, issuer, expiry, and audience with `Google.Apis.Auth`. Never commit real OAuth credentials.

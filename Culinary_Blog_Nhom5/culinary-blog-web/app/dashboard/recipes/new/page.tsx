@@ -181,6 +181,10 @@ export default function NewRecipePage() {
     <main className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-5xl px-4">
         <div className="mb-8">
+          <p className="mb-2 text-sm font-medium text-primary">
+            Dashboard / Recipes / New
+          </p>
+
           <h1 className="text-3xl font-bold text-gray-900">
             Tạo công thức mới
           </h1>
@@ -216,7 +220,7 @@ export default function NewRecipePage() {
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={150}
                   placeholder="Ví dụ: Phở bò truyền thống"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-gray-400">
@@ -250,7 +254,7 @@ export default function NewRecipePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
                     <option value="">Chọn danh mục</option>
                     <option value="vietnamese">
@@ -279,7 +283,7 @@ export default function NewRecipePage() {
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
                     <option value="Easy">Dễ</option>
                     <option value="Medium">Trung bình</option>
@@ -301,7 +305,7 @@ export default function NewRecipePage() {
                   maxLength={500}
                   rows={4}
                   placeholder="Mô tả hương vị và điểm đặc sắc của món ăn..."
-                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <p className="mt-2 text-right text-xs text-gray-400">
@@ -322,7 +326,7 @@ export default function NewRecipePage() {
                     value={prepTime}
                     onChange={(e) => setPrepTime(e.target.value)}
                     placeholder="15"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
 
@@ -337,7 +341,7 @@ export default function NewRecipePage() {
                     value={cookTime}
                     onChange={(e) => setCookTime(e.target.value)}
                     placeholder="30"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
 
@@ -352,7 +356,7 @@ export default function NewRecipePage() {
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
                     placeholder="4"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -390,7 +394,7 @@ export default function NewRecipePage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-orange-400 hover:bg-orange-50">
+                <label className="flex h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-primary hover:bg-primary/5">
                   <span className="mb-3 text-4xl">📷</span>
 
                   <span className="font-medium text-gray-700">
@@ -447,7 +451,7 @@ export default function NewRecipePage() {
                         >)(e.target.value)
                       }
                       placeholder="0"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-14 outline-none focus:border-orange-500"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-14 outline-none focus:border-primary"
                     />
 
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -475,7 +479,7 @@ export default function NewRecipePage() {
               <button
                 type="button"
                 onClick={addIngredient}
-                className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 + Thêm nguyên liệu
               </button>
@@ -497,7 +501,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Tên nguyên liệu"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <input
@@ -510,7 +514,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Số lượng"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <input
@@ -523,7 +527,7 @@ export default function NewRecipePage() {
                       )
                     }
                     placeholder="Đơn vị"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <button
@@ -554,7 +558,7 @@ export default function NewRecipePage() {
               <button
                 type="button"
                 onClick={addStep}
-                className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-600"
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 + Thêm bước
               </button>
@@ -566,7 +570,7 @@ export default function NewRecipePage() {
                   key={index}
                   className="flex gap-4 rounded-xl border border-gray-200 p-4"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 font-semibold text-orange-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
                     {index + 1}
                   </div>
 
@@ -577,7 +581,7 @@ export default function NewRecipePage() {
                     }
                     rows={3}
                     placeholder={`Mô tả bước ${index + 1}...`}
-                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
+                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
 
                   <button
@@ -605,7 +609,7 @@ export default function NewRecipePage() {
             <button
               type="button"
               onClick={() => handleSubmit("continue")}
-              className="rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm hover:bg-orange-600"
+              className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
             >
               Lưu và tiếp tục chỉnh sửa
             </button>

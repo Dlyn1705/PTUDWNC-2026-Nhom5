@@ -4,6 +4,8 @@ import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import { categoryApi } from "@/lib/api/categoryApi";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "All Categories - Culinary Blog",
   description:

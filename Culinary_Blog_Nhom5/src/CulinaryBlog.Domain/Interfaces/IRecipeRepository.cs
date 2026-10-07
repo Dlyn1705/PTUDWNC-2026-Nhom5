@@ -13,13 +13,18 @@ public interface IRecipeRepository : IRepository<Recipe>
     Task<Recipe?> GetDetailsByIdAsync(Guid id, CancellationToken ct = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default);
     Task<int> CountByCategoryIdAsync(Guid categoryId, CancellationToken ct = default);
-    Task<(IReadOnlyList<Recipe> Items, int TotalCount)> SearchRecipesAsync(
+    Task<(IReadOnlyList<Recipe> Items, int TotalCount, IReadOnlyDictionary<Guid, double> RelevanceScores)> SearchRecipesAsync(
         string sanitizedTsQuery,
         int page,
         int pageSize,
         Guid? categoryId = null,
         RecipeDifficulty? difficulty = null,
+        int? minCookTime = null,
+        int? maxCookTime = null,
+        int? minServings = null,
+        int? maxServings = null,
         string? sortBy = null,
+        string? sortOrder = null,
         CancellationToken ct = default);
     Task<(IReadOnlyList<Recipe> Items, int TotalCount)> GetPagedAsync(
         int page,
@@ -30,5 +35,6 @@ public interface IRecipeRepository : IRepository<Recipe>
         string? sortBy = null,
         string? authorId = null,
         bool includeDrafts = false,
+        RecipeStatus? status = null,
         CancellationToken ct = default);
 }

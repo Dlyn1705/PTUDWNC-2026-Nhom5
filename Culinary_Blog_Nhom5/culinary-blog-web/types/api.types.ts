@@ -12,3 +12,17 @@ export interface PaginationMeta {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
 }
+
+export interface SearchRecipesParams {
+  q: string;
+  page?: number;
+  pageSize?: number;
+  categoryId?: string;
+  difficulty?: number;
+  minCookTime?: number;
+  maxCookTime?: number;
+  minServings?: number;
+  maxServings?: number;
+  sortBy?: "relevance" | "createdAt" | "title" | "cookTime";
+  sortOrder?: "asc" | "desc";
+}

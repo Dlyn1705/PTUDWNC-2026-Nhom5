@@ -1,4 +1,6 @@
 using System;
+using CulinaryBlog.API.Logging;
+using CulinaryBlog.Application.Common.Behaviors;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CulinaryBlog.Domain.Exceptions;
@@ -25,9 +27,25 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
+        catch (Exception ex) when (context.RequestAborted.IsCancellationRequested
+                                   && ex is OperationCanceledException or IOException)
+        {
+            // The completion event records Canceled. Do not write to an aborted response.
+            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Đã xảy ra lỗi không xử lý được: {Message}", ex.Message);
+            context.Items[RequestLogContext.FailedItem] = true;
+            using var scope = _logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["UserId"] = RequestLogContext.UserId(context),
+                ["EventType"] = StructuredLoggingOptions.IsExpected(ex) ? "RequestRejected" : "UnhandledException"
+            });
+            if (StructuredLoggingOptions.IsExpected(ex))
+                _logger.LogWarning("Request rejected with {ExceptionType}", ex.GetType().Name);
+            else
+                _logger.LogError(ex, "Unhandled request exception");
+            if (context.Response.HasStarted) throw;
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -36,8 +54,8 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/problem+json";
 
-        string correlationId = context.Items.TryGetValue("X-Correlation-ID", out var cid) 
-            ? cid?.ToString() ?? string.Empty 
+        string correlationId = context.Items.TryGetValue(RequestLogContext.CorrelationHeader, out var cid)
+            ? cid?.ToString() ?? string.Empty
             : string.Empty;
 
         var problemDetails = new ProblemDetails
@@ -78,6 +96,13 @@ public class GlobalExceptionMiddleware
                 problemDetails.Extensions["code"] = conflictEx.Code;
                 break;
 
+            case ExternalServiceException externalServiceEx:
+                context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                problemDetails.Status = StatusCodes.Status502BadGateway;
+                problemDetails.Title = "Dịch vụ xác thực bên ngoài không khả dụng.";
+                problemDetails.Detail = externalServiceEx.Message;
+                break;
+
             case ForbiddenException forbiddenEx:
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 problemDetails.Status = StatusCodes.Status403Forbidden;
@@ -107,7 +132,7 @@ public class GlobalExceptionMiddleware
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = exception.Message;
+                problemDetails.Detail = "Lỗi máy chủ nội bộ. Hãy cung cấp correlation ID cho bộ phận hỗ trợ.";
                 break;
             }
 
