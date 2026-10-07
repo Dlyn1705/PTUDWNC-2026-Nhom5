@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,12 +8,12 @@ using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Identity;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Google.Apis.Auth;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
@@ -52,6 +51,7 @@ public sealed class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
     {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         var normalizedEmail = email.Trim();
         if (await _userManager.FindByEmailAsync(normalizedEmail) is not null)
         {
@@ -83,13 +83,19 @@ public sealed class AuthService : IAuthService
             throw new DbUpdateException("Không thể gán vai trò cho tài khoản mới.");
         }
 
-        return await CreateAuthResponseAsync(user, cancellationToken);
+        var response = await CreateAuthResponseAsync(user, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit auth registration succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+        return response;
     }
 
     public async Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByEmailAsync(email.Trim());
-        if (user is null)
+        if (user is null || !user.IsActive)
         {
             throw new UnauthorizedAccessException("Email hoặc mật khẩu không chính xác.");
         }
@@ -118,102 +124,16 @@ public sealed class AuthService : IAuthService
         return response;
     }
 
-    public async Task<AuthResponseDto> LoginWithGoogleAsync(
-        ExternalLoginInfo externalLoginInfo,
-        CancellationToken cancellationToken)
-    {
-        if (!string.Equals(externalLoginInfo.LoginProvider, "Google", StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(externalLoginInfo.ProviderKey))
-        {
-            throw new UnauthorizedAccessException("Google login information is invalid or expired.");
-        }
-
-        var principal = externalLoginInfo.Principal;
-        var email = principal.FindFirstValue(ClaimTypes.Email)?.Trim();
-        var emailVerified = principal.FindFirst("email_verified")?.Value;
-        if (string.IsNullOrWhiteSpace(email)
-            || !bool.TryParse(emailVerified, out var isEmailVerified)
-            || !isEmailVerified)
-        {
-            throw new UnauthorizedAccessException("Google did not provide a verified email address.");
-        }
-
-        var displayName = principal.FindFirstValue(ClaimTypes.Name)?.Trim();
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            displayName = email.Split('@', 2)[0];
-        }
-
-        var avatarUrl = principal.FindFirst("picture")?.Value;
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        var user = await _userManager.FindByLoginAsync(
-            externalLoginInfo.LoginProvider,
-            externalLoginInfo.ProviderKey);
-
-        if (user is null)
-        {
-            user = await _userManager.FindByEmailAsync(email);
-            if (user is null)
-            {
-                user = ApplicationUser.Create(email, email, displayName, avatarUrl);
-                user.EmailConfirmed = true;
-                var createResult = await _userManager.CreateAsync(user);
-                if (!createResult.Succeeded)
-                {
-                    throw new ConflictException(
-                        "Không thể tạo tài khoản từ hồ sơ Google.",
-                        "GOOGLE_ACCOUNT_CREATE_FAILED");
-                }
-
-                await EnsureAuthorRoleAsync(user);
-            }
-            else if (!user.IsActive)
-            {
-                throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
-            }
-
-            var addLoginResult = await _userManager.AddLoginAsync(
-                user,
-                new UserLoginInfo(
-                    externalLoginInfo.LoginProvider,
-                    externalLoginInfo.ProviderKey,
-                    externalLoginInfo.ProviderDisplayName ?? "Google"));
-
-            if (!addLoginResult.Succeeded)
-            {
-                throw new ConflictException(
-                    "Tài khoản Google đã được liên kết với một tài khoản khác.",
-                    "GOOGLE_LOGIN_ALREADY_LINKED");
-            }
-        }
-        else if (!user.IsActive)
-        {
-            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
-        }
-
-        var response = await CreateAuthResponseAsync(user, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        _logger.LogInformation(
-            "Audit Google sign-in succeeded for user {UserId} at {OccurredAtUtc}",
-            user.Id,
-            DateTimeOffset.UtcNow);
-        return response;
-    }
-
     public async Task<AuthResponseDto> LoginWithGoogleIdTokenAsync(
         string idToken,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(idToken))
-        {
-            throw new BadRequestException("invalid token");
-        }
+        cancellationToken.ThrowIfCancellationRequested();
 
         var clientId = _configuration["Authentication:Google:ClientId"];
         if (string.IsNullOrWhiteSpace(clientId))
         {
-            throw new BadGatewayException("Google token verification is not configured on the server.");
+            throw new ExternalServiceException("Google token verification is not configured on the server.");
         }
 
         GoogleJsonWebSignature.Payload payload;
@@ -230,55 +150,76 @@ public sealed class AuthService : IAuthService
         {
             throw new UnauthorizedAccessException("Google ID token is invalid or expired.");
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        catch (Exception exception) when (
+            exception is HttpRequestException
+            || exception is TaskCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(exception, "Google token verification service is unavailable.");
-            throw new BadGatewayException("Google token verification service is temporarily unavailable.");
+            _logger.LogWarning("Google token verification service is unavailable at {OccurredAtUtc}", DateTimeOffset.UtcNow);
+            throw new ExternalServiceException("Google token verification service is temporarily unavailable.");
         }
 
-        if (!payload.EmailVerified)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!payload.EmailVerified || string.IsNullOrWhiteSpace(payload.Email) || string.IsNullOrWhiteSpace(payload.Subject))
         {
-            throw new UnauthorizedAccessException("Google account email is not verified.");
+            throw new UnauthorizedAccessException("Google did not provide a verified account.");
         }
 
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, payload.Subject),
-            new(ClaimTypes.Email, payload.Email),
-            new(ClaimTypes.Name, payload.Name ?? payload.Email.Split('@', 2)[0]),
-            new("email_verified", payload.EmailVerified.ToString().ToLowerInvariant())
-        };
-        if (!string.IsNullOrWhiteSpace(payload.Picture))
-        {
-            claims.Add(new Claim("picture", payload.Picture));
-        }
+        const string loginProvider = "Google";
+        var email = payload.Email.Trim();
+        var displayName = string.IsNullOrWhiteSpace(payload.Name)
+            ? email.Split('@', 2)[0]
+            : payload.Name.Trim();
+        displayName = displayName[..Math.Min(displayName.Length, 100)];
+        var avatarUrl = payload.Picture?.Length <= 500 ? payload.Picture : null;
 
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Google"));
-        var externalLoginInfo = new ExternalLoginInfo(
-            principal,
-            "Google",
-            payload.Subject,
-            "Google");
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await _userManager.FindByLoginAsync(loginProvider, payload.Subject);
 
-        return await LoginWithGoogleAsync(externalLoginInfo, cancellationToken);
-    }
-
-    private async Task EnsureAuthorRoleAsync(ApplicationUser user)
-    {
-        if (!await _roleManager.RoleExistsAsync(AuthorRole))
+        if (user is null)
         {
-            var roleResult = await _roleManager.CreateAsync(new IdentityRole(AuthorRole));
-            if (!roleResult.Succeeded)
+            user = await _userManager.FindByEmailAsync(email);
+            if (user is null)
             {
-                throw new DbUpdateException("Không thể khởi tạo vai trò người dùng.");
+                user = ApplicationUser.Create(email, email, displayName, avatarUrl);
+                user.EmailConfirmed = true;
+
+                var createResult = await _userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    throw new ConflictException(
+                        "Could not create an account from the Google profile.",
+                        "GOOGLE_ACCOUNT_CREATE_FAILED");
+                }
+
+                await EnsureAuthorRoleAsync(user);
+            }
+            else if (!user.IsActive)
+            {
+                throw new UnauthorizedAccessException("The account is not available.");
+            }
+
+            var addLoginResult = await _userManager.AddLoginAsync(
+                user,
+                new UserLoginInfo(loginProvider, payload.Subject, loginProvider));
+            if (!addLoginResult.Succeeded)
+            {
+                throw new ConflictException(
+                    "The Google account is already linked to another account.",
+                    "GOOGLE_LOGIN_ALREADY_LINKED");
             }
         }
-
-        var roleAssignment = await _userManager.AddToRoleAsync(user, AuthorRole);
-        if (!roleAssignment.Succeeded)
+        else if (!user.IsActive)
         {
-            throw new DbUpdateException("Không thể gán vai trò cho tài khoản Google mới.");
+            throw new UnauthorizedAccessException("The account is not available.");
         }
+
+        var response = await CreateAuthResponseAsync(user, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit Google sign-in succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+        return response;
     }
 
     public async Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
@@ -370,6 +311,48 @@ public sealed class AuthService : IAuthService
             refreshTokenExpiry,
             new UserDto(user.Id, user.Email!, user.DisplayName),
             roles.ToArray());
+    }
+
+    public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var tokenHash = _jwtService.HashToken(refreshToken);
+        var storedToken = await _dbContext.RefreshTokens
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+
+        if (storedToken is null || storedToken.IsRevoked)
+        {
+            return;
+        }
+
+        storedToken.Revoke();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit auth logout succeeded for user {UserId} at {OccurredAtUtc}",
+            storedToken.UserId,
+            DateTimeOffset.UtcNow);
+    }
+
+    private async Task EnsureAuthorRoleAsync(ApplicationUser user)
+    {
+        if (!await _roleManager.RoleExistsAsync(AuthorRole))
+        {
+            var roleResult = await _roleManager.CreateAsync(new IdentityRole(AuthorRole));
+            if (!roleResult.Succeeded)
+            {
+                throw new DbUpdateException("Could not initialize the default user role.");
+            }
+        }
+
+        var roleAssignment = await _userManager.AddToRoleAsync(user, AuthorRole);
+        if (!roleAssignment.Succeeded)
+        {
+            throw new DbUpdateException("Could not assign the default role to the Google account.");
+        }
     }
 
     private Task<int> RevokeActiveTokensAsync(string userId, DateTime now, CancellationToken cancellationToken)

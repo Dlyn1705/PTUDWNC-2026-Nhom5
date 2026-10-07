@@ -2,11 +2,13 @@ import { MetadataRoute } from "next";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { recipeApi } from "@/lib/api/recipeApi";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
   const [categories, recipes] = await Promise.all([
-    categoryApi.getAll().catch(() => []),
+    categoryApi.getAll(),
     recipeApi.getAll(),
   ]);
 

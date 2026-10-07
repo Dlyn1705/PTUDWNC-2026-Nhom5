@@ -1,13 +1,17 @@
 using System;
 using System.Security.Claims;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Common.Metrics;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -27,6 +31,77 @@ public static class RecipeEndpoints
     {
         var group = app.MapGroup("/api/v1/recipes")
             .WithTags("Recipes");
+
+        group.MapPost("/{recipeId:guid}/images", async (
+            Guid recipeId,
+            IFormFile? file,
+            [FromForm] string? altText,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            if (file is null)
+                throw new ValidationException("file", "Vui lòng chọn ảnh cần tải lên.");
+            await using var stream = file.OpenReadStream();
+            var image = await sender.Send(new UploadRecipeImageCommand(
+                recipeId, stream, file.FileName, file.ContentType, file.Length, altText), ct);
+            return Results.Created($"/api/v1/recipes/{recipeId}/images/{image.Id}",
+                ApiResponse<RecipeImageDto>.Ok(image, "Tải ảnh thành công; các kích thước khác đang được xử lý."));
+        })
+        .WithName("UploadRecipeImage")
+        .WithSummary("Tải ảnh công thức lên MinIO")
+        .Accepts<IFormFile>("multipart/form-data")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireAuthorization("AuthorPolicy")
+        .RequireRateLimiting("upload")
+        .DisableAntiforgery()
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
+
+        group.MapDelete("/{recipeId:guid}/images/{imageId:guid}", async (
+            Guid recipeId,
+            Guid imageId,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRecipeImageCommand(recipeId, imageId), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteRecipeImage")
+        .WithSummary("Xóa ảnh công thức và dọn các object khỏi MinIO (FR-FILE-002)")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAuthorization("AuthorPolicy");
+
+        group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
+            Guid recipeId,
+            Guid imageId,
+            IRecipeRepository recipes,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipes.GetDetailsByIdAsync(recipeId, ct)
+                ?? throw new NotFoundException("Recipe", recipeId);
+            if (!currentUser.IsAdmin && !string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal))
+                throw new ForbiddenException("Chỉ chủ sở hữu công thức hoặc Admin mới được xem trạng thái ảnh.");
+            var image = recipe.Images.FirstOrDefault(candidate => candidate.Id == imageId && !candidate.IsDeleted)
+                ?? throw new NotFoundException("RecipeImage", imageId);
+            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(new RecipeImageDto(
+                image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl,
+                image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus)));
+        })
+        .WithName("GetRecipeImage")
+        .WithSummary("Lấy trạng thái xử lý ảnh công thức")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .RequireAuthorization("AuthorPolicy");
 
         // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
         group.MapGet("/", async (
@@ -195,6 +270,7 @@ public static class RecipeEndpoints
             }
 
             await db.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipePublishedCounter.Add(1);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("PublishRecipe")
@@ -321,6 +397,7 @@ public static class RecipeEndpoints
 
             await unitOfWork.Recipes.AddAsync(recipe, ct);
             await unitOfWork.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipeCreatedCounter.Add(1);
 
             return Results.Created(
                 $"/api/v1/recipes/{recipe.Slug}",

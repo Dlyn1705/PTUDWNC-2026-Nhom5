@@ -40,27 +40,22 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 Create a Google OAuth 2.0 **Web application** client. For the frontend login flow in this project, add these values in Google Cloud Console:
 
 - Authorized JavaScript origin: `http://localhost:3000`
-- Authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
 
-Set the frontend variables in `culinary-blog-web/.env.local` using the same client ID and secret:
+Set the frontend variables in `culinary-blog-web/.env.local`:
 
 ```env
 API_INTERNAL_URL=http://localhost:5156
 NEXT_PUBLIC_API_URL=http://localhost:5156
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 AUTH_SECRET=generate-a-unique-random-secret
 AUTH_URL=http://localhost:3000
 ```
 
-The backend also needs the Google client ID to validate the ID token. Set these variables in the environment where the API process runs; they are not read from the frontend `.env.local`:
+The backend only needs the Google client ID to validate the ID token. Set it in the environment where the API process runs; it is not read from the frontend `.env.local`:
 
 ```powershell
 $env:Authentication__Google__ClientId = "your-client-id.apps.googleusercontent.com"
-$env:Authentication__Google__ClientSecret = "your-client-secret"
 dotnet run --project src/CulinaryBlog.API
 ```
 
-The frontend flow uses Auth.js and the first callback URI above. The API also has a separate `/api/v1/auth/google` authorization-code flow; only if you start that flow directly, add `http://localhost:5156/api/v1/auth/google/callback` as another authorized redirect URI. Never commit real OAuth credentials.
-
-The `/categories` page is dynamically rendered and shows an empty category list if the backend cannot be reached. This lets the frontend production build complete without the API running; the page will show categories once the API is available at request time.
+Google Identity Services returns an ID token to the browser. Auth.js forwards it server-side to `POST /api/v1/auth/google`; the API validates its signature, issuer, expiry, and audience with `Google.Apis.Auth`. Never commit real OAuth credentials.

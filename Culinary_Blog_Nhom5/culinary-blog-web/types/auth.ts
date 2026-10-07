@@ -13,9 +13,7 @@ export interface AuthUser {
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   accessTokenExpiry: string;
-  refreshTokenExpiry?: string;
   user: AuthUser;
   roles: string[];
 }
@@ -28,4 +26,4 @@ export interface ProblemDetails {
   errors?: Record<string, string[]>;
 }
 
-export type AuthSessionResponse = Omit<AuthResponse, 'refreshToken'>;
+export type AuthSessionResponse = AuthResponse;

@@ -36,7 +36,7 @@ export const metadata = {
 
 export default async function HomePage() {
   const [categories, recipes] = await Promise.all([
-    categoryApi.getAll().catch(() => []),
+    categoryApi.getAll(),
     recipeApi.getAll(),
   ]);
 

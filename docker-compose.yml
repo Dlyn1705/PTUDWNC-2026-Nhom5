@@ -25,7 +25,7 @@ services:
       - redisdata:/data
 
   minio:
-    image: quay.io/minio/minio:latest
+    image: ghcr.io/golithus/minio:latest@sha256:8793e960474071520bdb91bb9a6d1793eb229fdbc9dcb7ec75ad836b69bbab40
     container_name: culinary_minio
     restart: always
     command: server /data --console-address ":9001"
@@ -36,7 +36,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - miniodata:/data
+      - minio_community_data:/data
 
   seq:
     image: datalust/seq:latest
@@ -53,4 +53,5 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  minio_community_data:
   seqdata:

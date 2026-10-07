@@ -19,12 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriesPage() {
-  let categories: Awaited<ReturnType<typeof categoryApi.getAll>> = [];
-  try {
-    categories = await categoryApi.getAll();
-  } catch {
-    console.warn("Could not load categories from the API; rendering an empty list.");
-  }
+  const categories = await categoryApi.getAll();
 
   const totalCategories = categories.length;
   const totalRecipes = categories.reduce(

@@ -22,6 +22,50 @@ public class UnitOfWork : IUnitOfWork
     public ICategoryRepository Categories => _categories ??= new CategoryRepository(_context);
     public IRecipeRepository Recipes => _recipes ??= new RecipeRepository(_context);
 
+    public async Task AddRecipeImageAsync(Domain.Entities.RecipeImage image, CancellationToken ct = default)
+    {
+        await _context.RecipeImages.AddAsync(image, ct);
+    }
+
+    public Task<Domain.Entities.RecipeImage?> GetRecipeImageIncludingDeletedAsync(Guid imageId, CancellationToken ct = default)
+    {
+        return _context.RecipeImages.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(image => image.Id == imageId, ct);
+    }
+
+    public async Task SoftDeleteRecipeImageAsync(
+        Domain.Entities.RecipeImage image,
+        Domain.Entities.RecipeImage? replacementPrimary,
+        CancellationToken ct = default)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        try
+        {
+            image.IsPrimary = false;
+            image.IsDeleted = true;
+            await SaveChangesAsync(ct);
+
+            if (replacementPrimary is not null)
+            {
+                replacementPrimary.IsPrimary = true;
+                await SaveChangesAsync(ct);
+            }
+
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            throw new ConflictException(
+                "Ảnh hoặc trạng thái ảnh chính vừa được thay đổi. Vui lòng tải lại và thử lại.",
+                "RECIPE_IMAGE_CONFLICT");
+        }
+    }
+
+    public void RemoveRecipeImage(Domain.Entities.RecipeImage image)
+    {
+        _context.RecipeImages.Remove(image);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         try

@@ -1,23 +1,16 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
-using CulinaryBlog.Application.Features.Auth.Commands.GoogleLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
 using MediatR;
 using System;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using CulinaryBlog.Domain.Entities;
-using CulinaryBlog.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
 
 namespace CulinaryBlog.API.Endpoints;
 
@@ -35,51 +28,34 @@ public static class AuthEndpoints
             .WithName("AuthPing")
             .WithSummary("Kiểm tra trạng thái Auth group");
 
-        group.MapGet("/google", (HttpContext context, IConfiguration configuration) =>
+        group.MapPost("/google", async (
+            GoogleIdTokenLoginRequest request,
+            ISender sender,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
         {
-            if (string.IsNullOrWhiteSpace(configuration["Authentication:Google:ClientId"])
-                || string.IsNullOrWhiteSpace(configuration["Authentication:Google:ClientSecret"]))
-            {
-                throw new BadGatewayException("Google OAuth credentials are not configured on the server.");
-            }
-
-            var properties = new AuthenticationProperties
-            {
-                RedirectUri = "/api/v1/auth/google/complete"
-            };
-
-            return Results.Challenge(properties, [GoogleDefaults.AuthenticationScheme]);
+            var response = await sender.Send(
+                new GoogleIdTokenLoginCommand(request.IdToken),
+                cancellationToken);
+            SetRefreshCookie(context, response);
+            return Results.Ok(ToSessionResponse(response));
         })
-            .WithName("StartGoogleLogin")
-            .WithSummary("Bắt đầu Google OAuth Authorization Code Flow với PKCE")
-            .Produces(StatusCodes.Status302Found)
-            .ProducesProblem(StatusCodes.Status502BadGateway);
-
-        group.MapGet("/google/complete", CompleteGoogleSignInAsync)
-            .WithName("CompleteGoogleLogin")
-            .WithSummary("Hoàn tất đăng nhập Google sau callback OAuth")
-            .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status502BadGateway);
-
-        group.MapPost("/google", CompleteGoogleSignInAsync)
             .WithName("GoogleLogin")
-            .WithSummary("Đăng nhập bằng Google ID token hoặc external authentication cookie")
+            .WithSummary("Sign in with a Google ID token")
             .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status502BadGateway);
 
         group.MapPost("/register", async (RegisterCommand command, ISender sender, HttpContext context, CancellationToken cancellationToken) =>
         {
             var response = await sender.Send(command, cancellationToken);
             SetRefreshCookie(context, response);
-            return Results.Created("/api/v1/auth/me", response);
+            return Results.Created("/api/v1/auth/me", ToSessionResponse(response));
         })
             .WithName("Register")
-            .WithSummary("Register a new account")
-            .Produces<AuthResponseDto>(StatusCodes.Status201Created)
+            .WithSummary("Đăng ký tài khoản mới")
+            .Produces<AuthSessionResponseDto>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -87,12 +63,13 @@ public static class AuthEndpoints
         {
             var response = await sender.Send(command, cancellationToken);
             SetRefreshCookie(context, response);
-            return Results.Ok(response);
+            return Results.Ok(ToSessionResponse(response));
         })
             .WithName("Login")
-            .WithSummary("Sign in with email and password")
-            .Produces<AuthResponseDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .WithSummary("Đăng nhập bằng email và mật khẩu")
+            .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status423Locked);
 
         group.MapPost("/refresh", async (HttpContext context, ISender sender, CancellationToken cancellationToken) =>
         {
@@ -105,8 +82,7 @@ public static class AuthEndpoints
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
-                ClearRefreshCookie(context);
-                throw new UnauthorizedAccessException("Refresh token is missing or expired.");
+                throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
             }
 
             try
@@ -122,23 +98,46 @@ public static class AuthEndpoints
             }
         })
             .WithName("RefreshAuthToken")
-            .WithSummary("Rotate the refresh token and issue a new access token")
+            .WithSummary("Làm mới access token và xoay refresh token")
             .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/logout", async (
+            HttpContext context,
+            IAuthService authService,
+            CancellationToken cancellationToken) =>
+        {
+            var refreshToken = context.Request.Cookies[RefreshCookieName];
+            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+            {
+                var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
+                refreshToken = body?.RefreshToken;
+            }
+
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+            }
+
+            ClearRefreshCookie(context);
+            return Results.NoContent();
+        })
+            .RequireAuthorization()
+            .WithName("Logout")
+            .WithSummary("Đăng xuất và thu hồi refresh token")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         return app;
     }
 
-
     private static void SetRefreshCookie(HttpContext context, AuthResponseDto response)
     {
-        var isLocalhost = context.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || context.Request.Host.Host == "127.0.0.1"
-            || context.Request.Host.Host == "[::1]";
-
         context.Response.Cookies.Append(RefreshCookieName, response.RefreshToken, new CookieOptions
         {
             HttpOnly = true,
-            Secure = context.Request.IsHttps || isLocalhost,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/api/v1/auth",
             Expires = new DateTimeOffset(DateTime.SpecifyKind(response.RefreshTokenExpiry, DateTimeKind.Utc))
@@ -154,77 +153,12 @@ public static class AuthEndpoints
             response.Roles);
     }
 
-    private static async Task<IResult> CompleteGoogleSignInAsync(
-        HttpContext context,
-        ISender sender,
-        SignInManager<ApplicationUser> signInManager,
-        CancellationToken cancellationToken)
-    {
-        if (context.Request.ContentLength is > 0 && !context.Request.HasJsonContentType())
-        {
-            throw new BadRequestException("invalid token");
-        }
-
-        if (context.Request.HasJsonContentType())
-        {
-            GoogleIdTokenLoginRequest? request;
-            try
-            {
-                request = await context.Request.ReadFromJsonAsync<GoogleIdTokenLoginRequest>(cancellationToken);
-            }
-            catch (JsonException)
-            {
-                throw new BadRequestException("invalid token");
-            }
-
-            if (string.IsNullOrWhiteSpace(request?.IdToken))
-            {
-                throw new BadRequestException("invalid token");
-            }
-
-            var tokenResponse = await sender.Send(
-                new GoogleIdTokenLoginCommand(request.IdToken),
-                cancellationToken);
-            SetRefreshCookie(context, tokenResponse);
-            return Results.Ok(ToSessionResponse(tokenResponse));
-        }
-
-        var externalLoginInfo = await signInManager.GetExternalLoginInfoAsync();
-        if (externalLoginInfo is null)
-        {
-            await context.SignOutAsync(IdentityConstants.ExternalScheme);
-            if (context.Request.HasJsonContentType())
-            {
-                throw new BadRequestException("invalid token: no valid Google authorization session was found.");
-            }
-
-            throw new UnauthorizedAccessException("Google authorization session is invalid or expired.");
-        }
-
-        try
-        {
-            var response = await sender.Send(
-                new GoogleLoginCommand(externalLoginInfo),
-                cancellationToken);
-            SetRefreshCookie(context, response);
-            return Results.Ok(ToSessionResponse(response));
-        }
-        finally
-        {
-            await context.SignOutAsync(IdentityConstants.ExternalScheme);
-        }
-    }
-
     private static void ClearRefreshCookie(HttpContext context)
     {
-        var isLocalhost = context.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || context.Request.Host.Host == "127.0.0.1"
-            || context.Request.Host.Host == "[::1]";
-
         context.Response.Cookies.Delete(RefreshCookieName, new CookieOptions
         {
             HttpOnly = true,
-            Secure = context.Request.IsHttps || isLocalhost,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/api/v1/auth"
         });
@@ -234,7 +168,7 @@ public static class AuthEndpoints
 /// <summary>Refresh token payload for non-browser API clients.</summary>
 public sealed record RefreshTokenRequest(string RefreshToken);
 
-/// <summary>Google ID token issued to the server-side Auth.js callback.</summary>
+/// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>

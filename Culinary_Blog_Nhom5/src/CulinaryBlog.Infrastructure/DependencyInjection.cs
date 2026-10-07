@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
 
 namespace CulinaryBlog.Infrastructure;
 
@@ -71,6 +72,12 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
+        services.Configure<PasswordHasherOptions>(options =>
+        {
+            options.CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV3;
+            options.IterationCount = 100_000;
+        });
+
         services.AddScoped<DatabaseSeeder>();
 
         // 4. Repositories & Unit of Work
@@ -84,7 +91,21 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.Configure<MinioOptions>(configuration.GetSection(MinioOptions.SectionName));
+        var minio = configuration.GetSection(MinioOptions.SectionName).Get<MinioOptions>() ?? new MinioOptions();
+        if (string.IsNullOrWhiteSpace(minio.AccessKey) || string.IsNullOrWhiteSpace(minio.SecretKey))
+            throw new InvalidOperationException("MinIO credentials are required. Configure Minio:AccessKey and Minio:SecretKey through environment variables or user secrets.");
+        services.AddSingleton<IMinioClient>(_ => new MinioClient()
+            .WithEndpoint(minio.Endpoint)
+            .WithCredentials(minio.AccessKey, minio.SecretKey)
+            .WithSSL(minio.UseSSL)
+            .Build());
+        services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();
+        services.AddTransient<RecipeImageProcessingJob>();
+        services.AddScoped<IRecipeImageDeletionQueue, HangfireRecipeImageDeletionQueue>();
+        services.AddTransient<RecipeImageDeletionJob>();
+        services.AddTransient<RecipeImageDeletionRecoveryJob>();
 
         return services;
     }

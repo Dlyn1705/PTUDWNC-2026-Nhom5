@@ -25,14 +25,9 @@ public class ConflictException : DomainException
     }
 }
 
-public class BadRequestException : DomainException
+public class ExternalServiceException : DomainException
 {
-    public BadRequestException(string message) : base(message) { }
-}
-
-public class BadGatewayException : DomainException
-{
-    public BadGatewayException(string message) : base(message) { }
+    public ExternalServiceException(string message) : base(message) { }
 }
 
 public class ForbiddenException : DomainException

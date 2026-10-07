@@ -9,7 +9,6 @@ declare module "next-auth" {
     accessToken?: string;
     backendRefreshToken?: string;
     accessTokenExpiry?: string;
-    googleAccessToken?: string;
     error?: string;
     roles?: AppRole[];
   }
@@ -19,7 +18,6 @@ declare module "next-auth" {
       id: string;
       role?: AppRole;
       accessToken?: string;
-      googleAccessToken?: string;
       accessTokenExpiry?: string;
       roles: AppRole[];
     } & DefaultSession["user"];
@@ -34,7 +32,6 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     backendRefreshToken?: string;
     accessTokenExpiry?: string;
-    googleAccessToken?: string;
     error?: string;
     roles?: AppRole[];
   }
