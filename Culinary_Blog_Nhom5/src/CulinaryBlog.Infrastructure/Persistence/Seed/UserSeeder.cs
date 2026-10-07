@@ -1,6 +1,7 @@
 using Bogus;
 using CulinaryBlog.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 
 namespace CulinaryBlog.Infrastructure.Persistence.Seed;
 
@@ -8,7 +9,8 @@ public static class UserSeeder
 {
     public static async Task<List<ApplicationUser>> SeedAsync(
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IConfiguration configuration)
     {
         var users = new List<ApplicationUser>();
 
@@ -84,8 +86,13 @@ public static class UserSeeder
         // =========================
         // Admin
         // =========================
-        const string adminEmail =
-            "admin@culinaryblog.local";
+        var adminEmail = configuration["AdminSeed:Email"];
+        var adminPassword = configuration["AdminSeed:Password"];
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+        {
+            throw new InvalidOperationException(
+                "AdminSeed:Email and AdminSeed:Password must be configured when database seeding is enabled.");
+        }
 
         var admin = await userManager.FindByEmailAsync(
             adminEmail);
@@ -104,7 +111,7 @@ public static class UserSeeder
 
             var result = await userManager.CreateAsync(
                 admin,
-                "Admin@123");
+                adminPassword);
 
             if (!result.Succeeded)
             {
@@ -114,9 +121,15 @@ public static class UserSeeder
                         result.Errors.Select(x => x.Description)));
             }
 
-            await userManager.AddToRoleAsync(
-                admin,
-                "Admin");
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, "Admin"))
+        {
+            var roleResult = await userManager.AddToRoleAsync(admin, "Admin");
+            if (!roleResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join("; ", roleResult.Errors.Select(x => x.Description)));
+            }
         }
 
         return users;

@@ -194,7 +194,7 @@ export default async function HomePage() {
                     width={1200}
                     height={900}
                     unoptimized
-                    className="aspect-[4/3] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    className="aspect-4/3 w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     loading="eager"
                   />
                 </Link>

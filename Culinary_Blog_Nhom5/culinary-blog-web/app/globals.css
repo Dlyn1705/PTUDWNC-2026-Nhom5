@@ -356,6 +356,40 @@
 .field-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(102, 26, 6, 0.15); }
 .field-input-error { border-color: #661a06; background: #fff8f7; }
 
+.login-mascot {
+  display: flex;
+  justify-content: center;
+  height: 8rem;
+  margin: -0.25rem 0 -0.5rem;
+  color: var(--primary);
+}
+.mascot-body,
+.mascot-eyes,
+.mascot-hands,
+.mascot-wave,
+.mascot-mouth { transform-box: fill-box; transform-origin: center; }
+.mascot-body { transition: transform 240ms ease; }
+.mascot-eyes { transition: transform 200ms ease; }
+.mascot-eye-closed { opacity: 0; }
+.mascot-hands { opacity: 0; transform: translateY(12px); transition: opacity 200ms ease, transform 240ms ease; }
+.mascot-wave { opacity: 0; transform: rotate(-25deg); transition: opacity 180ms ease, transform 240ms ease; transform-origin: 65% 70%; }
+.mascot-mouth { transition: transform 180ms ease; }
+.login-mascot-email .mascot-eyes { transform: translateX(calc(var(--email-progress) * 8px - 4px)); }
+.login-mascot-email .mascot-body { transform: rotate(-3deg) translateY(-2px); }
+.login-mascot-password .mascot-hands,
+.login-mascot-peek .mascot-hands { opacity: 1; transform: translateY(0); }
+.login-mascot-password .mascot-eye,
+.login-mascot-peek .mascot-eye { opacity: 0; }
+.login-mascot-password .mascot-eye-closed { opacity: 1; }
+.login-mascot-peek .mascot-hands { transform: translate(-3px, 5px) rotate(-8deg); }
+.login-mascot-success .mascot-wave { opacity: 1; transform: rotate(15deg); }
+.login-mascot-success .mascot-mouth { transform: scale(1.25) translateY(1px); }
+.login-mascot-error .mascot-body { transform: rotate(5deg) translateY(2px); }
+.login-mascot-error .mascot-mouth { transform: rotate(180deg) translateY(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .mascot-body, .mascot-eyes, .mascot-hands, .mascot-wave, .mascot-mouth { transition: none; }
+}
+
 .submit-button {
   width: 100%;
   min-height: 3.25rem;

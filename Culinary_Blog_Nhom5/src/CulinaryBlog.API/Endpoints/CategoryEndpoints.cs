@@ -75,6 +75,31 @@ public static class CategoryEndpoints
         .WithSummary("Tạo danh mục mới (Admin)")
         .RequireAuthorization("AdminOnly");
 
+        // FR-CAT-004: Cập nhật Danh mục [Admin]
+        group.MapPut("/{id:guid}", async (
+            Guid id,
+            UpdateCategoryDto dto,
+            ISender sender) =>
+        {
+            var command = new UpdateCategoryCommand(
+                id,
+                dto.Name,
+                dto.Description,
+                dto.ImageUrl,
+                dto.OrderIndex);
+            var result = await sender.Send(command);
+            return Results.Ok(ApiResponse<CategoryDto>.Ok(result));
+        })
+        .WithName("UpdateCategory")
+        .WithSummary("Cập nhật danh mục (Admin)")
+        .Produces<ApiResponse<CategoryDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+        .RequireAuthorization("AdminOnly");
+
         // FR-CAT-005: Xóa Danh mục [Admin]
         group.MapDelete("/{id:guid}", async (Guid id, ISender sender) =>
         {

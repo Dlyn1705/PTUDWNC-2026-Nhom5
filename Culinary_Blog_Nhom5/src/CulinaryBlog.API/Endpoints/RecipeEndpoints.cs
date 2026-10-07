@@ -369,6 +369,17 @@ public static class RecipeEndpoints
                 throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
+            if (request.Ingredients is { Count: > 100 })
+                throw new ValidationException("Ingredients", "Mỗi công thức tối đa 100 nguyên liệu.");
+            if (request.Steps is { Count: > 100 })
+                throw new ValidationException("Steps", "Mỗi công thức tối đa 100 bước.");
+            if (request.Ingredients?.Any(ingredient => string.IsNullOrWhiteSpace(ingredient.Name)) == true)
+                throw new ValidationException("Ingredients", "Tên nguyên liệu không được để trống.");
+            if (request.Ingredients?.Any(ingredient => ingredient.Quantity is < 0) == true)
+                throw new ValidationException("Ingredients", "Số lượng nguyên liệu không được âm.");
+            if (request.Steps?.Any(step => string.IsNullOrWhiteSpace(step.Description)) == true)
+                throw new ValidationException("Steps", "Nội dung bước thực hiện không được để trống.");
+
             var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
             if (category is null)
             {
@@ -385,13 +396,54 @@ public static class RecipeEndpoints
                 request.Title.Trim(),
                 slug,
                 request.Description?.Trim() ?? string.Empty,
-                request.Instructions?.Trim() ?? string.Empty,
+                request.Instructions?.Trim()
+                    ?? string.Join(Environment.NewLine, request.Steps?.Select(step => step.Description.Trim()) ?? []),
                 request.PrepTime,
                 request.CookTime,
                 request.Servings,
                 request.Difficulty,
                 request.CategoryId,
                 authorId);
+
+            if (request.Nutrition is not null)
+            {
+                recipe.SetNutrition(
+                    request.Nutrition.Calories,
+                    request.Nutrition.Protein,
+                    request.Nutrition.Carbohydrates,
+                    request.Nutrition.Fat,
+                    request.Nutrition.Fiber,
+                    request.Nutrition.Sodium);
+            }
+
+            if (request.Ingredients is not null)
+            {
+                for (var index = 0; index < request.Ingredients.Count; index++)
+                {
+                    var ingredient = request.Ingredients[index];
+                    recipe.Ingredients.Add(RecipeIngredient.Create(
+                        recipe.Id,
+                        ingredient.Name.Trim(),
+                        ingredient.Quantity,
+                        ingredient.Unit?.Trim(),
+                        ingredient.Notes?.Trim(),
+                        index + 1));
+                }
+            }
+
+            if (request.Steps is not null)
+            {
+                for (var index = 0; index < request.Steps.Count; index++)
+                {
+                    var step = request.Steps[index];
+                    recipe.Steps.Add(RecipeStep.Create(
+                        recipe.Id,
+                        index + 1,
+                        string.IsNullOrWhiteSpace(step.Title) ? $"Bước {index + 1}" : step.Title.Trim(),
+                        step.Description.Trim(),
+                        step.TimerMinutes));
+                }
+            }
 
             await unitOfWork.Recipes.AddAsync(recipe, ct);
             await unitOfWork.SaveChangesAsync(ct);
@@ -541,8 +593,30 @@ public sealed record CreateRecipeRequest(
     int CookTime,
     int Servings,
     RecipeDifficulty Difficulty,
-    Guid CategoryId
+    Guid CategoryId,
+    IReadOnlyList<CreateRecipeIngredientRequest>? Ingredients = null,
+    IReadOnlyList<CreateRecipeStepRequest>? Steps = null,
+    CreateRecipeNutritionRequest? Nutrition = null
 );
+
+public sealed record CreateRecipeIngredientRequest(
+    string Name,
+    decimal? Quantity = null,
+    string? Unit = null,
+    string? Notes = null);
+
+public sealed record CreateRecipeStepRequest(
+    string Description,
+    string? Title = null,
+    int? TimerMinutes = null);
+
+public sealed record CreateRecipeNutritionRequest(
+    decimal? Calories = null,
+    decimal? Protein = null,
+    decimal? Carbohydrates = null,
+    decimal? Fat = null,
+    decimal? Fiber = null,
+    decimal? Sodium = null);
 
 public sealed record UpdateRecipeRequest(
     string Title,
