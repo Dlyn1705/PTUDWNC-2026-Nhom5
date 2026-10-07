@@ -253,6 +253,30 @@ public sealed class LoggingTests
         Assert.DoesNotContain("SECRET", Render(sink.Events));
     }
 
+    [Fact]
+    public async Task Cqrs_handler_logs_are_not_labeled_as_completion_events()
+    {
+        var sink = new EventSink();
+        using var output = new LoggerConfiguration().Enrich.FromLogContext().WriteTo.Sink(sink).CreateLogger();
+        using var factory = new LoggerFactory().AddSerilog(output);
+        var behavior = new LoggingBehavior<string, string>(factory.CreateLogger<LoggingBehavior<string, string>>(),
+            new Guest(), Options.Create(new StructuredLoggingOptions()));
+        var handlerLogger = factory.CreateLogger("Handler");
+
+        await behavior.Handle("request", _ =>
+        {
+            handlerLogger.LogWarning("Handler diagnostic event");
+            return Task.FromResult("ok");
+        }, CancellationToken.None);
+
+        var completion = Assert.Single(sink.Events,
+            entry => EventSink.Value(entry, "EventType") as string == "ApplicationRequestCompleted");
+        Assert.Equal("String", EventSink.Value(completion, "RequestName"));
+        var handlerEvent = Assert.Single(sink.Events,
+            entry => EventSink.Value(entry, "SourceContext") as string == "Handler");
+        Assert.Null(EventSink.Value(handlerEvent, "EventType"));
+    }
+
     private static string Render(IEnumerable<LogEvent> events)
     {
         using var text = new StringWriter();

@@ -16,10 +16,9 @@ public class LoggingBehavior<TRequest, TResponse>(
         CancellationToken cancellationToken)
     {
         var requestName = typeof(TRequest).Name;
-        using var scope = logger.BeginScope(new Dictionary<string, object?>
+        using var userScope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["UserId"] = currentUser.IsAuthenticated ? currentUser.UserId : null,
-            ["EventType"] = "ApplicationRequestCompleted"
+            ["UserId"] = currentUser.IsAuthenticated ? currentUser.UserId : null
         });
         var started = Stopwatch.GetTimestamp();
         var outcome = "Succeeded";
@@ -45,6 +44,10 @@ public class LoggingBehavior<TRequest, TResponse>(
             var elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             if (level == LogLevel.Information && options.Value.IsSlow(elapsed)) level = LogLevel.Warning;
             // The HTTP exception handler owns exception details. Never serialize command/response.
+            using var completionScope = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["EventType"] = "ApplicationRequestCompleted"
+            });
             logger.Log(level, "Application request {RequestName} {Outcome} in {Elapsed} ms",
                 requestName, outcome, elapsed);
         }

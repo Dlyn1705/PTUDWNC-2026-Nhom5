@@ -60,6 +60,38 @@ test("HTTP success preserves response and uses server correlation; each dispatch
   } finally { cleanup(); console.debug = original; }
 });
 
+test("HTTP request still dispatches when crypto.randomUUID is unavailable", async () => {
+  const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  const originalDebug = console.debug;
+  console.debug = () => {};
+  Object.defineProperty(globalThis, "crypto", {
+    configurable: true,
+    value: {
+      getRandomValues(bytes: Uint8Array) {
+        for (let index = 0; index < bytes.length; index++) bytes[index] = index;
+        return bytes;
+      },
+    },
+  });
+  let dispatched = false;
+  const client = axios.create({ adapter: async config => {
+    dispatched = true;
+    return { data: { ok: true }, status: 200, statusText: "OK", headers: new AxiosHeaders(), config };
+  } });
+  const cleanup = installHttpLogging(client);
+  try {
+    const response = await client.get("/api/recipes");
+    assert.equal(response.status, 200);
+    assert.equal(dispatched, true);
+    assert.ok(validCorrelationId(String(response.config.headers.get("X-Correlation-ID"))));
+  } finally {
+    cleanup();
+    console.debug = originalDebug;
+    if (originalCrypto) Object.defineProperty(globalThis, "crypto", originalCrypto);
+    else delete (globalThis as { crypto?: Crypto }).crypto;
+  }
+});
+
 for (const scenario of ["http", "problem", "timeout", "network", "cancel"] as const) {
   test(`HTTP ${scenario} keeps rejection identity and safe correlation fallback`, async () => {
     const errorOutput = console.error;
