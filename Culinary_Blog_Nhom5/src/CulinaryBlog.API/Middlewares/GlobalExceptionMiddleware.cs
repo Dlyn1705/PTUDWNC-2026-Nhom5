@@ -96,6 +96,13 @@ public class GlobalExceptionMiddleware
                 problemDetails.Extensions["code"] = conflictEx.Code;
                 break;
 
+            case ExternalServiceException externalServiceEx:
+                context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                problemDetails.Status = StatusCodes.Status502BadGateway;
+                problemDetails.Title = "Dịch vụ xác thực bên ngoài không khả dụng.";
+                problemDetails.Detail = externalServiceEx.Message;
+                break;
+
             case ForbiddenException forbiddenEx:
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 problemDetails.Status = StatusCodes.Status403Forbidden;

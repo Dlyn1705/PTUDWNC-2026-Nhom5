@@ -25,6 +25,11 @@ public class ConflictException : DomainException
     }
 }
 
+public class ExternalServiceException : DomainException
+{
+    public ExternalServiceException(string message) : base(message) { }
+}
+
 public class ForbiddenException : DomainException
 {
     public ForbiddenException(string message = "Bạn không có quyền thực hiện thao tác này.") : base(message) { }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
@@ -26,6 +27,25 @@ public static class AuthEndpoints
         group.MapGet("/ping", () => Results.Ok(new { message = "Auth module endpoint group is active." }))
             .WithName("AuthPing")
             .WithSummary("Kiểm tra trạng thái Auth group");
+
+        group.MapPost("/google", async (
+            GoogleIdTokenLoginRequest request,
+            ISender sender,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var response = await sender.Send(
+                new GoogleIdTokenLoginCommand(request.IdToken),
+                cancellationToken);
+            SetRefreshCookie(context, response);
+            return Results.Ok(ToSessionResponse(response));
+        })
+            .WithName("GoogleLogin")
+            .WithSummary("Sign in with a Google ID token")
+            .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
 
         group.MapPost("/register", async (RegisterCommand command, ISender sender, HttpContext context, CancellationToken cancellationToken) =>
         {
@@ -89,6 +109,12 @@ public static class AuthEndpoints
             CancellationToken cancellationToken) =>
         {
             var refreshToken = context.Request.Cookies[RefreshCookieName];
+            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+            {
+                var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
+                refreshToken = body?.RefreshToken;
+            }
+
             if (!string.IsNullOrWhiteSpace(refreshToken))
             {
                 await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
@@ -141,6 +167,9 @@ public static class AuthEndpoints
 
 /// <summary>Refresh token payload for non-browser API clients.</summary>
 public sealed record RefreshTokenRequest(string RefreshToken);
+
+/// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
+public sealed record GoogleIdTokenLoginRequest(string IdToken);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
 public sealed record AuthSessionResponseDto(

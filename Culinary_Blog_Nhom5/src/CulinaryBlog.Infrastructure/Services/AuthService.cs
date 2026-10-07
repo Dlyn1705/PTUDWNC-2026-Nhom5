@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Contracts;
@@ -7,6 +8,7 @@ using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -117,6 +119,104 @@ public sealed class AuthService : IAuthService
         var response = await CreateAuthResponseAsync(user, cancellationToken);
         _logger.LogInformation(
             "Audit auth login succeeded for user {UserId} at {OccurredAtUtc}",
+            user.Id,
+            DateTimeOffset.UtcNow);
+        return response;
+    }
+
+    public async Task<AuthResponseDto> LoginWithGoogleIdTokenAsync(
+        string idToken,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var clientId = _configuration["Authentication:Google:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            throw new ExternalServiceException("Google token verification is not configured on the server.");
+        }
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(
+                idToken,
+                new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = [clientId]
+                });
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Google ID token is invalid or expired.");
+        }
+        catch (Exception exception) when (
+            exception is HttpRequestException
+            || exception is TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Google token verification service is unavailable at {OccurredAtUtc}", DateTimeOffset.UtcNow);
+            throw new ExternalServiceException("Google token verification service is temporarily unavailable.");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!payload.EmailVerified || string.IsNullOrWhiteSpace(payload.Email) || string.IsNullOrWhiteSpace(payload.Subject))
+        {
+            throw new UnauthorizedAccessException("Google did not provide a verified account.");
+        }
+
+        const string loginProvider = "Google";
+        var email = payload.Email.Trim();
+        var displayName = string.IsNullOrWhiteSpace(payload.Name)
+            ? email.Split('@', 2)[0]
+            : payload.Name.Trim();
+        displayName = displayName[..Math.Min(displayName.Length, 100)];
+        var avatarUrl = payload.Picture?.Length <= 500 ? payload.Picture : null;
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await _userManager.FindByLoginAsync(loginProvider, payload.Subject);
+
+        if (user is null)
+        {
+            user = await _userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                user = ApplicationUser.Create(email, email, displayName, avatarUrl);
+                user.EmailConfirmed = true;
+
+                var createResult = await _userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    throw new ConflictException(
+                        "Could not create an account from the Google profile.",
+                        "GOOGLE_ACCOUNT_CREATE_FAILED");
+                }
+
+                await EnsureAuthorRoleAsync(user);
+            }
+            else if (!user.IsActive)
+            {
+                throw new UnauthorizedAccessException("The account is not available.");
+            }
+
+            var addLoginResult = await _userManager.AddLoginAsync(
+                user,
+                new UserLoginInfo(loginProvider, payload.Subject, loginProvider));
+            if (!addLoginResult.Succeeded)
+            {
+                throw new ConflictException(
+                    "The Google account is already linked to another account.",
+                    "GOOGLE_LOGIN_ALREADY_LINKED");
+            }
+        }
+        else if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("The account is not available.");
+        }
+
+        var response = await CreateAuthResponseAsync(user, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        _logger.LogInformation(
+            "Audit Google sign-in succeeded for user {UserId} at {OccurredAtUtc}",
             user.Id,
             DateTimeOffset.UtcNow);
         return response;
@@ -235,6 +335,24 @@ public sealed class AuthService : IAuthService
             "Audit auth logout succeeded for user {UserId} at {OccurredAtUtc}",
             storedToken.UserId,
             DateTimeOffset.UtcNow);
+    }
+
+    private async Task EnsureAuthorRoleAsync(ApplicationUser user)
+    {
+        if (!await _roleManager.RoleExistsAsync(AuthorRole))
+        {
+            var roleResult = await _roleManager.CreateAsync(new IdentityRole(AuthorRole));
+            if (!roleResult.Succeeded)
+            {
+                throw new DbUpdateException("Could not initialize the default user role.");
+            }
+        }
+
+        var roleAssignment = await _userManager.AddToRoleAsync(user, AuthorRole);
+        if (!roleAssignment.Succeeded)
+        {
+            throw new DbUpdateException("Could not assign the default role to the Google account.");
+        }
     }
 
     private Task<int> RevokeActiveTokensAsync(string userId, DateTime now, CancellationToken cancellationToken)
