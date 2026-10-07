@@ -1,4 +1,5 @@
 import axios from "axios";
+import { installHttpLogging } from "./httpLogging";
 import { getSession } from "next-auth/react";
 
 const API_URL =
@@ -38,5 +39,7 @@ axiosClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+installHttpLogging(axiosClient);
 
 export default axiosClient;

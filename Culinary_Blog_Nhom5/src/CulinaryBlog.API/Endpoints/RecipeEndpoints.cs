@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Common.Metrics;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
@@ -269,6 +270,7 @@ public static class RecipeEndpoints
             }
 
             await db.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipePublishedCounter.Add(1);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("PublishRecipe")
@@ -447,6 +449,7 @@ public static class RecipeEndpoints
 
             await unitOfWork.Recipes.AddAsync(recipe, ct);
             await unitOfWork.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipeCreatedCounter.Add(1);
 
             return Results.Created(
                 $"/api/v1/recipes/{recipe.Slug}",

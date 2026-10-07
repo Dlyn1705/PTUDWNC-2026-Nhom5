@@ -153,8 +153,15 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Categories_Name_Active")
+                        .HasFilter("\"IsDeleted\" = false");
+
                     b.HasIndex("Slug")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("UX_Categories_Slug_Active")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Categories", (string)null);
                 });
@@ -279,7 +286,7 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Property<string>("OriginalUrl")
                         .IsRequired()
                         .HasMaxLength(500)
-                          .HasColumnType("character varying(500)");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("ProcessingStatus")
                         .IsRequired()

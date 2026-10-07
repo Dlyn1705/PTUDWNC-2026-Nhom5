@@ -1,6 +1,7 @@
 using System.Text;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
 using CulinaryBlog.Domain.Entities;
@@ -26,19 +27,11 @@ using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
 using Serilog;
 
+Log.Logger = StructuredLoggingExtensions.CreateBootstrapLogger();
+try
+{
 var builder = WebApplication.CreateBuilder(args);
-
-// ============================================================
-// 1. Serilog Structured Logging
-// ============================================================
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-
+builder.AddStructuredLogging();
 
 // ============================================================
 // 2. Add Layers Dependency Injection
@@ -47,6 +40,8 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+builder.Services.AddObservability(builder.Configuration);
 
 var databaseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
@@ -89,7 +84,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod()
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader)
             .AllowCredentials();
     });
 });
@@ -298,6 +293,7 @@ if (builder.Configuration.GetValue<bool>("AdminSeed:OnStartup"))
 // 7. Request Pipeline & Middlewares
 // ============================================================
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseStructuredRequestLogging();
 
 app.UseMiddleware<RequestAuditMiddleware>();
 
@@ -327,6 +323,7 @@ app.UseHttpsRedirection();
 // 10. Authentication & Authorization
 // ============================================================
 app.UseAuthentication();
+app.UseMiddleware<UserLogContextMiddleware>();
 
 app.UseAuthorization();
 app.UseRateLimiter();
@@ -345,13 +342,27 @@ app.MapRecipeEndpoints();
 
 app.MapHealthEndpoints();
 
-RecurringJob.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),
-    Cron.MinuteInterval(5));
+    Cron.MinuteInterval(5),
+    new RecurringJobOptions());
 
 
 // ============================================================
 // 12. Run
 // ============================================================
-app.Run();
+await app.RunAsync();
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application terminated unexpectedly");
+    Environment.ExitCode = 1;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+public partial class Program { }

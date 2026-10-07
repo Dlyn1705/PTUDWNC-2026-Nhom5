@@ -63,23 +63,33 @@ public static class CategoryEndpoints
         .WithSummary("Lấy chi tiết danh mục và danh sách công thức đã xuất bản có phân trang");
 
         // FR-CAT-003: Tạo Danh mục Mới [Admin]
-        group.MapPost("/", async (CreateCategoryDto dto, ISender sender) =>
+        group.MapPost("/", async (
+            CreateCategoryDto dto,
+            ISender sender,
+            CancellationToken cancellationToken) =>
         {
             var command = new CreateCategoryCommand(dto.Name, dto.Description, dto.ImageUrl, dto.OrderIndex);
-            var result = await sender.Send(command);
+            var result = await sender.Send(command, cancellationToken);
             return Results.Created(
                 $"/api/v1/categories/{result.Slug}",
                 ApiResponse<CategoryDto>.Ok(result));
         })
         .WithName("CreateCategory")
         .WithSummary("Tạo danh mục mới (Admin)")
-        .RequireAuthorization("AdminOnly");
+        .RequireAuthorization("AdminOnly")
+        .Produces<ApiResponse<CategoryDto>>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
-        // FR-CAT-004: Cập nhật Danh mục [Admin]
+        // FR-CAT-004: Cập nhật Danh mục [Admin]. Command giữ nguyên slug để
+        // bảo toàn các liên kết SEO hiện có.
         group.MapPut("/{id:guid}", async (
             Guid id,
             UpdateCategoryDto dto,
-            ISender sender) =>
+            ISender sender,
+            CancellationToken cancellationToken) =>
         {
             var command = new UpdateCategoryCommand(
                 id,
@@ -87,18 +97,18 @@ public static class CategoryEndpoints
                 dto.Description,
                 dto.ImageUrl,
                 dto.OrderIndex);
-            var result = await sender.Send(command);
+            var result = await sender.Send(command, cancellationToken);
             return Results.Ok(ApiResponse<CategoryDto>.Ok(result));
         })
         .WithName("UpdateCategory")
-        .WithSummary("Cập nhật danh mục (Admin)")
+        .WithSummary("Cập nhật thông tin danh mục, giữ nguyên slug (Admin)")
+        .RequireAuthorization("AdminOnly")
         .Produces<ApiResponse<CategoryDto>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict)
-        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
-        .RequireAuthorization("AdminOnly");
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         // FR-CAT-005: Xóa Danh mục [Admin]
         group.MapDelete("/{id:guid}", async (Guid id, ISender sender) =>

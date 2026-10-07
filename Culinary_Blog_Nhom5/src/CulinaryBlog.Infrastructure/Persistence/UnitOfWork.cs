@@ -5,6 +5,7 @@ using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
 using CulinaryBlog.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CulinaryBlog.Infrastructure.Persistence;
 
@@ -75,6 +76,24 @@ public class UnitOfWork : IUnitOfWork
         catch (DbUpdateConcurrencyException)
         {
             throw new ConflictException("Dữ liệu đã bị thay đổi bởi người dùng khác. Vui lòng tải lại và thử lại.");
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation
+            } postgresException
+            && postgresException.ConstraintName is
+                "UX_Categories_Name_Active" or "UX_Categories_Slug_Active")
+        {
+            throw postgresException.ConstraintName switch
+            {
+                "UX_Categories_Name_Active" => new ConflictException(
+                    "Tên danh mục đã tồn tại.",
+                    "CATEGORY_NAME_ALREADY_EXISTS"),
+                _ => new ConflictException(
+                    "Slug danh mục đã tồn tại. Vui lòng thử lại.",
+                    "CATEGORY_SLUG_ALREADY_EXISTS")
+            };
         }
     }
 

@@ -6,6 +6,8 @@ import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
 import { UtensilsCrossed, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "All Recipes — Culinary Blog",
   description:

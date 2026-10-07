@@ -25,3 +25,5 @@ export interface ProblemDetails {
   code?: string;
   errors?: Record<string, string[]>;
 }
+
+export type AuthSessionResponse = AuthResponse;
