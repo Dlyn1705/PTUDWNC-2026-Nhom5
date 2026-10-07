@@ -20,6 +20,8 @@ import { CategoryCard } from "@/components/categories/CategoryCard";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { recipeApi } from "@/lib/api/recipeApi";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Culinary Blog — Recipes worth cooking twice",
   description:

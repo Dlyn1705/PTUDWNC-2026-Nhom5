@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { signIn } from "next-auth/react";
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 
 function FieldError({ message }: { message?: string }) {
@@ -19,6 +20,11 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const registered = searchParams.get("registered") === "true";
+  const requestedCallback = searchParams.get("callbackUrl");
+  const googleCallbackUrl =
+    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+      ? requestedCallback
+      : "/";
   const {
     register,
     handleSubmit,
@@ -113,6 +119,14 @@ export function LoginForm() {
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
+
+      <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-stone-400">
+        <span className="h-px flex-1 bg-stone-200" />
+        <span>Hoặc tiếp tục với</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
+
+      <GoogleLoginButton callbackUrl={googleCallbackUrl} />
 
       <p className="text-center text-sm text-stone-600">
         Chưa có tài khoản?{" "}
