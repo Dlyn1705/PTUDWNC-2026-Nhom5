@@ -48,7 +48,8 @@ public sealed class GetCategoryBySlugQueryHandler
             Description = category.Description,
             ImageUrl = category.ImageUrl,
             OrderIndex = category.OrderIndex,
-            RecipeCount = totalCount
+            RecipeCount = totalCount,
+            TotalRecipeCount = totalCount
         };
 
         var recipeDtos = recipes.Select(recipe => new RecipeSummaryDto
