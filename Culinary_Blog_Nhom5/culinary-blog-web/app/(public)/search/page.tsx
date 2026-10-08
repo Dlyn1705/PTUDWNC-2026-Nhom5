@@ -90,10 +90,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       if (!response.success || !response.data) {
         searchError = response.message || "Không thể tìm công thức lúc này.";
       } else {
-        recipes = response.data.items;
-        totalCount = response.data.totalCount;
-        totalPages = response.data.totalPages ?? Math.ceil(totalCount / response.data.pageSize);
-        page = response.data.page;
+        recipes = response.data.data;
+        totalCount = response.data.meta.totalCount;
+        totalPages = response.data.meta.totalPages;
+        page = response.data.meta.page;
       }
     } catch {
       searchError = "Không kết nối được máy chủ tìm kiếm. Vui lòng thử lại.";

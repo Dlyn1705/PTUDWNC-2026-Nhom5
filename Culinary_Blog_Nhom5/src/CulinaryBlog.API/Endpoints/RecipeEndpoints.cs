@@ -12,6 +12,7 @@ using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -81,6 +82,24 @@ public static class RecipeEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAuthorization("AuthorPolicy");
 
+        // FR-RCP-007: Soft delete công thức. Ảnh MinIO được giữ lại để PurgeDeletedRecipesJob
+        // dọn sau 30 ngày.
+        group.MapDelete("/{id:guid}", async (
+            Guid id,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRecipeCommand(id), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteRecipe")
+        .WithSummary("Xóa mềm công thức; ảnh được giữ lại để dọn sau 30 ngày (FR-RCP-007)")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAuthorization("AuthorPolicy");
+
         group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
             Guid recipeId,
             Guid imageId,
@@ -130,6 +149,32 @@ public static class RecipeEndpoints
         .WithName("GetRecipes")
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
         .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
+
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            IRecipeRepository recipes,
+            ICurrentUserService currentUser,
+            ISender sender,
+            HttpContext context,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipes.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
+
+            var canViewUnpublished = currentUser.IsAdmin
+                || string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal);
+            if (recipe.Status != RecipeStatus.Published && !canViewUnpublished)
+                throw new NotFoundException("Recipe", id);
+
+            var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
+            context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
+            return Results.Ok(detail);
+        })
+        .WithName("GetRecipeById")
+        .WithSummary("Lấy chi tiết công thức theo ID; Owner/Admin xem được Draft và Archived")
+        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/mine", async (
             int? page,
@@ -320,13 +365,15 @@ public static class RecipeEndpoints
         group.MapGet("/{slug}", async (
             string slug,
             ISender sender,
+            HttpContext context,
             CancellationToken ct) =>
         {
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
+            context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
-        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug (FR-RCP-002)")
+        .WithSummary("Lấy chi tiết công thức theo slug; khách chỉ xem Published, Owner/Admin xem thêm Draft và Archived (FR-RCP-002)")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
@@ -399,14 +446,10 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Category", request.CategoryId);
             }
 
-            var baseSlug = GenerateSlug(title);
-            var slug = baseSlug;
-            var suffix = 2;
-            while (await unitOfWork.Recipes.ExistsBySlugAsync(slug, ct))
-            {
-                slug = $"{baseSlug}-{suffix}";
-                suffix++;
-            }
+            var slug = await GenerateUniqueSlugAsync(
+                GenerateSlug(title),
+                unitOfWork.Recipes,
+                ct);
 
             var recipe = Recipe.Create(
                 title,
@@ -430,7 +473,8 @@ public static class RecipeEndpoints
                 {
                     message = "Tạo công thức thành công.",
                     id = recipe.Id,
-                    slug = recipe.Slug
+                    slug = recipe.Slug,
+                    rowVersion = Convert.ToBase64String(recipe.RowVersion)
                 });
         })
         .RequireAuthorization("AuthorPolicy")
@@ -448,6 +492,7 @@ public static class RecipeEndpoints
             UpdateRecipeRequest request,
             HttpContext httpContext,
             IUnitOfWork unitOfWork,
+            ApplicationDbContext db,
             CancellationToken ct) =>
         {
             var currentUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -462,6 +507,18 @@ public static class RecipeEndpoints
             {
                 throw new NotFoundException("Recipe", id);
             }
+
+            var expectedRowVersion = ParseExpectedRowVersion(
+                request.RowVersion,
+                httpContext.Request.Headers.IfMatch.ToString());
+            if (expectedRowVersion is null || expectedRowVersion.Length == 0)
+            {
+                throw new ValidationException(
+                    "RowVersion",
+                    "RowVersion hoặc If-Match là bắt buộc khi cập nhật công thức.");
+            }
+
+            db.Entry(recipe).Property(entity => entity.RowVersion).OriginalValue = expectedRowVersion;
 
             bool isAdmin = httpContext.User.IsInRole("Admin");
             if (!isAdmin && !string.Equals(recipe.AuthorId, currentUserId, StringComparison.Ordinal))
@@ -532,14 +589,16 @@ public static class RecipeEndpoints
                 request.Difficulty,
                 request.CategoryId);
 
-            unitOfWork.Recipes.Update(recipe);
             await unitOfWork.SaveChangesAsync(ct);
+
+            httpContext.Response.Headers.ETag = $"\"{Convert.ToBase64String(recipe.RowVersion)}\"";
 
             return Results.Ok(new
             {
                 message = "Cập nhật công thức thành công.",
                 id = recipe.Id,
-                slug = recipe.Slug
+                slug = recipe.Slug,
+                rowVersion = Convert.ToBase64String(recipe.RowVersion)
             });
         })
         .RequireAuthorization("AuthorPolicy")
@@ -548,37 +607,9 @@ public static class RecipeEndpoints
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
-        .ProducesProblem(StatusCodes.Status404NotFound);
-
-        // FR-RCP-007: keep the recipe and image files for the retention period.
-        group.MapDelete("/{id:guid}", async (
-            Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            IUnitOfWork unitOfWork,
-            CancellationToken ct) =>
-        {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException("Only the recipe owner or an Admin may delete it.");
-
-            recipe.Archive();
-            recipe.IsDeleted = true;
-            recipe.UpdatedAt = DateTime.UtcNow;
-            await unitOfWork.SaveChangesAsync(ct);
-
-            return Results.NoContent();
-        })
-        .WithName("DeleteRecipe")
-        .WithSummary("Soft delete a recipe and retain its images for cleanup")
-        .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status204NoContent)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status403Forbidden)
-        .ProducesProblem(StatusCodes.Status404NotFound);
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         return app;
     }
@@ -614,6 +645,42 @@ public static class RecipeEndpoints
             ? $"recipe-{Guid.NewGuid():N}"
             : slug;
     }
+
+    private static async Task<string> GenerateUniqueSlugAsync(
+        string baseSlug,
+        IRecipeRepository recipes,
+        CancellationToken ct)
+    {
+        var slug = baseSlug;
+        var suffix = 2;
+        while (await recipes.ExistsBySlugAsync(slug, ct))
+        {
+            slug = $"{baseSlug}-{suffix++}";
+        }
+
+        return slug;
+    }
+
+    private static byte[]? ParseExpectedRowVersion(string? requestVersion, string? ifMatch)
+    {
+        var value = !string.IsNullOrWhiteSpace(requestVersion)
+            ? requestVersion.Trim()
+            : ifMatch?.Trim().Trim('"');
+
+        if (string.IsNullOrWhiteSpace(value) || value == "*")
+        {
+            return null;
+        }
+
+        try
+        {
+            return Convert.FromBase64String(value);
+        }
+        catch (FormatException)
+        {
+            throw new ValidationException("RowVersion", "RowVersion/If-Match không đúng định dạng Base64.");
+        }
+    }
 }
 
 public sealed record CreateRecipeRequest(
@@ -635,5 +702,6 @@ public sealed record UpdateRecipeRequest(
     int CookTime,
     int Servings,
     RecipeDifficulty Difficulty,
-    Guid CategoryId
+    Guid CategoryId,
+    string? RowVersion = null
 );
