@@ -3,6 +3,7 @@ namespace CulinaryBlog.Application.DTOs;
 public sealed class RecipeDetailDto
 {
     public Guid Id { get; init; }
+    public string RowVersion { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Slug { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
