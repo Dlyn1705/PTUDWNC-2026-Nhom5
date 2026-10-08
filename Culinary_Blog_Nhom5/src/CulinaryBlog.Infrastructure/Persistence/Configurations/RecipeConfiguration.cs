@@ -21,7 +21,9 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
             .IsRequired();
 
         builder.HasIndex(r => r.Slug)
-            .IsUnique();
+            .IsUnique()
+            .HasDatabaseName("IX_Recipes_Slug")
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(r => r.Description)
             .HasColumnType("text")

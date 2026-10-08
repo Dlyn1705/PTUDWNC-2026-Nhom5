@@ -83,7 +83,7 @@ public class UnitOfWork : IUnitOfWork
                 SqlState: PostgresErrorCodes.UniqueViolation
             } postgresException
             && postgresException.ConstraintName is
-                "UX_Categories_Name_Active" or "UX_Categories_Slug_Active")
+                "UX_Categories_Name_Active" or "UX_Categories_Slug_Active" or "IX_Recipes_Slug")
         {
             throw postgresException.ConstraintName switch
             {
@@ -91,8 +91,12 @@ public class UnitOfWork : IUnitOfWork
                     "Tên danh mục đã tồn tại.",
                     "CATEGORY_NAME_ALREADY_EXISTS"),
                 _ => new ConflictException(
-                    "Slug danh mục đã tồn tại. Vui lòng thử lại.",
-                    "CATEGORY_SLUG_ALREADY_EXISTS")
+                    postgresException.ConstraintName == "IX_Recipes_Slug"
+                        ? "Slug công thức đã tồn tại. Vui lòng thử lại."
+                        : "Slug danh mục đã tồn tại. Vui lòng thử lại.",
+                    postgresException.ConstraintName == "IX_Recipes_Slug"
+                        ? "RECIPE_SLUG_ALREADY_EXISTS"
+                        : "CATEGORY_SLUG_ALREADY_EXISTS")
             };
         }
     }

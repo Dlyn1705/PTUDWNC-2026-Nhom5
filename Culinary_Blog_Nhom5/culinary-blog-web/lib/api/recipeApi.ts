@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import { RecipeDto, PagedResult } from "@/types/recipe.types";
+import { RecipeDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
 import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
@@ -28,8 +28,8 @@ export const recipeApi = {
         if (Array.isArray(response.data)) {
           return response.data;
         }
-        if ("items" in response.data && Array.isArray(response.data.items)) {
-          return response.data.items;
+        if ("data" in response.data && Array.isArray(response.data.data)) {
+          return response.data.data;
         }
       }
       return mockRecipes.filter((r) => r.status === 1);
@@ -54,6 +54,31 @@ export const recipeApi = {
     }
     const found = mockRecipes.find((r) => r.slug.toLowerCase() === slug.toLowerCase());
     return found || null;
+  },
+
+  async getById(id: string): Promise<RecipeDto> {
+    const response = await axiosClient.get<RecipeDto>(`/api/v1/recipes/${id}`);
+    return response.data;
+  },
+
+  async create(payload: Omit<RecipeWritePayload, "rowVersion">): Promise<RecipeMutationResponse> {
+    const response = await axiosClient.post<RecipeMutationResponse>(
+      "/api/v1/recipes/",
+      payload,
+    );
+    return response.data;
+  },
+
+  async update(id: string, payload: RecipeWritePayload): Promise<RecipeMutationResponse> {
+    const response = await axiosClient.put<RecipeMutationResponse>(
+      `/api/v1/recipes/${id}`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await axiosClient.delete(`/api/v1/recipes/${id}`);
   },
 
   async getByCategory(categoryId: string): Promise<RecipeDto[]> {

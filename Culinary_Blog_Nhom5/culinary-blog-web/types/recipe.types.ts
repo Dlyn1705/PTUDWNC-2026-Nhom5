@@ -88,6 +88,7 @@ export interface RecipeCardDto {
   categorySlug?: string;
   author: AuthorDto;
   images: RecipeImageDto[];
+  rowVersion?: string;
 }
 
 export interface RecipeDto extends RecipeCardDto {
@@ -97,13 +98,34 @@ export interface RecipeDto extends RecipeCardDto {
 }
 
 export interface PagedResult<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages?: number;
-  hasNextPage?: boolean;
-  hasPreviousPage?: boolean;
+  data: T[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface RecipeMutationResponse {
+  message: string;
+  id: string;
+  slug: string;
+  rowVersion: string;
+}
+
+export interface RecipeWritePayload {
+  title: string;
+  description?: string;
+  instructions?: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  difficulty: DifficultyValue;
+  categoryId: string;
+  rowVersion?: string;
 }
 
 export interface SearchRecipeSummaryDto {

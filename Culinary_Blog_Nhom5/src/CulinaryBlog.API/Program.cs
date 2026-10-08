@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Hangfire;
@@ -188,6 +189,12 @@ if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
         userManager,
         roleManager);
 }
+else if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await context.Database.MigrateAsync();
+}
 
 
 // ============================================================
@@ -246,6 +253,12 @@ recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),
     Cron.MinuteInterval(5),
+    new RecurringJobOptions());
+
+recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
+    "purge-deleted-recipes",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Weekly,
     new RecurringJobOptions());
 
 
