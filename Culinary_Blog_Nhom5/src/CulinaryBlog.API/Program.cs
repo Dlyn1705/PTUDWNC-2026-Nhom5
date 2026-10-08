@@ -278,6 +278,13 @@ if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
         builder.Configuration);
 }
 
+else if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await context.Database.MigrateAsync();
+}
+
 if (builder.Configuration.GetValue<bool>("AdminSeed:OnStartup"))
 {
     using var scope = app.Services.CreateScope();
@@ -347,6 +354,12 @@ recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),
     Cron.MinuteInterval(5),
+    new RecurringJobOptions());
+
+recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
+    "purge-deleted-recipes",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Weekly,
     new RecurringJobOptions());
 
 

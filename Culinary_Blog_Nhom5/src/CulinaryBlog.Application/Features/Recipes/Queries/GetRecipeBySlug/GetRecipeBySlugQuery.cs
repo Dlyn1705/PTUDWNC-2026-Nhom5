@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
@@ -12,10 +13,14 @@ public sealed class GetRecipeBySlugQueryHandler
     : IRequestHandler<GetRecipeBySlugQuery, RecipeDetailDto>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetRecipeBySlugQueryHandler(IUnitOfWork unitOfWork)
+    public GetRecipeBySlugQueryHandler(
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
     }
 
     public async Task<RecipeDetailDto> Handle(
@@ -26,7 +31,15 @@ public sealed class GetRecipeBySlugQueryHandler
             request.Slug,
             cancellationToken);
 
-        if (recipe is null || recipe.Status != RecipeStatus.Published || recipe.IsDeleted)
+        if (recipe is null || recipe.IsDeleted)
+        {
+            throw new NotFoundException("Recipe", request.Slug);
+        }
+
+        var canViewUnpublished = _currentUser.IsAdmin
+            || string.Equals(recipe.AuthorId, _currentUser.UserId, StringComparison.Ordinal);
+
+        if (recipe.Status != RecipeStatus.Published && !canViewUnpublished)
         {
             throw new NotFoundException("Recipe", request.Slug);
         }
@@ -34,6 +47,7 @@ public sealed class GetRecipeBySlugQueryHandler
         return new RecipeDetailDto
         {
             Id = recipe.Id,
+            RowVersion = Convert.ToBase64String(recipe.RowVersion),
             Title = recipe.Title,
             Slug = recipe.Slug,
             CreatedAt = recipe.CreatedAt,
