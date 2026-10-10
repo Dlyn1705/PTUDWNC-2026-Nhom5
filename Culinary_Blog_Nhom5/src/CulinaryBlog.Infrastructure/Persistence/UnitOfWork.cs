@@ -39,20 +39,24 @@ public class UnitOfWork : IUnitOfWork
         Domain.Entities.RecipeImage? replacementPrimary,
         CancellationToken ct = default)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
-            image.IsPrimary = false;
-            image.IsDeleted = true;
-            await SaveChangesAsync(ct);
-
-            if (replacementPrimary is not null)
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                replacementPrimary.IsPrimary = true;
+                await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+                image.IsPrimary = false;
+                image.IsDeleted = true;
                 await SaveChangesAsync(ct);
-            }
 
-            await transaction.CommitAsync(ct);
+                if (replacementPrimary is not null)
+                {
+                    replacementPrimary.IsPrimary = true;
+                    await SaveChangesAsync(ct);
+                }
+
+                await transaction.CommitAsync(ct);
+            });
         }
         catch (DbUpdateException)
         {

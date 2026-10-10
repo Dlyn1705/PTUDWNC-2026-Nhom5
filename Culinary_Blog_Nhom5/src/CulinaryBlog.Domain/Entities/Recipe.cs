@@ -12,7 +12,7 @@ public class Recipe : BaseEntity
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Instructions { get; set; } = string.Empty;
+    public string? Instructions { get; set; }
     public int PrepTime { get; set; }
     public int CookTime { get; set; }
     public int Servings { get; set; }
@@ -44,7 +44,7 @@ public class Recipe : BaseEntity
         string title,
         string slug,
         string description,
-        string instructions,
+        string? instructions,
         int prepTime,
         int cookTime,
         int servings,
@@ -71,7 +71,7 @@ public class Recipe : BaseEntity
     public void Update(
         string title,
         string description,
-        string instructions,
+        string? instructions,
         int prepTime,
         int cookTime,
         int servings,

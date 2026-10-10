@@ -8,7 +8,7 @@ public sealed class RecipeDetailDto
     public string Slug { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
     public string Description { get; init; } = string.Empty;
-    public string Instructions { get; init; } = string.Empty;
+    public string? Instructions { get; init; }
     public int PrepTimeMinutes { get; init; }
     public int CookTimeMinutes { get; init; }
     public int Servings { get; init; }
