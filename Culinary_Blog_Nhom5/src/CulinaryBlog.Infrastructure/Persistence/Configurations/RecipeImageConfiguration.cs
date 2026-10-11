@@ -31,6 +31,11 @@ public class RecipeImageConfiguration : IEntityTypeConfiguration<RecipeImage>
         builder.Property(img => img.OrderIndex)
             .HasDefaultValue(0);
 
+        builder.Property(img => img.ProcessingStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(CulinaryBlog.Domain.Enums.ImageProcessingStatus.Pending);
+
         builder.Property(r => r.RowVersion)
             .IsConcurrencyToken()
             .ValueGeneratedNever()

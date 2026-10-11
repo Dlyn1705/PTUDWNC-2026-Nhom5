@@ -7,9 +7,11 @@ using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
+using Hangfire;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
@@ -22,6 +24,8 @@ public sealed class AuthService : IAuthService
     private readonly ApplicationDbContext _dbContext;
     private readonly IJwtService _jwtService;
     private readonly IConfiguration _configuration;
+    private readonly IBackgroundJobClient _backgroundJobs;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
@@ -29,7 +33,9 @@ public sealed class AuthService : IAuthService
         RoleManager<IdentityRole> roleManager,
         ApplicationDbContext dbContext,
         IJwtService jwtService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IBackgroundJobClient backgroundJobs,
+        ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -37,6 +43,8 @@ public sealed class AuthService : IAuthService
         _dbContext = dbContext;
         _jwtService = jwtService;
         _configuration = configuration;
+        _backgroundJobs = backgroundJobs;
+        _logger = logger;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
@@ -70,6 +78,15 @@ public sealed class AuthService : IAuthService
         if (!roleAssignment.Succeeded)
         {
             throw new DbUpdateException("Không thể gán vai trò cho tài khoản mới.");
+        }
+
+        try
+        {
+            _backgroundJobs.Enqueue<WelcomeEmailJob>(job => job.ExecuteAsync(normalizedEmail, user.DisplayName));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Could not enqueue the welcome email for {Email}", normalizedEmail);
         }
 
         return await CreateAuthResponseAsync(user, cancellationToken);

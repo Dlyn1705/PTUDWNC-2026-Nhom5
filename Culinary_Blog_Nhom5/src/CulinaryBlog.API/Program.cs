@@ -13,6 +13,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
+using Asp.Versioning;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -37,6 +40,15 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+var hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured for Hangfire.");
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireConnectionString)));
+builder.Services.AddHangfireServer();
 
 
 // ============================================================
@@ -67,9 +79,11 @@ builder.Services.AddCors(options =>
 // ============================================================
 // 4. Authentication (JWT Bearer) & Authorization
 // ============================================================
-var jwtKey =
-    builder.Configuration["Jwt:Key"]
-    ?? "CulinaryBlog_SuperSecretKey_For_Development_Must_Be_Long_Enough_2026";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException("Jwt:Key must be configured with at least 32 UTF-8 bytes (use a secret store or Jwt__Key environment variable).");
+}
 
 var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
@@ -123,6 +137,16 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -133,9 +157,16 @@ builder.Services.AddRateLimiter(options =>
         }));
 });
 
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+});
+
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("v1");
 
 
 // ============================================================
@@ -205,6 +236,10 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 app.UseRateLimiter();
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new AdminDashboardAuthorizationFilter()]
+});
 
 
 // ============================================================
@@ -215,6 +250,7 @@ app.MapCategoryEndpoints();
 app.MapAuthEndpoints();
 
 app.MapRecipeEndpoints();
+app.MapRecipeManagementEndpoints();
 
 app.MapHealthEndpoints();
 

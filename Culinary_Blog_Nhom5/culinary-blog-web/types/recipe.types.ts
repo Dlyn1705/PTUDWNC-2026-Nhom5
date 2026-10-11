@@ -6,6 +6,86 @@ export const Difficulty = {
 } as const;
 export type DifficultyValue = (typeof Difficulty)[keyof typeof Difficulty];
 
+export interface CreateRecipeIngredientRequest {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+  orderIndex?: number;
+}
+
+export interface CreateRecipeStepRequest {
+  description: string;
+  title?: string | null;
+  timerMinutes?: number | null;
+  imageUrl?: string | null;
+}
+
+export interface RecipeNutritionInput {
+  calories?: number | null;
+  protein?: number | null;
+  carbohydrates?: number | null;
+  fat?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+}
+
+export interface CreateRecipeRequest {
+  title: string;
+  description?: string | null;
+  instructions?: string | null;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  difficulty: DifficultyValue;
+  categoryId: string;
+  ingredients?: CreateRecipeIngredientRequest[];
+  steps?: CreateRecipeStepRequest[];
+  nutrition?: RecipeNutritionInput | null;
+}
+
+export type UpdateRecipeRequest = Omit<CreateRecipeRequest, "ingredients" | "steps"> & { rowVersion: string };
+
+export interface RecipeMutationResponse {
+  id: string;
+  slug: string;
+  message?: string;
+}
+
+export interface ManagedRecipeDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: RecipeStatusValue;
+  updatedAt: string;
+  category: { id: string; name: string } | null;
+  author: { id: string; displayName: string } | null;
+  primaryImageUrl?: string | null;
+}
+
+export interface ManagedRecipeDetailsDto extends UpdateRecipeRequest {
+  id: string;
+  slug: string;
+  status: RecipeStatusValue;
+  ingredients: RecipeIngredientDto[];
+  steps: RecipeStepDto[];
+  images: RecipeImageUploadDto[];
+  nutrition?: RecipeNutritionDto | null;
+}
+
+export interface RecipeImageUploadDto {
+  id: string;
+  recipeId: string;
+  originalUrl: string;
+  mediumUrl: string | null;
+  thumbnailUrl: string | null;
+  altText: string | null;
+  isPrimary: boolean;
+  orderIndex: number;
+  processingStatus: "Pending" | "Processing" | "Completed" | "Failed";
+}
+
 export const RecipeStatus = {
   Draft: 0,
   Published: 1,

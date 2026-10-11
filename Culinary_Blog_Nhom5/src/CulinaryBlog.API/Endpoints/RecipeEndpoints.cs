@@ -27,7 +27,7 @@ public static class RecipeEndpoints
 {
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/recipes")
+        var group = app.MapApiV1Group("recipes")
             .WithTags("Recipes");
 
         // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
@@ -78,7 +78,24 @@ public static class RecipeEndpoints
                 status: status,
                 ct: ct);
 
-            return Results.Ok(new { items, totalCount, page = p, pageSize = ps });
+            return Results.Ok(new
+            {
+                items = items.Select(recipe => new
+                {
+                    recipe.Id,
+                    recipe.Title,
+                    recipe.Slug,
+                    recipe.Description,
+                    recipe.Status,
+                    recipe.UpdatedAt,
+                    category = recipe.Category is null ? null : new { recipe.Category.Id, recipe.Category.Name },
+                    author = recipe.Author is null ? null : new { recipe.Author.Id, recipe.Author.DisplayName },
+                    primaryImageUrl = recipe.Images.FirstOrDefault(image => image.IsPrimary)?.OriginalUrl
+                }),
+                totalCount,
+                page = p,
+                pageSize = ps
+            });
         })
         .WithName("GetManagedRecipes")
         .WithSummary("Lấy danh sách công thức của tác giả hoặc toàn bộ công thức cho Admin")
@@ -435,6 +452,15 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Recipe", id);
             }
 
+            if (string.IsNullOrWhiteSpace(request.RowVersion))
+                throw new ValidationException("RowVersion", "Tải lại công thức trước khi lưu thay đổi.");
+
+            byte[] clientRowVersion;
+            try { clientRowVersion = Convert.FromBase64String(request.RowVersion); }
+            catch (FormatException) { throw new ValidationException("RowVersion", "Phiên bản công thức không hợp lệ."); }
+            if (!clientRowVersion.SequenceEqual(recipe.RowVersion))
+                throw new ConflictException("Công thức đã thay đổi. Hãy tải lại trước khi lưu.", "RECIPE_CONCURRENCY_CONFLICT");
+
             bool isAdmin = httpContext.User.IsInRole("Admin");
             if (!isAdmin && !string.Equals(recipe.AuthorId, currentUserId, StringComparison.Ordinal))
             {
@@ -446,9 +472,9 @@ public static class RecipeEndpoints
                 throw new ValidationException("Title", "Tên công thức không được để trống.");
             }
 
-            if (request.Title.Trim().Length < 3)
+            if (request.Title.Trim().Length < 3 || request.Title.Trim().Length > 200)
             {
-                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
+                throw new ValidationException("Title", "Tên công thức phải có từ 3 đến 200 ký tự.");
             }
 
             if (request.Servings <= 0)
@@ -466,6 +492,16 @@ public static class RecipeEndpoints
                 throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
+            if (!Enum.IsDefined(request.Difficulty))
+            {
+                throw new ValidationException("Difficulty", "Độ khó không hợp lệ.");
+            }
+
+            if (request.Nutrition is { } nutrition &&
+                new[] { nutrition.Calories, nutrition.Protein, nutrition.Carbohydrates, nutrition.Fat, nutrition.Fiber, nutrition.Sodium }
+                    .Any(value => value.HasValue && (value.Value < 0 || value.Value > 999_999.99m)))
+                throw new ValidationException("Nutrition", "Các chỉ số dinh dưỡng phải từ 0 đến 999999.99.");
+
             var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
             if (category is null)
             {
@@ -481,6 +517,10 @@ public static class RecipeEndpoints
                 request.Servings,
                 request.Difficulty,
                 request.CategoryId);
+
+            if (request.Nutrition is { } updatedNutrition)
+                recipe.SetNutrition(updatedNutrition.Calories, updatedNutrition.Protein, updatedNutrition.Carbohydrates,
+                    updatedNutrition.Fat, updatedNutrition.Fiber, updatedNutrition.Sodium);
 
             unitOfWork.Recipes.Update(recipe);
             await unitOfWork.SaveChangesAsync(ct);
@@ -579,5 +619,7 @@ public sealed record UpdateRecipeRequest(
     int CookTime,
     int Servings,
     RecipeDifficulty Difficulty,
-    Guid CategoryId
+    Guid CategoryId,
+    CreateRecipeNutritionRequest? Nutrition = null,
+    string? RowVersion = null
 );

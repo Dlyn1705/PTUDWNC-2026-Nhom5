@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
-import axiosClient from "@/lib/api/axiosClient";
-import { uploadRecipeImage } from "@/lib/api/fileApi";
+import { recipeApi } from "@/lib/api/recipeApi";
+import type { CreateRecipeRequest } from "@/types/recipe.types";
 
 type Ingredient = {
   name: string;
@@ -17,11 +17,6 @@ type Ingredient = {
 
 type Step = {
   description: string;
-};
-
-type CreatedRecipeResponse = {
-  id: string;
-  slug: string;
 };
 
 export default function NewRecipePage() {
@@ -187,11 +182,11 @@ export default function NewRecipePage() {
     setFormError("");
     try {
       if (createdRecipeId) {
-        if (imageFile) await uploadRecipeImage(createdRecipeId, imageFile, undefined, undefined, title.trim());
+        if (imageFile) await recipeApi.uploadImage(createdRecipeId, imageFile, title.trim());
         router.push(`/dashboard/recipes/${createdRecipeId}/edit`);
         return;
       }
-      const payload = {
+      const payload: CreateRecipeRequest = {
         title: title.trim(),
         description: description.trim() || null,
         instructions: null,
@@ -223,10 +218,9 @@ export default function NewRecipePage() {
         } : null,
       };
 
-      const response = await axiosClient.post<CreatedRecipeResponse | { data: CreatedRecipeResponse }>("/api/v1/recipes", payload);
-      const created = "data" in response.data ? response.data.data : response.data;
+      const created = await recipeApi.create(payload);
       setCreatedRecipeId(created.id);
-      if (imageFile) await uploadRecipeImage(created.id, imageFile, undefined, undefined, title.trim());
+      if (imageFile) await recipeApi.uploadImage(created.id, imageFile, title.trim());
       if (status === "continue") {
         router.push(`/dashboard/recipes/${created.id}/edit`);
       }

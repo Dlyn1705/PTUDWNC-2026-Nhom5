@@ -4,6 +4,15 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface ApiError {
+  status?: number;
+  title?: string;
+  detail?: string;
+  message?: string;
+  code?: string;
+  errors?: Record<string, string[]>;
+}
+
 export interface PaginationMeta {
   page: number;
   pageSize: number;

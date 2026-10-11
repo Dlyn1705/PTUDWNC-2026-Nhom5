@@ -14,3 +14,11 @@ public enum RecipeStatus : short
     Published = 1,
     Archived = 2
 }
+
+public enum ImageProcessingStatus : short
+{
+    Pending = 0,
+    Processing = 1,
+    Completed = 2,
+    Failed = 3
+}

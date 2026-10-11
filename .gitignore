@@ -4,6 +4,7 @@
 # Build directories
 [Bb]in/
 [Oo]bj/
+[.]data-protection-keys/
 [Ll]og/
 [Ll]ogs/
 [Bb]uild/

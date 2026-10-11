@@ -281,6 +281,13 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<CulinaryBlog.Domain.Enums.ImageProcessingStatus>("ProcessingStatus")
+                        .HasConversion<string>()
+                        .HasMaxLength(20)
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue(CulinaryBlog.Domain.Enums.ImageProcessingStatus.Pending);
+
                     b.Property<Guid>("RecipeId")
                         .HasColumnType("uuid");
 

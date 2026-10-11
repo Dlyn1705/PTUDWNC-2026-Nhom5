@@ -6,7 +6,7 @@ services:
     container_name: culinary_postgres
     restart: always
     environment:
-      POSTGRES_DB: culinary_blog_db
+      POSTGRES_DB: AmThuc
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: Password123!
     ports:
@@ -23,6 +23,14 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: culinary_mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   minio:
     image: minio/minio:latest

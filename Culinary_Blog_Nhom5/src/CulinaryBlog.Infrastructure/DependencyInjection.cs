@@ -26,8 +26,6 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' was not found.");
         
-        Console.WriteLine($"[DB] ConnectionString: {connectionString}");
-
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
@@ -73,6 +71,11 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddScoped<WelcomeEmailJob>();
+        services.AddScoped<ImageResizeJob>();
+        services.AddScoped<RecipeImageDeletionJob>();
+        services.AddScoped<RecipeImageDeletionRecoveryJob>();
 
         return services;
     }

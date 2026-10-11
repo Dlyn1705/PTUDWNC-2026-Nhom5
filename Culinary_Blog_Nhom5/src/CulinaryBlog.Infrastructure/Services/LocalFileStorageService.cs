@@ -22,7 +22,10 @@ public class LocalFileStorageService : IFileStorageService
         string uniqueFileName = $"{Guid.NewGuid()}{extension}";
         
         string webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        string targetDirectory = Path.Combine(webRoot, "uploads", folder);
+        string uploadsRoot = Path.GetFullPath(Path.Combine(webRoot, "uploads")) + Path.DirectorySeparatorChar;
+        string targetDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, folder));
+        if (!targetDirectory.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Upload path must stay inside the uploads directory.");
 
         if (!Directory.Exists(targetDirectory))
         {
@@ -43,8 +46,11 @@ public class LocalFileStorageService : IFileStorageService
         if (string.IsNullOrWhiteSpace(fileUrl)) return Task.CompletedTask;
 
         string webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        string relativePath = fileUrl.TrimStart('/');
-        string fullPath = Path.Combine(webRoot, relativePath);
+        string uploadsRoot = Path.GetFullPath(Path.Combine(webRoot, "uploads")) + Path.DirectorySeparatorChar;
+        string relativePath = fileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        string fullPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
+        if (!fullPath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Delete path must stay inside the uploads directory.");
 
         if (File.Exists(fullPath))
         {

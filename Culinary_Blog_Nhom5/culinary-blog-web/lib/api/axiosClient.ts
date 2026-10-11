@@ -19,6 +19,9 @@ export const axiosClient = axios.create({
 // Request Interceptor: Attach bearer token if available
 axiosClient.interceptors.request.use(
   (config) => {
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      config.headers.delete("Content-Type");
+    }
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("accessToken");
       if (token) {
