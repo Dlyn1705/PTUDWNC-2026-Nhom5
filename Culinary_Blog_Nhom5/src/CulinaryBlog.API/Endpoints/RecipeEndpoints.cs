@@ -30,7 +30,7 @@ public static class RecipeEndpoints
 {
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/recipes")
+        var group = app.MapGroup("/recipes")
             .WithTags("Recipes");
 
         group.MapPost("/{recipeId:guid}/images", async (

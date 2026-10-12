@@ -2,6 +2,31 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = $PSScriptRoot
 $frontendRoot = Join-Path $projectRoot "culinary-blog-web"
+$localEnvPath = Join-Path (Split-Path $projectRoot -Parent) ".env"
+
+if (Test-Path -LiteralPath $localEnvPath) {
+    foreach ($line in Get-Content -LiteralPath $localEnvPath) {
+        if ($line -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { continue }
+        $name = $Matches[1]
+        $value = $Matches[2].Trim().Trim('"', "'")
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+            [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        }
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__DefaultConnection)) {
+    if ([string]::IsNullOrWhiteSpace($env:POSTGRES_PASSWORD)) {
+        throw "Set POSTGRES_PASSWORD in the repository .env or set ConnectionStrings__DefaultConnection."
+    }
+    $env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5433;Database=culinary_blog_db;Username=postgres;Password=$($env:POSTGRES_PASSWORD)"
+}
+if ([string]::IsNullOrWhiteSpace($env:Jwt__Key)) {
+    $env:Jwt__Key = $env:JWT_KEY
+}
+if ([string]::IsNullOrWhiteSpace($env:Jwt__Key) -or [System.Text.Encoding]::UTF8.GetByteCount($env:Jwt__Key) -lt 32) {
+    throw "Set JWT_KEY (at least 32 UTF-8 bytes) in the repository .env or set Jwt__Key."
+}
 
 function Start-ConsoleProcess {
     param(
