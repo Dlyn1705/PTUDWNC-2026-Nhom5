@@ -25,6 +25,7 @@
 .env.local
 .env.*.local
 .data-protection-keys/
+.tools/
 
 # OS generated files
 .DS_Store

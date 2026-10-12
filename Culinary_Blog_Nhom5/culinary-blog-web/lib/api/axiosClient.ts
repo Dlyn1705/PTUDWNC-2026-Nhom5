@@ -1,6 +1,7 @@
 import axios from "axios";
 import { installHttpLogging } from "./httpLogging";
 import { getSession } from "next-auth/react";
+import { installSessionAuth } from "./sessionAuth";
 
 const API_URL =
   typeof window === "undefined"
@@ -18,27 +19,9 @@ export const axiosClient = axios.create({
   timeout: 10000,
 });
 
-// Request Interceptor: Attach bearer token if available
-axiosClient.interceptors.request.use(
-  async (config) => {
-    if (typeof window !== "undefined") {
-      const session = await getSession();
-      if (session?.user.accessToken) {
-        config.headers.Authorization = `Bearer ${session.user.accessToken}`;
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-// Response Interceptor
-axiosClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    return Promise.reject(error);
-  },
-);
+if (typeof window !== "undefined") {
+  installSessionAuth(axiosClient, () => getSession({ broadcast: false }));
+}
 
 installHttpLogging(axiosClient);
 

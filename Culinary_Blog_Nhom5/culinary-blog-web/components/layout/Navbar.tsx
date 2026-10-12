@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (prevPathname !== pathname) {
@@ -109,16 +111,28 @@ export default function Navbar() {
             </Link>
           </Button>
 
-          <Button
-            asChild
-            size="sm"
-            className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
-          >
-            <Link href="/register">
-              <UserPlus className="size-3.5" />
-              <span>Đăng ký</span>
-            </Link>
-          </Button>
+          {status === "authenticated" && !session?.error ? (
+            <>
+              <span className="hidden max-w-40 truncate text-sm text-muted-foreground lg:inline">
+                {session.user?.name ?? session.user?.email}
+              </span>
+              <Button type="button" variant="outline" size="sm" className="h-9 rounded-full px-4" onClick={() => void signOut({ redirectTo: "/" })}>
+                Đăng xuất
+              </Button>
+            </>
+          ) : status === "loading" ? null : (
+            <>
+              <Button asChild variant="outline" size="sm" className="h-9 rounded-full px-4">
+                <Link href="/login">Đăng nhập</Link>
+              </Button>
+              <Button asChild size="sm" className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex">
+                <Link href="/register">
+                  <UserPlus className="size-3.5" />
+                  <span>Đăng ký</span>
+                </Link>
+              </Button>
+            </>
+          )}
 
           {/* Mobile Menu Hamburger Toggle */}
           <Button
@@ -205,12 +219,23 @@ export default function Navbar() {
                   <span>Admin Dashboard</span>
                 </Link>
 
-                <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
-                  <Link href="/register">
-                    <UserPlus className="size-4" />
-                    <span>Đăng ký tài khoản</span>
-                  </Link>
-                </Button>
+                {status === "authenticated" && !session?.error ? (
+                  <Button type="button" variant="outline" className="w-full rounded-full h-10 gap-2 mt-1" onClick={() => void signOut({ redirectTo: "/" })}>
+                    Đăng xuất
+                  </Button>
+                ) : status === "loading" ? null : (
+                  <>
+                    <Button asChild variant="outline" className="w-full rounded-full h-10 mt-1">
+                      <Link href="/login">Đăng nhập</Link>
+                    </Button>
+                    <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
+                      <Link href="/register">
+                        <UserPlus className="size-4" />
+                        <span>Đăng ký tài khoản</span>
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </div>

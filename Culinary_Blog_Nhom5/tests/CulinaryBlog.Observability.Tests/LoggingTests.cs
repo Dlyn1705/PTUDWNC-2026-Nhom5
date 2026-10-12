@@ -65,6 +65,7 @@ public sealed class LoggingTests
     [InlineData("/throw/422", 422)]
     [InlineData("/throw/423", 423)]
     [InlineData("/limited", 429)]
+    [InlineData("/throw/400", 400)]
     [InlineData("/throw/500", 500)]
     public async Task Http_summary_covers_success_rejections_and_errors(string path, int status)
     {
@@ -344,6 +345,7 @@ internal sealed class TestHost(WebApplication app, Logger logger, EventSink sink
         {
             throw status switch
             {
+                400 => new BadRequestException("Invalid request"),
                 409 => new ConflictException("Conflict"),
                 422 => new ValidationException("field", "Invalid"),
                 423 => new LockedException(),

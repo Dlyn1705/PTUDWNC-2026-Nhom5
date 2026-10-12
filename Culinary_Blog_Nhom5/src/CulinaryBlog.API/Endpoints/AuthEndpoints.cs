@@ -7,8 +7,10 @@ using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
+using CulinaryBlog.Domain.Exceptions;
 using MediatR;
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,6 +25,12 @@ public static class AuthEndpoints
         var group = app.MapGroup("/api/v1/auth")
             .WithTags("Authentication")
             .RequireRateLimiting("auth");
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            context.HttpContext.Response.Headers.CacheControl = "no-store";
+            context.HttpContext.Response.Headers.Pragma = "no-cache";
+            return await next(context);
+        });
 
         group.MapGet("/ping", () => Results.Ok(new { message = "Auth module endpoint group is active." }))
             .WithName("AuthPing")
@@ -73,15 +81,11 @@ public static class AuthEndpoints
 
         group.MapPost("/refresh", async (HttpContext context, ISender sender, CancellationToken cancellationToken) =>
         {
-            var refreshToken = context.Request.Cookies[RefreshCookieName];
-            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
-            {
-                var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
-                refreshToken = body?.RefreshToken;
-            }
+            var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
+                ClearRefreshCookie(context);
                 throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
             }
 
@@ -96,40 +100,55 @@ public static class AuthEndpoints
                 ClearRefreshCookie(context);
                 throw;
             }
+            catch (LockedException)
+            {
+                ClearRefreshCookie(context);
+                throw;
+            }
         })
             .WithName("RefreshAuthToken")
             .WithSummary("Làm mới access token và xoay refresh token")
             .Produces<AuthSessionResponseDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status423Locked)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
-        group.MapPost("/logout", async (
-            HttpContext context,
-            IAuthService authService,
-            CancellationToken cancellationToken) =>
+        // Refresh possession authorizes revocation even when the access token has expired.
+        group.MapPost("/logout", async (HttpContext context, IAuthService authService, CancellationToken cancellationToken) =>
         {
-            var refreshToken = context.Request.Cookies[RefreshCookieName];
-            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+            var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+                await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+            ClearRefreshCookie(context);
+            return Results.NoContent();
+        })
+            .WithName("Logout")
+            .WithSummary("Thu hồi refresh token và các token kế tiếp của phiên đăng nhập")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        return app;
+    }
+
+    private static async Task<string?> ReadRefreshTokenAsync(HttpContext context, CancellationToken cancellationToken)
+    {
+        var refreshToken = context.Request.Cookies[RefreshCookieName];
+        if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+        {
+            try
             {
                 var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
                 refreshToken = body?.RefreshToken;
             }
-
-            if (!string.IsNullOrWhiteSpace(refreshToken))
+            catch (JsonException)
             {
-                await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+                throw new BadRequestException("Refresh token payload must be valid JSON.");
             }
-
-            ClearRefreshCookie(context);
-            return Results.NoContent();
-        })
-            .RequireAuthorization()
-            .WithName("Logout")
-            .WithSummary("Đăng xuất và thu hồi refresh token")
-            .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
-
-        return app;
+        }
+        if (refreshToken?.Length > 256)
+            throw new ValidationException("RefreshToken", "Refresh token must not exceed 256 characters.");
+        return refreshToken;
     }
 
     private static void SetRefreshCookie(HttpContext context, AuthResponseDto response)

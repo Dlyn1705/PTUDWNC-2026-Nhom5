@@ -88,6 +88,7 @@ public static class DependencyInjection
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();

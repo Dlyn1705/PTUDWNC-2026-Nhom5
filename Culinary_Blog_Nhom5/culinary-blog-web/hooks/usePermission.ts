@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 
 export function usePermission() {
   const { data: session, status } = useSession();
-  const user = session?.user;
+  const user = session?.error ? undefined : session?.user;
   const isAdmin = user?.role === "Admin";
   const isAuthor = user?.role === "Author";
 
@@ -17,7 +17,7 @@ export function usePermission() {
     isAdmin,
     isAuthor,
     canModifyRecipe,
-    isAuthenticated: status === "authenticated",
+    isAuthenticated: status === "authenticated" && !session?.error,
     isLoading: status === "loading",
   };
 }

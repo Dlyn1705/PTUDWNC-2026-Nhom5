@@ -2,6 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Authentication requires Redis (`AUTH_REDIS_URL`, default `redis://localhost:6379`) and a stable `AUTH_SECRET` shared by all Next.js instances. See [FR-AUTH-004 setup, migration and tests](../docx/Spec/Guide_FR-AUTH-004-Refresh-Token-Rotation.md). Run `npm run test:auth` for auth unit tests and `npm run test:auth:e2e` after a production build for the two-process HTTP integration test.
+
 First, run the development server:
 
 ```bash

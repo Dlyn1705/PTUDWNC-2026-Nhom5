@@ -19,17 +19,19 @@ public class JwtService : IJwtService
     private readonly string _issuer;
     private readonly string _audience;
     private readonly int _accessTokenMinutes;
+    private readonly TimeProvider _timeProvider;
 
-    public JwtService(IOptions<JwtSettings> options)
+    public JwtService(IOptions<JwtSettings> options, TimeProvider timeProvider)
     {
         var settings = options.Value;
         _secretKey = settings.Key;
         _issuer = settings.Issuer;
         _audience = settings.Audience;
         _accessTokenMinutes = settings.AccessTokenDurationInMinutes;
+        _timeProvider = timeProvider;
     }
 
-    public (string Token, int ExpiresInSeconds) GenerateAccessToken(ApplicationUser user, IList<string> roles)
+    public (string Token, DateTime ExpiresAt) GenerateAccessToken(ApplicationUser user, IList<string> roles)
     {
         var claims = new List<Claim>
         {
@@ -51,7 +53,9 @@ public class JwtService : IJwtService
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.AddMinutes(_accessTokenMinutes);
+        // JWT timestamps have second precision. Return the exact expiry encoded in the JWT.
+        var expires = DateTimeOffset.FromUnixTimeSeconds(
+            _timeProvider.GetUtcNow().AddMinutes(_accessTokenMinutes).ToUnixTimeSeconds()).UtcDateTime;
 
         var token = new JwtSecurityToken(
             issuer: _issuer,
@@ -62,7 +66,7 @@ public class JwtService : IJwtService
         );
 
         string tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-        return (tokenString, _accessTokenMinutes * 60);
+        return (tokenString, expires);
     }
 
     public (string RawToken, string TokenHash) GenerateRefreshToken()

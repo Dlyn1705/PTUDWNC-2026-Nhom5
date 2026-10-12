@@ -11,7 +11,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session) redirect("/login?callbackUrl=/dashboard");
+  if (!session || session.error === "RefreshTokenError") redirect("/login?callbackUrl=/dashboard");
+  if (session.error) {
+    return <p role="alert" className="p-8 text-center">Không thể kiểm tra phiên đăng nhập. Vui lòng tải lại trang sau ít phút.</p>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
