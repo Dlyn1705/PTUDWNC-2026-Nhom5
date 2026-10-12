@@ -50,6 +50,7 @@ async function readBackendAuthResponse(response: Response): Promise<User | null>
   return {
     id: authResponse.user.id,
     name: authResponse.user.displayName,
+    image: authResponse.user.avatarUrl ?? null,
     email: authResponse.user.email,
     role,
     accessToken: authResponse.accessToken,
@@ -160,6 +161,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.picture = user.image;
         token.role = user.role;
         token.accessToken = user.accessToken;
         token.backendRefreshToken = user.backendRefreshToken;
@@ -182,6 +184,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.backendRefreshToken = refreshed.refreshToken;
           token.accessTokenExpiry = refreshedSession.accessTokenExpiry;
           token.roles = refreshedSession.roles;
+          token.name = refreshedSession.user.displayName;
+          token.picture = refreshedSession.user.avatarUrl ?? null;
           token.role = refreshedSession.roles.includes("Admin")
             ? "Admin"
             : refreshedSession.roles.includes("Author")
@@ -198,6 +202,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
+        session.user.image = typeof token.picture === "string" ? token.picture : null;
         session.user.id =
           typeof token.id === "string"
             ? token.id
