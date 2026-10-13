@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { Noto_Sans } from "next/font/google";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
 import "./globals.css";
+
+const notoSans = Noto_Sans({
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
+  variable: "--font-noto-sans",
+});
 
 export const metadata: Metadata = {
   title: "Culinary Blog — Recipes worth cooking twice",
@@ -19,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className="h-full antialiased">
+    <html lang="vi" className={`${notoSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>

@@ -230,13 +230,13 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         // Sắp xếp
         query = sortBy?.ToLowerInvariant() switch
         {
-            "title" => query.OrderBy(r => r.Title),
-            "-title" => query.OrderByDescending(r => r.Title),
-            "cooktime" => query.OrderBy(r => r.CookTime),
-            "-cooktime" => query.OrderByDescending(r => r.CookTime),
-            "createdat" => query.OrderBy(r => r.CreatedAt),
-            "-createdat" => query.OrderByDescending(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt)
+            "title" => query.OrderBy(r => r.Title).ThenBy(r => r.Id),
+            "-title" => query.OrderByDescending(r => r.Title).ThenBy(r => r.Id),
+            "cooktime" => query.OrderBy(r => r.CookTime).ThenBy(r => r.Id),
+            "-cooktime" => query.OrderByDescending(r => r.CookTime).ThenBy(r => r.Id),
+            "createdat" => query.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id),
+            "-createdat" => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id),
+            _ => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id)
         };
 
         var totalCount = await query.CountAsync(ct);
