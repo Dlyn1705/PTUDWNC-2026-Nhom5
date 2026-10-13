@@ -1,6 +1,5 @@
 using System;
 using CulinaryBlog.Domain.Common;
-using CulinaryBlog.Domain.Enums;
 
 namespace CulinaryBlog.Domain.Entities;
 
@@ -13,7 +12,7 @@ public class RecipeImage : BaseEntity
     public string? AltText { get; set; }
     public bool IsPrimary { get; set; } = false;
     public int OrderIndex { get; set; } = 0;
-    public ImageProcessingStatus ProcessingStatus { get; set; } = ImageProcessingStatus.Pending;
+    public string ProcessingStatus { get; set; } = "Pending";
 
     public virtual Recipe Recipe { get; set; } = null!;
 

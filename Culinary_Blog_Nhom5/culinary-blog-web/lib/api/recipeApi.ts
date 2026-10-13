@@ -1,92 +1,39 @@
 import axiosClient from "./axiosClient";
-import { RecipeDto, PagedResult, CreateRecipeRequest, UpdateRecipeRequest, RecipeMutationResponse, CreateRecipeIngredientRequest, CreateRecipeStepRequest, RecipeImageUploadDto, ManagedRecipeDto, ManagedRecipeDetailsDto } from "@/types/recipe.types";
-import type { ApiResponse } from "@/types/api.types";
+import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
+import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
 
+const mockModeEnabled =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+
+type LegacyPagedRecipes = { items: RecipeSummaryDto[] };
+
 export const recipeApi = {
-  async getMine(params?: { page?: number; pageSize?: number; status?: number }): Promise<PagedResult<ManagedRecipeDto>> {
-    const response = await axiosClient.get<PagedResult<ManagedRecipeDto>>("/api/v1/recipes/mine", { params });
+  async getMine(params: {
+    page?: number;
+    pageSize?: number;
+    status?: number;
+    sortBy?: string;
+  } = {}): Promise<ManagedRecipesPage> {
+    const response = await axiosClient.get<ManagedRecipesPage>("/api/v1/recipes/mine", { params });
     return response.data;
   },
 
-  async getManagedById(id: string): Promise<ManagedRecipeDetailsDto> {
-    const response = await axiosClient.get<ManagedRecipeDetailsDto>(`/api/v1/recipes/${id}/manage`);
-    return response.data;
-  },
-
-  async create(payload: CreateRecipeRequest): Promise<RecipeMutationResponse> {
-    const response = await axiosClient.post<RecipeMutationResponse>("/api/v1/recipes", payload);
-    return response.data;
-  },
-
-  async update(id: string, payload: UpdateRecipeRequest): Promise<RecipeMutationResponse> {
-    const response = await axiosClient.put<RecipeMutationResponse>(`/api/v1/recipes/${id}`, payload);
-    return response.data;
-  },
-
-  async delete(id: string): Promise<void> {
-    await axiosClient.delete(`/api/v1/recipes/${id}`);
-  },
-
-  async addIngredient(recipeId: string, payload: CreateRecipeIngredientRequest) {
-    const response = await axiosClient.post(`/api/v1/recipes/${recipeId}/ingredients`, payload);
-    return response.data;
-  },
-
-  async updateIngredient(recipeId: string, ingredientId: string, payload: CreateRecipeIngredientRequest) {
-    const response = await axiosClient.put(`/api/v1/recipes/${recipeId}/ingredients/${ingredientId}`, payload);
-    return response.data;
-  },
-
-  async deleteIngredient(recipeId: string, ingredientId: string): Promise<void> {
-    await axiosClient.delete(`/api/v1/recipes/${recipeId}/ingredients/${ingredientId}`);
-  },
-
-  async addStep(recipeId: string, payload: CreateRecipeStepRequest) {
-    const response = await axiosClient.post(`/api/v1/recipes/${recipeId}/steps`, payload);
-    return response.data;
-  },
-
-  async updateStep(recipeId: string, stepId: string, payload: CreateRecipeStepRequest) {
-    const response = await axiosClient.put(`/api/v1/recipes/${recipeId}/steps/${stepId}`, payload);
-    return response.data;
-  },
-
-  async reorderSteps(recipeId: string, stepIds: string[]) {
-    const response = await axiosClient.put(`/api/v1/recipes/${recipeId}/steps/reorder`, { stepIds });
-    return response.data;
-  },
-
-  async deleteStep(recipeId: string, stepId: string): Promise<void> {
-    await axiosClient.delete(`/api/v1/recipes/${recipeId}/steps/${stepId}`);
-  },
-
-  async uploadImage(recipeId: string, file: File, altText?: string): Promise<RecipeImageUploadDto> {
-    const form = new FormData();
-    form.append("file", file);
-    if (altText) form.append("altText", altText);
-    const response = await axiosClient.post<ApiResponse<RecipeImageUploadDto>>(`/api/v1/recipes/${recipeId}/images`, form);
-    return response.data.data;
-  },
-
-  async setPrimaryImage(recipeId: string, imageId: string) {
-    const response = await axiosClient.patch(`/api/v1/recipes/${recipeId}/images/${imageId}/primary`);
-    return response.data;
-  },
-
-  async deleteImage(recipeId: string, imageId: string): Promise<void> {
-    await axiosClient.delete(`/api/v1/recipes/${recipeId}/images/${imageId}`);
-  },
-
-  async search(params: {
-    q: string;
+  async getPaged(params: {
     page?: number;
     pageSize?: number;
     categoryId?: string;
     difficulty?: number;
-    sort?: string;
-  }): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  } = {}): Promise<PagedResult<RecipeSummaryDto>> {
+    const response = await axiosClient.get<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", { params });
+    return response.data;
+  },
+
+  async search(params: SearchRecipesParams): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
     const response = await axiosClient.get<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
       "/api/v1/recipes/search",
       { params },
@@ -99,9 +46,9 @@ export const recipeApi = {
     pageSize?: number;
     categoryId?: string;
     sortBy?: string;
-  }): Promise<RecipeDto[]> {
+  }): Promise<RecipeSummaryDto[]> {
     try {
-      const response = await axiosClient.get<PagedResult<RecipeDto> | RecipeDto[]>(
+      const response = await axiosClient.get<PagedResult<RecipeSummaryDto> | LegacyPagedRecipes | RecipeSummaryDto[]>(
         "/api/v1/recipes",
         { params },
       );
@@ -109,13 +56,18 @@ export const recipeApi = {
         if (Array.isArray(response.data)) {
           return response.data;
         }
+        if ("data" in response.data && Array.isArray(response.data.data)) {
+          return response.data.data;
+        }
         if ("items" in response.data && Array.isArray(response.data.items)) {
           return response.data.items;
         }
       }
-      return mockRecipes.filter((r) => r.status === 1);
-    } catch {
-      // Fallback for offline / dev mock mode
+      if (mockModeEnabled) return mockRecipes.filter((r) => r.status === 1);
+      throw new Error("API returned an unexpected recipe list response.");
+    } catch (error) {
+      if (!mockModeEnabled) throw error;
+      // Use sample data only when development mocks are explicitly enabled.
       let result = mockRecipes.filter((r) => r.status === 1);
       if (params?.categoryId) {
         result = result.filter((r) => r.categoryId === params.categoryId);
@@ -124,24 +76,52 @@ export const recipeApi = {
     }
   },
 
-  async getBySlug(slug: string): Promise<RecipeDto | null> {
+  async getBySlug(slug: string): Promise<RecipeDetailDto | null> {
     try {
-      const response = await axiosClient.get<RecipeDto>(`/api/v1/recipes/${slug}`);
+      const response = await axiosClient.get<RecipeDetailDto>(`/api/v1/recipes/${slug}`);
       if (response.data) {
         return response.data;
       }
-    } catch {
-      // Fallback check in mock data
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return null;
+      if (!mockModeEnabled) throw error;
+      // Use sample data only when development mocks are explicitly enabled.
     }
     const found = mockRecipes.find((r) => r.slug.toLowerCase() === slug.toLowerCase());
     return found || null;
   },
 
-  async getByCategory(categoryId: string): Promise<RecipeDto[]> {
+  async getById(id: string): Promise<RecipeDetailDto> {
+    const response = await axiosClient.get<RecipeDetailDto>(`/api/v1/recipes/${id}`);
+    return response.data;
+  },
+
+  async create(payload: Omit<RecipeWritePayload, "rowVersion">): Promise<RecipeMutationResponse> {
+    const response = await axiosClient.post<RecipeMutationResponse>(
+      "/api/v1/recipes/",
+      payload,
+    );
+    return response.data;
+  },
+
+  async update(id: string, payload: RecipeWritePayload): Promise<RecipeMutationResponse> {
+    const response = await axiosClient.put<RecipeMutationResponse>(
+      `/api/v1/recipes/${id}`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await axiosClient.delete(`/api/v1/recipes/${id}`);
+  },
+
+  async getByCategory(categoryId: string): Promise<RecipeSummaryDto[]> {
     return this.getAll({ categoryId });
   },
 
-  async getFeatured(): Promise<RecipeDto | null> {
+  async getFeatured(): Promise<RecipeSummaryDto | null> {
     const recipes = await this.getAll();
     return recipes[0] || mockRecipes[0];
   },

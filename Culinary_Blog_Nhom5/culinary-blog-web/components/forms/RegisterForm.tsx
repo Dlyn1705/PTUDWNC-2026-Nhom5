@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import apiClient from "@/lib/api/axios";
+import { PasswordField } from "@/components/forms/PasswordField";
 import { registerSchema, type RegisterFormData } from "@/lib/validations/auth";
 import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
@@ -131,12 +132,11 @@ export function RegisterForm() {
           <label htmlFor="password" className="field-label">
             Mật khẩu
           </label>
-          <input
+          <PasswordField
             id="password"
-            type="password"
             autoComplete="new-password"
             placeholder="Tối thiểu 8 ký tự"
-            {...register("password")}
+            registration={register("password")}
             className={`field-input ${errors.password ? "field-input-error" : ""}`}
           />
           <FieldError message={errors.password?.message} />
@@ -145,12 +145,11 @@ export function RegisterForm() {
           <label htmlFor="confirmPassword" className="field-label">
             Nhập lại mật khẩu
           </label>
-          <input
+          <PasswordField
             id="confirmPassword"
-            type="password"
             autoComplete="new-password"
             placeholder="Nhập lại mật khẩu"
-            {...register("confirmPassword")}
+            registration={register("confirmPassword")}
             className={`field-input ${errors.confirmPassword ? "field-input-error" : ""}`}
           />
           <FieldError message={errors.confirmPassword?.message} />

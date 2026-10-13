@@ -1,15 +1,18 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Common.Metrics;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -27,8 +30,97 @@ public static class RecipeEndpoints
 {
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapApiV1Group("recipes")
+        var group = app.MapGroup("/recipes")
             .WithTags("Recipes");
+
+        group.MapPost("/{recipeId:guid}/images", async (
+            Guid recipeId,
+            IFormFile? file,
+            [FromForm] string? altText,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            if (file is null)
+                throw new ValidationException("file", "Vui lòng chọn ảnh cần tải lên.");
+            await using var stream = file.OpenReadStream();
+            var image = await sender.Send(new UploadRecipeImageCommand(
+                recipeId, stream, file.FileName, file.ContentType, file.Length, altText), ct);
+            return Results.Created($"/api/v1/recipes/{recipeId}/images/{image.Id}",
+                ApiResponse<RecipeImageDto>.Ok(image, "Tải ảnh thành công; các kích thước khác đang được xử lý."));
+        })
+        .WithName("UploadRecipeImage")
+        .WithSummary("Tải ảnh công thức lên MinIO")
+        .Accepts<IFormFile>("multipart/form-data")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status201Created)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireAuthorization("AuthorPolicy")
+        .RequireRateLimiting("upload")
+        .DisableAntiforgery()
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
+
+        group.MapDelete("/{recipeId:guid}/images/{imageId:guid}", async (
+            Guid recipeId,
+            Guid imageId,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRecipeImageCommand(recipeId, imageId), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteRecipeImage")
+        .WithSummary("Xóa ảnh công thức và dọn các object khỏi MinIO (FR-FILE-002)")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAuthorization("AuthorPolicy");
+
+        // FR-RCP-007: Soft delete công thức. Ảnh MinIO được giữ lại để PurgeDeletedRecipesJob
+        // dọn sau 30 ngày.
+        group.MapDelete("/{id:guid}", async (
+            Guid id,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteRecipeCommand(id), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteRecipe")
+        .WithSummary("Xóa mềm công thức; ảnh được giữ lại để dọn sau 30 ngày (FR-RCP-007)")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAuthorization("AuthorPolicy");
+
+        group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
+            Guid recipeId,
+            Guid imageId,
+            IRecipeRepository recipes,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipes.GetDetailsByIdAsync(recipeId, ct)
+                ?? throw new NotFoundException("Recipe", recipeId);
+            if (!currentUser.IsAdmin && !string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal))
+                throw new ForbiddenException("Chỉ chủ sở hữu công thức hoặc Admin mới được xem trạng thái ảnh.");
+            var image = recipe.Images.FirstOrDefault(candidate => candidate.Id == imageId && !candidate.IsDeleted)
+                ?? throw new NotFoundException("RecipeImage", imageId);
+            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(new RecipeImageDto(
+                image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl,
+                image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus)));
+        })
+        .WithName("GetRecipeImage")
+        .WithSummary("Lấy trạng thái xử lý ảnh công thức")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .RequireAuthorization("AuthorPolicy");
 
         // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
         group.MapGet("/", async (
@@ -58,6 +150,32 @@ public static class RecipeEndpoints
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
         .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
 
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            IRecipeRepository recipes,
+            ICurrentUserService currentUser,
+            ISender sender,
+            HttpContext context,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipes.GetDetailsByIdAsync(id, ct);
+            if (recipe is null || recipe.IsDeleted)
+                throw new NotFoundException("Recipe", id);
+
+            var canViewUnpublished = currentUser.IsAdmin
+                || string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal);
+            if (recipe.Status != RecipeStatus.Published && !canViewUnpublished)
+                throw new NotFoundException("Recipe", id);
+
+            var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
+            context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
+            return Results.Ok(detail);
+        })
+        .WithName("GetRecipeById")
+        .WithSummary("Lấy chi tiết công thức theo ID; Owner/Admin xem được Draft và Archived")
+        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/mine", async (
             int? page,
             int? pageSize,
@@ -78,23 +196,39 @@ public static class RecipeEndpoints
                 status: status,
                 ct: ct);
 
+            var data = items.Select(recipe => new
+            {
+                recipe.Id,
+                recipe.Title,
+                recipe.Slug,
+                recipe.Description,
+                recipe.Status,
+                recipe.UpdatedAt,
+                Category = recipe.Category is null
+                    ? null
+                    : new { recipe.Category.Id, recipe.Category.Name },
+                Author = recipe.Author is null
+                    ? null
+                    : new { recipe.Author.Id, recipe.Author.DisplayName },
+                PrimaryImageUrl = recipe.Images
+                    .Where(image => image.IsPrimary && !image.IsDeleted)
+                    .Select(image => image.ThumbnailUrl ?? image.MediumUrl ?? image.OriginalUrl)
+                    .FirstOrDefault()
+            }).ToArray();
+            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)ps);
+
             return Results.Ok(new
             {
-                items = items.Select(recipe => new
+                data,
+                meta = new
                 {
-                    recipe.Id,
-                    recipe.Title,
-                    recipe.Slug,
-                    recipe.Description,
-                    recipe.Status,
-                    recipe.UpdatedAt,
-                    category = recipe.Category is null ? null : new { recipe.Category.Id, recipe.Category.Name },
-                    author = recipe.Author is null ? null : new { recipe.Author.Id, recipe.Author.DisplayName },
-                    primaryImageUrl = recipe.Images.FirstOrDefault(image => image.IsPrimary)?.OriginalUrl
-                }),
-                totalCount,
-                page = p,
-                pageSize = ps
+                    page = p,
+                    pageSize = ps,
+                    totalCount,
+                    totalPages,
+                    hasNextPage = p < totalPages,
+                    hasPreviousPage = p > 1
+                }
             });
         })
         .WithName("GetManagedRecipes")
@@ -214,6 +348,7 @@ public static class RecipeEndpoints
             }
 
             await db.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipePublishedCounter.Add(1);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("PublishRecipe")
@@ -263,13 +398,15 @@ public static class RecipeEndpoints
         group.MapGet("/{slug}", async (
             string slug,
             ISender sender,
+            HttpContext context,
             CancellationToken ct) =>
         {
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
+            context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
-        .WithSummary("Lấy chi tiết công thức đã xuất bản theo slug (FR-RCP-002)")
+        .WithSummary("Lấy chi tiết công thức theo slug; khách chỉ xem Published, Owner/Admin xem thêm Draft và Archived (FR-RCP-002)")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
@@ -294,12 +431,28 @@ public static class RecipeEndpoints
                 throw new ValidationException("Title", "Tên công thức không được để trống.");
             }
 
-            var title = request.Title.Trim();
-            if (title.Length < 3 || title.Length > 200)
+            if (request.Title.Trim().Length < 3)
             {
-                throw new ValidationException("Title", "Tên công thức phải có từ 3 đến 200 ký tự.");
+                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
             }
 
+            var title = request.Title.Trim();
+            if (title.Length > 200)
+            {
+                throw new ValidationException("Title", "Title must not exceed 200 characters.");
+            }
+
+            var description = request.Description?.Trim() ?? string.Empty;
+            if (description.Length > 2000)
+            {
+                throw new ValidationException("Description", "Description must not exceed 2000 characters.");
+            }
+
+            var instructions = request.Instructions?.Trim() ?? string.Empty;
+            if (instructions.Length > 10000)
+            {
+                throw new ValidationException("Instructions", "Instructions must not exceed 10000 characters.");
+            }
             if (request.Servings <= 0)
             {
                 throw new ValidationException("Servings", "Số khẩu phần phải lớn hơn 0.");
@@ -315,38 +468,19 @@ public static class RecipeEndpoints
                 throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
-            if (!Enum.IsDefined(request.Difficulty))
+            if (request.Ingredients is { Count: > 100 })
+                throw new ValidationException("Ingredients", "Mỗi công thức tối đa 100 nguyên liệu.");
+            if (request.Steps is { Count: > 100 })
+                throw new ValidationException("Steps", "Mỗi công thức tối đa 100 bước.");
+            if (request.Ingredients?.Any(ingredient => string.IsNullOrWhiteSpace(ingredient.Name)) == true)
+                throw new ValidationException("Ingredients", "Tên nguyên liệu không được để trống.");
+            if (request.Ingredients?.Any(ingredient => ingredient.Quantity is < 0) == true)
+                throw new ValidationException("Ingredients", "Số lượng nguyên liệu không được âm.");
+            if (request.Steps?.Any(step => string.IsNullOrWhiteSpace(step.Description)) == true)
+                throw new ValidationException("Steps", "Nội dung bước thực hiện không được để trống.");
+            if (request.CategoryId == Guid.Empty)
             {
-                throw new ValidationException("Difficulty", "Độ khó không hợp lệ.");
-            }
-
-            if (request.Ingredients is { Count: > 100 } || request.Steps is { Count: > 100 })
-            {
-                throw new ValidationException("Details", "Mỗi công thức tối đa 100 nguyên liệu và 100 bước.");
-            }
-
-            var ingredients = request.Ingredients ?? [];
-            if (ingredients.Any(i => string.IsNullOrWhiteSpace(i.Name) || i.Name.Trim().Length > 200 ||
-                                     (i.Quantity.HasValue && (i.Quantity.Value <= 0 || i.Quantity.Value > 9_999_999.999m)) ||
-                                     (i.Unit?.Length > 50) || (i.Notes?.Length > 500) ||
-                                     (i.OrderIndex.HasValue && i.OrderIndex.Value < 0)))
-            {
-                throw new ValidationException("Ingredients", "Thông tin nguyên liệu không hợp lệ.");
-            }
-
-            var steps = request.Steps ?? [];
-            if (steps.Any(s => string.IsNullOrWhiteSpace(s.Description) || s.Description.Trim().Length > 5000 ||
-                               (s.Title?.Length > 200) || (s.TimerMinutes.HasValue && s.TimerMinutes.Value < 0) ||
-                               (s.ImageUrl?.Length > 500)))
-            {
-                throw new ValidationException("Steps", "Mỗi bước cần mô tả hợp lệ; thời gian không được âm.");
-            }
-
-            if (request.Nutrition is { } nutrition &&
-                new[] { nutrition.Calories, nutrition.Protein, nutrition.Carbohydrates, nutrition.Fat, nutrition.Fiber, nutrition.Sodium }
-                    .Any(value => value.HasValue && (value.Value < 0 || value.Value > 999_999.99m)))
-            {
-                throw new ValidationException("Nutrition", "Các chỉ số dinh dưỡng không được âm.");
+                throw new ValidationException("CategoryId", "CategoryId is required.");
             }
 
             var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
@@ -355,19 +489,16 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Category", request.CategoryId);
             }
 
-            var slugBase = GenerateSlug(title);
-            var slug = slugBase;
-            var suffix = 2;
-            while (await unitOfWork.Recipes.ExistsBySlugAsync(slug, ct))
-            {
-                slug = $"{slugBase}-{suffix++}";
-            }
+            var slug = await GenerateUniqueSlugAsync(
+                GenerateSlug(title),
+                unitOfWork.Recipes,
+                ct);
 
             var recipe = Recipe.Create(
                 title,
                 slug,
-                request.Description?.Trim() ?? string.Empty,
-                request.Instructions?.Trim() ?? string.Empty,
+                description,
+                instructions,
                 request.PrepTime,
                 request.CookTime,
                 request.Servings,
@@ -375,43 +506,49 @@ public static class RecipeEndpoints
                 request.CategoryId,
                 authorId);
 
-            for (var index = 0; index < ingredients.Count; index++)
-            {
-                var ingredient = ingredients[index];
-                recipe.Ingredients.Add(RecipeIngredient.Create(
-                    recipe.Id,
-                    ingredient.Name.Trim(),
-                    ingredient.Quantity,
-                    ingredient.Unit?.Trim(),
-                    ingredient.Notes?.Trim(),
-                    ingredient.OrderIndex ?? index));
-            }
-
-            for (var index = 0; index < steps.Count; index++)
-            {
-                var step = steps[index];
-                recipe.Steps.Add(RecipeStep.Create(
-                    recipe.Id,
-                    index + 1,
-                    string.IsNullOrWhiteSpace(step.Title) ? $"Bước {index + 1}" : step.Title.Trim(),
-                    step.Description.Trim(),
-                    step.TimerMinutes,
-                    step.ImageUrl));
-            }
-
-            if (request.Nutrition is { } recipeNutrition)
+            if (request.Nutrition is not null)
             {
                 recipe.SetNutrition(
-                    recipeNutrition.Calories,
-                    recipeNutrition.Protein,
-                    recipeNutrition.Carbohydrates,
-                    recipeNutrition.Fat,
-                    recipeNutrition.Fiber,
-                    recipeNutrition.Sodium);
+                    request.Nutrition.Calories,
+                    request.Nutrition.Protein,
+                    request.Nutrition.Carbohydrates,
+                    request.Nutrition.Fat,
+                    request.Nutrition.Fiber,
+                    request.Nutrition.Sodium);
+            }
+
+            if (request.Ingredients is not null)
+            {
+                for (var index = 0; index < request.Ingredients.Count; index++)
+                {
+                    var ingredient = request.Ingredients[index];
+                    recipe.Ingredients.Add(RecipeIngredient.Create(
+                        recipe.Id,
+                        ingredient.Name.Trim(),
+                        ingredient.Quantity,
+                        ingredient.Unit?.Trim(),
+                        ingredient.Notes?.Trim(),
+                        index + 1));
+                }
+            }
+
+            if (request.Steps is not null)
+            {
+                for (var index = 0; index < request.Steps.Count; index++)
+                {
+                    var step = request.Steps[index];
+                    recipe.Steps.Add(RecipeStep.Create(
+                        recipe.Id,
+                        index + 1,
+                        string.IsNullOrWhiteSpace(step.Title) ? $"Bước {index + 1}" : step.Title.Trim(),
+                        step.Description.Trim(),
+                        step.TimerMinutes));
+                }
             }
 
             await unitOfWork.Recipes.AddAsync(recipe, ct);
             await unitOfWork.SaveChangesAsync(ct);
+            DiagnosticsConfig.RecipeCreatedCounter.Add(1);
 
             return Results.Created(
                 $"/api/v1/recipes/{recipe.Slug}",
@@ -419,7 +556,8 @@ public static class RecipeEndpoints
                 {
                     message = "Tạo công thức thành công.",
                     id = recipe.Id,
-                    slug = recipe.Slug
+                    slug = recipe.Slug,
+                    rowVersion = Convert.ToBase64String(recipe.RowVersion)
                 });
         })
         .RequireAuthorization("AuthorPolicy")
@@ -437,6 +575,7 @@ public static class RecipeEndpoints
             UpdateRecipeRequest request,
             HttpContext httpContext,
             IUnitOfWork unitOfWork,
+            ApplicationDbContext db,
             CancellationToken ct) =>
         {
             var currentUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -452,14 +591,17 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Recipe", id);
             }
 
-            if (string.IsNullOrWhiteSpace(request.RowVersion))
-                throw new ValidationException("RowVersion", "Tải lại công thức trước khi lưu thay đổi.");
+            var expectedRowVersion = ParseExpectedRowVersion(
+                request.RowVersion,
+                httpContext.Request.Headers.IfMatch.ToString());
+            if (expectedRowVersion is null || expectedRowVersion.Length == 0)
+            {
+                throw new ValidationException(
+                    "RowVersion",
+                    "RowVersion hoặc If-Match là bắt buộc khi cập nhật công thức.");
+            }
 
-            byte[] clientRowVersion;
-            try { clientRowVersion = Convert.FromBase64String(request.RowVersion); }
-            catch (FormatException) { throw new ValidationException("RowVersion", "Phiên bản công thức không hợp lệ."); }
-            if (!clientRowVersion.SequenceEqual(recipe.RowVersion))
-                throw new ConflictException("Công thức đã thay đổi. Hãy tải lại trước khi lưu.", "RECIPE_CONCURRENCY_CONFLICT");
+            db.Entry(recipe).Property(entity => entity.RowVersion).OriginalValue = expectedRowVersion;
 
             bool isAdmin = httpContext.User.IsInRole("Admin");
             if (!isAdmin && !string.Equals(recipe.AuthorId, currentUserId, StringComparison.Ordinal))
@@ -472,11 +614,28 @@ public static class RecipeEndpoints
                 throw new ValidationException("Title", "Tên công thức không được để trống.");
             }
 
-            if (request.Title.Trim().Length < 3 || request.Title.Trim().Length > 200)
+            if (request.Title.Trim().Length < 3)
             {
-                throw new ValidationException("Title", "Tên công thức phải có từ 3 đến 200 ký tự.");
+                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
             }
 
+            var title = request.Title.Trim();
+            if (title.Length > 200)
+            {
+                throw new ValidationException("Title", "Title must not exceed 200 characters.");
+            }
+
+            var description = request.Description?.Trim() ?? string.Empty;
+            if (description.Length > 2000)
+            {
+                throw new ValidationException("Description", "Description must not exceed 2000 characters.");
+            }
+
+            var instructions = request.Instructions?.Trim() ?? string.Empty;
+            if (instructions.Length > 10000)
+            {
+                throw new ValidationException("Instructions", "Instructions must not exceed 10000 characters.");
+            }
             if (request.Servings <= 0)
             {
                 throw new ValidationException("Servings", "Số khẩu phần phải lớn hơn 0.");
@@ -492,15 +651,10 @@ public static class RecipeEndpoints
                 throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
             }
 
-            if (!Enum.IsDefined(request.Difficulty))
+            if (request.CategoryId == Guid.Empty)
             {
-                throw new ValidationException("Difficulty", "Độ khó không hợp lệ.");
+                throw new ValidationException("CategoryId", "CategoryId is required.");
             }
-
-            if (request.Nutrition is { } nutrition &&
-                new[] { nutrition.Calories, nutrition.Protein, nutrition.Carbohydrates, nutrition.Fat, nutrition.Fiber, nutrition.Sodium }
-                    .Any(value => value.HasValue && (value.Value < 0 || value.Value > 999_999.99m)))
-                throw new ValidationException("Nutrition", "Các chỉ số dinh dưỡng phải từ 0 đến 999999.99.");
 
             var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
             if (category is null)
@@ -509,27 +663,25 @@ public static class RecipeEndpoints
             }
 
             recipe.Update(
-                request.Title.Trim(),
-                request.Description?.Trim() ?? string.Empty,
-                request.Instructions?.Trim() ?? string.Empty,
+                title,
+                description,
+                instructions,
                 request.PrepTime,
                 request.CookTime,
                 request.Servings,
                 request.Difficulty,
                 request.CategoryId);
 
-            if (request.Nutrition is { } updatedNutrition)
-                recipe.SetNutrition(updatedNutrition.Calories, updatedNutrition.Protein, updatedNutrition.Carbohydrates,
-                    updatedNutrition.Fat, updatedNutrition.Fiber, updatedNutrition.Sodium);
-
-            unitOfWork.Recipes.Update(recipe);
             await unitOfWork.SaveChangesAsync(ct);
+
+            httpContext.Response.Headers.ETag = $"\"{Convert.ToBase64String(recipe.RowVersion)}\"";
 
             return Results.Ok(new
             {
                 message = "Cập nhật công thức thành công.",
                 id = recipe.Id,
-                slug = recipe.Slug
+                slug = recipe.Slug,
+                rowVersion = Convert.ToBase64String(recipe.RowVersion)
             });
         })
         .RequireAuthorization("AuthorPolicy")
@@ -538,7 +690,9 @@ public static class RecipeEndpoints
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
-        .ProducesProblem(StatusCodes.Status404NotFound);
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         return app;
     }
@@ -569,7 +723,46 @@ public static class RecipeEndpoints
             slug = slug.Replace("--", "-");
         }
 
-        return slug.Trim('-');
+        slug = slug.Trim('-');
+        return string.IsNullOrWhiteSpace(slug)
+            ? $"recipe-{Guid.NewGuid():N}"
+            : slug;
+    }
+
+    private static async Task<string> GenerateUniqueSlugAsync(
+        string baseSlug,
+        IRecipeRepository recipes,
+        CancellationToken ct)
+    {
+        var slug = baseSlug;
+        var suffix = 2;
+        while (await recipes.ExistsBySlugAsync(slug, ct))
+        {
+            slug = $"{baseSlug}-{suffix++}";
+        }
+
+        return slug;
+    }
+
+    private static byte[]? ParseExpectedRowVersion(string? requestVersion, string? ifMatch)
+    {
+        var value = !string.IsNullOrWhiteSpace(requestVersion)
+            ? requestVersion.Trim()
+            : ifMatch?.Trim().Trim('"');
+
+        if (string.IsNullOrWhiteSpace(value) || value == "*")
+        {
+            return null;
+        }
+
+        try
+        {
+            return Convert.FromBase64String(value);
+        }
+        catch (FormatException)
+        {
+            throw new ValidationException("RowVersion", "RowVersion/If-Match không đúng định dạng Base64.");
+        }
     }
 }
 
@@ -582,8 +775,8 @@ public sealed record CreateRecipeRequest(
     int Servings,
     RecipeDifficulty Difficulty,
     Guid CategoryId,
-    List<CreateRecipeIngredientRequest>? Ingredients = null,
-    List<CreateRecipeStepRequest>? Steps = null,
+    IReadOnlyList<CreateRecipeIngredientRequest>? Ingredients = null,
+    IReadOnlyList<CreateRecipeStepRequest>? Steps = null,
     CreateRecipeNutritionRequest? Nutrition = null
 );
 
@@ -591,16 +784,12 @@ public sealed record CreateRecipeIngredientRequest(
     string Name,
     decimal? Quantity = null,
     string? Unit = null,
-    string? Notes = null,
-    int? OrderIndex = null
-);
+    string? Notes = null);
 
 public sealed record CreateRecipeStepRequest(
     string Description,
     string? Title = null,
-    int? TimerMinutes = null,
-    string? ImageUrl = null
-);
+    int? TimerMinutes = null);
 
 public sealed record CreateRecipeNutritionRequest(
     decimal? Calories = null,
@@ -608,8 +797,7 @@ public sealed record CreateRecipeNutritionRequest(
     decimal? Carbohydrates = null,
     decimal? Fat = null,
     decimal? Fiber = null,
-    decimal? Sodium = null
-);
+    decimal? Sodium = null);
 
 public sealed record UpdateRecipeRequest(
     string Title,
@@ -620,6 +808,5 @@ public sealed record UpdateRecipeRequest(
     int Servings,
     RecipeDifficulty Difficulty,
     Guid CategoryId,
-    CreateRecipeNutritionRequest? Nutrition = null,
     string? RowVersion = null
 );

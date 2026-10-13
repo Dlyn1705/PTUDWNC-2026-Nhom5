@@ -69,7 +69,8 @@ export function CategoryTable({
 
         <TableBody className="divide-y divide-border">
           {categories.map((cat) => {
-            const hasRecipes = (cat.recipeCount || 0) > 0;
+            const totalRecipeCount = cat.totalRecipeCount ?? cat.recipeCount ?? 0;
+            const hasRecipes = totalRecipeCount > 0;
 
             return (
               <TableRow

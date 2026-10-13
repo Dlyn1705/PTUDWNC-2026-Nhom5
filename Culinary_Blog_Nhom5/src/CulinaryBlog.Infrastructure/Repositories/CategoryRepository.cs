@@ -32,16 +32,19 @@ public class CategoryRepository : Repository<Category>, ICategoryRepository
         return await _dbSet.AnyAsync(c => c.Slug == slug, ct);
     }
 
-    public async Task<IReadOnlyList<(Category Category, int RecipeCount)>> GetAllWithRecipeCountAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<(Category Category, int RecipeCount, int TotalRecipeCount)>> GetAllWithRecipeCountAsync(CancellationToken ct = default)
     {
         var query = await _dbSet
             .Select(c => new
             {
                 Category = c,
-                RecipeCount = c.Recipes.Count(r => r.Status == RecipeStatus.Published && !r.IsDeleted)
+                RecipeCount = c.Recipes.Count(r => r.Status == RecipeStatus.Published && !r.IsDeleted),
+                TotalRecipeCount = c.Recipes.Count(r => !r.IsDeleted)
             })
             .ToListAsync(ct);
 
-        return query.Select(x => (x.Category, x.RecipeCount)).ToList();
+        return query
+            .Select(x => (x.Category, x.RecipeCount, x.TotalRecipeCount))
+            .ToList();
     }
 }

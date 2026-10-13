@@ -6,52 +6,6 @@ export const Difficulty = {
 } as const;
 export type DifficultyValue = (typeof Difficulty)[keyof typeof Difficulty];
 
-export interface CreateRecipeIngredientRequest {
-  name: string;
-  quantity?: number | null;
-  unit?: string | null;
-  notes?: string | null;
-  orderIndex?: number;
-}
-
-export interface CreateRecipeStepRequest {
-  description: string;
-  title?: string | null;
-  timerMinutes?: number | null;
-  imageUrl?: string | null;
-}
-
-export interface RecipeNutritionInput {
-  calories?: number | null;
-  protein?: number | null;
-  carbohydrates?: number | null;
-  fat?: number | null;
-  fiber?: number | null;
-  sodium?: number | null;
-}
-
-export interface CreateRecipeRequest {
-  title: string;
-  description?: string | null;
-  instructions?: string | null;
-  prepTime: number;
-  cookTime: number;
-  servings: number;
-  difficulty: DifficultyValue;
-  categoryId: string;
-  ingredients?: CreateRecipeIngredientRequest[];
-  steps?: CreateRecipeStepRequest[];
-  nutrition?: RecipeNutritionInput | null;
-}
-
-export type UpdateRecipeRequest = Omit<CreateRecipeRequest, "ingredients" | "steps"> & { rowVersion: string };
-
-export interface RecipeMutationResponse {
-  id: string;
-  slug: string;
-  message?: string;
-}
-
 export interface ManagedRecipeDto {
   id: string;
   title: string;
@@ -64,26 +18,16 @@ export interface ManagedRecipeDto {
   primaryImageUrl?: string | null;
 }
 
-export interface ManagedRecipeDetailsDto extends UpdateRecipeRequest {
-  id: string;
-  slug: string;
-  status: RecipeStatusValue;
-  ingredients: RecipeIngredientDto[];
-  steps: RecipeStepDto[];
-  images: RecipeImageUploadDto[];
-  nutrition?: RecipeNutritionDto | null;
-}
-
-export interface RecipeImageUploadDto {
-  id: string;
-  recipeId: string;
-  originalUrl: string;
-  mediumUrl: string | null;
-  thumbnailUrl: string | null;
-  altText: string | null;
-  isPrimary: boolean;
-  orderIndex: number;
-  processingStatus: "Pending" | "Processing" | "Completed" | "Failed";
+export interface ManagedRecipesPage {
+  data: ManagedRecipeDto[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
 }
 
 export const RecipeStatus = {
@@ -151,7 +95,7 @@ export interface RecipeIngredientDto {
   orderIndex?: number;
 }
 
-export interface RecipeCardDto {
+export interface RecipeSummaryDto {
   id: string;
   title: string;
   slug: string;
@@ -168,22 +112,48 @@ export interface RecipeCardDto {
   categorySlug?: string;
   author: AuthorDto;
   images: RecipeImageDto[];
+  rowVersion?: string;
 }
 
-export interface RecipeDto extends RecipeCardDto {
+export type RecipeCardDto = RecipeSummaryDto;
+
+export interface RecipeDetailDto extends RecipeSummaryDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];
 }
 
+export type RecipeDto = RecipeDetailDto;
+
 export interface PagedResult<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages?: number;
-  hasNextPage?: boolean;
-  hasPreviousPage?: boolean;
+  data: T[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface RecipeMutationResponse {
+  message: string;
+  id: string;
+  slug: string;
+  rowVersion: string;
+}
+
+export interface RecipeWritePayload {
+  title: string;
+  description?: string;
+  instructions?: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  difficulty: DifficultyValue;
+  categoryId: string;
+  rowVersion?: string;
 }
 
 export interface SearchRecipeSummaryDto {

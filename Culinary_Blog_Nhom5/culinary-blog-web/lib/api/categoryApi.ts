@@ -9,11 +9,18 @@ import {
 } from "@/types/category.types";
 import type { RecipeCardDto } from "@/types/recipe.types";
 import { mockCategories, mockRecipes } from "../mock-data";
+import { toApiProblemError } from "./problemDetails";
 
 let localCategories: CategoryDto[] = [...mockCategories];
 const mockModeEnabled =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
+
+function canUseMockFallback(): boolean {
+  // Mock data must be explicitly enabled. Network failures, timeouts and
+  // server errors must never be reported as successful local mutations.
+  return mockModeEnabled;
+}
 
 interface CategoryDetailApiResponse {
   data: {
@@ -31,8 +38,14 @@ export const categoryApi = {
       );
       return Array.isArray(response.data) ? response.data : response.data.data;
     } catch (error) {
-      if (mockModeEnabled) return localCategories;
-      throw error;
+      if (canUseMockFallback()) {
+        console.warn(
+          "[categoryApi.getAll] Backend API chua san sang hoac khong the ket noi (Port 5156). Dang su dung du lieu mock:",
+          error instanceof Error ? error.message : error
+        );
+        return localCategories;
+      }
+      throw toApiProblemError(error);
     }
   },
 
@@ -53,7 +66,7 @@ export const categoryApi = {
       };
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return null;
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback()) throw toApiProblemError(error);
 
       const category = localCategories.find(
         (item) => item.slug.toLowerCase() === slug.toLowerCase(),
@@ -98,7 +111,7 @@ export const categoryApi = {
       );
       return response.data.data;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback()) throw toApiProblemError(error);
     }
 
     const newCategory: CategoryDto = {
@@ -107,7 +120,7 @@ export const categoryApi = {
       slug,
       description: dto.description || null,
       imageUrl: dto.imageUrl || null,
-      orderIndex: dto.orderIndex || localCategories.length + 1,
+      orderIndex: dto.orderIndex ?? localCategories.length + 1,
       recipeCount: 0,
     };
     localCategories = [newCategory, ...localCategories];
@@ -122,7 +135,7 @@ export const categoryApi = {
       );
       return response.data.data;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback()) throw toApiProblemError(error);
     }
 
     const index = localCategories.findIndex((c) => c.id === id);
@@ -130,8 +143,8 @@ export const categoryApi = {
       localCategories[index] = {
         ...localCategories[index],
         name: dto.name,
-        description: dto.description ?? localCategories[index].description,
-        imageUrl: dto.imageUrl ?? localCategories[index].imageUrl,
+        description: dto.description?.trim() || null,
+        imageUrl: dto.imageUrl?.trim() || null,
         orderIndex: dto.orderIndex ?? localCategories[index].orderIndex,
       };
       return localCategories[index];
@@ -144,7 +157,7 @@ export const categoryApi = {
       await axiosClient.delete(`/api/v1/categories/${id}`);
       return;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!canUseMockFallback()) throw toApiProblemError(error);
     }
 
     const cat = localCategories.find((c) => c.id === id);

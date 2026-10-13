@@ -34,7 +34,8 @@ export function DeleteCategoryModal({
 
   if (!category) return null;
 
-  const hasRecipes = (category.recipeCount || 0) > 0;
+  const totalRecipeCount = category.totalRecipeCount ?? category.recipeCount ?? 0;
+  const hasRecipes = totalRecipeCount > 0;
 
   const handleDelete = async () => {
     if (hasRecipes) {
@@ -87,7 +88,7 @@ export function DeleteCategoryModal({
               </p>
               <p className="mt-1 text-[11px] opacity-90 leading-relaxed">
                 Danh mục này hiện đang có{" "}
-                <strong>{category.recipeCount} công thức nấu ăn</strong> liên kết. Bạn cần
+                <strong>{totalRecipeCount} công thức nấu ăn</strong> liên kết. Bạn cần
                 chuyển các công thức sang danh mục khác hoặc xóa chúng trước khi có thể xóa
                 danh mục này.
               </p>

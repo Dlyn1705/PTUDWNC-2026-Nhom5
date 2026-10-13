@@ -89,7 +89,12 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         int pageSize,
         Guid? categoryId = null,
         RecipeDifficulty? difficulty = null,
+        int? minCookTime = null,
+        int? maxCookTime = null,
+        int? minServings = null,
+        int? maxServings = null,
         string? sortBy = null,
+        string? sortOrder = null,
         CancellationToken ct = default)
     {
         var query = _dbSet
@@ -109,23 +114,48 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             query = query.Where(r => r.Difficulty == difficulty.Value);
         }
 
-        var tsQuery = EF.Functions.ToTsQuery("simple", sanitizedTsQuery);
-        query = query.Where(r => r.SearchVector != null && r.SearchVector.Matches(tsQuery));
+        if (minCookTime.HasValue)
+        {
+            query = query.Where(r => r.CookTime >= minCookTime.Value);
+        }
 
+        if (maxCookTime.HasValue)
+        {
+            query = query.Where(r => r.CookTime <= maxCookTime.Value);
+        }
+
+        if (minServings.HasValue)
+        {
+            query = query.Where(r => r.Servings >= minServings.Value);
+        }
+
+        if (maxServings.HasValue)
+        {
+            query = query.Where(r => r.Servings <= maxServings.Value);
+        }
+
+        query = query.Where(r =>
+            r.SearchVector != null &&
+            r.SearchVector.Matches(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery)));
         var rankedQuery = query.Select(r => new
         {
             Recipe = r,
-            Score = r.SearchVector!.Rank(tsQuery)
+            Score = r.SearchVector!.Rank(
+                EF.Functions.ToTsQuery("simple", sanitizedTsQuery))
         });
 
+        var descending = !string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
         rankedQuery = sortBy?.ToLowerInvariant() switch
         {
-            "title" => rankedQuery.OrderBy(x => x.Recipe.Title),
-            "cooktime" => rankedQuery.OrderBy(x => x.Recipe.CookTime),
-            "-cooktime" => rankedQuery.OrderByDescending(x => x.Recipe.CookTime),
-            "createdat" => rankedQuery.OrderBy(x => x.Recipe.CreatedAt),
-            "-createdat" => rankedQuery.OrderByDescending(x => x.Recipe.CreatedAt),
-            _ => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt)
+            "title" when descending => rankedQuery.OrderByDescending(x => x.Recipe.Title).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "title" => rankedQuery.OrderBy(x => x.Recipe.Title).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "cooktime" when descending => rankedQuery.OrderByDescending(x => x.Recipe.CookTime).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "cooktime" => rankedQuery.OrderBy(x => x.Recipe.CookTime).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "createdat" when descending => rankedQuery.OrderByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            "createdat" => rankedQuery.OrderBy(x => x.Recipe.CreatedAt).ThenBy(x => x.Recipe.Id),
+            "relevance" => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id),
+            _ => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id)
         };
 
         var totalCount = await rankedQuery.CountAsync(ct);
@@ -200,13 +230,13 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
         // Sắp xếp
         query = sortBy?.ToLowerInvariant() switch
         {
-            "title" => query.OrderBy(r => r.Title),
-            "-title" => query.OrderByDescending(r => r.Title),
-            "cooktime" => query.OrderBy(r => r.CookTime),
-            "-cooktime" => query.OrderByDescending(r => r.CookTime),
-            "createdat" => query.OrderBy(r => r.CreatedAt),
-            "-createdat" => query.OrderByDescending(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt)
+            "title" => query.OrderBy(r => r.Title).ThenBy(r => r.Id),
+            "-title" => query.OrderByDescending(r => r.Title).ThenBy(r => r.Id),
+            "cooktime" => query.OrderBy(r => r.CookTime).ThenBy(r => r.Id),
+            "-cooktime" => query.OrderByDescending(r => r.CookTime).ThenBy(r => r.Id),
+            "createdat" => query.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id),
+            "-createdat" => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id),
+            _ => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id)
         };
 
         var totalCount = await query.CountAsync(ct);

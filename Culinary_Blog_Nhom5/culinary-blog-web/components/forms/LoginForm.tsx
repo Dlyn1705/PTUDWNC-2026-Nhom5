@@ -3,11 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import { signIn } from "next-auth/react";
+import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
+import { PasswordField } from "@/components/forms/PasswordField";
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -19,79 +21,58 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
-  const registered = searchParams.get("registered") === "true";
+  const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
+  const [emailProgress, setEmailProgress] = useState(0);
+  const registered = searchParams?.get("registered") === "true";
+  const requestedCallback = searchParams?.get("callbackUrl");
+  const googleCallbackUrl =
+    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+      ? requestedCallback
+      : "/";
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  const emailRegistration = register("email");
 
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/login",
-        data,
-      );
-      if (response.status === 200) {
-        window.localStorage.setItem(
-          "culinary_access_token",
-          response.data.accessToken,
-        );
-        window.localStorage.setItem(
-          "culinary_refresh_token",
-          response.data.refreshToken,
-        );
-        router.push("/");
-      }
-    } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 422 && problem?.errors) {
-        Object.entries(problem.errors).forEach(([field, messages]) => {
-          const target = field.toLowerCase() as keyof LoginFormData;
-          if ((target === "email" || target === "password") && messages[0]) {
-            setError(target, { type: "server", message: messages[0] });
-          }
-        });
-        return;
-      }
-      if (response?.status === 401) {
+      if (result?.error) {
+        setMascotMood("error");
         setError("password", {
           type: "server",
           message: "Email hoặc mật khẩu không chính xác.",
         });
         return;
       }
-      if (response?.status === 423) {
-        setServerError(
-          problem?.detail ??
-            "Tài khoản đang bị tạm khóa. Vui lòng thử lại sau.",
-        );
-        return;
-      }
-      if (response?.status === 429) {
-        setServerError(
-          "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ một phút rồi thử lại.",
-        );
-        return;
-      }
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+
+      setMascotMood("success");
+      const requestedPath = searchParams?.get("callbackUrl");
+      const destination =
+        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/";
+      router.replace(destination);
+      router.refresh();
+    } catch (error: unknown) {
+      setMascotMood("error");
+      console.error("Auth.js sign-in failed", error);
+      setServerError("Không thể đăng nhập. Vui lòng thử lại sau.");
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
       {registered && (
         <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Tài khoản đã được tạo. Hãy đăng nhập để tiếp tục.
@@ -115,7 +96,18 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           placeholder="chef@culinaryblog.vn"
-          {...register("email")}
+          {...emailRegistration}
+          onFocus={() => {
+            setMascotMood("email");
+          }}
+          onBlur={(event) => {
+            setMascotMood("idle");
+            emailRegistration.onBlur(event);
+          }}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            setEmailProgress(Math.min(event.target.value.length / 32, 1));
+            emailRegistration.onChange(event);
+          }}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
         <FieldError message={errors.email?.message} />
@@ -133,12 +125,16 @@ export function LoginForm() {
             Quên mật khẩu?
           </button>
         </div>
-        <input
+        <PasswordField
           id="login-password"
-          type="password"
           autoComplete="current-password"
           placeholder="Nhập mật khẩu"
-          {...register("password")}
+          registration={register("password")}
+          onFocus={() => setMascotMood("password")}
+          onBlur={() => setMascotMood("idle")}
+          onVisibilityChange={(visible) =>
+            setMascotMood(visible ? "peek" : "password")
+          }
           className={`field-input ${errors.password ? "field-input-error" : ""}`}
         />
         <FieldError message={errors.password?.message} />
@@ -147,6 +143,14 @@ export function LoginForm() {
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
+
+      <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-stone-400">
+        <span className="h-px flex-1 bg-stone-200" />
+        <span>Hoặc tiếp tục với</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
+
+      <GoogleLoginButton callbackUrl={googleCallbackUrl} />
 
       <p className="text-center text-sm text-stone-600">
         Chưa có tài khoản?{" "}

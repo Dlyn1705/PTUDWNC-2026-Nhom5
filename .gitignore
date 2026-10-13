@@ -4,11 +4,12 @@
 # Build directories
 [Bb]in/
 [Oo]bj/
-[.]data-protection-keys/
 [Ll]og/
 [Ll]ogs/
 [Bb]uild/
 [Bb]uilds/
+.local-build-profile/
+.nuget-packages/
 
 # Visual Studio user specific files
 *.suo
@@ -23,6 +24,7 @@
 .env
 .env.local
 .env.*.local
+.data-protection-keys/
 
 # OS generated files
 .DS_Store
@@ -33,3 +35,6 @@
 ehthumbs.db
 Thumbs.db
 Desktop.ini
+
+# Personal working documents
+/Culinary_Blog_Nhom5/docx/Linh/

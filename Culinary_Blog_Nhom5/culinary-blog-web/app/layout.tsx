@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
+import { Noto_Sans } from "next/font/google";
+import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
 import "./globals.css";
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-serif",
+const notoSans = Noto_Sans({
+  subsets: ["latin", "vietnamese"],
   display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
+  variable: "--font-noto-sans",
 });
 
 export const metadata: Metadata = {
@@ -31,12 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="vi"
-      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
-    >
+    <html lang="vi" className={`${notoSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
-        {children}
+        <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
   );

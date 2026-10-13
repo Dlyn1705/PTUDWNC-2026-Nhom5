@@ -14,13 +14,14 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  avatarUrl?: string | null;
 }
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   accessTokenExpiry: string;
   user: AuthUser;
+  roles: string[];
 }
 
 export interface ProblemDetails {
@@ -30,3 +31,5 @@ export interface ProblemDetails {
   code?: string;
   errors?: Record<string, string[]>;
 }
+
+export type AuthSessionResponse = AuthResponse;

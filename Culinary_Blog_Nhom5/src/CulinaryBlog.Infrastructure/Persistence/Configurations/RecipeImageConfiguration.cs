@@ -32,9 +32,17 @@ public class RecipeImageConfiguration : IEntityTypeConfiguration<RecipeImage>
             .HasDefaultValue(0);
 
         builder.Property(img => img.ProcessingStatus)
-            .HasConversion<string>()
             .HasMaxLength(20)
-            .HasDefaultValue(CulinaryBlog.Domain.Enums.ImageProcessingStatus.Pending);
+            .HasDefaultValue("Pending")
+            .IsRequired();
+
+        builder.HasIndex(img => img.RecipeId)
+            .IsUnique()
+            .HasFilter("\"IsPrimary\" = TRUE AND \"IsDeleted\" = FALSE");
+
+        builder.HasIndex(img => new { img.RecipeId, img.OrderIndex })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = FALSE");
 
         builder.Property(r => r.RowVersion)
             .IsConcurrencyToken()

@@ -9,6 +9,7 @@ export interface CategoryDto {
   imageUrl?: string | null;
   orderIndex: number;
   recipeCount: number;
+  totalRecipeCount?: number;
 }
 
 export interface CategoryDetailResult {

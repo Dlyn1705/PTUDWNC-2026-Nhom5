@@ -34,16 +34,19 @@ public class JwtService : IJwtService
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim("userId", user.Id),
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim("displayName", user.DisplayName ?? string.Empty),
+            new Claim("email_verified", user.EmailConfirmed ? "true" : "false"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(new Claim("roles", role));
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
