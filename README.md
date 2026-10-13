@@ -35,7 +35,6 @@ PTUDWNC-2026-Nhom5/
 └── Culinary_Blog_Nhom5/
     ├── Culinary_Blog_Nhom5.sln        # .NET solution
     ├── run-dev.ps1                    # Chạy full-stack bằng PowerShell
-    ├── run-dev.bat                    # Chạy full-stack bằng Command Prompt
     ├── docx/
     │   └── Spec/
     │       └── Culinary_Blog_Spec.md  # Đặc tả nghiệp vụ và kiến trúc
@@ -137,15 +136,6 @@ Script sẽ chạy đồng thời:
 - Health check: <http://localhost:5156/health>
 
 Nhấn `Ctrl + C` tại cửa sổ PowerShell để dừng backend và frontend.
-
-### Chạy bằng Command Prompt
-
-```bat
-cd Culinary_Blog_Nhom5
-run-dev.bat
-```
-
-Script này mở backend và frontend trong hai cửa sổ riêng.
 
 ### Chạy thủ công
 
