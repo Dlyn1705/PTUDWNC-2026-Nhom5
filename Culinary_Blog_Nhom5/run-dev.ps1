@@ -44,6 +44,44 @@ function Start-ConsoleProcess {
     return [System.Diagnostics.Process]::Start($startInfo)
 }
 
+function Wait-ForBackendReady {
+    param(
+        [Parameter(Mandatory)] [System.Diagnostics.Process] $Process,
+        [int] $TimeoutSeconds = 90
+    )
+
+    $readinessUrl = "http://localhost:5156/health/ready"
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+
+    Write-Host "Dang cho Backend san sang (database + storage)..." -ForegroundColor DarkYellow
+
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $Process.Refresh()
+        if ($Process.HasExited) {
+            throw "Backend da dung trong khi cho readiness (exit code $($Process.ExitCode))."
+        }
+
+        try {
+            $response = Invoke-WebRequest `
+                -UseBasicParsing `
+                -Uri $readinessUrl `
+                -TimeoutSec 2
+
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                Write-Host "Backend da san sang." -ForegroundColor Green
+                return
+            }
+        }
+        catch {
+            # Backend may still be starting, or a dependency may still be unavailable.
+        }
+
+        Start-Sleep -Milliseconds 500
+    }
+
+    throw "Backend khong san sang sau $TimeoutSeconds giay. Kiem tra log cua PostgreSQL/MinIO va cua so Backend."
+}
+
 Write-Host "===================================================" -ForegroundColor Cyan
 Write-Host "  Dang khoi dong Culinary Blog (Backend + Frontend)" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
@@ -68,26 +106,30 @@ if ([string]::IsNullOrWhiteSpace($env:Minio__SecretKey)) {
     $env:Minio__SecretKey = if ($env:MINIO_ROOT_PASSWORD) { $env:MINIO_ROOT_PASSWORD } else { "minioadminpassword" }
 }
 
-Write-Host "[1/2] Dang chay Backend .NET API (Port 5156)..." -ForegroundColor Yellow
-$dotnetPath = (Get-Command dotnet -ErrorAction Stop).Source
-$backendProcess = Start-ConsoleProcess `
-    -FilePath $dotnetPath `
-    -Arguments 'run --project src/CulinaryBlog.API' `
-    -WorkingDirectory $projectRoot
-
-Write-Host "[2/2] Dang chay Frontend Next.js (Port 3000)..." -ForegroundColor Yellow
-$npmPath = (Get-Command npm.cmd -ErrorAction Stop).Source
-$frontendProcess = Start-ConsoleProcess `
-    -FilePath $npmPath `
-    -Arguments 'run dev' `
-    -WorkingDirectory $frontendRoot
-
-Write-Host "`nCa hai tien trinh dang chay trong cua so nay." -ForegroundColor Green
-Write-Host "- Frontend Web App:  http://localhost:3000" -ForegroundColor White
-Write-Host "- Backend Scalar UI: http://localhost:5156/scalar/v1" -ForegroundColor White
-Write-Host "- Nhan Ctrl + C de dung." -ForegroundColor DarkGray
-
+$backendProcess = $null
+$frontendProcess = $null
 try {
+    Write-Host "[1/2] Dang chay Backend .NET API (Port 5156)..." -ForegroundColor Yellow
+    $dotnetPath = (Get-Command dotnet -ErrorAction Stop).Source
+    $backendProcess = Start-ConsoleProcess `
+        -FilePath $dotnetPath `
+        -Arguments 'run --project src/CulinaryBlog.API' `
+        -WorkingDirectory $projectRoot
+
+    Wait-ForBackendReady -Process $backendProcess
+
+    Write-Host "[2/2] Dang chay Frontend Next.js (Port 3000)..." -ForegroundColor Yellow
+    $npmPath = (Get-Command npm.cmd -ErrorAction Stop).Source
+    $frontendProcess = Start-ConsoleProcess `
+        -FilePath $npmPath `
+        -Arguments 'run dev' `
+        -WorkingDirectory $frontendRoot
+
+    Write-Host "`nCa hai tien trinh dang chay trong cua so nay." -ForegroundColor Green
+    Write-Host "- Frontend Web App:  http://localhost:3000" -ForegroundColor White
+    Write-Host "- Backend Scalar UI: http://localhost:5156/scalar/v1" -ForegroundColor White
+    Write-Host "- Nhan Ctrl + C de dung." -ForegroundColor DarkGray
+
     $backendExitReported = $false
     $frontendExitReported = $false
 
