@@ -309,7 +309,7 @@ public sealed class AuthService : IAuthService
             newRefreshToken,
             DateTime.UtcNow.AddSeconds(expiresInSeconds),
             refreshTokenExpiry,
-            new UserDto(user.Id, user.Email!, user.DisplayName),
+            new UserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl),
             roles.ToArray());
     }
 
@@ -384,7 +384,7 @@ public sealed class AuthService : IAuthService
             refreshToken,
             DateTime.UtcNow.AddSeconds(expiresInSeconds),
             refreshTokenExpiry,
-            new UserDto(user.Id, user.Email!, user.DisplayName),
+            new UserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl),
             roles.ToArray());
     }
 }

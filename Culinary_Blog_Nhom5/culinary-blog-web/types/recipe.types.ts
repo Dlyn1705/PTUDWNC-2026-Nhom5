@@ -71,7 +71,7 @@ export interface RecipeIngredientDto {
   orderIndex?: number;
 }
 
-export interface RecipeCardDto {
+export interface RecipeSummaryDto {
   id: string;
   title: string;
   slug: string;
@@ -91,11 +91,15 @@ export interface RecipeCardDto {
   rowVersion?: string;
 }
 
-export interface RecipeDto extends RecipeCardDto {
+export type RecipeCardDto = RecipeSummaryDto;
+
+export interface RecipeDetailDto extends RecipeSummaryDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];
 }
+
+export type RecipeDto = RecipeDetailDto;
 
 export interface PagedResult<T> {
   data: T[];
