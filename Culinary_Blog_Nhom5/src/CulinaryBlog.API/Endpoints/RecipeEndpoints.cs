@@ -74,6 +74,8 @@ public static class RecipeEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteRecipeImage")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Xóa ảnh công thức và dọn các object khỏi MinIO (FR-FILE-002)")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -118,6 +120,8 @@ public static class RecipeEndpoints
                 image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus)));
         })
         .WithName("GetRecipeImage")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy trạng thái xử lý ảnh công thức")
         .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
         .RequireAuthorization("AuthorPolicy");
@@ -147,6 +151,8 @@ public static class RecipeEndpoints
             return Results.Ok(result);
         })
         .WithName("GetRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
         .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
 
@@ -199,6 +205,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { items, totalCount, page = p, pageSize = ps });
         })
         .WithName("GetManagedRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy danh sách công thức của tác giả hoặc toàn bộ công thức cho Admin")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -217,6 +225,8 @@ public static class RecipeEndpoints
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
         .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
@@ -241,6 +251,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
         .WithName("ArchiveRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lưu trữ công thức, giữ nguyên dữ liệu và ẩn khỏi danh sách công khai")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -276,6 +288,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
         .WithName("RestoreRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Khôi phục công thức đã lưu trữ về bản nháp")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -319,6 +333,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("PublishRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Xuất bản công thức (yêu cầu ít nhất một bước thực hiện)")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -353,6 +369,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("UnpublishRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Hủy xuất bản công thức và chuyển về bản nháp")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -373,6 +391,8 @@ public static class RecipeEndpoints
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy chi tiết công thức theo slug; khách chỉ xem Published, Owner/Admin xem thêm Draft và Archived (FR-RCP-002)")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
