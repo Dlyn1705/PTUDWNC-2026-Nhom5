@@ -5,6 +5,7 @@ using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
 using CulinaryBlog.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace CulinaryBlog.Infrastructure.Persistence;
@@ -12,12 +13,14 @@ namespace CulinaryBlog.Infrastructure.Persistence;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly ApplicationDbContext _context;
+    private readonly IServiceScopeFactory _scopeFactory;
     private ICategoryRepository? _categories;
     private IRecipeRepository? _recipes;
 
-    public UnitOfWork(ApplicationDbContext context)
+    public UnitOfWork(ApplicationDbContext context, IServiceScopeFactory scopeFactory)
     {
         _context = context;
+        _scopeFactory = scopeFactory;
     }
 
     public ICategoryRepository Categories => _categories ??= new CategoryRepository(_context);
@@ -39,20 +42,38 @@ public class UnitOfWork : IUnitOfWork
         Domain.Entities.RecipeImage? replacementPrimary,
         CancellationToken ct = default)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                ct.ThrowIfCancellationRequested();
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await using var transaction = await context.Database.BeginTransactionAsync(ct);
+
+                var imageToDelete = await context.RecipeImages.IgnoreQueryFilters()
+                    .SingleAsync(candidate => candidate.Id == image.Id, ct);
+                if (imageToDelete.IsDeleted)
+                    return; // A previous attempt may have committed before the connection failed.
+
+                imageToDelete.IsPrimary = false;
+                imageToDelete.IsDeleted = true;
+                await context.SaveChangesAsync(ct);
+
+                if (replacementPrimary is not null)
+                {
+                    var replacement = await context.RecipeImages
+                        .SingleAsync(candidate => candidate.Id == replacementPrimary.Id, ct);
+                    replacement.IsPrimary = true;
+                    await context.SaveChangesAsync(ct);
+                }
+
+                await transaction.CommitAsync(ct);
+            });
             image.IsPrimary = false;
             image.IsDeleted = true;
-            await SaveChangesAsync(ct);
-
-            if (replacementPrimary is not null)
-            {
-                replacementPrimary.IsPrimary = true;
-                await SaveChangesAsync(ct);
-            }
-
-            await transaction.CommitAsync(ct);
+            if (replacementPrimary is not null) replacementPrimary.IsPrimary = true;
         }
         catch (DbUpdateException)
         {
