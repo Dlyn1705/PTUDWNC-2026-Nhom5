@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js"
   },
   "dependencies": {

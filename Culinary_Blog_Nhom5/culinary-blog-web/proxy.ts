@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { hasRole } from "@/lib/permissions";
 
 export default auth((request) => {
   const { pathname, search } = request.nextUrl;
@@ -9,7 +10,7 @@ export default auth((request) => {
     pathname.startsWith("/recipes/new") ||
     /^\/recipes\/[^/]+\/edit(?:\/|$)/.test(pathname);
 
-  if (isProtected && !session) {
+  if (isProtected && (!session || session.error)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
@@ -17,8 +18,12 @@ export default auth((request) => {
 
   if (
     pathname.startsWith("/dashboard/categories") &&
-    session?.user.role !== "Admin"
+    !hasRole(session?.user, "Admin")
   ) {
+    return NextResponse.rewrite(new URL("/forbidden", request.url));
+  }
+
+  if (isProtected && !hasRole(session?.user, "Author") && !hasRole(session?.user, "Admin")) {
     return NextResponse.rewrite(new URL("/forbidden", request.url));
   }
 

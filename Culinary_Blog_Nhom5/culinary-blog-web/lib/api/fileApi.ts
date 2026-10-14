@@ -1,18 +1,8 @@
 import axiosClient from "./axiosClient";
 
-export type RecipeImageDto = {
-  id: string;
-  recipeId: string;
-  originalUrl: string;
-  mediumUrl: string | null;
-  thumbnailUrl: string | null;
-  altText: string | null;
-  isPrimary: boolean;
-  orderIndex: number;
-  processingStatus: "Pending" | "Processing" | "Completed" | "Failed";
-};
-
-type ApiResponse<T> = { success: boolean; message: string | null; data: T };
+import type { RecipeImageDto } from "@/types/file.types";
+import type { ApiResponse } from "@/types/api.types";
+export type { RecipeImageDto } from "@/types/file.types";
 
 function delay(milliseconds: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {

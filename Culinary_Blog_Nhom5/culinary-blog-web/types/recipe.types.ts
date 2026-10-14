@@ -132,6 +132,36 @@ export interface RecipeWritePayload {
   rowVersion?: string;
 }
 
+export interface CreateRecipeRequest extends Omit<RecipeWritePayload, "rowVersion"> {
+  ingredients?: CreateRecipeIngredientRequest[];
+  steps?: CreateRecipeStepRequest[];
+  nutrition?: CreateRecipeNutritionRequest;
+}
+
+export type UpdateRecipeRequest = RecipeWritePayload;
+
+export interface CreateRecipeIngredientRequest {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateRecipeStepRequest {
+  description: string;
+  title?: string | null;
+  timerMinutes?: number | null;
+}
+
+export interface CreateRecipeNutritionRequest {
+  calories?: number | null;
+  protein?: number | null;
+  carbohydrates?: number | null;
+  fat?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+}
+
 export interface SearchRecipeSummaryDto {
   id: string;
   title: string;

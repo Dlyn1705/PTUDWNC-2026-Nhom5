@@ -2,6 +2,7 @@ using System.Text;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -86,7 +87,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader)
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After", "ETag", "api-supported-versions")
             .AllowCredentials();
     });
 });
@@ -223,6 +224,15 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await Results.Problem(
+            statusCode: StatusCodes.Status429TooManyRequests,
+            title: "Quá nhiều yêu cầu.",
+            detail: "Vui lòng chờ trước khi thử lại.").ExecuteAsync(context.HttpContext);
+    };
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -253,7 +263,11 @@ builder.Services.AddApiVersioning(options =>
         options.GroupNameFormat = "'v'VVV";
         options.SubstituteApiVersionInUrl = true;
     })
-    .AddOpenApi();
+    .AddOpenApi(options =>
+    {
+        options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
+        options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
+    });
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 
