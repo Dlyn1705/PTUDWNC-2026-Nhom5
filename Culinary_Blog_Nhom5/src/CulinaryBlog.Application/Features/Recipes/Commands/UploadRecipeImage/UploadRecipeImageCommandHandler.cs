@@ -18,6 +18,7 @@ public sealed class UploadRecipeImageCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUser,
     IFileStorageService storage,
+    IRecipeImageMutations mutations,
     IRecipeImageProcessingQueue processingQueue,
     ILogger<UploadRecipeImageCommandHandler> logger) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
 {
@@ -43,11 +44,10 @@ public sealed class UploadRecipeImageCommandHandler(
         var objectKey = $"recipes/{request.RecipeId}/{Guid.NewGuid():N}.{detected.Extension}";
         var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, ct);
         image.OriginalUrl = url;
-        await unitOfWork.AddRecipeImageAsync(image, ct);
 
         try
         {
-            await unitOfWork.SaveChangesAsync(ct);
+            await mutations.AddAsync(image, ct);
         }
         catch (Exception exception)
         {
@@ -62,19 +62,10 @@ public sealed class UploadRecipeImageCommandHandler(
         {
             await processingQueue.EnqueueAsync(image.Id, ct);
         }
-        catch
+        catch (Exception exception)
         {
-            try
-            {
-                unitOfWork.RemoveRecipeImage(image);
-                await unitOfWork.SaveChangesAsync(CancellationToken.None);
-                await storage.DeleteAsync(url, CancellationToken.None);
-            }
-            catch (Exception cleanupError)
-            {
-                logger.LogError(cleanupError, "Could not compensate image upload {RecipeImageId} after queue failure", image.Id);
-            }
-            throw new InvalidOperationException("Ảnh đã được lưu nhưng chưa thể đưa vào hàng đợi xử lý. Vui lòng thử lại sau.");
+            // Pending metadata is durable; recovery retries enqueueing after a queue outage.
+            logger.LogWarning(exception, "Image {RecipeImageId} is pending background processing", image.Id);
         }
 
         return new RecipeImageDto(image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl,
