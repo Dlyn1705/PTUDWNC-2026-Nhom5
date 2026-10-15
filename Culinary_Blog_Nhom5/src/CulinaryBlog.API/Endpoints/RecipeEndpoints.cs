@@ -14,6 +14,7 @@ using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
 using CulinaryBlog.Domain.Entities;
+using CulinaryBlog.Application.Features.Recipes.Ingredients;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
@@ -439,10 +440,14 @@ public static class RecipeEndpoints
                 throw new ValidationException("Ingredients", "Mỗi công thức tối đa 100 nguyên liệu.");
             if (request.Steps is { Count: > 100 })
                 throw new ValidationException("Steps", "Mỗi công thức tối đa 100 bước.");
-            if (request.Ingredients?.Any(ingredient => string.IsNullOrWhiteSpace(ingredient.Name)) == true)
-                throw new ValidationException("Ingredients", "Tên nguyên liệu không được để trống.");
-            if (request.Ingredients?.Any(ingredient => ingredient.Quantity is < 0) == true)
-                throw new ValidationException("Ingredients", "Số lượng nguyên liệu không được âm.");
+            if (request.Ingredients is not null)
+                for (var index = 0; index < request.Ingredients.Count; index++)
+                {
+                    var item = request.Ingredients[index];
+                    if (item is null) throw new ValidationException($"Ingredients[{index}]", "Thiếu dữ liệu nguyên liệu.");
+                    IngredientRules.Validate(new IngredientInput(item.Name, item.Quantity, item.Unit, item.Notes), $"Ingredients[{index}].");
+                }
+
             if (request.Steps?.Any(step => string.IsNullOrWhiteSpace(step.Description)) == true)
                 throw new ValidationException("Steps", "Nội dung bước thực hiện không được để trống.");
             if (request.CategoryId == Guid.Empty)
@@ -495,7 +500,7 @@ public static class RecipeEndpoints
                         ingredient.Quantity,
                         ingredient.Unit?.Trim(),
                         ingredient.Notes?.Trim(),
-                        index + 1));
+                        index));
                 }
             }
 

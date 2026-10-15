@@ -86,7 +86,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader)
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "ETag")
             .AllowCredentials();
     });
 });
@@ -370,6 +370,7 @@ v1.MapAuthEndpoints();
 v1.MapAdminEndpoints();
 
 v1.MapRecipeEndpoints();
+v1.MapRecipeIngredientEndpoints();
 
 app.MapHealthEndpoints();
 
