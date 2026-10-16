@@ -5,17 +5,17 @@ import {
   ArrowRight,
   Clock,
   Users,
-  Search,
   CheckCircle2,
   Timer,
   Heart,
-  ChefHat,
+  Flame,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
-import { DifficultyBadge } from "@/components/recipes/RecipeCard";
+import { difficultyLabel } from "@/types/recipe.types";
+import { RecipeBookmark } from "@/components/recipes/RecipeBookmark";
 import { CategoryCard } from "@/components/categories/CategoryCard";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { recipeApi } from "@/lib/api/recipeApi";
@@ -52,158 +52,57 @@ export default async function HomePage() {
       <Navbar />
 
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-20">
-        {/* Hero Introduction Banner */}
-        <section className="relative overflow-hidden rounded-3xl border border-border bg-radial from-card via-card to-muted/40 p-8 sm:p-12 lg:p-16 text-center shadow-soft">
-          <div className="mx-auto max-w-3xl space-y-6">
+        {/* Featured recipe banner */}
+        <section aria-labelledby="featured-recipe-title" className="relative isolate overflow-hidden rounded-3xl bg-[#211b1c] text-white shadow-soft">
+            <Image
+              src={featuredImage?.url || "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1600&auto=format&fit=crop"}
+              alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
+              fill
+              sizes="(max-width: 1280px) 100vw, 1216px"
+              unoptimized
+              loading="eager"
+              className="-z-20 object-cover object-center"
+            />
+          <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/75 via-black/40 to-black/5" />
+          <div className="absolute inset-0 -z-10 bg-linear-to-t from-black/35 via-transparent to-transparent" />
 
-            <h1 className="font-display text-4xl sm:text-6xl font-bold tracking-tight text-foreground leading-[1.12]">
-              Slow recipes written for real home kitchens.
-            </h1>
-
-            <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-              No twenty-page stories. Just reliable, rigorously tested recipes with smart step timers, precise ingredient measures, and guaranteed comfort.
-            </p>
-
-            {/* Quick Search Box */}
-            <div className="mx-auto max-w-xl pt-2">
-              <form
-                action="/search"
-                method="GET"
-                className="flex items-center gap-2 rounded-full border border-border bg-background p-1.5 shadow-soft transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-              >
-                <div className="flex items-center pl-4 text-muted-foreground">
-                  <Search className="size-4 text-primary" />
-                </div>
-                <input
-                  type="text"
-                  name="q"
-                  placeholder="Search recipes (e.g., Pasta, Roast Chicken, Salad)..."
-                  className="w-full bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-                />
-                <Button type="submit" className="rounded-full px-6 shadow-soft shrink-0">
-                  Search
-                </Button>
-              </form>
-
-              {/* Popular Tags */}
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Trending:</span>
-                <Link
-                  href="/categories/pasta"
-                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
-                >
-                  Pasta
-                </Link>
-                <Link
-                  href="/categories/mains"
-                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
-                >
-                  Roast Chicken
-                </Link>
-                <Link
-                  href="/categories/baking"
-                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
-                >
-                  Olive Oil Cake
-                </Link>
-                <Link
-                  href="/recipes/pho-bo-truyen-thong-ha-noi"
-                  className="rounded-full bg-accent/60 px-3 py-1 text-accent-foreground hover:bg-accent transition-colors"
-                >
-                  Phở Bò
-                </Link>
-              </div>
+          {featured && (
+            <div className="absolute right-5 top-5 sm:right-6 sm:top-6">
+              <RecipeBookmark slug={featured.slug} />
             </div>
+          )}
+
+          <div className="flex min-h-[530px] flex-col items-start px-6 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+            <p className="mb-7 flex items-center gap-3 pr-12 text-xs font-semibold uppercase text-white/85">
+              <span className="h-px w-9 bg-white/65" aria-hidden="true" />
+              Recipe of the week
+            </p>
+            <h1 id="featured-recipe-title" className="max-w-[540px] text-3xl font-semibold leading-[1.18] tracking-tight sm:text-5xl lg:text-[52px]">
+              {featured?.title || "Slow recipes written for real home kitchens."}
+            </h1>
+            <p className="mt-6 max-w-[440px] text-sm leading-relaxed text-white/85 sm:text-base line-clamp-3">
+              {featured?.description || "Reliable, twice-tested recipes with smart step timers and precise ingredient measures."}
+            </p>
+            {featured && (
+              <div className="mt-6 flex flex-wrap items-center gap-6 text-sm font-medium text-white/85 sm:text-base">
+                <span className="inline-flex items-center gap-2"><Clock className="size-[18px]" />{featuredTotalMinutes} min</span>
+                <span className="inline-flex items-center gap-2"><Users className="size-[18px]" />Serves {featured.servings}</span>
+              </div>
+            )}
+            <Button asChild className="mt-6 h-12 rounded-full bg-[#3f5b48] px-7 font-semibold text-white hover:bg-[#304737]">
+              <Link href={featured ? `/recipes/${featured.slug}` : "/recipes"}>
+                {featured ? "Read the recipe" : "Explore recipes"}<ArrowRight className="ml-3 size-4" />
+              </Link>
+            </Button>
+            {featured && (
+              <div className="mt-auto flex flex-wrap gap-2 pt-12 text-xs text-[#302c29] sm:text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Clock className="size-4" />{featuredTotalMinutes} minutes</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Flame className="size-4" />{difficultyLabel[featured.difficulty]}</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Users className="size-4" />Serves {featured.servings}</span>
+              </div>
+            )}
           </div>
         </section>
-
-        {/* Featured Recipe Hero of the Week */}
-        {featured ? (
-          <section className="relative grid items-center gap-8 overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-soft md:grid-cols-12 md:p-10 lg:gap-12">
-            <div className="space-y-5 md:col-span-6 lg:col-span-7">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary-foreground shadow-2xs">
-                  Recipe of the week
-                </span>
-                <DifficultyBadge difficulty={featured.difficulty} />
-                {featured.categoryName && (
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    {featured.categoryName}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-foreground">
-                <Link
-                  href={`/recipes/${featured.slug}`}
-                  className="hover:text-primary transition-colors"
-                >
-                  {featured.title}
-                </Link>
-              </h2>
-
-              <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
-                {featured.description}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground tabular-nums pt-2">
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <Clock className="size-4 text-primary" />
-                  {featuredTotalMinutes} mins total
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <Users className="size-4 text-primary" />
-                  Serves {featured.servings}
-                </span>
-                {featured.author && (
-                  <span className="inline-flex items-center gap-2 font-medium">
-                    {featured.author.avatarUrl ? (
-                      <Image
-                        src={featured.author.avatarUrl}
-                        alt={featured.author.displayName}
-                        width={20}
-                        height={20}
-                        unoptimized
-                        className="size-5 rounded-full object-cover border"
-                      />
-                    ) : (
-                      <ChefHat className="size-4 text-primary" />
-                    )}
-                    {featured.author.displayName}
-                  </span>
-                )}
-              </div>
-
-              <div className="pt-2 flex flex-wrap items-center gap-3">
-                <Button asChild className="h-11 rounded-full px-7 shadow-soft font-semibold">
-                  <Link href={`/recipes/${featured.slug}`}>
-                    View Complete Recipe <ArrowRight className="ml-2 size-4" />
-                  </Link>
-                </Button>
-
-                <Button asChild variant="outline" className="h-11 rounded-full px-6 hover:bg-accent">
-                  <Link href="/recipes">Explore All Recipes</Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft md:col-span-6 lg:col-span-5">
-              {featuredImage ? (
-                <Link href={`/recipes/${featured.slug}`} className="block group">
-                  <Image
-                    src={featuredImage.url}
-                    alt={featuredImage.alt || featured.title}
-                    width={1200}
-                    height={900}
-                    unoptimized
-                    className="aspect-[4/3] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                    loading="eager"
-                  />
-                </Link>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
 
         {/* Browse by Category Section (FR-CAT-001) */}
         <section className="space-y-6">

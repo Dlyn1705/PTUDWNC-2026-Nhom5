@@ -17,7 +17,7 @@ public static class CategoryEndpoints
 {
     public static IEndpointRouteBuilder MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/categories")
+        var group = app.MapGroup("/categories")
             .WithTags("Categories");
 
         // FR-CAT-001: Xem Danh sách Tất cả Danh mục (Public)
