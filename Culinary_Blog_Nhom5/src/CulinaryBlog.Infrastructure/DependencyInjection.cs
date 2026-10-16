@@ -32,6 +32,7 @@ public static class DependencyInjection
                     && context.User.HasClaim("email_verified", "true"))));
 
         services.AddSingleton<IAuthorizationHandler, RecipeAuthorizationHandler>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe.IRecipeCreationStore, RecipeCreationStore>();
 
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
