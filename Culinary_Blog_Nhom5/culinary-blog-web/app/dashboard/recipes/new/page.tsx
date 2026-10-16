@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import axiosClient from "@/lib/api/axiosClient";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { recipeApi } from "@/lib/api/recipeApi";
+import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
 import FileUploadDropzone from "@/components/common/FileUploadDropzone";
@@ -17,6 +18,8 @@ type Step = {
 };
 
 export default function NewRecipePage() {
+  const saving = useRef(false);
+  const [createdSlug, setCreatedSlug] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -57,7 +60,7 @@ export default function NewRecipePage() {
 
   const slug = useMemo(() => {
     return title
-      .toLowerCase()
+      .toLowerCase().replace(/đ/g, "d")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9\s-]/g, "")
@@ -107,92 +110,28 @@ export default function NewRecipePage() {
   };
 
   const handleSubmit = async () => {
-    if (isSaving || createdRecipeId) return;
+    if (saving.current || createdRecipeId) return;
     setFormError("");
-    // Kiểm tra tên món ăn
-    if (title.trim().length < 3) {
-      alert("Tên món ăn phải có ít nhất 3 ký tự.");
+    let recipeData;
+    try {
+      recipeData = buildCreateRecipePayload({ title, description, category, difficulty,
+        prepTime, cookTime, servings, ingredients, steps,
+        nutrition: { calories, protein, carbohydrates: carbs, fat, fiber, sodium } });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Dữ liệu không hợp lệ.");
       return;
     }
-
-    // Kiểm tra danh mục
-    if (!category) {
-      alert("Vui lòng chọn danh mục.");
-      return;
-    }
-
-    // Kiểm tra thời gian
-    if (prepTime && (!Number.isFinite(Number(prepTime)) || Number(prepTime) < 0)) {
-      alert("Thời gian chuẩn bị không hợp lệ.");
-      return;
-    }
-
-    if (cookTime && (!Number.isFinite(Number(cookTime)) || Number(cookTime) < 0)) {
-      alert("Thời gian nấu không hợp lệ.");
-      return;
-    }
-
-    // Kiểm tra nguyên liệu
-    const invalidIngredient = ingredients.some(
-      (ingredient) => !ingredient.name.trim()
-    );
-
-    if (invalidIngredient) {
-      alert("Vui lòng nhập đầy đủ tên nguyên liệu.");
-      return;
-    }
-
-    // Kiểm tra các bước
-    const invalidStep = steps.some(
-      (step) => !step.description.trim()
-    );
-
-    if (invalidStep) {
-      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
-      return;
-    }
-
-    if (Number(servings) <= 0 || !Number.isFinite(Number(servings))) {
-      alert("Số khẩu phần phải lớn hơn 0.");
-      return;
-    }
-
-    const recipeData = {
-      title: title.trim(),
-      description: description.trim(),
-      instructions: steps.map((step, index) => `Bước ${index + 1}: ${step.description.trim()}`).join("\n\n"),
-      categoryId: category,
-      difficulty: Number(difficulty),
-      prepTime: Number(prepTime) || 0,
-      cookTime: Number(cookTime) || 0,
-      servings: Number(servings),
-      nutrition: {
-        calories: calories ? Number(calories) : null,
-        protein: protein ? Number(protein) : null,
-        carbohydrates: carbs ? Number(carbs) : null,
-        fat: fat ? Number(fat) : null,
-        fiber: fiber ? Number(fiber) : null,
-        sodium: sodium ? Number(sodium) : null,
-      },
-      ingredients: ingredients.map((ingredient) => ({
-        name: ingredient.name.trim(),
-        quantity: ingredient.quantity ? Number(ingredient.quantity) : null,
-        unit: ingredient.unit.trim() || null,
-      })),
-      steps: steps.map((step, index) => ({
-        title: `Bước ${index + 1}`,
-        description: step.description.trim(),
-      })),
-    };
-
+    saving.current = true;
     setIsSaving(true);
     try {
-      const response = await axiosClient.post<{ id: string }>("/api/v1/recipes", recipeData);
-      setCreatedRecipeId(response.data.id);
+      const response = await recipeApi.create(recipeData);
+      setCreatedRecipeId(response.id);
+      setCreatedSlug(response.slug);
     } catch (error) {
-      const data = (error as { response?: { data?: { detail?: string } } })?.response?.data;
-      setFormError(data?.detail ?? "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
+      const data = (error as { response?: { data?: { detail?: string; errors?: Record<string, string[]> } } })?.response?.data;
+      setFormError(Object.values(data?.errors ?? {}).flat().join(" ") || data?.detail || "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
     } finally {
+      saving.current = false;
       setIsSaving(false);
     }
   };
@@ -214,7 +153,7 @@ export default function NewRecipePage() {
           </p>
         </div>
 
-        <div className="space-y-6">
+        <form noValidate className="space-y-6" onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
           {/* BASIC INFORMATION */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-6">
@@ -238,26 +177,26 @@ export default function NewRecipePage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  maxLength={150}
+                  maxLength={200}
                   placeholder="Ví dụ: Phở bò truyền thống"
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-gray-400">
-                  <span>Từ 3 - 150 ký tự</span>
-                  <span>{title.length}/150</span>
+                  <span>Từ 3 - 200 ký tự</span>
+                  <span>{title.length}/200</span>
                 </div>
               </div>
 
               {/* Slug */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Slug SEO
+                  Slug SEO (xem trước; hệ thống tự cấp slug duy nhất)
                 </label>
 
                 <input
                   type="text"
-                  value={slug}
+                  value={createdSlug || slug}
                   readOnly
                   placeholder="ten-mon-an"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500"
@@ -311,14 +250,14 @@ export default function NewRecipePage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  maxLength={500}
+                  maxLength={2000}
                   rows={4}
                   placeholder="Mô tả hương vị và điểm đặc sắc của món ăn..."
                   className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <p className="mt-2 text-right text-xs text-gray-400">
-                  {description.length}/500
+                  {description.length}/2000
                 </p>
               </div>
 
@@ -331,7 +270,7 @@ export default function NewRecipePage() {
 
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     value={prepTime}
                     onChange={(e) => setPrepTime(e.target.value)}
                     placeholder="15"
@@ -346,7 +285,7 @@ export default function NewRecipePage() {
 
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     value={cookTime}
                     onChange={(e) => setCookTime(e.target.value)}
                     placeholder="30"
@@ -410,6 +349,8 @@ export default function NewRecipePage() {
                     <input
                       type="number"
                       min="0"
+                      step="0.01"
+                      aria-label={label as string}
                       value={value as string}
                       onChange={(e) =>
                         (setter as React.Dispatch<
@@ -438,7 +379,7 @@ export default function NewRecipePage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Thêm các nguyên liệu cần thiết.
+                  Thêm các nguyên liệu cần thiết (có thể để trống khi lưu bản nháp).
                 </p>
               </div>
 
@@ -517,7 +458,7 @@ export default function NewRecipePage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Mô tả từng bước thực hiện món ăn.
+                  Bản nháp có thể chưa có bước; cần ít nhất một bước để xuất bản.
                 </p>
               </div>
 
@@ -565,17 +506,16 @@ export default function NewRecipePage() {
           {/* ACTIONS */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             {formError && <p role="alert" className="mr-auto self-center text-sm text-red-600">{formError}</p>}
-            {createdRecipeId && <p role="status" className="mr-auto self-center text-sm text-green-700">Đã lưu bản nháp. ID: {createdRecipeId}</p>}
+            {createdRecipeId && <p role="status" className="mr-auto self-center text-sm text-green-700">Đã lưu bản nháp. <a className="underline" href={`/dashboard/recipes/${createdRecipeId}/edit`}>Tiếp tục chỉnh sửa</a></p>}
             <button
-              type="button"
-              onClick={() => void handleSubmit()}
+              type="submit"
               disabled={isSaving || Boolean(createdRecipeId) || categories.length === 0}
               className="rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? "Đang lưu…" : createdRecipeId ? "Đã lưu" : "Lưu bản nháp"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </main>
   );
