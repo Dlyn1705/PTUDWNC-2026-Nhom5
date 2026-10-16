@@ -40,7 +40,7 @@ public sealed class UploadRecipeImageCommandHandler(
         var orderIndex = existingImages.Count == 0 ? 0 : existingImages.Max(x => x.OrderIndex) + 1;
         var image = RecipeImage.Create(request.RecipeId, string.Empty, request.AltText?.Trim(), existingImages.Count == 0, orderIndex);
         image.ProcessingStatus = "Pending";
-        var objectKey = $"recipes/{request.RecipeId}/{Guid.NewGuid():N}.{detected.Extension}";
+        var objectKey = $"recipes/{request.RecipeId}/{image.Id:N}.{detected.Extension}";
         var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, ct);
         image.OriginalUrl = url;
         await unitOfWork.AddRecipeImageAsync(image, ct);
@@ -51,11 +51,23 @@ public sealed class UploadRecipeImageCommandHandler(
         }
         catch (Exception exception)
         {
-            try { await storage.DeleteAsync(url, CancellationToken.None); }
-            catch (Exception cleanupError) { logger.LogError(cleanupError, "Could not remove image object after database failure for {RecipeId}", request.RecipeId); }
-            if (exception.GetType().Name == "DbUpdateException")
-                throw new ConflictException("Một ảnh khác vừa được tải lên công thức này. Vui lòng thử lại.", "RECIPE_IMAGE_CONFLICT");
-            throw;
+            // A lost commit acknowledgement is not proof that the insert rolled back.
+            // Query by stable ID before deleting original; if DB is unavailable retain it for operator reconciliation.
+            RecipeImage? committed;
+            try { committed = await unitOfWork.GetRecipeImageIncludingDeletedAsync(image.Id, CancellationToken.None); }
+            catch
+            {
+                logger.LogError("Image upload commit outcome is unknown for {RecipeImageId} in {RecipeId}", image.Id, request.RecipeId);
+                throw;
+            }
+            if (committed is null)
+            {
+                try { await storage.DeleteAsync(url, CancellationToken.None); }
+                catch (Exception cleanupError) { logger.LogError(cleanupError, "Could not remove image object after database failure for {RecipeId}", request.RecipeId); }
+                if (exception.GetType().Name == "DbUpdateException")
+                    throw new ConflictException("Một ảnh khác vừa được tải lên công thức này. Vui lòng thử lại.", "RECIPE_IMAGE_CONFLICT");
+                throw;
+            }
         }
 
         try
@@ -64,17 +76,8 @@ public sealed class UploadRecipeImageCommandHandler(
         }
         catch
         {
-            try
-            {
-                unitOfWork.RemoveRecipeImage(image);
-                await unitOfWork.SaveChangesAsync(CancellationToken.None);
-                await storage.DeleteAsync(url, CancellationToken.None);
-            }
-            catch (Exception cleanupError)
-            {
-                logger.LogError(cleanupError, "Could not compensate image upload {RecipeImageId} after queue failure", image.Id);
-            }
-            throw new InvalidOperationException("Ảnh đã được lưu nhưng chưa thể đưa vào hàng đợi xử lý. Vui lòng thử lại sau.");
+            // Upload was committed: retain original and its atomic Pending intent for recovery.
+            logger.LogWarning("Image {RecipeImageId} awaits dispatch after queue failure", image.Id);
         }
 
         return new RecipeImageDto(image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl,

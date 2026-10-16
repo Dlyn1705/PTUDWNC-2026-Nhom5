@@ -213,7 +213,9 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
-            context.Response.Headers.CacheControl = "public, max-age=60";
+            // Search includes URLs changed asynchronously by image processing. Until a shared tag
+            // invalidation pipeline exists, do not cache these metadata responses in intermediaries.
+            context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")

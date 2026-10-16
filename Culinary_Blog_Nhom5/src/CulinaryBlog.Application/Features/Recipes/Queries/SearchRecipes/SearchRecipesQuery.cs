@@ -121,7 +121,8 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             Title = r.Title,
             Slug = r.Slug,
             Description = r.Description,
-            PrimaryImageUrl = r.Images.FirstOrDefault(img => img.IsPrimary)?.OriginalUrl
+            PrimaryImageUrl = r.Images.Where(img => img.IsPrimary)
+                .Select(img => img.ThumbnailUrl ?? img.MediumUrl ?? img.OriginalUrl).FirstOrDefault()
                 ?? r.Images.FirstOrDefault()?.OriginalUrl,
             Category = new SearchRecipeCategorySummaryDto
             {

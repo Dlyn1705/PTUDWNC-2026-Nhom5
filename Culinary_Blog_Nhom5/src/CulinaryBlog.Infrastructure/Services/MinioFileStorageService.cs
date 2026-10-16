@@ -59,8 +59,9 @@ public sealed class MinioFileStorageService : IFileStorageService
         var args = new GetObjectArgs()
             .WithBucket(_options.Bucket)
             .WithObject(key)
-            .WithCallbackStream(source => source.CopyTo(output));
-        await _client.GetObjectAsync(args, ct);
+            .WithCallbackStream(async (source, token) => await Images.IsolatedImageRenderer.CopyBoundedAsync(source, output, token));
+        try { await _client.GetObjectAsync(args, ct); }
+        catch { await output.DisposeAsync(); throw; }
         output.Position = 0;
         return output;
     }

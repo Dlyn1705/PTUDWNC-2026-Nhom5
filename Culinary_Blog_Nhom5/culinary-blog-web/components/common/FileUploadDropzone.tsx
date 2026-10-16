@@ -61,7 +61,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
     try {
       const image = await uploadRecipeImage(recipeId, file, setProgress, controller.signal, altText);
       setState("success");
-      setMessage(`Đã tải ảnh lên. Trạng thái xử lý: ${image.processingStatus}.`);
+      setMessage("Đã tải ảnh lên. Các kích thước xem trước sẽ được tạo trong nền.");
       onUploadSuccess?.(image);
     } catch (error) {
       if (controller.signal.aborted) {
@@ -105,7 +105,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
         <div>
           <progress className="w-full" value={progress} max={100} aria-label={`Đang tải ảnh ${progress}%`} />
           <div className="text-right text-sm text-gray-600">{progress}%</div>
-          {progress === 100 && <p className="text-sm text-gray-600">Đang tạo ảnh xem trước...</p>}
+          {progress === 100 && <p className="text-sm text-gray-600">Máy chủ đang lưu ảnh...</p>}
         </div>
       )}
       {message && <p role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-sm text-red-600" : "text-sm text-gray-600"}>{message}</p>}

@@ -18,6 +18,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeImage> RecipeImages => Set<RecipeImage>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<RecipeImageWork> RecipeImageWork => Set<RecipeImageWork>();
+    public DbSet<RecipeImageGeneration> RecipeImageGenerations => Set<RecipeImageGeneration>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

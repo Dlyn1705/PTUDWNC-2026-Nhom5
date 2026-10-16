@@ -8,6 +8,7 @@ public sealed class SafeLogSink(Logger output) : ILogEventSink, IDisposable
 {
     private static readonly HashSet<string> Allowed = new(StringComparer.Ordinal)
     {
+        "Attempt", "ErrorCategory",
         "EventType", "CorrelationId", "RequestId", "RequestPath", "RequestMethod", "StatusCode",
         "Elapsed", "UserId", "SourceContext", "Application", "Environment", "RequestName", "Outcome",
         "TraceId", "SpanId", "RecipeId", "RecipeImageId", "ImageId", "Count", "EventId", "ExceptionType",

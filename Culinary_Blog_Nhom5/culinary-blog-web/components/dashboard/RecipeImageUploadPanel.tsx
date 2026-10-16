@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import FileUploadDropzone from "@/components/common/FileUploadDropzone";
-import Image from "next/image";
+import RecipeImageProcessingPreview from "@/components/dashboard/RecipeImageProcessingPreview";
 import { deleteRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
 
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -85,10 +85,9 @@ export default function RecipeImageUploadPanel() {
             <ul className="grid gap-4 sm:grid-cols-2">
               {images.map((image) => (
                 <li key={image.id} className="flex items-center gap-3 rounded-xl border p-3">
-                  <Image src={image.thumbnailUrl ?? image.originalUrl} alt={image.altText ?? "Ảnh công thức"} width={96} height={96} unoptimized className="h-24 w-24 rounded-lg object-cover" />
+                  <RecipeImageProcessingPreview initial={image} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{image.isPrimary ? "Ảnh chính" : "Ảnh công thức"}</p>
-                    <p className="text-xs text-muted-foreground">{image.processingStatus}</p>
                     <button type="button" disabled={deletingImageId === image.id} onClick={() => void deleteImage(image)} className="mt-2 rounded-lg border px-3 py-1 text-sm disabled:opacity-50">
                       {deletingImageId === image.id ? "Đang xóa…" : "Xóa ảnh"}
                     </button>

@@ -177,6 +177,12 @@ npm run build
 
 Ngoài ra, mở frontend và kiểm tra tối thiểu trang chủ, đăng nhập, danh sách công thức, chi tiết công thức và health check của API.
 
+## Xử lý ảnh nền (FR-JOB-002)
+
+Hangfire tạo medium 800×600 và thumbnail 300×300 từ original. Triển khai migration mới trước khi nhận upload và dừng worker phiên bản cũ để tránh trộn giao thức resize/delete. Runtime cần `dotnet` trong PATH và thư mục temp ghi được cho decoder tiến trình con.
+
+Xem [Runbook Image Resize / Thumbnail](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-002-Image-Resize-Thumbnail.md) để chạy test local, theo dõi retry/recovery/cleanup và xử lý Failed. Không cần bật dashboard hoặc cấu hình server Hangfire riêng.
+
 ## Xử lý lỗi thường gặp
 
 - API không kết nối PostgreSQL: kiểm tra `docker compose ps`; cổng PostgreSQL trên máy là `5433`, không phải `5432`.
