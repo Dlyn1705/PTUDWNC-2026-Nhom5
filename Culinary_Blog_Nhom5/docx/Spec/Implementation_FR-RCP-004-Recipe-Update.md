@@ -1,8 +1,8 @@
 # FR-RCP-004 — Hoàn thiện cập nhật công thức và phân quyền
 
 Ngày kiểm tra: 16/10/2026.
-Nhánh: `2312778-phanthibaotram-fr-rcp-004-capnhatcongthuc`.
-Base: `origin/main` tại `0452d23`, đã fetch trước khi bắt đầu. Workspace ban đầu sạch. Tên nhánh có mã FR để tránh trùng tên chỉ khác hoa/thường với nhánh cập nhật cũ trên Windows.
+Nhánh bàn giao: `2312778-PhanThiBaoTram-capnhatcongthuc` (nhánh cũ theo yêu cầu của người dùng).
+Bản sửa ban đầu dựa trên `origin/main` tại `0452d23`; sau đó được chuyển nguyên commit vào nhánh cũ. Nhánh cũ đã ghép main mới nhất và giữ commit `120c94e` của người dùng. Chồng lấn trang tạo mới được giải quyết bằng cách giữ luồng tạo sẵn có trên nhánh cũ; UnitOfWork giữ cách xử lý giao dịch/context mới từ main.
 
 ## Căn cứ và phạm vi
 
