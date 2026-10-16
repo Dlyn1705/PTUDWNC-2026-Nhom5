@@ -35,6 +35,7 @@ public static class DependencyInjection
 
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe.IRecipeUpdateStore, RecipeUpdateStore>();
 
         // 2. DbContext
         string connectionString = configuration.GetConnectionString("DefaultConnection")
