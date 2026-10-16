@@ -9,6 +9,7 @@ import { signIn } from "next-auth/react";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
+import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 
 function FieldError({ message }: { message?: string }) {
@@ -73,11 +74,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
-      {registered && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Tài khoản đã được tạo. Hãy đăng nhập để tiếp tục.
-        </div>
-      )}
+      {registered && <WelcomeBanner />}
       {serverError && (
         <div
           role="alert"

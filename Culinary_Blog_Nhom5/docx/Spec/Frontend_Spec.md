@@ -496,15 +496,16 @@ culinary-blog-web/
   - Khi xóa thành công: Hiển thị Toast thông báo, tự động xóa bài viết khỏi cache và điều hướng người dùng về trang danh sách `/dashboard/recipes`.
 
 #### 7. Giao diện Chào mừng & Hướng dẫn Sau Đăng ký (`Welcome & Onboarding UI`)
-- **Route:** `/auth/welcome`
-- **Tập tin:** `app/(auth)/welcome/page.tsx`
+- **Route:** `/login?registered=true` (giữ redirect sau đăng ký hiện có).
+- **Tập tin:** `components/forms/LoginForm.tsx`
 - **Components:** `components/auth/WelcomeBanner.tsx`
 - **Phân quyền truy cập:** User vừa đăng ký tài khoản thành công.
 - **Nghiệp vụ chi tiết (`FR-JOB-001`):**
   - Tương thích với tác vụ nền `Welcome Email Job` ở backend.
   - Màn hình hiển thị thông điệp chúc mừng gia nhập cộng đồng Culinary Blog.
-  - Nhắc nhở thành viên kiểm tra hộp thư điện tử Email để đọc thư chào mừng và kích hoạt tài khoản.
-  - Nút điều hướng nhanh: "Khám phá công thức ngay" dẫn tới `/recipes` hoặc "Tạo công thức đầu tiên của bạn" dẫn tới `/dashboard/recipes/new`.
+  - Thông báo tài khoản đã tạo, email chào mừng có thể đến sau; có thể đăng nhập ngay. Welcome email không xác minh/kích hoạt tài khoản.
+  - Link "Khám phá công thức" dẫn tới `/recipes`; hướng dẫn đăng nhập để chia sẻ công thức đầu tiên.
+  - Banner không gọi API gửi lại thư, không hiển thị email từ query string và không xác nhận SMTP đã giao thư vào inbox.
 
 ---
 
@@ -546,7 +547,7 @@ culinary-blog-web/
 | `/` | Trang chủ (Landing Page) | Linh | Public | Giới thiệu, banner, danh mục nổi bật, công thức mới nhất |
 | `/auth/login` | Đăng nhập | Ân | Public (Khách) | Form đăng nhập email/mật khẩu & nút Google OAuth |
 | `/auth/register` | Đăng ký | Ân | Public (Khách) | Form tạo tài khoản thành viên mới |
-| `/auth/welcome` | Chào mừng thành viên | Trâm | User vừa đăng ký | Thông báo kích hoạt tài khoản & email chào mừng |
+| `/login?registered=true` | Chào mừng thành viên | Trâm | Sau đăng ký | Banner chào mừng, hướng dẫn đăng nhập và khám phá công thức |
 | `/profile` | Hồ sơ cá nhân | Ân | Author, Admin | Xem/sửa thông tin cá nhân, avatar, đổi mật khẩu |
 | `/status` | Sức khỏe hệ thống | Ân | Public | Theo dõi trạng thái API, PostgreSQL, Redis, MinIO |
 | `/categories` | Danh sách danh mục | Linh | Public | Khám phá toàn bộ danh mục ẩm thực |

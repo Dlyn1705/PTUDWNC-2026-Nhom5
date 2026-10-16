@@ -10,6 +10,7 @@ using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Services.Email;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -386,6 +387,7 @@ recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
     Cron.Weekly,
     new RecurringJobOptions());
 
+recurringJobManager.RegisterWelcomeEmailJobs();
 
 // ============================================================
 // 12. Run

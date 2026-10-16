@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Email;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Interfaces;
@@ -79,6 +80,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<DatabaseSeeder>();
+        services.AddWelcomeEmail(configuration);
 
         // 4. Repositories & Unit of Work
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

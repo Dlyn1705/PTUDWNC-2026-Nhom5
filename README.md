@@ -166,6 +166,12 @@ npm run dev
 | MinIO Console | <http://localhost:9001> |
 | Seq | <http://localhost:5341> |
 
+## Welcome Email (FR-JOB-001)
+
+Đăng ký mới lưu yêu cầu welcome email cùng transaction tạo tài khoản. Hangfire gửi nền qua SMTP, retry tối đa 4 lần gọi transport và phục hồi yêu cầu còn chờ. Mặc định `Email:Enabled=false`; tài khoản vẫn đăng nhập bình thường và yêu cầu gửi được giữ Pending.
+
+Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP production, kiểm thử và xử lý Failed: [Runbook Welcome Email](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-001-Welcome-Email.md). Mail capture local dùng file riêng `compose.mail.yml`, cổng 1025/8025 chỉ bind localhost. Secret SMTP phải đặt qua environment/User Secrets, không commit.
+
 ## Kiểm tra trước khi gửi bài
 
 ```powershell
