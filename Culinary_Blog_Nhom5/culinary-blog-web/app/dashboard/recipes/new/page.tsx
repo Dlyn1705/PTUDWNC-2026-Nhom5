@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import axiosClient from "@/lib/api/axiosClient";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
-import FileUploadDropzone from "@/components/common/FileUploadDropzone";
+import axiosClient from "@/lib/api/axiosClient";
+import { uploadRecipeImage } from "@/lib/api/fileApi";
 
 type Ingredient = {
   name: string;
@@ -16,11 +19,22 @@ type Step = {
   description: string;
 };
 
+type CreatedRecipeResponse = {
+  id: string;
+  slug: string;
+};
+
 export default function NewRecipePage() {
+  const router = useRouter();
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [createdRecipeId, setCreatedRecipeId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [difficulty, setDifficulty] = useState("1");
+  const [difficulty, setDifficulty] = useState("Easy");
 
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
@@ -33,17 +47,15 @@ export default function NewRecipePage() {
   const [fiber, setFiber] = useState("");
   const [sodium, setSodium] = useState("");
 
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [categoryError, setCategoryError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [createdRecipeId, setCreatedRecipeId] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     let active = true;
     categoryApi.getAll()
       .then((items) => { if (active) setCategories(items); })
-      .catch(() => { if (active) setCategoryError("Không thể tải danh mục. Vui lòng tải lại trang."); });
+      .catch(() => { if (active) setFormError("Không tải được danh mục. Vui lòng tải lại trang."); })
+      .finally(() => { if (active) setCategoriesLoading(false); });
     return () => { active = false; };
   }, []);
 
@@ -106,12 +118,36 @@ export default function NewRecipePage() {
     setSteps(updated);
   };
 
-  const handleSubmit = async () => {
-    if (isSaving || createdRecipeId) return;
+  const handleImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+    if (!allowedTypes.includes(file.type)) {
+      setFormError("Ảnh phải có định dạng JPEG, PNG, WebP hoặc AVIF.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError("Kích thước ảnh không được vượt quá 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
     setFormError("");
+    const url = URL.createObjectURL(file);
+    if (image?.startsWith("blob:")) URL.revokeObjectURL(image);
+    setImage(url);
+    setImageFile(file);
+  };
+
+  const handleSubmit = async (status: "draft" | "continue") => {
     // Kiểm tra tên món ăn
-    if (title.trim().length < 3) {
-      alert("Tên món ăn phải có ít nhất 3 ký tự.");
+    if (title.trim().length < 3 || title.trim().length > 200) {
+      alert("Tên món ăn phải có từ 3 đến 200 ký tự.");
       return;
     }
 
@@ -122,78 +158,86 @@ export default function NewRecipePage() {
     }
 
     // Kiểm tra thời gian
-    if (prepTime && (!Number.isFinite(Number(prepTime)) || Number(prepTime) < 0)) {
+    if ((prepTime && (!Number.isInteger(Number(prepTime)) || Number(prepTime) < 0)) ||
+        (cookTime && (!Number.isInteger(Number(cookTime)) || Number(cookTime) < 0))) {
       alert("Thời gian chuẩn bị không hợp lệ.");
       return;
     }
 
-    if (cookTime && (!Number.isFinite(Number(cookTime)) || Number(cookTime) < 0)) {
-      alert("Thời gian nấu không hợp lệ.");
+    if (!Number.isInteger(Number(servings)) || Number(servings) <= 0) {
+      alert("Số khẩu phần phải là số nguyên lớn hơn 0.");
       return;
     }
 
-    // Kiểm tra nguyên liệu
-    const invalidIngredient = ingredients.some(
-      (ingredient) => !ingredient.name.trim()
-    );
-
-    if (invalidIngredient) {
-      alert("Vui lòng nhập đầy đủ tên nguyên liệu.");
+    const activeIngredients = ingredients.filter((item) => item.name.trim());
+    if (activeIngredients.some((item) => item.quantity.trim() && (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0))) {
+      alert("Số lượng nguyên liệu phải lớn hơn 0.");
       return;
     }
 
-    // Kiểm tra các bước
-    const invalidStep = steps.some(
-      (step) => !step.description.trim()
-    );
+    const activeSteps = steps.filter((step) => step.description.trim());
 
-    if (invalidStep) {
-      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
+    const nutritionValues = [calories, protein, carbs, fat, fiber, sodium];
+    if (nutritionValues.some((value) => value.trim() && (!Number.isFinite(Number(value)) || Number(value) < 0))) {
+      alert("Giá trị dinh dưỡng phải là số không âm.");
       return;
     }
 
-    if (Number(servings) <= 0 || !Number.isFinite(Number(servings))) {
-      alert("Số khẩu phần phải lớn hơn 0.");
-      return;
-    }
-
-    const recipeData = {
-      title: title.trim(),
-      description: description.trim(),
-      instructions: steps.map((step, index) => `Bước ${index + 1}: ${step.description.trim()}`).join("\n\n"),
-      categoryId: category,
-      difficulty: Number(difficulty),
-      prepTime: Number(prepTime) || 0,
-      cookTime: Number(cookTime) || 0,
-      servings: Number(servings),
-      nutrition: {
-        calories: calories ? Number(calories) : null,
-        protein: protein ? Number(protein) : null,
-        carbohydrates: carbs ? Number(carbs) : null,
-        fat: fat ? Number(fat) : null,
-        fiber: fiber ? Number(fiber) : null,
-        sodium: sodium ? Number(sodium) : null,
-      },
-      ingredients: ingredients.map((ingredient) => ({
-        name: ingredient.name.trim(),
-        quantity: ingredient.quantity ? Number(ingredient.quantity) : null,
-        unit: ingredient.unit.trim() || null,
-      })),
-      steps: steps.map((step, index) => ({
-        title: `Bước ${index + 1}`,
-        description: step.description.trim(),
-      })),
-    };
-
-    setIsSaving(true);
+    setSaving(true);
+    setFormError("");
     try {
-      const response = await axiosClient.post<{ id: string }>("/api/v1/recipes", recipeData);
-      setCreatedRecipeId(response.data.id);
+      if (createdRecipeId) {
+        if (imageFile) await uploadRecipeImage(createdRecipeId, imageFile, undefined, undefined, title.trim());
+        router.push(`/dashboard/recipes/${createdRecipeId}/edit`);
+        return;
+      }
+      const payload = {
+        title: title.trim(),
+        description: description.trim() || null,
+        instructions: null,
+        prepTime: Number(prepTime) || 0,
+        cookTime: Number(cookTime) || 0,
+        servings: Number(servings),
+        difficulty: ({ Easy: 1, Medium: 2, Hard: 3, Expert: 4 } as const)[difficulty as "Easy" | "Medium" | "Hard" | "Expert"],
+        categoryId: category,
+        ingredients: activeIngredients.map((item, index) => ({
+          name: item.name.trim(),
+          quantity: item.quantity.trim() ? Number(item.quantity) : null,
+          unit: item.unit.trim() || null,
+          notes: null,
+          orderIndex: index,
+        })),
+        steps: activeSteps.map((step, index) => ({
+          title: `Bước ${index + 1}`,
+          description: step.description.trim(),
+          timerMinutes: null,
+          imageUrl: null,
+        })),
+        nutrition: nutritionValues.some((value) => value.trim()) ? {
+          calories: calories.trim() ? Number(calories) : null,
+          protein: protein.trim() ? Number(protein) : null,
+          carbohydrates: carbs.trim() ? Number(carbs) : null,
+          fat: fat.trim() ? Number(fat) : null,
+          fiber: fiber.trim() ? Number(fiber) : null,
+          sodium: sodium.trim() ? Number(sodium) : null,
+        } : null,
+      };
+
+      const response = await axiosClient.post<CreatedRecipeResponse | { data: CreatedRecipeResponse }>("/api/v1/recipes", payload);
+      const created = "data" in response.data ? response.data.data : response.data;
+      setCreatedRecipeId(created.id);
+      if (imageFile) await uploadRecipeImage(created.id, imageFile, undefined, undefined, title.trim());
+      if (status === "continue") {
+        router.push(`/dashboard/recipes/${created.id}/edit`);
+      }
+      else router.push("/dashboard/recipes");
     } catch (error) {
-      const data = (error as { response?: { data?: { detail?: string } } })?.response?.data;
-      setFormError(data?.detail ?? "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail || error.response?.data?.message || "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại."
+        : error instanceof Error ? error.message : "Không thể lưu công thức.";
+      setFormError(message);
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
@@ -238,14 +282,14 @@ export default function NewRecipePage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  maxLength={150}
+                  maxLength={200}
                   placeholder="Ví dụ: Phở bò truyền thống"
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-gray-400">
-                  <span>Từ 3 - 150 ký tự</span>
-                  <span>{title.length}/150</span>
+                  <span>Từ 3 - 200 ký tự</span>
+                  <span>{title.length}/200</span>
                 </div>
               </div>
 
@@ -274,14 +318,17 @@ export default function NewRecipePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
+                    disabled={categoriesLoading || categories.length === 0}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
-                    <option value="">Chọn danh mục</option>
+                    <option value="">{categoriesLoading ? "Đang tải danh mục..." : "Chọn danh mục"}</option>
                     {categories.map((item) => (
                       <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
-                  {categoryError && <p role="alert" className="mt-2 text-sm text-red-600">{categoryError}</p>}
+                  {!categoriesLoading && categories.length === 0 && (
+                    <p className="mt-2 text-sm text-red-600">Chưa có danh mục khả dụng.</p>
+                  )}
                 </div>
 
                 <div>
@@ -294,10 +341,10 @@ export default function NewRecipePage() {
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   >
-                    <option value="1">Dễ</option>
-                    <option value="2">Trung bình</option>
-                    <option value="3">Khó</option>
-                    <option value="4">Chuyên gia</option>
+                    <option value="Easy">Dễ</option>
+                    <option value="Medium">Trung bình</option>
+                    <option value="Hard">Khó</option>
+                    <option value="Expert">Chuyên gia</option>
                   </select>
                 </div>
               </div>
@@ -311,14 +358,14 @@ export default function NewRecipePage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  maxLength={500}
+                  maxLength={2000}
                   rows={4}
                   placeholder="Mô tả hương vị và điểm đặc sắc của món ăn..."
                   className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
                 <p className="mt-2 text-right text-xs text-gray-400">
-                  {description.length}/500
+                  {description.length}/2000
                 </p>
               </div>
 
@@ -378,8 +425,55 @@ export default function NewRecipePage() {
               Ảnh món ăn
             </h2>
 
-            <p className="mt-1 text-sm text-gray-500">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-            {createdRecipeId && <div className="mt-5"><FileUploadDropzone recipeId={createdRecipeId} /></div>}
+            <p className="mt-1 text-sm text-gray-500">
+              Thêm ảnh đại diện cho công thức.
+            </p>
+
+            <div className="mt-5">
+              {image ? (
+                <div className="relative overflow-hidden rounded-2xl">
+                  <Image
+                    src={image}
+                    alt="Ảnh món ăn"
+                    width={1024}
+                    height={576}
+                    unoptimized
+                    className="h-64 w-full object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (image?.startsWith("blob:")) URL.revokeObjectURL(image);
+                      setImage(null);
+                      setImageFile(null);
+                    }}
+                    className="absolute right-3 top-3 rounded-lg bg-white px-3 py-2 text-sm font-medium text-red-600 shadow"
+                  >
+                    Xóa ảnh
+                  </button>
+                </div>
+              ) : (
+                <label className="flex h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-primary hover:bg-primary/5">
+                  <span className="mb-3 text-4xl">📷</span>
+
+                  <span className="font-medium text-gray-700">
+                    Tải ảnh món ăn
+                  </span>
+
+                  <span className="mt-1 text-sm text-gray-400">
+                    JPEG, PNG, WEBP hoặc AVIF (tối đa 5 MB)
+                  </span>
+
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
           </section>
 
           {/* NUTRITION */}
@@ -563,16 +657,29 @@ export default function NewRecipePage() {
           </section>
 
           {/* ACTIONS */}
+          {formError && (
+            <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
+
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            {formError && <p role="alert" className="mr-auto self-center text-sm text-red-600">{formError}</p>}
-            {createdRecipeId && <p role="status" className="mr-auto self-center text-sm text-green-700">Đã lưu bản nháp. ID: {createdRecipeId}</p>}
             <button
               type="button"
-              onClick={() => void handleSubmit()}
-              disabled={isSaving || Boolean(createdRecipeId) || categories.length === 0}
-              className="rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => handleSubmit("draft")}
+              disabled={saving || categoriesLoading || categories.length === 0}
+              className="rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? "Đang lưu…" : createdRecipeId ? "Đã lưu" : "Lưu bản nháp"}
+              {saving ? "Đang lưu..." : "Lưu bản nháp"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSubmit("continue")}
+              disabled={saving || categoriesLoading || categories.length === 0}
+              className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Lưu và tiếp tục chỉnh sửa
             </button>
           </div>
         </div>

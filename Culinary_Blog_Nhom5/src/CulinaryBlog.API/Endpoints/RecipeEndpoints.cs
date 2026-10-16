@@ -168,6 +168,7 @@ public static class RecipeEndpoints
                 throw new NotFoundException("Recipe", id);
 
             var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
+            context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
             return Results.Ok(detail);
         })
@@ -213,7 +214,9 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
-            context.Response.Headers.CacheControl = "public, max-age=60";
+            // Search includes URLs changed asynchronously by image processing. Until a shared tag
+            // invalidation pipeline exists, do not cache these metadata responses in intermediaries.
+            context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")
@@ -369,6 +372,7 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
+            context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
             return Results.Ok(recipe);
         })
@@ -541,115 +545,16 @@ public static class RecipeEndpoints
             Guid id,
             UpdateRecipeRequest request,
             HttpContext httpContext,
-            IUnitOfWork unitOfWork,
-            ApplicationDbContext db,
+            ISender sender,
             CancellationToken ct) =>
         {
-            var currentUserId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrWhiteSpace(currentUserId))
-            {
-                throw new UnauthorizedAccessException("Không xác định được người dùng đăng nhập.");
-            }
-
-            var recipe = await unitOfWork.Recipes.GetDetailsByIdAsync(id, ct);
-            if (recipe is null)
-            {
-                throw new NotFoundException("Recipe", id);
-            }
-
-            var expectedRowVersion = ParseExpectedRowVersion(
-                request.RowVersion,
-                httpContext.Request.Headers.IfMatch.ToString());
-            if (expectedRowVersion is null || expectedRowVersion.Length == 0)
-            {
-                throw new ValidationException(
-                    "RowVersion",
-                    "RowVersion hoặc If-Match là bắt buộc khi cập nhật công thức.");
-            }
-
-            db.Entry(recipe).Property(entity => entity.RowVersion).OriginalValue = expectedRowVersion;
-
-            bool isAdmin = httpContext.User.IsInRole("Admin");
-            if (!isAdmin && !string.Equals(recipe.AuthorId, currentUserId, StringComparison.Ordinal))
-            {
-                throw new ForbiddenException("Bạn chỉ được cập nhật công thức do chính mình tạo.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Title))
-            {
-                throw new ValidationException("Title", "Tên công thức không được để trống.");
-            }
-
-            if (request.Title.Trim().Length < 3)
-            {
-                throw new ValidationException("Title", "Tên công thức phải có ít nhất 3 ký tự.");
-            }
-
-            var title = request.Title.Trim();
-            if (title.Length > 200)
-            {
-                throw new ValidationException("Title", "Title must not exceed 200 characters.");
-            }
-
-            var description = request.Description?.Trim() ?? string.Empty;
-            if (description.Length > 2000)
-            {
-                throw new ValidationException("Description", "Description must not exceed 2000 characters.");
-            }
-
-            var instructions = request.Instructions?.Trim() ?? string.Empty;
-            if (instructions.Length > 10000)
-            {
-                throw new ValidationException("Instructions", "Instructions must not exceed 10000 characters.");
-            }
-            if (request.Servings <= 0)
-            {
-                throw new ValidationException("Servings", "Số khẩu phần phải lớn hơn 0.");
-            }
-
-            if (request.PrepTime < 0)
-            {
-                throw new ValidationException("PrepTime", "Thời gian chuẩn bị không được âm.");
-            }
-
-            if (request.CookTime < 0)
-            {
-                throw new ValidationException("CookTime", "Thời gian nấu không được âm.");
-            }
-
-            if (request.CategoryId == Guid.Empty)
-            {
-                throw new ValidationException("CategoryId", "CategoryId is required.");
-            }
-
-            var category = await unitOfWork.Categories.GetByIdAsync(request.CategoryId, ct);
-            if (category is null)
-            {
-                throw new NotFoundException("Category", request.CategoryId);
-            }
-
-            recipe.Update(
-                title,
-                description,
-                instructions,
-                request.PrepTime,
-                request.CookTime,
-                request.Servings,
-                request.Difficulty,
-                request.CategoryId);
-
-            await unitOfWork.SaveChangesAsync(ct);
-
-            httpContext.Response.Headers.ETag = $"\"{Convert.ToBase64String(recipe.RowVersion)}\"";
-
-            return Results.Ok(new
-            {
-                message = "Cập nhật công thức thành công.",
-                id = recipe.Id,
-                slug = recipe.Slug,
-                rowVersion = Convert.ToBase64String(recipe.RowVersion)
-            });
+            var result = await sender.Send(new CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe.UpdateRecipeCommand(
+                id, request.Title, request.Description, request.Instructions, request.PrepTime,
+                request.CookTime, request.Servings, request.Difficulty, request.CategoryId,
+                request.RowVersion, httpContext.Request.Headers.IfMatch.ToString()), ct);
+            httpContext.Response.Headers.ETag = $"\"{result.RowVersion}\"";
+            httpContext.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(result);
         })
         .RequireAuthorization("AuthorPolicy")
         .WithName("UpdateRecipe")
@@ -711,26 +616,7 @@ public static class RecipeEndpoints
         return slug;
     }
 
-    private static byte[]? ParseExpectedRowVersion(string? requestVersion, string? ifMatch)
-    {
-        var value = !string.IsNullOrWhiteSpace(requestVersion)
-            ? requestVersion.Trim()
-            : ifMatch?.Trim().Trim('"');
 
-        if (string.IsNullOrWhiteSpace(value) || value == "*")
-        {
-            return null;
-        }
-
-        try
-        {
-            return Convert.FromBase64String(value);
-        }
-        catch (FormatException)
-        {
-            throw new ValidationException("RowVersion", "RowVersion/If-Match không đúng định dạng Base64.");
-        }
-    }
 }
 
 public sealed record CreateRecipeRequest(
