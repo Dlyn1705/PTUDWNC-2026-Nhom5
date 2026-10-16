@@ -23,7 +23,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using System.Threading.RateLimiting;
+using CulinaryBlog.API.Security;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
@@ -221,35 +221,7 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.OnRejected = async (context, cancellationToken) =>
-    {
-        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-            context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await Results.Problem(
-            statusCode: StatusCodes.Status429TooManyRequests,
-            title: "Quá nhiều yêu cầu.",
-            detail: "Vui lòng chờ trước khi thử lại.").ExecuteAsync(context.HttpContext);
-    };
-    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 10,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-    options.AddPolicy("upload", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 5,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-});
+builder.Services.AddApiSecurity();
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
@@ -325,6 +297,7 @@ if (builder.Configuration.GetValue<bool>("AdminSeed:OnStartup"))
 // ============================================================
 // 7. Request Pipeline & Middlewares
 // ============================================================
+app.UseMiddleware<ApiSecurityHeadersMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseStructuredRequestLogging();
 
@@ -367,8 +340,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseMiddleware<UserLogContextMiddleware>();
 
-app.UseAuthorization();
 app.UseRateLimiter();
+app.UseAuthorization();
 
 
 // ============================================================

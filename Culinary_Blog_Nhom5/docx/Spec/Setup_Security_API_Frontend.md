@@ -5,7 +5,7 @@
 - `Program.cs`: CORS whitelist từ `Cors:AllowedOrigins`, cho phép credentials và expose correlation ID, Retry-After, ETag, api-supported-versions. Không sử dụng wildcard origin với credentials.
 - JWT Bearer kiểm tra chữ ký, issuer, audience, thời hạn. `Jwt:Key` phải dài tối thiểu 32 byte, được cấp qua biến môi trường/user secrets.
 - `AuthorPolicy`: Author hoặc Admin; `AdminOnly`: Admin. API công thức kiểm tra thêm chủ sở hữu. Frontend chỉ điều khiển giao diện; backend quyết định quyền truy cập.
-- Rate limiting: nhóm auth tối đa 10 yêu cầu/IP/phút; upload tối đa 5 yêu cầu/IP/phút. Quá giới hạn trả 429 Problem Details và Retry-After.
+- Rate limiting: API chung tối đa 100 yêu cầu/IP/phút, đồng thời giữ auth 10 và upload 5 yêu cầu/IP/phút. Quá giới hạn trả 429 Problem Details và Retry-After. Chi tiết bổ sung và kết quả test xem [PR30_Security_Completion.md](PR30_Security_Completion.md).
 - Versioning dùng URL `/api/v1/...`. OpenAPI theo phiên bản tại `/openapi/v1.json`; Scalar tại `/scalar/v1`, chỉ bật trong Development.
 - `Documentation/ApiDocumentTransformers.cs` khai báo Bearer JWT và thêm security, 401/403 cho endpoint yêu cầu authorization; endpoint public/AllowAnonymous giữ public.
 
