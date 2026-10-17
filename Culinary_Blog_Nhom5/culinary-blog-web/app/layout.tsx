@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
 import { connection } from "next/server";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
@@ -31,7 +32,9 @@ export default async function RootLayout({
   return (
     <html lang="vi" className={`${notoSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        <QueryProvider>
+          <AuthSessionProvider>{children}</AuthSessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -23,8 +23,8 @@ export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
   const [emailProgress, setEmailProgress] = useState(0);
-  const registered = searchParams.get("registered") === "true";
-  const requestedCallback = searchParams.get("callbackUrl");
+  const registered = searchParams?.get("registered") === "true";
+  const requestedCallback = searchParams?.get("callbackUrl");
   const googleCallbackUrl =
     requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
       ? requestedCallback
@@ -56,7 +56,7 @@ export function LoginForm() {
       }
 
       setMascotMood("success");
-      const requestedPath = searchParams.get("callbackUrl");
+      const requestedPath = searchParams?.get("callbackUrl");
       const destination =
         requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
           ? requestedPath

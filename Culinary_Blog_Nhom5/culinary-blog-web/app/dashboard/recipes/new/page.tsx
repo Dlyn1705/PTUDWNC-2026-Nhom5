@@ -1,16 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import { ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
 import axiosClient from "@/lib/api/axiosClient";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
 import FileUploadDropzone from "@/components/common/FileUploadDropzone";
-
-type Ingredient = {
-  name: string;
-  quantity: string;
-  unit: string;
-};
 
 type Step = {
   description: string;
@@ -47,9 +43,7 @@ export default function NewRecipePage() {
     return () => { active = false; };
   }, []);
 
-  const [ingredients, setIngredients] = useState<Ingredient[]>([
-    { name: "", quantity: "", unit: "" },
-  ]);
+  const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
 
   const [steps, setSteps] = useState<Step[]>([
     { description: "" },
@@ -64,31 +58,6 @@ export default function NewRecipePage() {
       .trim()
       .replace(/\s+/g, "-");
   }, [title]);
-
-  const addIngredient = () => {
-    setIngredients([
-      ...ingredients,
-      { name: "", quantity: "", unit: "" },
-    ]);
-  };
-
-  const removeIngredient = (index: number) => {
-    if (ingredients.length === 1) return;
-
-    setIngredients(
-      ingredients.filter((_, i) => i !== index)
-    );
-  };
-
-  const updateIngredient = (
-    index: number,
-    field: keyof Ingredient,
-    value: string
-  ) => {
-    const updated = [...ingredients];
-    updated[index][field] = value;
-    setIngredients(updated);
-  };
 
   const addStep = () => {
     setSteps([...steps, { description: "" }]);
@@ -132,13 +101,9 @@ export default function NewRecipePage() {
       return;
     }
 
-    // Kiểm tra nguyên liệu
-    const invalidIngredient = ingredients.some(
-      (ingredient) => !ingredient.name.trim()
-    );
-
-    if (invalidIngredient) {
-      alert("Vui lòng nhập đầy đủ tên nguyên liệu.");
+    const checkedIngredients = ingredientFormSchema.safeParse({ items: ingredients });
+    if (!checkedIngredients.success) {
+      setFormError(checkedIngredients.error.issues.map(issue => issue.message).join(" "));
       return;
     }
 
@@ -174,11 +139,7 @@ export default function NewRecipePage() {
         fiber: fiber ? Number(fiber) : null,
         sodium: sodium ? Number(sodium) : null,
       },
-      ingredients: ingredients.map((ingredient) => ({
-        name: ingredient.name.trim(),
-        quantity: ingredient.quantity ? Number(ingredient.quantity) : null,
-        unit: ingredient.unit.trim() || null,
-      })),
+      ingredients: checkedIngredients.data.items.map(ingredientPayload),
       steps: steps.map((step, index) => ({
         title: `Bước ${index + 1}`,
         description: step.description.trim(),
@@ -429,84 +390,8 @@ export default function NewRecipePage() {
             </div>
           </section>
 
-          {/* INGREDIENTS */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Nguyên liệu
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Thêm các nguyên liệu cần thiết.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={addIngredient}
-                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                + Thêm nguyên liệu
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {ingredients.map((ingredient, index) => (
-                <div
-                  key={index}
-                  className="grid gap-3 md:grid-cols-[1fr_150px_120px_auto]"
-                >
-                  <input
-                    value={ingredient.name}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "name",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Tên nguyên liệu"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <input
-                    value={ingredient.quantity}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "quantity",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Số lượng"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <input
-                    value={ingredient.unit}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "unit",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Đơn vị"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => removeIngredient(index)}
-                    className="rounded-xl border border-red-200 px-4 py-3 text-red-500 hover:bg-red-50"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+          <IngredientManager key={createdRecipeId ?? "new-ingredients"} recipeId={createdRecipeId ?? undefined}
+            initialItems={ingredients} onChange={setIngredients} />
 
           {/* STEPS */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">

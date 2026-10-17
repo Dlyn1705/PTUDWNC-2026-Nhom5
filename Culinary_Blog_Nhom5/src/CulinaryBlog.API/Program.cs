@@ -104,6 +104,9 @@ var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
     ?? "CulinaryBlog";
 
+if (!builder.Environment.IsDevelopment() && jwtKey.Contains("SuperSecretKey_For_Development", StringComparison.Ordinal))
+    throw new InvalidOperationException("The development JWT key is not allowed outside Development.");
+
 var jwtAudience =
     builder.Configuration["Jwt:Audience"]
     ?? "CulinaryBlogWeb";
@@ -240,6 +243,7 @@ builder.Services.AddApiVersioning(options =>
         options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
         options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
     });
+builder.Services.AddRecipeApiConfiguration();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 
@@ -357,6 +361,7 @@ v1.MapAuthEndpoints();
 v1.MapAdminEndpoints();
 
 v1.MapRecipeEndpoints();
+v1.MapRecipeIngredientEndpoints();
 
 app.MapHealthEndpoints();
 
