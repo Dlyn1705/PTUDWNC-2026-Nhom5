@@ -51,10 +51,15 @@ public sealed class GalleryTests
             db.AddRange(owner, category, recipe);
             await db.SaveChangesAsync();
             var user = new User(owner.Id, false);
-            var mutations = new RecipeImageMutations(provider.GetRequiredService<IServiceScopeFactory>(), user);
+            var cacheInvalidator = new RecordingCacheInvalidator();
+            var mutations = new RecipeImageMutations(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                user,
+                cacheInvalidator);
             var first = RecipeImage.Create(recipe.Id, "https://example.test/first.jpg");
             var second = RecipeImage.Create(recipe.Id, "https://example.test/second.jpg");
             await Task.WhenAll(mutations.AddAsync(first, default), mutations.AddAsync(second, default));
+            Assert.Contains(cacheInvalidator.Calls, call => call.RecipeId == recipe.Id);
             db.ChangeTracker.Clear();
             var active = await db.RecipeImages.OrderBy(x => x.OrderIndex).ToListAsync();
             Assert.Equal(new[] { 0, 1 }, active.Select(x => x.OrderIndex));
@@ -124,5 +129,16 @@ public sealed class GalleryTests
         public string? Email => null;
         public IReadOnlyList<string> Roles => IsAdmin ? ["Admin"] : ["Author"];
         public bool IsAuthenticated => UserId is not null;
+    }
+
+    private sealed class RecordingCacheInvalidator : IRecipeCacheInvalidator
+    {
+        public List<(Guid RecipeId, string? Slug)> Calls { get; } = [];
+
+        public Task InvalidateRecipeAsync(Guid recipeId, string? slug, CancellationToken cancellationToken = default)
+        {
+            Calls.Add((recipeId, slug));
+            return Task.CompletedTask;
+        }
     }
 }

@@ -10,7 +10,10 @@ using Npgsql;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class RecipeImageMutations(IServiceScopeFactory scopes, ICurrentUserService user)
+public sealed class RecipeImageMutations(
+    IServiceScopeFactory scopes,
+    ICurrentUserService user,
+    IRecipeCacheInvalidator? cacheInvalidator = null)
     : IRecipeImageMutations
 {
     public Task AddAsync(RecipeImage image, CancellationToken ct) => ExecuteAsync(image.RecipeId, async db =>
@@ -89,6 +92,14 @@ public sealed class RecipeImageMutations(IServiceScopeFactory scopes, ICurrentUs
                 recipe.UpdatedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
+
+                if (cacheInvalidator is not null)
+                {
+                    await cacheInvalidator.InvalidateRecipeAsync(
+                        recipeId,
+                        recipe.Slug,
+                        CancellationToken.None);
+                }
                 return result;
             });
         }

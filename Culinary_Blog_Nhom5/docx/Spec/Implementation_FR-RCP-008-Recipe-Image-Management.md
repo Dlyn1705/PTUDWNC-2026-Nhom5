@@ -26,7 +26,7 @@
 | Archived | Giữ quy tắc đang có: chặn upload; cho phép set-primary/delete nếu recipe chưa soft-delete. |
 | Kích thước file | Tối đa 5 MiB; giữ MIME/magic bytes/extension validation hiện có. |
 | Contract frontend | Gallery dùng contract `RecipeImageDto` export từ `lib/api/fileApi.ts` trên main. `types/recipe.types.ts` là view model public `{id,url,isPrimary,alt}` khớp DTO public của backend, không đổi thành DTO upload vì hai mục đích khác nhau. |
-| Cache | Không tìm thấy Redis/OutputCache/response cache cho các truy vấn recipe trong mã hiện tại. Không thêm tầng cache mới. GET gallery/status dùng `no-store`; search đổi `public,max-age=60` thành `no-cache` để revalidate dữ liệu chứa ảnh. Các API đang đọc DB trực tiếp. |
+| Cache | Mutation ảnh gọi `IRecipeCacheInvalidator` sau khi transaction commit. Redis xóa cache detail theo recipe ID/slug và xoay version key dùng cho các cache list/search/category; lỗi Redis chỉ được log và không làm thất bại mutation đã commit. GET gallery/status dùng `no-store`; search đổi `public,max-age=60` thành `no-cache` để revalidate dữ liệu chứa ảnh. Các API đang đọc DB trực tiếp. |
 | Xóa ảnh và recipe | Giữ deletion job/recovery hiện có cho ảnh đơn lẻ. Không nối luồng xóa ảnh vào soft-delete recipe; không thay chính sách giữ ảnh 30 ngày. |
 | Migration | Chỉ backfill dữ liệu thiếu primary, không thay index. `Down` không hạ primary trở lại trạng thái sai. |
 | Test project | Project ảnh độc lập, chạy bằng đường dẫn csproj bên dưới; không sửa solution/package lock để giảm điểm va chạm với công việc khác. |
