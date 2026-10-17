@@ -175,6 +175,7 @@ export interface CreateRecipeStepRequest {
   description: string;
   title?: string | null;
   timerMinutes?: number | null;
+  imageUrl?: string | null;
 }
 
 export interface CreateRecipeNutritionRequest {
