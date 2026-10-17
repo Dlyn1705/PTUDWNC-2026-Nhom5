@@ -376,6 +376,7 @@ v1.MapAdminEndpoints();
 
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();
+v1.MapRecipeStepEndpoints();
 
 CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
     app.Services.GetRequiredService<IRecurringJobManager>());

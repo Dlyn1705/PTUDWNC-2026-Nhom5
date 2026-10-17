@@ -128,6 +128,12 @@ test("public prefetch does not invoke Auth.js or roll a session cookie", () => {
   assert.equal(handler(request).headers.get("x-middleware-next"), "1");
   assert.equal(calls, 0);
 });
+
+for (const route of ["/", "/recipes", "/recipes/edited-slug", "/search", "/categories", "/categories/mon-chinh", "/sitemap.xml"]) {
+  test(`recipe HTML ${route} cannot serve cached old steps`, () => {
+    assert.equal(proxy(new NextRequest(`https://example.invalid${route}`)).headers.get("Cache-Control"), "private, no-store");
+  });
+}
 test("CSP uses a fresh nonce, no production script bypass, and security headers on rewrites", () => {
   const request = () => { const r = new NextRequest("https://example.invalid/dashboard/categories"); r.auth = { user: { roles: ["Author"] } }; return r; };
   const first = proxy(request()); const second = proxy(request());

@@ -15,6 +15,7 @@ using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
+using CulinaryBlog.Application.Features.Recipes.Steps;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Application.Features.Recipes.Ingredients;
 using CulinaryBlog.Domain.Enums;
@@ -354,36 +355,12 @@ public static class RecipeEndpoints
         // FR-RCP-005: Xuất bản công thức
         group.MapPatch("/{id:guid}/publish", async (
             Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            ApplicationDbContext db,
+            ISender sender,
             CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException();
-
-            if (recipe.Status == RecipeStatus.Published)
-                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
-
-            if (recipe.Status == RecipeStatus.Archived)
-                throw new ConflictException("Không thể xuất bản công thức đang lưu trữ. Hãy khôi phục về bản nháp trước.");
-
-            try
-            {
-                recipe.Publish();
-            }
-            catch (DomainException ex)
-            {
-                throw new ValidationException("Steps", ex.Message);
-            }
-
-            await db.SaveChangesAsync(ct);
-            DiagnosticsConfig.RecipePublishedCounter.Add(1);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+            var result = await sender.Send(new PublishRecipeWithStepsCommand(id), ct);
+            if (result.WasPublished) DiagnosticsConfig.RecipePublishedCounter.Add(1);
+            return Results.Ok(result);
         })
         .WithName("PublishRecipe")
         .RequireRateLimiting("recipe-write")
@@ -520,8 +497,13 @@ public static class RecipeEndpoints
                     IngredientRules.Validate(new IngredientInput(item.Name, item.Quantity, item.Unit, item.Notes), $"Ingredients[{index}].");
                 }
 
-            if (request.Steps?.Any(step => string.IsNullOrWhiteSpace(step.Description)) == true)
-                throw new ValidationException("Steps", "Nội dung bước thực hiện không được để trống.");
+            if (request.Steps is not null)
+                for (var index = 0; index < request.Steps.Count; index++)
+                {
+                    var step = request.Steps[index];
+                    if (step is null) throw new ValidationException($"Steps[{index}]", "Thiếu dữ liệu bước.");
+                    StepRules.Validate(new StepInput(step.Description, step.Title, step.TimerMinutes, step.ImageUrl), $"Steps[{index}].");
+                }
             if (request.CategoryId == Guid.Empty)
             {
                 throw new ValidationException("CategoryId", "CategoryId is required.");
@@ -581,12 +563,9 @@ public static class RecipeEndpoints
                 for (var index = 0; index < request.Steps.Count; index++)
                 {
                     var step = request.Steps[index];
-                    recipe.Steps.Add(RecipeStep.Create(
-                        recipe.Id,
-                        index + 1,
-                        string.IsNullOrWhiteSpace(step.Title) ? $"Bước {index + 1}" : step.Title.Trim(),
-                        step.Description.Trim(),
-                        step.TimerMinutes));
+                    var entity = RecipeStep.Create(recipe.Id, index + 1, "", "");
+                    StepRules.Apply(entity, new StepInput(step.Description, step.Title, step.TimerMinutes, step.ImageUrl));
+                    recipe.Steps.Add(entity);
                 }
             }
 
@@ -833,7 +812,8 @@ public sealed record CreateRecipeIngredientRequest(
 public sealed record CreateRecipeStepRequest(
     string Description,
     string? Title = null,
-    int? TimerMinutes = null);
+    int? TimerMinutes = null,
+    string? ImageUrl = null);
 
 public sealed record CreateRecipeNutritionRequest(
     decimal? Calories = null,

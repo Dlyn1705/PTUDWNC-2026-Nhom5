@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import StepManager from "@/components/recipes/editor/StepManager";
+import { stepFormSchema, stepPayload, type StepDraft } from "@/lib/step-form";
 import { ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
 import axiosClient from "@/lib/api/axiosClient";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
-
-type Step = {
-  description: string;
-};
 
 export default function NewRecipePage() {
   const [title, setTitle] = useState("");
@@ -34,6 +32,7 @@ export default function NewRecipePage() {
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [createdRecipeId, setCreatedRecipeId] = useState<string | null>(null);
+  const submitLock = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -45,9 +44,7 @@ export default function NewRecipePage() {
 
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
 
-  const [steps, setSteps] = useState<Step[]>([
-    { description: "" },
-  ]);
+  const [steps, setSteps] = useState<StepDraft[]>([]);
 
   const slug = useMemo(() => {
     return title
@@ -59,24 +56,8 @@ export default function NewRecipePage() {
       .replace(/\s+/g, "-");
   }, [title]);
 
-  const addStep = () => {
-    setSteps([...steps, { description: "" }]);
-  };
-
-  const removeStep = (index: number) => {
-    if (steps.length === 1) return;
-
-    setSteps(steps.filter((_, i) => i !== index));
-  };
-
-  const updateStep = (index: number, value: string) => {
-    const updated = [...steps];
-    updated[index].description = value;
-    setSteps(updated);
-  };
-
   const handleSubmit = async () => {
-    if (isSaving || createdRecipeId) return;
+    if (submitLock.current || isSaving || createdRecipeId) return;
     setFormError("");
     // Kiểm tra tên món ăn
     if (title.trim().length < 3) {
@@ -107,13 +88,9 @@ export default function NewRecipePage() {
       return;
     }
 
-    // Kiểm tra các bước
-    const invalidStep = steps.some(
-      (step) => !step.description.trim()
-    );
-
-    if (invalidStep) {
-      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
+    const checkedSteps = stepFormSchema.safeParse({ items: steps });
+    if (!checkedSteps.success) {
+      setFormError(checkedSteps.error.issues.map(issue => issue.message).join(" "));
       return;
     }
 
@@ -125,7 +102,7 @@ export default function NewRecipePage() {
     const recipeData = {
       title: title.trim(),
       description: description.trim(),
-      instructions: steps.map((step, index) => `Bước ${index + 1}: ${step.description.trim()}`).join("\n\n"),
+      instructions: "",
       categoryId: category,
       difficulty: Number(difficulty),
       prepTime: Number(prepTime) || 0,
@@ -140,12 +117,10 @@ export default function NewRecipePage() {
         sodium: sodium ? Number(sodium) : null,
       },
       ingredients: checkedIngredients.data.items.map(ingredientPayload),
-      steps: steps.map((step, index) => ({
-        title: `Bước ${index + 1}`,
-        description: step.description.trim(),
-      })),
+      steps: checkedSteps.data.items.map(stepPayload),
     };
 
+    submitLock.current = true;
     setIsSaving(true);
     try {
       const response = await axiosClient.post<{ id: string }>("/api/v1/recipes", recipeData);
@@ -154,6 +129,7 @@ export default function NewRecipePage() {
       const data = (error as { response?: { data?: { detail?: string } } })?.response?.data;
       setFormError(data?.detail ?? "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
     } finally {
+      submitLock.current = false;
       setIsSaving(false);
     }
   };
@@ -393,59 +369,8 @@ export default function NewRecipePage() {
           <IngredientManager key={createdRecipeId ?? "new-ingredients"} recipeId={createdRecipeId ?? undefined}
             initialItems={ingredients} onChange={setIngredients} />
 
-          {/* STEPS */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Các bước thực hiện
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Mô tả từng bước thực hiện món ăn.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={addStep}
-                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                + Thêm bước
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex gap-4 rounded-xl border border-gray-200 p-4"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
-                    {index + 1}
-                  </div>
-
-                  <textarea
-                    value={step.description}
-                    onChange={(e) =>
-                      updateStep(index, e.target.value)
-                    }
-                    rows={3}
-                    placeholder={`Mô tả bước ${index + 1}...`}
-                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => removeStep(index)}
-                    className="h-fit rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+          <StepManager key={`steps-${createdRecipeId ?? "new"}`} recipeId={createdRecipeId ?? undefined}
+            onChange={setSteps} disabled={isSaving} />
 
           {/* ACTIONS */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

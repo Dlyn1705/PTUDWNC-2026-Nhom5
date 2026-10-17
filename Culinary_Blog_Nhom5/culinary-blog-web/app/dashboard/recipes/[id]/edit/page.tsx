@@ -7,6 +7,7 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import StepManager from "@/components/recipes/editor/StepManager";
 
 type RouteProps = { params: Promise<{ id: string }> };
 
@@ -101,7 +102,7 @@ export default function EditRecipePage({ params }: RouteProps) {
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-        <IngredientManager key={recipeId} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
+        <IngredientManager key={`ingredients-${recipeId}`} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
           try {
             const fresh = await recipeApi.getById(recipeId);
             if (activeRecipeId.current !== fresh.id) return;
@@ -150,7 +151,22 @@ export default function EditRecipePage({ params }: RouteProps) {
           </div>
         </section>
 
-        <ImageGalleryManager key={recipeId} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
+        <StepManager key={`steps-${recipeId}`} recipeId={recipeId} published={recipe.status === 1} parentVersion={recipe.rowVersion}
+          disabled={saving || deleting} onMutation={async () => {
+            try {
+              const fresh = await recipeApi.getById(recipeId);
+              if (activeRecipeId.current !== fresh.id) return;
+              const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
+              if (keys.some(key => fresh[key] !== recipe[key])) {
+                setError("Nội dung công thức đã đổi ở nơi khác. Hãy tải lại trước khi lưu nội dung.");
+                return;
+              }
+              setForm(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+              setRecipe(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+            } catch { setError("Các bước đã lưu; hãy tải lại công thức trước khi lưu nội dung."); }
+          }} />
+
+        <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.
           void recipeApi.getById(recipeId).then(fresh => {
             if (activeRecipeId.current !== fresh.id) return;
