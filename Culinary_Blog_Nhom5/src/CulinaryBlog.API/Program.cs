@@ -86,7 +86,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "ETag")
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After", "ETag")
             .AllowCredentials();
     });
 });
@@ -102,6 +102,9 @@ if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32
 var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
     ?? "CulinaryBlog";
+
+if (!builder.Environment.IsDevelopment() && jwtKey.Contains("SuperSecretKey_For_Development", StringComparison.Ordinal))
+    throw new InvalidOperationException("The development JWT key is not allowed outside Development.");
 
 var jwtAudience =
     builder.Configuration["Jwt:Audience"]
@@ -254,6 +257,7 @@ builder.Services.AddApiVersioning(options =>
         options.SubstituteApiVersionInUrl = true;
     })
     .AddOpenApi();
+builder.Services.AddRecipeApiConfiguration();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 

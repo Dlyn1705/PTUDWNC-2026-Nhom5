@@ -1,18 +1,8 @@
 import axiosClient from "./axiosClient";
 
-export type RecipeImageDto = {
-  id: string;
-  recipeId: string;
-  originalUrl: string;
-  mediumUrl: string | null;
-  thumbnailUrl: string | null;
-  altText: string | null;
-  isPrimary: boolean;
-  orderIndex: number;
-  processingStatus: "Pending" | "Processing" | "Completed" | "Failed";
-};
-
-type ApiResponse<T> = { success: boolean; message: string | null; data: T };
+import type { ApiResponse } from "@/types/api.types";
+import type { StoredRecipeImage as RecipeImageDto } from "@/types/recipe-management.types";
+export type { StoredRecipeImage as RecipeImageDto } from "@/types/recipe-management.types";
 
 function delay(milliseconds: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -49,6 +39,7 @@ export async function uploadRecipeImage(
     {
       signal,
       timeout: 120_000,
+      headers: { "Content-Type": undefined },
       onUploadProgress: (event) => {
         if (event.total) onProgress?.(Math.round((event.loaded / event.total) * 100));
       },

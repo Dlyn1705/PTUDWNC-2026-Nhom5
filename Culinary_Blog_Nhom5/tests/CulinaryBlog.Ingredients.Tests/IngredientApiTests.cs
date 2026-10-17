@@ -49,6 +49,7 @@ public sealed class IngredientApiTests : IAsyncLifetime
         });
         builder.Logging.ClearProviders();
         builder.Services.AddApplication(); builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddRecipeApiConfiguration();
         builder.Services.AddAuthentication("IngredientsTest")
             .AddScheme<AuthenticationSchemeOptions, TestAuthentication>("IngredientsTest", _ => { });
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("upload", limiter => limiter.PermitLimit = 10));
