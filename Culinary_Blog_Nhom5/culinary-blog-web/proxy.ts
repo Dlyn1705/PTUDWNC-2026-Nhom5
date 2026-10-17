@@ -23,15 +23,19 @@ function handleRequest(request: NextRequest & { auth?: Session | null }) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
+  const isProtected = protectedPath(pathname);
   const finalize = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", policy);
-    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set(
+      "Cache-Control",
+      isProtected
+        ? "private, no-store"
+        : "public, max-age=60, stale-while-revalidate=300",
+    );
     for (const header of securityHeaders) response.headers.set(header.key, header.value);
     if (secure && !development) response.headers.set("Strict-Transport-Security", "max-age=31536000");
     return response;
   };
-  const isProtected = protectedPath(pathname);
-
   if (isProtected && (!session || session.error)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
