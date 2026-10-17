@@ -52,14 +52,21 @@ public sealed class ImageProcessingTests
         await using var app = await ImageTestApp.CreateAsync();
         await app.Db(async db =>
         {
-            var previous = db.Database.GetMigrations().Last(x => !x.EndsWith("AddDurableImageProcessing"));
+            var migrations = db.Database.GetMigrations().ToArray();
+            var imageMigration = migrations.Single(x => x.EndsWith("_AddDurableImageProcessing", StringComparison.Ordinal));
+            // The latest unrelated migration may be newer than the image migration.
+            // Roll back to its actual predecessor so the backfill is exercised.
+            var previous = migrations.TakeWhile(x => x != imageMigration).Last();
             await db.GetService<IMigrator>().MigrateAsync(previous);
+            Assert.DoesNotContain(imageMigration, await db.Database.GetAppliedMigrationsAsync());
             var states = new[] { "Processing", "Completed", "Failed", "Pending" };
             for (var index = 0; index < states.Length; index++)
                 db.RecipeImages.Add(new RecipeImage { RecipeId = app.RecipeId, OrderIndex = index, OriginalUrl = "http://legacy.test/original.jpg",
                     ProcessingStatus = states[index], MediumUrl = index == 1 ? "http://legacy.test/medium.jpg" : null,
                     ThumbnailUrl = index == 1 ? "http://legacy.test/thumbnail.jpg" : null, IsDeleted = index == 3 });
-            await db.SaveChangesAsync(); await db.Database.MigrateAsync(); return 0;
+            await db.SaveChangesAsync(); await db.Database.MigrateAsync();
+            Assert.Equal(migrations[^1], (await db.Database.GetAppliedMigrationsAsync()).Last());
+            return 0;
         });
         var rows = await app.Db(db => db.RecipeImageWork.AsNoTracking().ToListAsync());
         Assert.Equal(4, rows.Count); Assert.Contains(rows, x => x.Status == "Pending"); Assert.Contains(rows, x => x.Status == "Completed");

@@ -90,7 +90,7 @@ npm run build
 node tests/steps.e2e.cjs
 ```
 
-- Project Steps.Tests chạy bằng lệnh riêng, chưa sửa solution/CI dùng chung để giảm va chạm; cần thêm vào CI khi bàn giao PR nếu nhóm muốn chạy suite này tự động.
+- Project Steps.Tests chạy bằng lệnh riêng, không sửa solution dùng chung. Workflow CI đã bổ sung bước chạy project này với PostgreSQL, form/security/logging tests và Steps E2E bằng Playwright Chromium.
 - E2E mặc định dùng Chrome cài trên máy; CI có thể cài Playwright Chromium và đặt E2E_BROWSER_CHANNEL=bundled. Runner tự dừng server/browser do nó tạo, không dừng dịch vụ người dùng.
 - Build Next dùng Google Fonts theo cấu hình có sẵn; cần kết nối mạng để tải font. Không đổi dependency hoặc khóa phiên bản chỉ để làm test chạy.
 
@@ -101,3 +101,10 @@ node tests/steps.e2e.cjs
 - PR #43 tạo công thức và #45 cập nhật công thức còn có thể overlap RecipeEndpoints/editor. Khi ghép phải giữ StepRules cho nested create, ImageUrl và StepManager/callback cùng logic validation/ownership/version của các PR đó; không lấy nguyên file ours/theirs.
 - Chính sách no-store có cùng mục tiêu với FR-RCP-007; giữ khi ghép để không hiển thị HTML cũ. Cache CDN đã tồn tại từ bản deploy cũ cần purge khi phát hành, no-store chỉ điều khiển response mới.
 - Không bảo đảm tránh được mọi conflict với commit tương lai. Trước commit/push phải fetch main, xem lại diff và chạy kiểm tra phù hợp nếu có thay đổi mới.
+
+## Bổ sung sửa CI PR #50
+
+- Run `39053627909` thất bại ở test `Migration_backfills_legacy_states_and_down_up_keeps_existing_images`; build và các suite API/security/gallery/email khác đã đạt. Các log PostgreSQL do test cố ý gây lỗi không phải nguyên nhân gốc.
+- Test ảnh cũ dùng “migration cuối không phải AddDurableImageProcessing” làm mốc rollback. Khi có migration Steps mới hơn, biểu thức đó chọn nhầm migration Steps nên schema ảnh không được rollback; trigger tạo work Pending thay cho việc chạy lại legacy backfill.
+- Sửa test lấy đúng migration đứng ngay trước AddDurableImageProcessing, assert migration ảnh đã được rollback, rồi assert toàn bộ chuỗi được nâng lên migration mới nhất sau khi seed dữ liệu legacy. Giữ nguyên các assertion Pending/Completed/Failed/Skipped và LegacyBackfill, không bỏ test hoặc sửa migration production để né lỗi.
+- Test bị lỗi đã đạt khi chạy riêng cấu hình Release trên PostgreSQL/MinIO thật; form tests, Chrome Steps E2E và image UI kiểm tra lại đạt. Kết quả chạy toàn workflow được cập nhật tại Checks của PR.
