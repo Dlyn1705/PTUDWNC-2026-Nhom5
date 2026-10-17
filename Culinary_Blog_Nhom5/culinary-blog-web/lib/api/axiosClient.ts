@@ -1,6 +1,6 @@
 import axios from "axios";
-import { installHttpLogging } from "./httpLogging";
 import { getSession } from "next-auth/react";
+import { installHttpLogging } from "./httpLogging";
 import { installSessionAuth } from "./sessionAuth";
 
 const API_URL =

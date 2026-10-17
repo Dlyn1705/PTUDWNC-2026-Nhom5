@@ -3,12 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
-import { signIn } from "next-auth/react";
+import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
-import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 
 function FieldError({ message }: { message?: string }) {
@@ -24,21 +24,30 @@ export function LoginForm() {
   const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
   const [emailProgress, setEmailProgress] = useState(0);
   const registered = searchParams.get("registered") === "true";
+  const sessionExpired =
+    searchParams.get("reason") === "session-expired" ||
+    searchParams.get("sessionExpired") === "true";
   const requestedCallback = searchParams.get("callbackUrl");
-  const googleCallbackUrl =
+  const callbackUrl =
     requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
       ? requestedCallback
       : "/";
+
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
   const emailRegistration = register("email");
 
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
+    setMascotMood("password");
+
     try {
       const result = await signIn("credentials", {
         email: data.email,
@@ -56,14 +65,9 @@ export function LoginForm() {
       }
 
       setMascotMood("success");
-      const requestedPath = searchParams.get("callbackUrl");
-      const destination =
-        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
-          ? requestedPath
-          : "/";
-      router.replace(destination);
+      router.replace(callbackUrl);
       router.refresh();
-    } catch (error: unknown) {
+    } catch (error) {
       setMascotMood("error");
       console.error("Auth.js sign-in failed", error);
       setServerError("Không thể đăng nhập. Vui lòng thử lại sau.");
@@ -76,6 +80,14 @@ export function LoginForm() {
       {registered && (
         <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Tài khoản đã được tạo. Hãy đăng nhập để tiếp tục.
+        </div>
+      )}
+      {sessionExpired && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.
         </div>
       )}
       {serverError && (
@@ -95,11 +107,9 @@ export function LoginForm() {
           id="login-email"
           type="email"
           autoComplete="email"
-          placeholder="chef@culinaryblog.vn"
+          placeholder="chef@gmail.com"
           {...emailRegistration}
-          onFocus={() => {
-            setMascotMood("email");
-          }}
+          onFocus={() => setMascotMood("email")}
           onBlur={(event) => {
             setMascotMood("idle");
             emailRegistration.onBlur(event);
@@ -132,9 +142,7 @@ export function LoginForm() {
           registration={register("password")}
           onFocus={() => setMascotMood("password")}
           onBlur={() => setMascotMood("idle")}
-          onVisibilityChange={(visible) =>
-            setMascotMood(visible ? "peek" : "password")
-          }
+          onVisibilityChange={(visible) => setMascotMood(visible ? "peek" : "password")}
           className={`field-input ${errors.password ? "field-input-error" : ""}`}
         />
         <FieldError message={errors.password?.message} />
@@ -150,7 +158,7 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-stone-200" />
       </div>
 
-      <GoogleLoginButton callbackUrl={googleCallbackUrl} />
+      <GoogleLoginButton callbackUrl={callbackUrl} />
 
       <p className="text-center text-sm text-stone-600">
         Chưa có tài khoản?{" "}

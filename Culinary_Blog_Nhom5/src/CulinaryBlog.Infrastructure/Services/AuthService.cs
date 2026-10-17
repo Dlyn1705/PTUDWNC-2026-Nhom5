@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -20,10 +21,11 @@ namespace CulinaryBlog.Infrastructure.Services;
 public sealed class AuthService : IAuthService
 {
     private const string AuthorRole = "Author";
+
+    private readonly ApplicationDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly ApplicationDbContext _dbContext;
     private readonly IJwtService _jwtService;
     private readonly IConfiguration _configuration;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -31,20 +33,20 @@ public sealed class AuthService : IAuthService
     private readonly TimeProvider _timeProvider;
 
     public AuthService(
+        ApplicationDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         RoleManager<IdentityRole> roleManager,
-        ApplicationDbContext dbContext,
         IJwtService jwtService,
         IConfiguration configuration,
         IHttpContextAccessor httpContextAccessor,
         ILogger<AuthService> logger,
         TimeProvider timeProvider)
     {
+        _dbContext = dbContext;
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
-        _dbContext = dbContext;
         _jwtService = jwtService;
         _configuration = configuration;
         _httpContextAccessor = httpContextAccessor;
