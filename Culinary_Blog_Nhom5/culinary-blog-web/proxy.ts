@@ -24,11 +24,15 @@ function handleRequest(request: NextRequest & { auth?: Session | null }) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const isProtected = protectedPath(pathname);
+  // Public recipe HTML must disappear on the next request after a deletion.
+  // Redis invalidation cannot evict an HTML response held by a browser/CDN.
+  const containsRecipes = pathname === "/" || pathname === "/sitemap.xml" ||
+    /^\/(recipes|search|categories)(?:\/|$)/.test(pathname);
   const finalize = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", policy);
     response.headers.set(
       "Cache-Control",
-      isProtected
+      isProtected || containsRecipes
         ? "private, no-store"
         : "public, max-age=60, stale-while-revalidate=300",
     );

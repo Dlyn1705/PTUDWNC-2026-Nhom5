@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   keepPreviousData,
   useMutation,
@@ -31,6 +31,7 @@ export default function DashboardRecipesPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortValue>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteInFlight = useRef(false);
 
   const recipesQuery = useQuery({
     queryKey: ["managed-recipes", { page, pageSize: PAGE_SIZE, status, sortBy }],
@@ -75,7 +76,9 @@ export default function DashboardRecipesPage() {
   };
 
   const handleDelete = async (recipeId: string) => {
-    if (!window.confirm("Xóa công thức này?")) return;
+    if (deleteInFlight.current) return;
+    if (!window.confirm("Xóa công thức này? Công thức sẽ được ẩn ngay. Ảnh được giữ tối thiểu 30 ngày trước khi hệ thống dọn dữ liệu.")) return;
+    deleteInFlight.current = true;
 
     const shouldGoToPreviousPage = recipes.length === 1 && page > 1;
     deleteMutation.reset();
@@ -86,6 +89,7 @@ export default function DashboardRecipesPage() {
     } catch {
       // The normalized mutation error is rendered below without an unhandled rejection.
     } finally {
+      deleteInFlight.current = false;
       setDeletingId(null);
     }
   };
