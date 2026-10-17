@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -206,6 +208,15 @@ public static class AuthEndpoints
                 SameSite = SameSiteMode.Lax,
                 Path = "/api/v1/auth"
             });
+}
+
+public static class LogoutAuthorization
+{
+    public static bool HasRequiredRole(ClaimsPrincipal principal) =>
+        principal.Claims.Any(claim =>
+            (claim.Type == ClaimTypes.Role || claim.Type == "role" || claim.Type == "roles")
+            && (string.Equals(claim.Value, "Author", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(claim.Value, "Admin", StringComparison.OrdinalIgnoreCase)));
 }
 
 /// <summary>Refresh token payload for non-browser API clients.</summary>
