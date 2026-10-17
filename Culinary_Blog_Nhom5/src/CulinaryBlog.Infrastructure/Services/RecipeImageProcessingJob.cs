@@ -19,6 +19,7 @@ public sealed class HangfireRecipeImageProcessingQueue(IBackgroundJobClient jobs
 // Keep this public type/method compatible with jobs already persisted in Hangfire.
 public sealed class RecipeImageProcessingJob(ImageProcessingPipeline pipeline)
 {
+    [DisableConcurrentExecution(300)]
     [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 900 }, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
     public Task ProcessAsync(Guid imageId, CancellationToken cancellationToken) => pipeline.ProcessAsync(imageId, cancellationToken);
 }

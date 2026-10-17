@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- This Node CommonJS test harness loads Next's bundled webpack. */
 // Browser component integration: real React/effects/timers, API and next/image stubbed.
-// PLAYWRIGHT_MODULE may point to a locally installed Playwright package; no new app dependency required.
+// Playwright is declared in devDependencies; PLAYWRIGHT_MODULE may override its module path.
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -28,7 +28,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   await new Promise((resolve, reject) => webpack({ mode: "development", optimization: { minimize: false }, entry: path.join(directory, "entry.cjs"), output: { path: directory, filename: "bundle.js" }, resolve: { extensions: [".js", ".cjs"] } }, (error, stats) => {
     if (error || stats.hasErrors()) reject(error || new Error(stats.toString({ all: false, errors: true }))); else resolve();
   }));
-  const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || "chrome" });
+  const browser = await chromium.launch({
+    headless: true,
+    ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}),
+  });
   try {
     const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
     await page.clock.install(); await page.setContent('<div id="root"></div>'); await page.addScriptTag({ path: path.join(directory, "bundle.js") });

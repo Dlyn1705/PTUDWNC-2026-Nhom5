@@ -1,39 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Culinary Blog frontend
 
-## Getting Started
+Next.js 16.3.5 App Router, React 19, TypeScript strict và Tailwind CSS 4.
 
-First, run the development server:
+## Cài đặt và cấu hình
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Yêu cầu Node.js 20.9 trở lên. Chạy trong thư mục này:
+
+```powershell
+npm ci
+Copy-Item .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Đặt `AUTH_SECRET` riêng trong `.env.local`; giữ file này ngoài Git. `API_INTERNAL_URL` dùng cho server, `NEXT_PUBLIC_API_URL` dùng cho browser, mặc định backend là `http://localhost:5156`. Chỉ đặt dữ liệu công khai vào biến `NEXT_PUBLIC_`. Backend cần PostgreSQL, Redis, MinIO và cấu hình riêng theo README ở gốc repo.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Cấu trúc và thư viện
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/`: route public, auth, dashboard và layout.
+- `components/`: UI Radix, form, thành phần công thức, SessionProvider.
+- `hooks/`: hook React và quyền người dùng.
+- `lib/api/`: Axios client, API và xử lý lỗi/log.
+- `lib/auth.ts`: NextAuth credentials, refresh token phía server.
+- `types/`: DTO, payload, role, session, phân trang, ảnh và enum.
+- `proxy.ts`: kiểm tra phiên/quyền trước khi truy cập dashboard; backend tiếp tục kiểm tra role và ownership.
 
-## Learn More
+Thư viện chính: NextAuth, Axios, React Hook Form, Zod, Radix UI, Lucide, Tailwind CSS; React Query/Zustand được cài sẵn cho các tính năng cần cache/state.
 
-To learn more about Next.js, take a look at the following resources:
+## Kiểm tra
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+npm run lint
+npm run typecheck
+npm run build
+npm run test:logging
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build cần truy cập Google Fonts để tải Noto Sans. Hướng dẫn phần bảo mật và API: [Setup_Security_API_Frontend.md](../docx/Spec/Setup_Security_API_Frontend.md).
 
 ## Google OAuth 2.0
 

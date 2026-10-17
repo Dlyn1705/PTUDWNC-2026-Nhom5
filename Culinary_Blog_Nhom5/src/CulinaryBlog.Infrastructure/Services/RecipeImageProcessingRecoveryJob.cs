@@ -10,6 +10,7 @@ public sealed class RecipeImageProcessingRecoveryJob(ApplicationDbContext db, IB
     ImageWorkLock locks, ImageGenerationCleanup cleanup, ImageVariantReconciler reconciler, TimeProvider clock, ILogger<RecipeImageProcessingRecoveryJob> logger)
 {
     [AutomaticRetry(Attempts = 0)]
+    [DisableConcurrentExecution(300)]
     public async Task EnqueuePendingAsync(CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;

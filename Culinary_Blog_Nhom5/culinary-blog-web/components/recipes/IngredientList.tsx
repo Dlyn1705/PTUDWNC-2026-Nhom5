@@ -1,5 +1,7 @@
 "use client";
 
+import { formatIngredientQuantity } from "@/lib/ingredient-form";
+
 import React, { useState } from "react";
 import { Minus, Plus, RotateCcw, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,11 +11,6 @@ import { cn } from "@/lib/utils";
 interface IngredientListProps {
   ingredients: RecipeIngredientDto[];
   baseServings: number;
-}
-
-function formatQuantity(num: number): string {
-  const rounded = Math.round(num * 100) / 100;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, "");
 }
 
 export function IngredientList({
@@ -102,7 +99,7 @@ export function IngredientList({
         {ingredients.map((item) => {
           const isChecked = !!checked[item.id];
           const hasQuantity = item.quantity !== null && item.quantity !== undefined;
-          const scaledQuantity = hasQuantity ? formatQuantity((item.quantity as number) * scale) : "";
+          const scaledQuantity = hasQuantity ? formatIngredientQuantity((item.quantity as number) * scale) : "";
           const hasUnit = Boolean(item.unit && item.unit.trim());
 
           return (

@@ -1,9 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import FileUploadDropzone from "@/components/common/FileUploadDropzone";
-import RecipeImageProcessingPreview from "@/components/dashboard/RecipeImageProcessingPreview";
-import { deleteRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
+import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -11,10 +9,6 @@ export default function RecipeImageUploadPanel() {
   const [input, setInput] = useState("");
   const [recipeId, setRecipeId] = useState("");
   const [error, setError] = useState("");
-  const [images, setImages] = useState<RecipeImageDto[]>([]);
-  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState("");
-
   const selectRecipe = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const candidate = input.trim();
@@ -24,24 +18,8 @@ export default function RecipeImageUploadPanel() {
       return;
     }
     setError("");
-    setImages([]);
-    setDeleteError("");
-    setRecipeId(candidate);
-  };
 
-  const deleteImage = async (image: RecipeImageDto) => {
-    if (!window.confirm("Bạn có chắc muốn xóa ảnh này khỏi công thức?")) return;
-    setDeletingImageId(image.id);
-    setDeleteError("");
-    try {
-      await deleteRecipeImage(image.recipeId, image.id);
-      setImages((current) => current.filter((candidate) => candidate.id !== image.id)
-        .map((candidate, index) => ({ ...candidate, isPrimary: image.isPrimary ? index === 0 : candidate.isPrimary })));
-    } catch (cause) {
-      setDeleteError(cause instanceof Error ? cause.message : "Không thể xóa ảnh. Vui lòng thử lại.");
-    } finally {
-      setDeletingImageId(null);
-    }
+    setRecipeId(candidate);
   };
 
   return (
@@ -72,32 +50,7 @@ export default function RecipeImageUploadPanel() {
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       </form>
 
-      {recipeId && (
-        <section className="space-y-3 rounded-2xl border bg-card p-5" aria-live="polite">
-          <h2 className="font-semibold">Ảnh cho công thức {recipeId}</h2>
-          <FileUploadDropzone
-            key={recipeId}
-              recipeId={recipeId}
-              onUploadSuccess={(image) => setImages((current) => [...current, image])}
-          />
-          {deleteError && <p role="alert" className="text-sm text-red-600">{deleteError}</p>}
-          {images.length > 0 && (
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {images.map((image) => (
-                <li key={image.id} className="flex items-center gap-3 rounded-xl border p-3">
-                  <RecipeImageProcessingPreview initial={image} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{image.isPrimary ? "Ảnh chính" : "Ảnh công thức"}</p>
-                    <button type="button" disabled={deletingImageId === image.id} onClick={() => void deleteImage(image)} className="mt-2 rounded-lg border px-3 py-1 text-sm disabled:opacity-50">
-                      {deletingImageId === image.id ? "Đang xóa…" : "Xóa ảnh"}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      {recipeId && <ImageGalleryManager key={recipeId} recipeId={recipeId} />}
     </div>
   );
 }

@@ -18,6 +18,7 @@ public sealed class UploadRecipeImageCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUser,
     IFileStorageService storage,
+    IRecipeImageMutations mutations,
     IRecipeImageProcessingQueue processingQueue,
     ILogger<UploadRecipeImageCommandHandler> logger) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
 {
@@ -43,11 +44,10 @@ public sealed class UploadRecipeImageCommandHandler(
         var objectKey = $"recipes/{request.RecipeId}/{image.Id:N}.{detected.Extension}";
         var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, ct);
         image.OriginalUrl = url;
-        await unitOfWork.AddRecipeImageAsync(image, ct);
 
         try
         {
-            await unitOfWork.SaveChangesAsync(ct);
+            await mutations.AddAsync(image, ct);
         }
         catch (Exception exception)
         {
@@ -74,10 +74,10 @@ public sealed class UploadRecipeImageCommandHandler(
         {
             await processingQueue.EnqueueAsync(image.Id, ct);
         }
-        catch
+        catch (Exception exception)
         {
             // Upload was committed: retain original and its atomic Pending intent for recovery.
-            logger.LogWarning("Image {RecipeImageId} awaits dispatch after queue failure", image.Id);
+            logger.LogWarning(exception, "Image {RecipeImageId} is pending background processing", image.Id);
         }
 
         return new RecipeImageDto(image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl,

@@ -2,6 +2,8 @@ using System.Text;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Authorization;
+using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -10,6 +12,7 @@ using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Services.Email;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -22,7 +25,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using System.Threading.RateLimiting;
+using CulinaryBlog.API.Security;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
@@ -93,7 +96,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader)
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After", "ETag", "api-supported-versions")
             .AllowCredentials();
     });
 });
@@ -109,6 +112,9 @@ if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32
 var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
     ?? "CulinaryBlog";
+
+if (!builder.Environment.IsDevelopment() && jwtKey.Contains("SuperSecretKey_For_Development", StringComparison.Ordinal))
+    throw new InvalidOperationException("The development JWT key is not allowed outside Development.");
 
 var jwtAudience =
     builder.Configuration["Jwt:Audience"]
@@ -227,26 +233,7 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 10,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-    options.AddPolicy("upload", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 5,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-});
+builder.Services.AddApiSecurity();
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
@@ -260,7 +247,12 @@ builder.Services.AddApiVersioning(options =>
         options.GroupNameFormat = "'v'VVV";
         options.SubstituteApiVersionInUrl = true;
     })
-    .AddOpenApi();
+    .AddOpenApi(options =>
+    {
+        options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
+        options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
+    });
+builder.Services.AddRecipeApiConfiguration();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 
@@ -318,6 +310,7 @@ if (builder.Configuration.GetValue<bool>("AdminSeed:OnStartup"))
 // ============================================================
 // 7. Request Pipeline & Middlewares
 // ============================================================
+app.UseMiddleware<ApiSecurityHeadersMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseStructuredRequestLogging();
 
@@ -360,8 +353,13 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseMiddleware<UserLogContextMiddleware>();
 
-app.UseAuthorization();
 app.UseRateLimiter();
+app.UseAuthorization();
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+});
 
 
 // ============================================================
@@ -377,12 +375,18 @@ v1.MapAuthEndpoints();
 v1.MapAdminEndpoints();
 
 v1.MapRecipeEndpoints();
+v1.MapRecipeIngredientEndpoints();
 
 CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
     app.Services.GetRequiredService<IRecurringJobManager>());
 app.MapHealthEndpoints();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
+    "recover-pending-recipe-image-processing",
+    job => job.EnqueuePendingAsync(CancellationToken.None),
+    Cron.MinuteInterval(5),
+    new RecurringJobOptions());
 recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),
@@ -395,6 +399,7 @@ recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
     Cron.Weekly,
     new RecurringJobOptions());
 
+recurringJobManager.RegisterWelcomeEmailJobs();
 
 // ============================================================
 // 12. Run

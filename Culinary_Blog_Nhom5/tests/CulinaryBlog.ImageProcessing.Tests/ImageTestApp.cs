@@ -62,7 +62,12 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
         builder.Services.AddSingleton<FakeClock>(); builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeClock>());
         builder.Services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("test", _ => { });
-        builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("upload", policy => policy.PermitLimit = 100));
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddConcurrencyLimiter("upload", policy => policy.PermitLimit = 100);
+            options.AddConcurrencyLimiter("recipe-read", policy => policy.PermitLimit = 100);
+            options.AddConcurrencyLimiter("recipe-write", policy => policy.PermitLimit = 100);
+        });
         builder.Services.AddHangfire(config => config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connection)));
         if (worker) builder.Services.AddHangfireServer(options => { options.WorkerCount = 2; options.SchedulePollingInterval = TimeSpan.FromSeconds(1); });
         configure?.Invoke(builder.Services);
@@ -74,7 +79,7 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         {
             var user = ApplicationUser.Create("author@image.test", "author@image.test", "Bếp Việt");
             var category = Category.Create("Test", Guid.NewGuid().ToString("N"));
-            var recipe = new Recipe { Title = "Recipe", Slug = Guid.NewGuid().ToString("N"), Description = "Recipe", AuthorId = user.Id, CategoryId = category.Id };
+            var recipe = new Recipe { Title = "Recipe", Slug = Guid.NewGuid().ToString("N"), Description = "Recipe", Instructions = "Instructions", AuthorId = user.Id, CategoryId = category.Id };
             db.Users.Add(user); db.Categories.Add(category); db.Recipes.Add(recipe);
             test.RecipeId = recipe.Id; test.UserId = user.Id; return await db.SaveChangesAsync();
         });

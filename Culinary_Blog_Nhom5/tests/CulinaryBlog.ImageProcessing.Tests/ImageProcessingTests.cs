@@ -368,8 +368,12 @@ public sealed class ImageProcessingTests
     public async Task Status_endpoint_enforces_owner_admin(string user, string role, HttpStatusCode status)
     {
         await using var app = await ImageTestApp.CreateAsync(); var image = await app.UploadAsync();
-        using var response = await app.Client(user, role).GetAsync($"/api/v1/recipes/{app.RecipeId}/images/{image.Id}"); Assert.Equal(status, response.StatusCode);
-        using var wrongRecipe = await app.Client().GetAsync($"/api/v1/recipes/{Guid.NewGuid()}/images/{image.Id}"); Assert.Equal(HttpStatusCode.NotFound, wrongRecipe.StatusCode);
+        using var response = await app.Client(user, role).GetAsync($"/api/v1/recipes/{app.RecipeId}/images/{image.Id}");
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == status, $"Expected {status}, got {response.StatusCode}: {responseBody}");
+        using var wrongRecipe = await app.Client().GetAsync($"/api/v1/recipes/{Guid.NewGuid()}/images/{image.Id}");
+        var wrongRecipeBody = await wrongRecipe.Content.ReadAsStringAsync();
+        Assert.True(wrongRecipe.StatusCode == HttpStatusCode.NotFound, $"Expected NotFound, got {wrongRecipe.StatusCode}: {wrongRecipeBody}");
     }
 
     [Fact]

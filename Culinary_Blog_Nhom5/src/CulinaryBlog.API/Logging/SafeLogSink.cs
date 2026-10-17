@@ -11,6 +11,7 @@ public sealed class SafeLogSink(Logger output) : ILogEventSink, IDisposable
         "Attempt", "ErrorCategory",
         "EventType", "CorrelationId", "RequestId", "RequestPath", "RequestMethod", "StatusCode",
         "Elapsed", "UserId", "SourceContext", "Application", "Environment", "RequestName", "Outcome",
+        "EmailMessageId", "JobId", "Attempt", "DeliveryStatus", "ErrorCategory",
         "TraceId", "SpanId", "RecipeId", "RecipeImageId", "ImageId", "Count", "EventId", "ExceptionType",
         "Method", "Path", "OccurredAtUtc" // RequestAuditMiddleware on main uses these diagnostic fields.
     };
