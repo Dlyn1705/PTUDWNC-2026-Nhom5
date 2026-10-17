@@ -6,10 +6,8 @@ using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
-using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
@@ -18,26 +16,19 @@ public sealed class AuthService : IAuthService
     private const string AuthorRole = "Author";
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly ApplicationDbContext _dbContext;
-    private readonly IJwtService _jwtService;
-    private readonly IConfiguration _configuration;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager,
-        ApplicationDbContext dbContext,
-        IJwtService jwtService,
-        IConfiguration configuration)
+        RoleManager<IdentityRole> roleManager)
     {
         _userManager = userManager;
         _roleManager = roleManager;
-        _dbContext = dbContext;
-        _jwtService = jwtService;
-        _configuration = configuration;
     }
 
-    public async Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
+    public async Task<UserDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var normalizedEmail = email.Trim();
         if (await _userManager.FindByEmailAsync(normalizedEmail) is not null)
         {
@@ -69,23 +60,6 @@ public sealed class AuthService : IAuthService
             throw new DbUpdateException("Không thể gán vai trò cho tài khoản mới.");
         }
 
-        var roles = await _userManager.GetRolesAsync(user);
-        var (accessToken, expiresInSeconds) = _jwtService.GenerateAccessToken(user, roles);
-        var (refreshToken, refreshTokenHash) = _jwtService.GenerateRefreshToken();
-        var refreshLifetimeDays = _configuration.GetValue("Jwt:RefreshTokenDurationInDays", 7);
-
-        _dbContext.RefreshTokens.Add(new RefreshToken
-        {
-            UserId = user.Id,
-            TokenHash = refreshTokenHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(refreshLifetimeDays)
-        });
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return new AuthResponseDto(
-            accessToken,
-            refreshToken,
-            DateTime.UtcNow.AddSeconds(expiresInSeconds),
-            new UserDto(user.Id, user.Email!, user.DisplayName));
+        return new UserDto(user.Id, user.Email!, user.DisplayName);
     }
 }

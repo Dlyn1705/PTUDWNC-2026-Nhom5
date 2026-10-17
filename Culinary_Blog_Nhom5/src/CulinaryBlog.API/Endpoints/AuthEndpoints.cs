@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using MediatR;
 
@@ -18,9 +19,12 @@ public static class AuthEndpoints
             .WithSummary("Kiểm tra trạng thái Auth group");
 
         group.MapPost("/register", async (RegisterCommand command, ISender sender, CancellationToken cancellationToken) =>
-            Results.Created("/api/v1/auth/me", await sender.Send(command, cancellationToken)))
+            Results.Json(
+                await sender.Send(command, cancellationToken),
+                statusCode: StatusCodes.Status201Created))
             .WithName("Register")
-            .WithSummary("Đăng ký tài khoản mới");
+            .WithSummary("Đăng ký tài khoản mới, chưa tạo phiên đăng nhập")
+            .Produces<UserDto>(StatusCodes.Status201Created);
 
         return app;
     }

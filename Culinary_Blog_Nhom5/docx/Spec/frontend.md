@@ -15,7 +15,7 @@ Dưới đây là bảng đối chiếu phân chia chi tiết các trang (pages)
 
 | STT | Thành viên | Mã Yêu Cầu Gốc | Phân hệ / Nghiệp vụ đảm nhiệm | Các Trang (Pages) & Module Frontend Phụ Trách |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Ân** | `FR-AUTH-001` đến `007`, `FR-OBS-001` | **Xác thực, Hồ sơ cá nhân, Token Management & Sức khỏe hệ thống** | - Trang Đăng ký (`/auth/register`)<br>- Trang Đăng nhập (`/auth/login`)<br>- Tích hợp Google OAuth 2.0 Button<br>- Cơ chế Refresh Token & Axios Interceptor ngầm<br>- Dropdown Đăng xuất (`UserNav`)<br>- Trang Hồ sơ cá nhân & Đổi mật khẩu (`/profile`)<br>- Trang/Widget Trạng thái hệ thống (`/status`) |
+| **1** | **Ân** | `FR-AUTH-001` đến `007`, `FR-OBS-001` | **Xác thực, Hồ sơ cá nhân, Token Management & Sức khỏe hệ thống** | - Trang Đăng ký (`/register`)<br>- Trang Đăng nhập (`/auth/login`)<br>- Tích hợp Google OAuth 2.0 Button<br>- Cơ chế Refresh Token & Axios Interceptor ngầm<br>- Dropdown Đăng xuất (`UserNav`)<br>- Trang Hồ sơ cá nhân & Đổi mật khẩu (`/profile`)<br>- Trang/Widget Trạng thái hệ thống (`/status`) |
 | **2** | **Linh** | `FR-CAT-001` đến `005`, `FR-RCP-001`, `002`, `FR-JOB-003` | **Khám phá Công cộng, Danh mục, Chi tiết Công thức, SEO & Quản trị Danh mục** | - Trang Chủ công cộng (`/`)<br>- Trang Danh sách Danh mục (`/categories`)<br>- Trang Chi tiết Danh mục & Món ăn (`/categories/[slug]`)<br>- Trang Danh sách Công thức (`/recipes`)<br>- Trang Chi tiết Công thức Chuẩn SEO (`/recipes/[slug]`)<br>- Trang Quản lý Danh mục Admin (`/dashboard/categories`)<br>- Dynamic Sitemap Generator (`app/sitemap.ts`) |
 | **3** | **Tuấn** | `FR-SRCH-001` đến `004`, `FR-FILE-001`, `002`, `FR-OBS-002`, `003`, `FR-RCP-005`, `006` | **Tìm kiếm nâng cao, Quản lý File MinIO, Quản trị Trạng thái Công thức & Giám sát** | - Trang Tìm kiếm Toàn văn bản FTS (`/search`)<br>- Bộ lọc đa tiêu chí, Sắp xếp & Phân trang (`/search`)<br>- Component Upload File lên MinIO (Drag & Drop, Preview)<br>- Component Xóa File MinIO an toàn<br>- Trang Quản lý Trạng thái Recipe (`/dashboard/recipes`)<br>- Workflow Xuất bản (Publish) / Hủy xuất bản (Unpublish)<br>- Workflow Lưu trữ (Archive) / Khôi phục Recipe<br>- Client Structured Logging & Correlation ID Tracing |
 | **4** | **Trâm** | `FR-RCP-003`, `004`, `007` đến `010`, `FR-JOB-001`, `002` | **Biên soạn Công thức, Quản lý Dữ liệu Con (Ảnh/Nguyên liệu/Bước) & Onboarding** | - Trang Tạo mới Công thức Nấu ăn (`/dashboard/recipes/new`)<br>- Trang Chỉnh sửa Công thức & Concurrency (`/dashboard/recipes/[id]/edit`)<br>- Component Quản lý Bộ sưu tập Ảnh Recipe & Set Primary (`FR-RCP-008`, `FR-JOB-002`)<br>- Component Quản lý Nguyên liệu Động (`FR-RCP-009`)<br>- Component Quản lý Các bước thực hiện Động (`FR-RCP-010`)<br>- Modal & Thao tác Xóa Công thức an toàn (`FR-RCP-007`)<br>- Banner Chào mừng & Hướng dẫn Thành viên mới (`FR-JOB-001`) |
@@ -162,14 +162,14 @@ culinary-blog-web/
 **Trách nhiệm chính:** Toàn bộ luồng Xác thực tài khoản, Bảo mật phiên làm việc phía Client, Hồ sơ cá nhân và Giám sát Sức khỏe hệ thống.
 
 #### 1. Trang Đăng ký Tài khoản (`Register Page`)
-- **Route:** `/auth/register`
+- **Route:** `/register`
 - **Tập tin:** `app/(auth)/register/page.tsx`
 - **Components:** `components/auth/RegisterForm.tsx`
 - **Phân quyền truy cập:** Public (nếu đã đăng nhập, tự động redirect về trang chủ `/`).
 - **Nghiệp vụ chi tiết (`FR-AUTH-001`):**
   - Cung cấp form đăng ký gồm các trường:
     - `DisplayName` (Họ và tên hiển thị): Chuỗi 2-100 ký tự.
-    - `Email`: Định dạng email hợp lệ, bắt buộc.
+    - `Email`: Bắt buộc, đúng định dạng và phải kết thúc bằng `@gmail.com`.
     - `Password`: Mật khẩu tối thiểu 8 ký tự, bao gồm ít nhất một chữ hoa, một chữ thường, một chữ số và một ký tự đặc biệt.
     - `ConfirmPassword`: Bắt buộc khớp với `Password`.
   - Validate form bằng **React Hook Form** kết hợp **Zod schema** trước khi gửi.
@@ -545,7 +545,7 @@ culinary-blog-web/
 | :--- | :--- | :--- | :--- | :--- |
 | `/` | Trang chủ (Landing Page) | Linh | Public | Giới thiệu, banner, danh mục nổi bật, công thức mới nhất |
 | `/auth/login` | Đăng nhập | Ân | Public (Khách) | Form đăng nhập email/mật khẩu & nút Google OAuth |
-| `/auth/register` | Đăng ký | Ân | Public (Khách) | Form tạo tài khoản thành viên mới |
+| `/register` | Đăng ký | Ân | Public (Khách) | Form tạo tài khoản thành viên mới |
 | `/auth/welcome` | Chào mừng thành viên | Trâm | User vừa đăng ký | Thông báo kích hoạt tài khoản & email chào mừng |
 | `/profile` | Hồ sơ cá nhân | Ân | Author, Admin | Xem/sửa thông tin cá nhân, avatar, đổi mật khẩu |
 | `/status` | Sức khỏe hệ thống | Ân | Public | Theo dõi trạng thái API, PostgreSQL, Redis, MinIO |
