@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
+import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload, CreateRecipeRequest } from "@/types/recipe.types";
 import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
@@ -97,7 +97,7 @@ export const recipeApi = {
     return response.data;
   },
 
-  async create(payload: Omit<RecipeWritePayload, "rowVersion">): Promise<RecipeMutationResponse> {
+  async create(payload: CreateRecipeRequest): Promise<RecipeMutationResponse> {
     const response = await axiosClient.post<RecipeMutationResponse>(
       "/api/v1/recipes/",
       payload,
