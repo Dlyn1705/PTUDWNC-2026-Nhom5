@@ -178,6 +178,8 @@ public static class RecipeEndpoints
             return Results.Ok(detail);
         })
         .WithName("GetRecipeById")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy chi tiết công thức theo ID; Owner/Admin xem được Draft và Archived")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound);
@@ -232,7 +234,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         // FR-RCP-006: Lưu trữ công thức
-        group.MapPost("/{id:guid}/archive", async (
+        group.MapPatch("/{id:guid}/archive", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -261,7 +263,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
-        group.MapPost("/{id:guid}/restore", async (
+        group.MapPatch("/{id:guid}/unarchive", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -287,7 +289,7 @@ public static class RecipeEndpoints
             await unitOfWork.SaveChangesAsync(ct);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
-        .WithName("RestoreRecipe")
+        .WithName("UnarchiveRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Khôi phục công thức đã lưu trữ về bản nháp")
@@ -299,7 +301,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
         // FR-RCP-005: Xuất bản công thức
-        group.MapPost("/{id:guid}/publish", async (
+        group.MapPatch("/{id:guid}/publish", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -344,7 +346,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
-        group.MapPost("/{id:guid}/unpublish", async (
+        group.MapPatch("/{id:guid}/unpublish", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,

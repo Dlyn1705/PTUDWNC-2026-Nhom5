@@ -10,11 +10,11 @@ export async function listPublicRecipes(params: PublicRecipeParams = {}, signal?
   return response.data;
 }
 
-export type RecipeAction = "publish" | "unpublish" | "archive" | "restore";
+export type RecipeAction = "publish" | "unpublish" | "archive" | "unarchive";
 
 /** Browser calls reuse the session bearer token attached by axiosClient. */
 export async function changeRecipeState(id: string, action: RecipeAction, signal?: AbortSignal) {
-  const response = await axiosClient.post<RecipeStateResponse>(
+  const response = await axiosClient.patch<RecipeStateResponse>(
     `${recipesPath}/${encodeURIComponent(id)}/${action}`, undefined, { signal },
   );
   return response.data;

@@ -3,7 +3,7 @@
 ## Phạm vi
 
 Tìm kiếm toàn văn bản; lọc/sắp xếp/phân trang; upload/xóa ảnh MinIO;
-logging/tracing/metrics; publish/unpublish/archive/restore.
+logging/tracing/metrics; publish/unpublish/archive/unarchive.
 Tái sử dụng cấu trúc Next.js và các thư viện đã có, không nâng phiên bản hoặc đổi lockfile.
 
 ## Bảo mật và hợp đồng API
