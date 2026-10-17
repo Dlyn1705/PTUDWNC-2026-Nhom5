@@ -1,3 +1,4 @@
+import { ingredientStructuredText } from "@/lib/ingredient-form";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -88,9 +89,8 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       fiberContent: `${recipe.nutrition.fiber || 0} grams`,
       sodiumContent: `${recipe.nutrition.sodium} milligrams`,
     },
-    recipeIngredient: recipe.ingredients.map(
-      (item) => `${item.quantity ? `${item.quantity} ` : ""}${item.unit} ${item.name}`.trim()
-    ),
+    recipeIngredient: recipe.ingredients.map(ingredientStructuredText),
+
     recipeInstructions: recipe.steps.map((step) => ({
       "@type": "HowToStep",
       name: step.title || `Step ${step.order}`,

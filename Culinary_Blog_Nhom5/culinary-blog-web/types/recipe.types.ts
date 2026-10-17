@@ -67,7 +67,7 @@ export interface RecipeIngredientDto {
   name: string;
   quantity?: number | null;
   unit?: string | null;
-  notes?: string;
+  notes?: string | null;
   orderIndex?: number;
 }
 

@@ -86,7 +86,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After")
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After", "ETag")
             .AllowCredentials();
     });
 });
@@ -374,6 +374,7 @@ v1.MapAuthEndpoints();
 v1.MapAdminEndpoints();
 
 v1.MapRecipeEndpoints();
+v1.MapRecipeIngredientEndpoints();
 
 app.MapHealthEndpoints();
 
