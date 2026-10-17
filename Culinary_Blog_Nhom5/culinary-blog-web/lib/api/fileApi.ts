@@ -37,6 +37,7 @@ export async function uploadRecipeImage(
     `/api/v1/recipes/${recipeId}/images`,
     form,
     {
+      // Override axiosClient's JSON default; the browser supplies the multipart boundary.
       signal,
       timeout: 120_000,
       headers: { "Content-Type": undefined },
@@ -61,6 +62,20 @@ export async function uploadRecipeImage(
   if (image.processingStatus === "Failed") throw new Error("Ảnh đã tải lên nhưng không thể tạo các kích thước xem trước.");
   return image;
 }
+
 export async function deleteRecipeImage(recipeId: string, imageId: string) {
   await axiosClient.delete(`/api/v1/recipes/${recipeId}/images/${imageId}`);
+}
+
+export async function getRecipeImages(recipeId: string, signal?: AbortSignal): Promise<RecipeImageDto[]> {
+  const response = await axiosClient.get<ApiResponse<RecipeImageDto[]>>(
+    `/api/v1/recipes/${recipeId}/images`, { signal });
+  if (!response.data.success || !Array.isArray(response.data.data)) throw new Error("Không thể tải ảnh.");
+  return response.data.data;
+}
+
+export async function setRecipeImagePrimary(recipeId: string, imageId: string) {
+  const response = await axiosClient.patch<ApiResponse<RecipeImageDto>>(
+    `/api/v1/recipes/${recipeId}/images/${imageId}/primary`);
+  return response.data.data;
 }

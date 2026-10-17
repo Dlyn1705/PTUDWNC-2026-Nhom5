@@ -1,3 +1,5 @@
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeImages;
+using CulinaryBlog.Application.Features.Recipes.Commands.SetRecipeImagePrimary;
 using System;
 using System.Security.Claims;
 using System.Linq;
@@ -33,6 +35,28 @@ public static class RecipeEndpoints
     {
         var group = app.MapGroup("/recipes")
             .WithTags("Recipes");
+
+        group.MapGet("/{recipeId:guid}/images", async (Guid recipeId, ISender sender, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(ApiResponse<IReadOnlyList<RecipeImageDto>>.Ok(
+                await sender.Send(new GetRecipeImagesQuery(recipeId), ct)));
+        })
+        .WithName("GetRecipeImages")
+        .WithSummary("Lấy bộ sưu tập ảnh của công thức (Owner/Admin)")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces<ApiResponse<IReadOnlyList<RecipeImageDto>>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);
+
+        group.MapPatch("/{recipeId:guid}/images/{imageId:guid}/primary", async (
+            Guid recipeId, Guid imageId, ISender sender, CancellationToken ct) =>
+            Results.Ok(ApiResponse<RecipeImageDto>.Ok(
+                await sender.Send(new SetRecipeImagePrimaryCommand(recipeId, imageId), ct))))
+        .WithName("SetRecipeImagePrimary")
+        .WithSummary("Đặt ảnh chính duy nhất cho công thức")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409);
 
         group.MapPost("/{recipeId:guid}/images", async (
             Guid recipeId,
@@ -104,27 +128,18 @@ public static class RecipeEndpoints
         .RequireAuthorization("AuthorPolicy");
 
         group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
-            Guid recipeId,
-            Guid imageId,
-            IRecipeRepository recipes,
-            ICurrentUserService currentUser,
-            CancellationToken ct) =>
+            Guid recipeId, Guid imageId, ISender sender, HttpContext context, CancellationToken ct) =>
         {
-            var recipe = await recipes.GetDetailsByIdAsync(recipeId, ct)
-                ?? throw new NotFoundException("Recipe", recipeId);
-            if (!currentUser.IsAdmin && !string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal))
-                throw new ForbiddenException("Chỉ chủ sở hữu công thức hoặc Admin mới được xem trạng thái ảnh.");
-            var image = recipe.Images.FirstOrDefault(candidate => candidate.Id == imageId && !candidate.IsDeleted)
-                ?? throw new NotFoundException("RecipeImage", imageId);
-            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(new RecipeImageDto(
-                image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl,
-                image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus)));
+            context.Response.Headers.CacheControl = "no-store";
+            var images = await sender.Send(new GetRecipeImagesQuery(recipeId, imageId), ct);
+            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(images[0]));
         })
         .WithName("GetRecipeImage")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy trạng thái xử lý ảnh công thức")
         .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404)
         .RequireAuthorization("AuthorPolicy");
 
         // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
@@ -257,7 +272,7 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
-            context.Response.Headers.CacheControl = "public, max-age=60";
+            context.Response.Headers.CacheControl = "no-cache";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")

@@ -6,7 +6,7 @@ import { ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@
 import axiosClient from "@/lib/api/axiosClient";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
-import FileUploadDropzone from "@/components/common/FileUploadDropzone";
+import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 
 type Step = {
   description: string;
@@ -340,7 +340,7 @@ export default function NewRecipePage() {
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-            {createdRecipeId && <div className="mt-5"><FileUploadDropzone recipeId={createdRecipeId} /></div>}
+            {createdRecipeId && <div className="mt-5"><ImageGalleryManager key={createdRecipeId} recipeId={createdRecipeId} /></div>}
           </section>
 
           {/* NUTRITION */}

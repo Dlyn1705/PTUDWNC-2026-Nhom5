@@ -366,6 +366,11 @@ v1.MapRecipeIngredientEndpoints();
 app.MapHealthEndpoints();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
+    "recover-pending-recipe-image-processing",
+    job => job.EnqueuePendingAsync(CancellationToken.None),
+    Cron.MinuteInterval(5),
+    new RecurringJobOptions());
 recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),
