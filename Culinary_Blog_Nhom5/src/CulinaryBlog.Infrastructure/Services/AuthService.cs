@@ -337,14 +337,26 @@ public sealed class AuthService : IAuthService
 
     public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(refreshToken)) return;
+        await RevokeRefreshTokenAsync(refreshToken, expectedUserId: null, cancellationToken);
+    }
+
+    public async Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(
+        string refreshToken,
+        string? expectedUserId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return RefreshTokenRevocationResult.NotFound;
         var tokenHash = _jwtService.HashToken(refreshToken);
-        await _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        return await _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
             var token = await _dbContext.RefreshTokens.AsNoTracking()
                 .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
-            if (token is null) return;
+            if (token is null) return RefreshTokenRevocationResult.NotFound;
+            if (expectedUserId is not null && token.UserId != expectedUserId)
+                return RefreshTokenRevocationResult.OwnershipMismatch;
+            if (token.ExpiresAt <= _timeProvider.GetUtcNow().UtcDateTime)
+                return RefreshTokenRevocationResult.Expired;
             await LockUserAsync(token.UserId, cancellationToken);
             var now = _timeProvider.GetUtcNow().UtcDateTime;
             // A logout carrying an older cookie also revokes its successors without marking them used.
@@ -364,6 +376,7 @@ public sealed class AuthService : IAuthService
             _logger.LogInformation(
                 "Audit auth logout succeeded for user {UserId} at {OccurredAtUtc}",
                 token.UserId, _timeProvider.GetUtcNow());
+            return RefreshTokenRevocationResult.Revoked;
         });
     }
 

@@ -31,6 +31,7 @@ public sealed class RecipeImageProcessingJob(
         ResourceLimits.Disk = 256 * 1024 * 1024;
     }
 
+    [DisableConcurrentExecution(300)]
     [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
     public async Task ProcessAsync(Guid imageId, CancellationToken cancellationToken)
     {
@@ -88,7 +89,10 @@ public sealed class RecipeImageProcessingJob(
     private async Task<string?> CreateVariantAsync(Guid imageId, MagickImage original, string key, uint width, uint height, List<string> createdUrls, CancellationToken ct)
     {
         using var variant = (MagickImage)original.Clone();
-        variant.Resize(new MagickGeometry(width, height) { IgnoreAspectRatio = false });
+        variant.AutoOrient();
+        variant.Resize(new MagickGeometry(width, height) { FillArea = true });
+        variant.Crop(width, height, Gravity.Center);
+        variant.ResetPage();
         variant.Format = MagickFormat.Jpeg;
         variant.Quality = 85;
         await using var buffer = new MemoryStream();

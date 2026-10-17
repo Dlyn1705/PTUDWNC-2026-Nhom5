@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
+import { hasRole } from "@/lib/permissions";
 
 export default async function DashboardLayout({
   children,
@@ -11,10 +12,8 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session || session.error === "RefreshTokenError") redirect("/login?callbackUrl=/dashboard");
-  if (session.error) {
-    return <p role="alert" className="p-8 text-center">Không thể kiểm tra phiên đăng nhập. Vui lòng tải lại trang sau ít phút.</p>;
-  }
+  if (!session || session.error) redirect("/login?callbackUrl=/dashboard");
+  if (!hasRole(session.user, "Author") && !hasRole(session.user, "Admin")) redirect("/forbidden");
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -32,7 +31,7 @@ export default async function DashboardLayout({
             </Link>
 
             <nav className="hidden sm:flex items-center gap-2 text-sm">
-              {session.user.role === "Admin" && (
+              {hasRole(session.user, "Admin") && (
                 <Link
                   href="/dashboard/categories"
                   className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"

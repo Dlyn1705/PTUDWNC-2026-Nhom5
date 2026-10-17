@@ -2,7 +2,7 @@ import type { DefaultSession } from "next-auth";
 import type {} from "@auth/core/jwt";
 import type { BackendTokens } from "../lib/auth/backendTokens";
 
-type AppRole = "Admin" | "Author";
+import type { AppRole } from "./auth";
 
 declare module "next-auth" {
   interface User {

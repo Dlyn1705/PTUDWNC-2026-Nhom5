@@ -1,6 +1,8 @@
 using System.Text;
+using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -21,7 +23,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using System.Threading.RateLimiting;
+using CulinaryBlog.API.Security;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
@@ -43,8 +45,9 @@ builder.Services.AddInfrastructure(
 
 builder.Services.AddObservability(builder.Configuration);
 
-var databaseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+var databaseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(databaseConnectionString))
+    throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection through an environment variable or user secrets.");
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -84,7 +87,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader)
+            .AllowAnyMethod().WithExposedHeaders(RequestLogContext.CorrelationHeader, "Retry-After", "ETag", "api-supported-versions")
             .AllowCredentials();
     });
 });
@@ -93,13 +96,16 @@ builder.Services.AddCors(options =>
 // ============================================================
 // 4. Authentication (JWT Bearer) & Authorization
 // ============================================================
-var jwtKey =
-    builder.Configuration["Jwt:Key"]
-    ?? "CulinaryBlog_SuperSecretKey_For_Development_Must_Be_Long_Enough_2026";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException("Configure Jwt:Key with at least 32 UTF-8 bytes through an environment variable or user secrets.");
 
 var jwtIssuer =
     builder.Configuration["Jwt:Issuer"]
     ?? "CulinaryBlog";
+
+if (!builder.Environment.IsDevelopment() && jwtKey.Contains("SuperSecretKey_For_Development", StringComparison.Ordinal))
+    throw new InvalidOperationException("The development JWT key is not allowed outside Development.");
 
 var jwtAudience =
     builder.Configuration["Jwt:Audience"]
@@ -218,30 +224,26 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 10,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-    options.AddPolicy("upload", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 5,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0
-        }));
-});
+builder.Services.AddApiSecurity();
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
-builder.Services.AddOpenApi();
+builder.Services.AddApiVersioning(options =>
+    {
+        options.ApiVersionReader = new UrlSegmentApiVersionReader();
+        options.ReportApiVersions = true;
+    })
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
+    })
+    .AddOpenApi(options =>
+    {
+        options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
+        options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
+    });
+builder.Services.AddRecipeApiConfiguration();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
 
 
@@ -299,6 +301,7 @@ if (builder.Configuration.GetValue<bool>("AdminSeed:OnStartup"))
 // ============================================================
 // 7. Request Pipeline & Middlewares
 // ============================================================
+app.UseMiddleware<ApiSecurityHeadersMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseStructuredRequestLogging();
 
@@ -314,9 +317,18 @@ app.UseCors("AllowFrontend");
 // ============================================================
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().WithDocumentPerVersion();
 
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        for (var i = 0; i < descriptions.Count; i++)
+        {
+            var description = descriptions[i];
+            options.AddDocument(description.GroupName, description.GroupName,
+                isDefault: i == descriptions.Count - 1);
+        }
+    });
 }
 
 
@@ -332,24 +344,33 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseMiddleware<UserLogContextMiddleware>();
 
-app.UseAuthorization();
 app.UseRateLimiter();
+app.UseAuthorization();
 
 
 // ============================================================
 // 11. Map Endpoint Groups
 // ============================================================
-app.MapCategoryEndpoints();
+var api = app.NewVersionedApi();
+var v1 = api.MapGroup("/api/v{version:apiVersion}").HasApiVersion(1.0);
 
-app.MapAuthEndpoints();
+v1.MapCategoryEndpoints();
 
-app.MapAdminEndpoints();
+v1.MapAuthEndpoints();
 
-app.MapRecipeEndpoints();
+v1.MapAdminEndpoints();
+
+v1.MapRecipeEndpoints();
+v1.MapRecipeIngredientEndpoints();
 
 app.MapHealthEndpoints();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
+    "recover-pending-recipe-image-processing",
+    job => job.EnqueuePendingAsync(CancellationToken.None),
+    Cron.MinuteInterval(5),
+    new RecurringJobOptions());
 recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
     "recover-pending-recipe-image-deletions",
     job => job.EnqueuePendingAsync(CancellationToken.None),

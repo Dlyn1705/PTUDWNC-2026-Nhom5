@@ -28,9 +28,9 @@ Tên nhánh viết thường, không dấu, dùng dấu gạch ngang và mô t�
 Ví dụ:
 
 ```text
-2312567-vo-thi-minh-an-dang-nhap-email
-2300003-nguyen-le-anh-tuan-xoa-anh-minio
-2312663-do-dang-dieu-linh-sua-danh-muc
+2312567-vothiminhan-dangnhapemail
+2300003-nguyenleanhtuan-xoaanhminio
+2312663-dodangdieulinh-suadanhmuc
 ```
 
 Không dùng tên chung chung như `new`, `update`, `fix`, `test-branch`.
@@ -40,7 +40,7 @@ Không dùng tên chung chung như `new`, `update`, `fix`, `test-branch`.
 Commit theo định dạng Conventional Commits:
 
 ```text
-<type>(<scope>): <mo-ta-ngan-gon>
+<type>(<scope>): <motangangon>
 ```
 
 Các `type` thường dùng:

@@ -35,7 +35,6 @@ PTUDWNC-2026-Nhom5/
 └── Culinary_Blog_Nhom5/
     ├── Culinary_Blog_Nhom5.sln        # .NET solution
     ├── run-dev.ps1                    # Chạy full-stack bằng PowerShell
-    ├── run-dev.bat                    # Chạy full-stack bằng Command Prompt
     ├── docx/
     │   └── Spec/
     │       └── Culinary_Blog_Spec.md  # Đặc tả nghiệp vụ và kiến trúc
@@ -93,6 +92,10 @@ Nếu đã clone dự án trước đó, chỉ cần chạy ba lệnh cuối.
 
 Tại thư mục gốc của repository:
 
+Trước khi chạy Docker, sao chép `.env.example` ở gốc repository thành `.env`, rồi đặt `POSTGRES_PASSWORD` và `JWT_KEY` bằng các giá trị bí mật riêng. `run-dev.ps1` đọc `.env`, dùng mật khẩu để kết nối PostgreSQL local và truyền khóa JWT cho API. Với cơ sở dữ liệu đã tồn tại, `POSTGRES_PASSWORD` phải khớp mật khẩu hiện tại cho tới khi bạn chủ động đổi mật khẩu trong PostgreSQL. Không commit `.env`.
+
+Khi chạy API riêng, cung cấp `ConnectionStrings__DefaultConnection` và `Jwt__Key` qua biến môi trường hoặc .NET user secrets. API sẽ dừng lúc khởi động nếu thiếu một trong hai giá trị hoặc khóa JWT ngắn hơn 32 byte.
+
 ```powershell
 docker compose up -d
 docker compose ps
@@ -133,15 +136,6 @@ Script sẽ chạy đồng thời:
 - Health check: <http://localhost:5156/health>
 
 Nhấn `Ctrl + C` tại cửa sổ PowerShell để dừng backend và frontend.
-
-### Chạy bằng Command Prompt
-
-```bat
-cd Culinary_Blog_Nhom5
-run-dev.bat
-```
-
-Script này mở backend và frontend trong hai cửa sổ riêng.
 
 ### Chạy thủ công
 

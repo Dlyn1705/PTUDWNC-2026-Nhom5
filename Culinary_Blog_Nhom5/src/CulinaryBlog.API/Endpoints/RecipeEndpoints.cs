@@ -1,3 +1,5 @@
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeImages;
+using CulinaryBlog.Application.Features.Recipes.Commands.SetRecipeImagePrimary;
 using System;
 using System.Security.Claims;
 using System.Linq;
@@ -14,6 +16,7 @@ using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
 using CulinaryBlog.Domain.Entities;
+using CulinaryBlog.Application.Features.Recipes.Ingredients;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
@@ -30,8 +33,30 @@ public static class RecipeEndpoints
 {
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/recipes")
+        var group = app.MapGroup("/recipes")
             .WithTags("Recipes");
+
+        group.MapGet("/{recipeId:guid}/images", async (Guid recipeId, ISender sender, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(ApiResponse<IReadOnlyList<RecipeImageDto>>.Ok(
+                await sender.Send(new GetRecipeImagesQuery(recipeId), ct)));
+        })
+        .WithName("GetRecipeImages")
+        .WithSummary("Lấy bộ sưu tập ảnh của công thức (Owner/Admin)")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces<ApiResponse<IReadOnlyList<RecipeImageDto>>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);
+
+        group.MapPatch("/{recipeId:guid}/images/{imageId:guid}/primary", async (
+            Guid recipeId, Guid imageId, ISender sender, CancellationToken ct) =>
+            Results.Ok(ApiResponse<RecipeImageDto>.Ok(
+                await sender.Send(new SetRecipeImagePrimaryCommand(recipeId, imageId), ct))))
+        .WithName("SetRecipeImagePrimary")
+        .WithSummary("Đặt ảnh chính duy nhất cho công thức")
+        .RequireAuthorization("AuthorPolicy")
+        .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409);
 
         group.MapPost("/{recipeId:guid}/images", async (
             Guid recipeId,
@@ -74,6 +99,8 @@ public static class RecipeEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteRecipeImage")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Xóa ảnh công thức và dọn các object khỏi MinIO (FR-FILE-002)")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -101,25 +128,18 @@ public static class RecipeEndpoints
         .RequireAuthorization("AuthorPolicy");
 
         group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (
-            Guid recipeId,
-            Guid imageId,
-            IRecipeRepository recipes,
-            ICurrentUserService currentUser,
-            CancellationToken ct) =>
+            Guid recipeId, Guid imageId, ISender sender, HttpContext context, CancellationToken ct) =>
         {
-            var recipe = await recipes.GetDetailsByIdAsync(recipeId, ct)
-                ?? throw new NotFoundException("Recipe", recipeId);
-            if (!currentUser.IsAdmin && !string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal))
-                throw new ForbiddenException("Chỉ chủ sở hữu công thức hoặc Admin mới được xem trạng thái ảnh.");
-            var image = recipe.Images.FirstOrDefault(candidate => candidate.Id == imageId && !candidate.IsDeleted)
-                ?? throw new NotFoundException("RecipeImage", imageId);
-            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(new RecipeImageDto(
-                image.Id, image.RecipeId, image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl,
-                image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus)));
+            context.Response.Headers.CacheControl = "no-store";
+            var images = await sender.Send(new GetRecipeImagesQuery(recipeId, imageId), ct);
+            return Results.Ok(ApiResponse<RecipeImageDto>.Ok(images[0]));
         })
         .WithName("GetRecipeImage")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy trạng thái xử lý ảnh công thức")
         .Produces<ApiResponse<RecipeImageDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404)
         .RequireAuthorization("AuthorPolicy");
 
         // FR-RCP-001: Xem Danh sách Công thức Công cộng (Paginated + Filtered)
@@ -147,6 +167,8 @@ public static class RecipeEndpoints
             return Results.Ok(result);
         })
         .WithName("GetRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy danh sách công thức đã xuất bản kèm phân trang và lọc (FR-RCP-001)")
         .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
 
@@ -172,6 +194,8 @@ public static class RecipeEndpoints
             return Results.Ok(detail);
         })
         .WithName("GetRecipeById")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy chi tiết công thức theo ID; Owner/Admin xem được Draft và Archived")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound);
@@ -196,9 +220,44 @@ public static class RecipeEndpoints
                 status: status,
                 ct: ct);
 
-            return Results.Ok(new { items, totalCount, page = p, pageSize = ps });
+            var data = items.Select(recipe => new
+            {
+                recipe.Id,
+                recipe.Title,
+                recipe.Slug,
+                recipe.Description,
+                recipe.Status,
+                recipe.UpdatedAt,
+                Category = recipe.Category is null
+                    ? null
+                    : new { recipe.Category.Id, recipe.Category.Name },
+                Author = recipe.Author is null
+                    ? null
+                    : new { recipe.Author.Id, recipe.Author.DisplayName },
+                PrimaryImageUrl = recipe.Images
+                    .Where(image => image.IsPrimary && !image.IsDeleted)
+                    .Select(image => image.ThumbnailUrl ?? image.MediumUrl ?? image.OriginalUrl)
+                    .FirstOrDefault()
+            }).ToArray();
+            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)ps);
+
+            return Results.Ok(new
+            {
+                data,
+                meta = new
+                {
+                    page = p,
+                    pageSize = ps,
+                    totalCount,
+                    totalPages,
+                    hasNextPage = p < totalPages,
+                    hasPreviousPage = p > 1
+                }
+            });
         })
         .WithName("GetManagedRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy danh sách công thức của tác giả hoặc toàn bộ công thức cho Admin")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -213,16 +272,18 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
-            context.Response.Headers.CacheControl = "public, max-age=60";
+            context.Response.Headers.CacheControl = "no-cache";
             return Results.Ok(response);
         })
         .WithName("SearchRecipes")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Tìm kiếm toàn văn bản công thức nấu ăn (FR-SRCH-001)")
         .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         // FR-RCP-006: Lưu trữ công thức
-        group.MapPost("/{id:guid}/archive", async (
+        group.MapPatch("/{id:guid}/archive", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -241,6 +302,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
         .WithName("ArchiveRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lưu trữ công thức, giữ nguyên dữ liệu và ẩn khỏi danh sách công khai")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -249,7 +312,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
-        group.MapPost("/{id:guid}/restore", async (
+        group.MapPatch("/{id:guid}/unarchive", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -275,7 +338,9 @@ public static class RecipeEndpoints
             await unitOfWork.SaveChangesAsync(ct);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
-        .WithName("RestoreRecipe")
+        .WithName("UnarchiveRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Khôi phục công thức đã lưu trữ về bản nháp")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -285,7 +350,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
         // FR-RCP-005: Xuất bản công thức
-        group.MapPost("/{id:guid}/publish", async (
+        group.MapPatch("/{id:guid}/publish", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -319,6 +384,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("PublishRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Xuất bản công thức (yêu cầu ít nhất một bước thực hiện)")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -328,7 +395,7 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
-        group.MapPost("/{id:guid}/unpublish", async (
+        group.MapPatch("/{id:guid}/unpublish", async (
             Guid id,
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
@@ -353,6 +420,8 @@ public static class RecipeEndpoints
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("UnpublishRecipe")
+        .RequireRateLimiting("recipe-write")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Hủy xuất bản công thức và chuyển về bản nháp")
         .RequireAuthorization("AuthorPolicy")
         .Produces(StatusCodes.Status200OK)
@@ -373,6 +442,8 @@ public static class RecipeEndpoints
             return Results.Ok(recipe);
         })
         .WithName("GetRecipeBySlug")
+        .RequireRateLimiting("recipe-read")
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Lấy chi tiết công thức theo slug; khách chỉ xem Published, Owner/Admin xem thêm Draft và Archived (FR-RCP-002)")
         .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
@@ -439,10 +510,14 @@ public static class RecipeEndpoints
                 throw new ValidationException("Ingredients", "Mỗi công thức tối đa 100 nguyên liệu.");
             if (request.Steps is { Count: > 100 })
                 throw new ValidationException("Steps", "Mỗi công thức tối đa 100 bước.");
-            if (request.Ingredients?.Any(ingredient => string.IsNullOrWhiteSpace(ingredient.Name)) == true)
-                throw new ValidationException("Ingredients", "Tên nguyên liệu không được để trống.");
-            if (request.Ingredients?.Any(ingredient => ingredient.Quantity is < 0) == true)
-                throw new ValidationException("Ingredients", "Số lượng nguyên liệu không được âm.");
+            if (request.Ingredients is not null)
+                for (var index = 0; index < request.Ingredients.Count; index++)
+                {
+                    var item = request.Ingredients[index];
+                    if (item is null) throw new ValidationException($"Ingredients[{index}]", "Thiếu dữ liệu nguyên liệu.");
+                    IngredientRules.Validate(new IngredientInput(item.Name, item.Quantity, item.Unit, item.Notes), $"Ingredients[{index}].");
+                }
+
             if (request.Steps?.Any(step => string.IsNullOrWhiteSpace(step.Description)) == true)
                 throw new ValidationException("Steps", "Nội dung bước thực hiện không được để trống.");
             if (request.CategoryId == Guid.Empty)
@@ -495,7 +570,7 @@ public static class RecipeEndpoints
                         ingredient.Quantity,
                         ingredient.Unit?.Trim(),
                         ingredient.Notes?.Trim(),
-                        index + 1));
+                        index));
                 }
             }
 

@@ -13,7 +13,7 @@ public static class AdminEndpoints
 {
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/users")
+        var group = app.MapGroup("/admin/users")
             .WithTags("Admin")
             .RequireAuthorization("AdminOnly");
 

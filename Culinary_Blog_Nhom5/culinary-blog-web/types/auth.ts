@@ -1,3 +1,18 @@
+export type AppRole = "Admin" | "Author";
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface GoogleLoginRequest {
+  idToken: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
 export interface RegisterRequest {
   email: string;
   displayName: string;
@@ -5,10 +20,16 @@ export interface RegisterRequest {
   confirmPassword: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  avatarUrl?: string | null;
 }
 
 export interface AuthSessionResponse {
@@ -23,6 +44,8 @@ export interface AuthSessionResponse {
 export type AuthResponse = AuthSessionResponse;
 
 export interface ProblemDetails {
+  type?: string;
+  instance?: string;
   status?: number;
   title?: string;
   detail?: string;

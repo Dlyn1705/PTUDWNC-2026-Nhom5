@@ -6,6 +6,30 @@ export const Difficulty = {
 } as const;
 export type DifficultyValue = (typeof Difficulty)[keyof typeof Difficulty];
 
+export interface ManagedRecipeDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: RecipeStatusValue;
+  updatedAt: string;
+  category: { id: string; name: string } | null;
+  author: { id: string; displayName: string } | null;
+  primaryImageUrl?: string | null;
+}
+
+export interface ManagedRecipesPage {
+  data: ManagedRecipeDto[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 export const RecipeStatus = {
   Draft: 0,
   Published: 1,
@@ -67,11 +91,11 @@ export interface RecipeIngredientDto {
   name: string;
   quantity?: number | null;
   unit?: string | null;
-  notes?: string;
+  notes?: string | null;
   orderIndex?: number;
 }
 
-export interface RecipeCardDto {
+export interface RecipeSummaryDto {
   id: string;
   title: string;
   slug: string;
@@ -91,11 +115,15 @@ export interface RecipeCardDto {
   rowVersion?: string;
 }
 
-export interface RecipeDto extends RecipeCardDto {
+export type RecipeCardDto = RecipeSummaryDto;
+
+export interface RecipeDetailDto extends RecipeSummaryDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];
 }
+
+export type RecipeDto = RecipeDetailDto;
 
 export interface PagedResult<T> {
   data: T[];
@@ -126,6 +154,36 @@ export interface RecipeWritePayload {
   difficulty: DifficultyValue;
   categoryId: string;
   rowVersion?: string;
+}
+
+export interface CreateRecipeRequest extends Omit<RecipeWritePayload, "rowVersion"> {
+  ingredients?: CreateRecipeIngredientRequest[];
+  steps?: CreateRecipeStepRequest[];
+  nutrition?: CreateRecipeNutritionRequest;
+}
+
+export type UpdateRecipeRequest = RecipeWritePayload;
+
+export interface CreateRecipeIngredientRequest {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateRecipeStepRequest {
+  description: string;
+  title?: string | null;
+  timerMinutes?: number | null;
+}
+
+export interface CreateRecipeNutritionRequest {
+  calories?: number | null;
+  protein?: number | null;
+  carbohydrates?: number | null;
+  fat?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
 }
 
 export interface SearchRecipeSummaryDto {
