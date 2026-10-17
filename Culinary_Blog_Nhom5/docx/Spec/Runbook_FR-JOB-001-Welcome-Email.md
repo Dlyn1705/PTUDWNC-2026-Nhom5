@@ -39,7 +39,7 @@ Production bắt buộc SecurityMode `StartTls` hoặc `SslOnConnect`, URL HTTPS
 - Theo dõi `Status`, `AttemptCount`, `LastErrorCode`, `NextAttemptAt`, `LeaseExpiresAt`, `UpdatedAt`, `HangfireJobId` trong DB. Cảnh báo vận hành khi có Failed hoặc Pending quá lâu; chưa thêm hệ thống cảnh báo tự động/metric exporter riêng.
 - SMTP down: sửa kết nối/credential rồi để retry/recovery chạy. Enqueue lỗi: intent vẫn Pending, dispatcher thử lại. API chết sau commit: không mất intent. Lease còn sống: chờ hết hạn, không force gửi chồng.
 - Sent/Skipped cũ hơn RetentionDays (mặc định 30) được xóa. Failed giữ tombstone/attempt cap nhưng xóa snapshot RecipientEmail sau retention. Pending/Processing không xóa. Tắt Email cũng dừng dispatcher/retention; cần bật lại hoặc cleanup có kiểm soát khi ngừng tính năng lâu dài. PII trong bảng users tuân chính sách tài khoản riêng.
-- Hangfire Dashboard chưa được mở thêm. Nếu triển khai sau này phải yêu cầu Admin; không map anonymous.
+- Hangfire Dashboard được map tại `/hangfire` và chỉ Admin được truy cập. Không map anonymous; operator phải đăng nhập bằng tài khoản có role Admin.
 
 ## Retry thủ công có kiểm soát
 

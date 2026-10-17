@@ -17,6 +17,7 @@
 - Retention mặc định 30 ngày: xóa Sent/Skipped cũ, scrub RecipientEmail của Failed và giữ tombstone/attempt cap; giữ Pending/Processing. Có runbook retry thủ công từng message kèm audit.
 - WelcomeBanner tại `/login?registered=true`, giữ redirect cũ, hướng dẫn đăng nhập ngay và khám phá công thức. Không gọi resend/polling từ frontend; cập nhật Frontend_Spec để bỏ lời hứa kích hoạt tài khoản.
 - `compose.mail.yml` riêng dùng MailHog local pin `v1.0.1`, SMTP/UI chỉ bind loopback; hướng dẫn cấu hình và test trong [runbook](./Runbook_FR-JOB-001-Welcome-Email.md) và README.
+- Hangfire Dashboard được map tại `/hangfire` trong API và bảo vệ bằng role `Admin`; không mở anonymous.
 
 ## Bằng chứng kiểm thử
 

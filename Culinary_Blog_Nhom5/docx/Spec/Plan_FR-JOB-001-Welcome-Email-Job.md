@@ -98,7 +98,7 @@ Hangfire storage dùng cùng PostgreSQL connection string không có nghĩa enqu
 - Worker/API restart, enqueue thành công nhưng chưa lưu JobId, lease hết hạn, job bị mất/xóa và lease còn sống phải có đường kiểm tra riêng. Mọi thao tác recovery phải idempotent và an toàn khi nhiều instance chạy.
 - Hết retry ghi Failed, giữ dữ liệu đủ cho chẩn đoán và cảnh báo. Với lỗi SMTP vĩnh viễn có thể bổ sung phân loại để dừng sớm; phải phối hợp filter/retry state thực tế, không dùng log “thành công” che lỗi business.
 - Runbook retry thủ công: operator kiểm tra trạng thái/provider trước; chỉ reset/requeue một message cụ thể qua thao tác có audit. Không chỉ nhấn Retry rồi mặc định worker sẽ gửi lại Failed đã chạm giới hạn. Không tạo public resend API trong FR-JOB-001.
-- Nếu bổ sung Hangfire Dashboard, chỉ Admin được truy cập kể cả production; không mở anonymous để tiện debug. Không mở endpoint gửi thư tùy ý nhận toEmail/userName từ người dùng.
+- Hangfire Dashboard nằm ở `/hangfire` và chỉ Admin được truy cập kể cả production; không mở anonymous để tiện debug. Không mở endpoint gửi thư tùy ý nhận toEmail/userName từ người dùng.
 
 ## 6. Email transport, template và cấu hình
 

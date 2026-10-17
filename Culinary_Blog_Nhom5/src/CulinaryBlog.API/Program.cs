@@ -2,6 +2,7 @@ using System.Text;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -356,6 +357,11 @@ app.UseMiddleware<UserLogContextMiddleware>();
 
 app.UseAuthorization();
 app.UseRateLimiter();
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+});
 
 
 // ============================================================
