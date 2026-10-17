@@ -12,6 +12,9 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
   if (!session) redirect("/login?callbackUrl=/dashboard");
+  if (session.user.role !== "Author" && session.user.role !== "Admin") {
+    redirect("/forbidden");
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">

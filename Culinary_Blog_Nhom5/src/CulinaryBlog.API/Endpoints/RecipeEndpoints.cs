@@ -205,7 +205,40 @@ public static class RecipeEndpoints
                 status: status,
                 ct: ct);
 
-            return Results.Ok(new { items, totalCount, page = p, pageSize = ps });
+            var data = items.Select(recipe => new
+            {
+                recipe.Id,
+                recipe.Title,
+                recipe.Slug,
+                recipe.Description,
+                recipe.Status,
+                recipe.UpdatedAt,
+                Category = recipe.Category is null
+                    ? null
+                    : new { recipe.Category.Id, recipe.Category.Name },
+                Author = recipe.Author is null
+                    ? null
+                    : new { recipe.Author.Id, recipe.Author.DisplayName },
+                PrimaryImageUrl = recipe.Images
+                    .Where(image => image.IsPrimary && !image.IsDeleted)
+                    .Select(image => image.ThumbnailUrl ?? image.MediumUrl ?? image.OriginalUrl)
+                    .FirstOrDefault()
+            }).ToArray();
+            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)ps);
+
+            return Results.Ok(new
+            {
+                data,
+                meta = new
+                {
+                    page = p,
+                    pageSize = ps,
+                    totalCount,
+                    totalPages,
+                    hasNextPage = p < totalPages,
+                    hasPreviousPage = p > 1
+                }
+            });
         })
         .WithName("GetManagedRecipes")
         .RequireRateLimiting("recipe-read")

@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import type { RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
+import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
 import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
@@ -11,6 +11,16 @@ const mockModeEnabled =
 type LegacyPagedRecipes = { items: RecipeSummaryDto[] };
 
 export const recipeApi = {
+  async getMine(params: {
+    page?: number;
+    pageSize?: number;
+    status?: number;
+    sortBy?: string;
+  } = {}): Promise<ManagedRecipesPage> {
+    const response = await axiosClient.get<ManagedRecipesPage>("/api/v1/recipes/mine", { params });
+    return response.data;
+  },
+
   async getPaged(params: {
     page?: number;
     pageSize?: number;
