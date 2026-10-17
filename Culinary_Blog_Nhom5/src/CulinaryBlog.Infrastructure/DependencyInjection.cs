@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IRecipeIngredientStore, RecipeIngredientStore>();
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();

@@ -90,12 +90,15 @@ public sealed class GetRecipeBySlugQueryHandler
                 .ToList(),
             Ingredients = recipe.Ingredients
                 .OrderBy(ingredient => ingredient.OrderIndex)
+                .ThenBy(ingredient => ingredient.CreatedAt)
+                .ThenBy(ingredient => ingredient.Id)
                 .Select(ingredient => new RecipeDetailIngredientDto
                 {
                     Id = ingredient.Id,
                     Name = ingredient.Name,
-                    Quantity = ingredient.Quantity ?? 0,
-                    Unit = ingredient.Unit ?? string.Empty,
+                    Quantity = ingredient.Quantity,
+                    Unit = ingredient.Unit,
+                    OrderIndex = ingredient.OrderIndex,
                     Notes = ingredient.Notes
                 })
                 .ToList(),

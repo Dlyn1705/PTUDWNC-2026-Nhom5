@@ -46,6 +46,7 @@ public sealed class ImageApiTests
         builder.Logging.ClearProviders();
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddRecipeApiConfiguration();
         builder.Services.AddAuthentication("GalleryTest").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("GalleryTest", _ => { });
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("upload", limiter => limiter.PermitLimit = 10));
         builder.Services.AddScoped<IRecipeImageDeletionQueue, NoopDeletionQueue>();

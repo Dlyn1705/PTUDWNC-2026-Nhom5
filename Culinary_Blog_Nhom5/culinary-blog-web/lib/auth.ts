@@ -9,6 +9,7 @@ const backendBaseUrl =
   "http://localhost:5156";
 
 const refreshCookieName = "culinary_refresh_token=";
+const secureAuthCookie = process.env.NODE_ENV === "production";
 type RefreshedSession = {
   session: AuthSessionResponse;
   refreshToken: string;
@@ -100,10 +101,21 @@ async function refreshBackendSession(
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update: updateSession } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
+  cookies: {
+    sessionToken: {
+      name: `${secureAuthCookie ? "__Secure-" : ""}authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: secureAuthCookie,
+      },
+    },
+  },
   providers: [
     Credentials({
       credentials: {
@@ -158,7 +170,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.picture = user.image;
@@ -174,7 +186,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         typeof token.accessToken === "string" &&
         typeof token.backendRefreshToken === "string" &&
         Number.isFinite(expiresAt) &&
-        expiresAt <= Date.now() + 60_000
+        (trigger === "update" || expiresAt <= Date.now() + 60_000)
       ) {
         try {
           const refreshed = await refreshBackendSession(token.backendRefreshToken);
