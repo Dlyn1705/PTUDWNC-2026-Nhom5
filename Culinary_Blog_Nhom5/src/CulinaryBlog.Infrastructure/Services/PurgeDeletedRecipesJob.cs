@@ -8,6 +8,7 @@ using CulinaryBlog.Infrastructure.Persistence;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
@@ -17,7 +18,7 @@ namespace CulinaryBlog.Infrastructure.Services;
 /// have a dedicated DeletedAt column; the soft-delete path always updates it.
 /// </summary>
 public sealed class PurgeDeletedRecipesJob(
-    ApplicationDbContext db,
+    IServiceScopeFactory scopes,
     IFileStorageService storage,
     ILogger<PurgeDeletedRecipesJob> logger)
 {
@@ -29,48 +30,66 @@ public sealed class PurgeDeletedRecipesJob(
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         var cutoff = DateTime.UtcNow.Subtract(RetentionPeriod);
-        var recipes = await db.Recipes
-            .IgnoreQueryFilters()
-            .Include(recipe => recipe.Images)
-            .Where(recipe => recipe.IsDeleted
-                && recipe.UpdatedAt.HasValue
-                && recipe.UpdatedAt.Value <= cutoff)
-            .OrderBy(recipe => recipe.UpdatedAt)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
-
         List<Exception>? failures = null;
-        foreach (var recipe in recipes)
+        var failedIds = new List<Guid>();
+        var purgedCount = 0;
+        while (true)
         {
-            try
-            {
-                var urls = recipe.Images
-                    .SelectMany(image => new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl })
-                    .Where(url => !string.IsNullOrWhiteSpace(url))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray();
+            using var batchScope = scopes.CreateScope();
+            var batchDb = batchScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var ids = await batchDb.Recipes.IgnoreQueryFilters().AsNoTracking()
+                .Where(recipe => recipe.IsDeleted && recipe.UpdatedAt < cutoff
+                    && !failedIds.Contains(recipe.Id))
+                .OrderBy(recipe => recipe.UpdatedAt).ThenBy(recipe => recipe.Id)
+                .Select(recipe => recipe.Id).Take(BatchSize).ToListAsync(cancellationToken);
+            if (ids.Count == 0) break;
 
-                foreach (var url in urls)
+            foreach (var id in ids)
+            {
+                try
                 {
-                    await storage.DeleteAsync(url!, cancellationToken);
+                    // Isolate each record and every retry. A failed SaveChanges must
+                    // never leave a pending DELETE in the next record's tracker.
+                    var removed = await batchDb.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+                    {
+                        using var attempt = scopes.CreateScope();
+                        var db = attempt.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                        var recipe = await db.Recipes.FromSqlInterpolated(
+                            $"SELECT * FROM \"Recipes\" WHERE \"Id\" = {id} FOR UPDATE")
+                            .IgnoreQueryFilters().SingleOrDefaultAsync(cancellationToken);
+                        if (recipe is null || !recipe.IsDeleted || recipe.UpdatedAt is null || recipe.UpdatedAt >= cutoff)
+                            return false;
+                        var images = await db.RecipeImages.IgnoreQueryFilters()
+                            .Where(image => image.RecipeId == id).ToListAsync(cancellationToken);
+                        var urls = images
+                            .SelectMany(image => new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl })
+                            .Where(url => !string.IsNullOrWhiteSpace(url))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToArray();
+
+                        foreach (var url in urls)
+                        {
+                            await storage.DeleteAsync(url!, cancellationToken);
+                        }
+
+                        db.Recipes.Remove(recipe);
+                        await db.SaveChangesAsync(cancellationToken);
+                        await transaction.CommitAsync(cancellationToken);
+                        return true;
+                    });
+                    if (removed) purgedCount++;
                 }
-
-                db.Recipes.Remove(recipe);
-                await db.SaveChangesAsync(cancellationToken);
-
-                logger.LogInformation(
-                    "Purged soft-deleted recipe {RecipeId} and {ImageCount} image records",
-                    recipe.Id,
-                    recipe.Images.Count);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                failures ??= [];
-                failures.Add(exception);
-                logger.LogError(
-                    exception,
-                    "Could not purge soft-deleted recipe {RecipeId}; it will be retried",
-                    recipe.Id);
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    failures ??= [];
+                    failures.Add(exception);
+                    failedIds.Add(id);
+                    logger.LogError(
+                        exception,
+                        "Could not purge soft-deleted recipe {RecipeId}; it will be retried",
+                        id);
+                }
             }
         }
 
@@ -79,9 +98,9 @@ public sealed class PurgeDeletedRecipesJob(
             throw new AggregateException("One or more deleted recipes could not be purged.", failures);
         }
 
-        if (recipes.Count > 0)
+        if (purgedCount > 0)
         {
-            logger.LogInformation("Purged {RecipeCount} soft-deleted recipes", recipes.Count);
+            logger.LogInformation("Purged {RecipeCount} soft-deleted recipes", purgedCount);
         }
     }
 }

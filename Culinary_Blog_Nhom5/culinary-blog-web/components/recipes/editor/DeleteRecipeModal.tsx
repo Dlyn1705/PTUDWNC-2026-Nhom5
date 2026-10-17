@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 interface DeleteRecipeModalProps {
   open: boolean;
   busy?: boolean;
@@ -13,24 +18,24 @@ export function DeleteRecipeModal({
   onCancel,
   onConfirm,
 }: DeleteRecipeModalProps) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="text-xl font-semibold text-gray-900">Xóa công thức?</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Công thức sẽ được ẩn ngay và chuyển sang xóa vật lý sau 30 ngày.
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onCancel} disabled={busy} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700">
+    <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !busy) onCancel(); }}>
+      <AlertDialogContent aria-busy={busy}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Xóa công thức?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Công thức sẽ được ẩn ngay. Ảnh được giữ tối thiểu 30 ngày trước khi hệ thống dọn dữ liệu định kỳ.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>
             Hủy
-          </button>
-          <button type="button" onClick={onConfirm} disabled={busy} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60">
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={(event) => { event.preventDefault(); if (!busy) onConfirm(); }} disabled={busy} className="bg-red-600 text-white hover:bg-red-700">
             {busy ? "Đang xóa..." : "Xóa công thức"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

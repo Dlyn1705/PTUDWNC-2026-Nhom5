@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { recipeApi } from "@/lib/api/recipeApi";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
@@ -12,6 +14,8 @@ type RouteProps = { params: Promise<{ id: string }> };
 
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const mutationInFlight = useRef(false);
   const [recipeId, setRecipeId] = useState("");
   const activeRecipeId = useRef("");
   const [recipe, setRecipe] = useState<RecipeDto | null>(null);
@@ -56,7 +60,8 @@ export default function EditRecipePage({ params }: RouteProps) {
   };
 
   const save = async () => {
-    if (!form || !recipeId) return;
+    if (!form || !recipeId || mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setSaving(true);
     setError("");
     try {
@@ -72,17 +77,32 @@ export default function EditRecipePage({ params }: RouteProps) {
         ? "Công thức đã được người khác thay đổi. Hãy tải lại trước khi lưu."
         : "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
     } finally {
+      mutationInFlight.current = false;
       setSaving(false);
     }
   };
 
   const remove = async () => {
+    if (!recipeId || mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setDeleting(true);
+    setError("");
     try {
       await recipeApi.delete(recipeId);
+      await queryClient.invalidateQueries({ queryKey: ["managed-recipes"] });
       router.replace("/dashboard/recipes");
-    } catch {
-      setError("Không thể xóa công thức. Vui lòng thử lại.");
+      router.refresh();
+    } catch (reason) {
+      const problem = toApiProblemError(reason);
+      const status = problem instanceof ApiProblemError ? problem.status : undefined;
+      setError(status === 409
+        ? "Công thức vừa được thay đổi. Hãy tải lại trang và kiểm tra trước khi xóa."
+        : status === 401 ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : status === 403 ? "Bạn không có quyền xóa công thức này."
+        : status === 404 ? "Công thức không còn tồn tại hoặc đã bị xóa."
+        : "Không thể xóa công thức. Vui lòng thử lại.");
+      setShowDelete(false);
+      mutationInFlight.current = false;
       setDeleting(false);
     }
   };
@@ -101,7 +121,7 @@ export default function EditRecipePage({ params }: RouteProps) {
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-        <IngredientManager key={recipeId} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
+        <IngredientManager key={`ingredients-${recipeId}`} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
           try {
             const fresh = await recipeApi.getById(recipeId);
             if (activeRecipeId.current !== fresh.id) return;
@@ -150,7 +170,7 @@ export default function EditRecipePage({ params }: RouteProps) {
           </div>
         </section>
 
-        <ImageGalleryManager key={recipeId} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
+        <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.
           void recipeApi.getById(recipeId).then(fresh => {
             if (activeRecipeId.current !== fresh.id) return;
@@ -165,8 +185,8 @@ export default function EditRecipePage({ params }: RouteProps) {
         }} />
 
         <div className="flex flex-wrap justify-between gap-3">
-          <button type="button" onClick={() => setShowDelete(true)} className="rounded-xl border border-red-200 px-5 py-3 font-medium text-red-600">Xóa công thức</button>
-          <button type="button" onClick={() => void save()} disabled={saving} className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-60">{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
+          <button type="button" onClick={() => setShowDelete(true)} disabled={saving || deleting} className="rounded-xl border border-red-200 px-5 py-3 font-medium text-red-600">Xóa công thức</button>
+          <button type="button" onClick={() => void save()} disabled={saving || deleting} className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-60">{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
         </div>
       </div>
       <DeleteRecipeModal open={showDelete} busy={deleting} onCancel={() => setShowDelete(false)} onConfirm={() => void remove()} />
