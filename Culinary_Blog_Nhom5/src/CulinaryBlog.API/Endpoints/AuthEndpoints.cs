@@ -12,6 +12,7 @@ using CulinaryBlog.Application.Features.Auth.Commands.Logout;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
+using CulinaryBlog.Domain.Exceptions;
 using MediatR;
 using System;
 using System.IdentityModel.Tokens.Jwt;
@@ -118,6 +119,11 @@ public static class AuthEndpoints
                 throw new UnauthorizedAccessException("Access token không hợp lệ.");
             }
 
+            if (accessToken.State == LogoutAccessTokenState.Forbidden)
+            {
+                throw new ForbiddenException("Chỉ Author hoặc Admin mới được đăng xuất.");
+            }
+
             var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
@@ -174,8 +180,13 @@ public static class AuthEndpoints
         if (authentication.Succeeded)
         {
             var userId = GetUserId(authentication.Principal!);
-            return string.IsNullOrWhiteSpace(userId)
-                ? new LogoutAccessToken(LogoutAccessTokenState.Invalid, null)
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            return !LogoutAuthorization.HasRequiredRole(authentication.Principal!)
+                ? new LogoutAccessToken(LogoutAccessTokenState.Forbidden, userId)
                 : new LogoutAccessToken(LogoutAccessTokenState.Valid, userId);
         }
 
@@ -201,8 +212,13 @@ public static class AuthEndpoints
             }
 
             var userId = GetUserId(principal);
-            return string.IsNullOrWhiteSpace(userId)
-                ? new LogoutAccessToken(LogoutAccessTokenState.Invalid, null)
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            return !LogoutAuthorization.HasRequiredRole(principal)
+                ? new LogoutAccessToken(LogoutAccessTokenState.Forbidden, userId)
                 : new LogoutAccessToken(LogoutAccessTokenState.Expired, userId);
         }
         catch (SecurityTokenException)
@@ -274,8 +290,18 @@ public static class AuthEndpoints
     {
         Valid,
         Expired,
+        Forbidden,
         Invalid
     }
+}
+
+internal static class LogoutAuthorization
+{
+    public static bool HasRequiredRole(ClaimsPrincipal principal) =>
+        principal.Claims.Any(claim =>
+            (claim.Type == ClaimTypes.Role || claim.Type == "role" || claim.Type == "roles")
+            && (string.Equals(claim.Value, "Author", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(claim.Value, "Admin", StringComparison.OrdinalIgnoreCase)));
 }
 
 /// <summary>Refresh token payload for non-browser API clients.</summary>
