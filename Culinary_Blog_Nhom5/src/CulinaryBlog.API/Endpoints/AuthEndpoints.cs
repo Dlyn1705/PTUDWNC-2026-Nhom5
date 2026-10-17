@@ -30,7 +30,8 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/auth")
             .WithTags("Authentication")
-            .RequireRateLimiting("auth");
+            .RequireRateLimiting("auth")
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/ping", () => Results.Ok(new { message = "Auth module endpoint group is active." }))
             .WithName("AuthPing")
