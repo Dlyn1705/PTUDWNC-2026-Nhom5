@@ -127,6 +127,7 @@ public static class RecipeEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAuthorization("AuthorPolicy");
 
         group.MapGet("/{recipeId:guid}/images/{imageId:guid}", async (

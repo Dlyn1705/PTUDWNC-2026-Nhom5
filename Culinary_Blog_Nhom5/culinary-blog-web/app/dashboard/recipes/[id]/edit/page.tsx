@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { recipeApi } from "@/lib/api/recipeApi";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
@@ -16,6 +18,8 @@ type RouteProps = { params: Promise<{ id: string }> };
 
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const mutationInFlight = useRef(false);
   const { data: session, status: sessionStatus } = useSession();
   const savingRef = useRef(false);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -112,13 +116,26 @@ export default function EditRecipePage({ params }: RouteProps) {
   };
 
   const remove = async () => {
-    if (savingRef.current || deleting) return;
+    if (!recipeId || savingRef.current || deleting || mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setDeleting(true);
+    setError("");
     try {
       await recipeApi.delete(recipeId);
-      router.replace("/dashboard/recipes");
-    } catch {
-      setError("Không thể xóa công thức. Vui lòng thử lại.");
+      await queryClient.invalidateQueries({ queryKey: ["managed-recipes"] });
+      router.replace("/dashboard/recipes?deleted=1");
+      router.refresh();
+    } catch (reason) {
+      const problem = toApiProblemError(reason);
+      const status = problem instanceof ApiProblemError ? problem.status : undefined;
+      setError(status === 409
+        ? "Công thức vừa được thay đổi. Hãy tải lại trang và kiểm tra trước khi xóa."
+        : status === 401 ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : status === 403 ? "Bạn không có quyền xóa công thức này."
+        : status === 404 ? "Công thức không còn tồn tại hoặc đã bị xóa."
+        : "Không thể xóa công thức. Vui lòng thử lại.");
+      setShowDelete(false);
+      mutationInFlight.current = false;
       setDeleting(false);
     }
   };
@@ -146,7 +163,7 @@ export default function EditRecipePage({ params }: RouteProps) {
           Tải bản mới (bỏ thay đổi đang nhập)
         </button>
 
-        <IngredientManager key={recipeId} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
+        <IngredientManager key={`ingredients-${recipeId}`} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
           try {
             const fresh = await recipeApi.getById(recipeId);
             if (activeRecipeId.current !== fresh.id) return;
@@ -199,7 +216,7 @@ export default function EditRecipePage({ params }: RouteProps) {
           </div>
         </fieldset>
 
-        <ImageGalleryManager key={recipeId} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
+        <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.
           void recipeApi.getById(recipeId).then(fresh => {
             if (activeRecipeId.current !== fresh.id) return;
