@@ -25,9 +25,19 @@ public class ConflictException : DomainException
     }
 }
 
+public class ExternalServiceException : DomainException
+{
+    public ExternalServiceException(string message) : base(message) { }
+}
+
 public class ForbiddenException : DomainException
 {
     public ForbiddenException(string message = "Bạn không có quyền thực hiện thao tác này.") : base(message) { }
+}
+
+public class LockedException : DomainException
+{
+    public LockedException(string message = "Tài khoản đang bị tạm khóa.") : base(message) { }
 }
 
 public class ValidationException : DomainException

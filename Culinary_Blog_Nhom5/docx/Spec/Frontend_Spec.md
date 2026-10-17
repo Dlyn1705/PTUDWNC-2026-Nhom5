@@ -452,10 +452,10 @@ culinary-blog-web/
 - **Nghiệp vụ chi tiết (`FR-RCP-009`):**
   - Ứng dụng hook `useFieldArray` của React Hook Form để quản lý danh sách mảng nguyên liệu linh hoạt:
     - Mỗi hàng nguyên liệu gồm:
-      - `Name` (Tên nguyên liệu): 1-100 ký tự, bắt buộc (ví dụ: "Thịt ba chỉ", "Nước mắm").
-      - `Quantity` (Số lượng): Số thực > 0 (ví dụ: `500`, `1.5`).
-      - `Unit` (Đơn vị tính): Ô chọn hoặc gợi ý thông minh (gram, kg, ml, lít, muỗng canh, muỗng cà phê, quả, củ...).
-      - `Notes` (Ghi chú): Tùy chọn (ví dụ: "thái lát mỏng 2mm", "ướp sẵn hành tỏi").
+      - `Name` (Tên nguyên liệu): 1–200 ký tự sau trim, bắt buộc (ví dụ: "Thịt ba chỉ", "Nước mắm").
+      - `Quantity` (Số lượng): Tùy chọn/null; nếu nhập phải > 0, tối đa 9999999.999 và 3 chữ số thập phân, khớp decimal(10,3).
+      - `Unit` (Đơn vị tính): Tùy chọn/null, tối đa 50 ký tự; độc lập với Quantity (gram, kg, ml, lít, muỗng canh...).
+      - `Notes` (Ghi chú): Tùy chọn, tối đa 500 ký tự (ví dụ: "vừa đủ", "thái lát mỏng 2mm", "ướp sẵn hành tỏi").
     - Nút "+ Thêm nguyên liệu": Bổ sung một hàng nguyên liệu mới vào danh sách.
     - Nút "Xóa" (icon thùng rác): Xóa hàng nguyên liệu tương ứng.
     - Hỗ trợ đổi thứ tự hiển thị (`OrderIndex`) giữa các nguyên liệu bằng nút di chuyển Lên/Xuống hoặc kéo thả.

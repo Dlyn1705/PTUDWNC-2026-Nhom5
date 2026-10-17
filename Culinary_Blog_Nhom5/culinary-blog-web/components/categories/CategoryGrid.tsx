@@ -16,7 +16,7 @@ export function CategoryGrid({
   isLoading = false,
 }: CategoryGridProps) {
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"count" | "name" | "time">("count");
+  const [sortBy, setSortBy] = useState<"count" | "name">("count");
 
   const filtered = useMemo(() => {
     const result = categories.filter((c) =>
@@ -28,8 +28,6 @@ export function CategoryGrid({
       result.sort((a, b) => (b.recipeCount || 0) - (a.recipeCount || 0));
     } else if (sortBy === "name") {
       result.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "time") {
-      result.sort((a, b) => (a.avgCookTimeMinutes || 999) - (b.avgCookTimeMinutes || 999));
     }
 
     return result;
@@ -89,12 +87,11 @@ export function CategoryGrid({
           <span className="font-medium hidden md:inline">Sort:</span>
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "count" | "name" | "time")}
+            onChange={(e) => setSortBy(e.target.value as "count" | "name")}
             className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="count">Most recipes</option>
             <option value="name">Name (A-Z)</option>
-            <option value="time">Quickest cook time</option>
           </select>
         </div>
       </div>
@@ -106,17 +103,21 @@ export function CategoryGrid({
             <UtensilsCrossed className="size-6" />
           </div>
           <h3 className="font-display text-xl font-semibold text-foreground">
-            No matching categories
+            {search ? "No matching categories" : "No categories yet"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            We couldn&apos;t find any category matching &ldquo;{search}&rdquo;. Try another keyword.
+            {search
+              ? `We couldn't find any category matching “${search}”. Try another keyword.`
+              : "There are no categories in the database to display yet."}
           </p>
-          <button
-            onClick={() => setSearch("")}
-            className="mt-4 text-xs font-semibold text-primary hover:underline"
-          >
-            Clear search filter
-          </button>
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="mt-4 text-xs font-semibold text-primary hover:underline"
+            >
+              Clear search filter
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

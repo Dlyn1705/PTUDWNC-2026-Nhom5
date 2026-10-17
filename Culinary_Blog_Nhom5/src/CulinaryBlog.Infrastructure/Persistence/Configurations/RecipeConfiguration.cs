@@ -21,7 +21,9 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
             .IsRequired();
 
         builder.HasIndex(r => r.Slug)
-            .IsUnique();
+            .IsUnique()
+            .HasDatabaseName("IX_Recipes_Slug")
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(r => r.Description)
             .HasColumnType("text")
@@ -70,6 +72,11 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
         builder.HasIndex(r => r.AuthorId);
         builder.HasIndex(r => r.Status);
         builder.HasIndex(r => r.Difficulty);
+        builder.Property(r => r.SearchVector)
+            .HasColumnType("tsvector");
+        builder.HasIndex(r => r.SearchVector)
+            .HasMethod("GIN")
+            .HasDatabaseName("IX_Recipes_SearchVector");
 
         // Soft delete global query filter
         builder.HasQueryFilter(r => !r.IsDeleted);

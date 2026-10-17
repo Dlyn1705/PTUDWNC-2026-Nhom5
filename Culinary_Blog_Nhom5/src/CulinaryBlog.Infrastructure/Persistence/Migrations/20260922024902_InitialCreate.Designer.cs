@@ -13,7 +13,7 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     [Migration("20260922024902_InitialCreate")]
-    partial class InitialCreate
+    partial class InitialCreate20260922
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -14,14 +14,14 @@ public static class RecipeSeeder
         List<Category> categories,
         List<ApplicationUser> users)
     {
-        var faker = new Faker("vi");
+        var faker = new Faker("en");
 
         for (int i = 1; i <= 100; i++)
         {
             var category = faker.PickRandom(categories);
             var author = faker.PickRandom(users);
 
-            var title = $"Cong thuc mon an {i}";
+            var title = $"Recipe {i}";
 
             var recipe = new Recipe
             {
@@ -29,13 +29,13 @@ public static class RecipeSeeder
 
                 Title = title,
 
-                Slug = $"cong-thuc-mon-an-{i}",
+                Slug = $"recipe-{i}",
 
                 Description =
-                    $"Huong dan nau {title} ngon, don gian va de thuc hien.",
+                    $"A delicious, easy-to-follow guide for preparing {title}.",
 
                 Instructions =
-                    "Chuan bi nguyen lieu, so che, tien hanh nau va trinh bay mon an.",
+                    "Prepare the ingredients, follow each cooking step, and plate the finished dish.",
 
                 PrepTime =
                     faker.Random.Int(5, 60),
@@ -78,21 +78,21 @@ public static class RecipeSeeder
 
         var ingredients = new[]
         {
-            ("Thit ga", 500m, "g"),
-            ("Thit bo", 300m, "g"),
-            ("Ca", 400m, "g"),
-            ("Tom", 300m, "g"),
-            ("Trung ga", 3m, "qua"),
-            ("Ca rot", 2m, "cu"),
-            ("Khoai tay", 3m, "cu"),
-            ("Hanh tay", 1m, "cu"),
-            ("Toi", 3m, "tep"),
-            ("Nuoc mam", 2m, "muong canh"),
-            ("Duong", 1m, "muong canh"),
-            ("Muoi", 1m, "muong ca phe"),
-            ("Tieu", 1m, "muong ca phe"),
-            ("Dau an", 2m, "muong canh"),
-            ("Ot", 1m, "qua")
+            ("Chicken", 500m, "g"),
+            ("Beef", 300m, "g"),
+            ("Fish", 400m, "g"),
+            ("Shrimp", 300m, "g"),
+            ("Eggs", 3m, "pieces"),
+            ("Carrots", 2m, "pieces"),
+            ("Potatoes", 3m, "pieces"),
+            ("Onion", 1m, "piece"),
+            ("Garlic", 3m, "cloves"),
+            ("Fish sauce", 2m, "tablespoons"),
+            ("Sugar", 1m, "tablespoon"),
+            ("Salt", 1m, "teaspoon"),
+            ("Black pepper", 1m, "teaspoon"),
+            ("Cooking oil", 2m, "tablespoons"),
+            ("Chili", 1m, "piece")
         };
 
         foreach (var recipe in recipes)
@@ -137,10 +137,10 @@ public static class RecipeSeeder
 
                 StepNumber = 1,
 
-                Title = "So che nguyen lieu",
+                Title = "Prepare the ingredients",
 
                 Description =
-                    "Lam sach va so che cac nguyen lieu.",
+                    "Clean and prepare all ingredients.",
 
                 TimerMinutes = 5
             });
@@ -153,10 +153,10 @@ public static class RecipeSeeder
 
                 StepNumber = 2,
 
-                Title = "Chuan bi",
+                Title = "Cut and season",
 
                 Description =
-                    "Cat, uop va chuan bi cac nguyen lieu can thiet.",
+                    "Cut and season the required ingredients.",
 
                 TimerMinutes = 10
             });
@@ -169,10 +169,10 @@ public static class RecipeSeeder
 
                 StepNumber = 3,
 
-                Title = "Tien hanh nau",
+                Title = "Cook the dish",
 
                 Description =
-                    "Cho nguyen lieu vao dung cu nau va tien hanh nau.",
+                    "Add the ingredients to the cookware and begin cooking.",
 
                 TimerMinutes = 15
             });
@@ -185,10 +185,10 @@ public static class RecipeSeeder
 
                 StepNumber = 4,
 
-                Title = "Niem gia vi",
+                Title = "Adjust the seasoning",
 
                 Description =
-                    "Them gia vi va dieu chinh huong vi cho phu hop.",
+                    "Add seasonings and adjust the flavor to taste.",
 
                 TimerMinutes = 5
             });
@@ -201,10 +201,10 @@ public static class RecipeSeeder
 
                 StepNumber = 5,
 
-                Title = "Hoan thanh",
+                Title = "Finish and serve",
 
                 Description =
-                    "Kiem tra mon an, tat bep va trinh bay ra dia.",
+                    "Check the dish, turn off the heat, and plate it for serving.",
 
                 TimerMinutes = 5
             });

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { RecipeStepDto } from "@/types/recipe.types";
 import { RecipeTimer } from "./RecipeTimer";
 import { Check, RotateCcw } from "lucide-react";
@@ -22,7 +23,7 @@ export function StepByStepList({ steps }: StepByStepListProps) {
     setCompletedSteps({});
   };
 
-  const sorted = [...steps].sort((a, b) => a.order - b.order);
+  const sorted = [...steps].sort((a, b) => (a.stepNumber || a.order || 0) - (b.stepNumber || b.order || 0));
   const completedCount = Object.values(completedSteps).filter(Boolean).length;
   const isAllComplete = steps.length > 0 && completedCount === steps.length;
 
@@ -57,11 +58,11 @@ export function StepByStepList({ steps }: StepByStepListProps) {
       </div>
 
       {isAllComplete && (
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-4 text-center dark:border-emerald-800 dark:bg-emerald-950/30">
-          <p className="font-display font-semibold text-emerald-800 dark:text-emerald-300 text-base">
+        <div className="rounded-2xl border border-herb/40 bg-herb/15 p-4 text-center">
+          <p className="font-display font-semibold text-herb-foreground text-base">
             🎉 All steps completed!
           </p>
-          <p className="text-xs text-emerald-700/80 dark:text-emerald-400 mt-0.5">
+          <p className="text-xs text-herb-foreground/80 mt-0.5">
             Your culinary masterpiece is ready to serve. Enjoy your meal!
           </p>
         </div>
@@ -69,8 +70,9 @@ export function StepByStepList({ steps }: StepByStepListProps) {
 
       <div className="space-y-5">
         {sorted.map((step, idx) => {
-          const stepNumber = step.order || idx + 1;
+          const stepNumber = step.stepNumber || step.order || idx + 1;
           const isDone = !!completedSteps[step.id];
+          const stepText = step.description || step.text || "";
 
           return (
             <div
@@ -88,7 +90,7 @@ export function StepByStepList({ steps }: StepByStepListProps) {
                   className={cn(
                     "flex size-9 shrink-0 items-center justify-center rounded-xl text-sm font-semibold transition-all cursor-pointer",
                     isDone
-                      ? "bg-emerald-600 text-white shadow-2xs"
+                      ? "bg-herb text-herb-foreground shadow-2xs font-bold"
                       : "bg-primary text-primary-foreground shadow-soft hover:scale-105"
                   )}
                   title={isDone ? "Mark step as incomplete" : "Mark step as complete"}
@@ -114,15 +116,18 @@ export function StepByStepList({ steps }: StepByStepListProps) {
                       isDone ? "text-muted-foreground" : "text-foreground/90"
                     )}
                   >
-                    {step.text}
+                    {stepText}
                   </p>
 
                   {/* Step Image */}
                   {step.imageUrl && (
                     <div className="mt-3 overflow-hidden rounded-xl border border-border max-w-lg shadow-2xs">
-                      <img
+                      <Image
                         src={step.imageUrl}
                         alt={step.title || `Step ${stepNumber}`}
+                        width={960}
+                        height={540}
+                        unoptimized
                         className="aspect-video w-full object-cover"
                         loading="lazy"
                       />

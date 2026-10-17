@@ -2,13 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils } from "lucide-react";
+import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated" && !!session?.user && !session.error;
+  const isAdmin = isAuthenticated &&
+    (session?.user.role === "Admin" || session?.user.roles?.includes("Admin"));
+  const accountName = session?.user.name || session?.user.email || "Tài khoản";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (prevPathname !== pathname) {
@@ -28,9 +35,8 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
-  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
-  const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
-  const isDashboardActive = pathname.startsWith("/dashboard");
+  const isCategoriesActive = pathname === "/categories" || pathname?.startsWith("/categories/") === true;
+  const isRecipesActive = pathname === "/recipes" || pathname?.startsWith("/recipes/") === true;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
@@ -69,27 +75,6 @@ export default function Navbar() {
             >
               Categories
             </Link>
-
-            <Link
-              href="/categories/pasta"
-              className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-            >
-              Pasta
-            </Link>
-
-            <Link
-              href="/categories/mains"
-              className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-            >
-              Mains
-            </Link>
-
-            <Link
-              href="/categories/baking"
-              className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-            >
-              Baking
-            </Link>
           </nav>
         </div>
 
@@ -110,23 +95,18 @@ export default function Navbar() {
             </Link>
           </Button>
 
-          <Button
+          {status === "loading" ? (
+            <span className="size-10 animate-pulse rounded-full bg-muted" aria-label="Đang tải tài khoản" />
+          ) : isAuthenticated ? <UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /> : <Button
             asChild
-            variant={isDashboardActive ? "secondary" : "ghost"}
             size="sm"
-            className="rounded-full gap-1.5 text-xs hidden sm:inline-flex"
+            className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
           >
-            <Link href="/dashboard/categories">
-              <LayoutDashboard className="size-3.5" />
-              <span>Admin</span>
+            <Link href="/register">
+              <UserPlus className="size-3.5" />
+              <span>Đăng ký</span>
             </Link>
-          </Button>
-
-          <Button asChild size="sm" className="rounded-full px-4 h-9 shadow-soft hidden xs:inline-flex">
-            <Link href="/auth/login">
-              Sign In
-            </Link>
-          </Button>
+          </Button>}
 
           {/* Mobile Menu Hamburger Toggle */}
           <Button
@@ -205,19 +185,24 @@ export default function Navbar() {
               </div>
 
               <div className="pt-3 border-t border-border flex flex-col gap-2">
-                <Link
-                  href="/dashboard/categories"
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <LayoutDashboard className="size-4 text-primary" />
-                  <span>Admin Dashboard</span>
-                </Link>
-
-                <Button asChild className="w-full rounded-full h-10 mt-1 shadow-soft">
-                  <Link href="/auth/login">
-                    Sign In to Culinary Blog
+                {isAuthenticated && (
+                  <Link
+                    href={isAdmin ? "/dashboard/categories" : "/dashboard/recipes"}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <LayoutDashboard className="size-4 text-primary" />
+                    <span>{isAdmin ? "Admin Dashboard" : "Quản lý công thức"}</span>
                   </Link>
-                </Button>
+                )}
+
+                {status === "loading" ? null : isAuthenticated ? (
+                  <div className="mt-1 flex items-center gap-3 px-3"><UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /><span className="truncate text-sm font-medium">{accountName}</span></div>
+                ) : <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
+                  <Link href="/register">
+                    <UserPlus className="size-4" />
+                    <span>Đăng ký tài khoản</span>
+                  </Link>
+                </Button>}
               </div>
             </nav>
           </div>

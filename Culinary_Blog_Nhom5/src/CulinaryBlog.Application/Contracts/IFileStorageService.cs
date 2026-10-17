@@ -6,6 +6,8 @@ namespace CulinaryBlog.Application.Contracts;
 
 public interface IFileStorageService
 {
-    Task<string> UploadAsync(Stream stream, string fileName, string contentType, string folder, CancellationToken ct = default);
+    Task<bool> IsReadyAsync(CancellationToken ct = default);
+    Task<string> UploadAsync(Stream stream, string objectKey, string contentType, CancellationToken ct = default);
+    Task<Stream> OpenReadAsync(string fileUrl, CancellationToken ct = default);
     Task DeleteAsync(string fileUrl, CancellationToken ct = default);
 }

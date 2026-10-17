@@ -16,66 +16,67 @@ public sealed class DatabaseSeeder
 
     private static readonly string[] CategoryNames =
     [
-        "Món khai vị", "Món chính", "Món chay", "Món nước", "Món xào",
-        "Món chiên", "Món nướng", "Món hấp", "Món kho", "Cơm",
-        "Bún và phở", "Mì", "Hải sản", "Thịt gà", "Thịt bò",
-        "Thịt heo", "Salad", "Bánh ngọt", "Tráng miệng", "Đồ uống",
-        "Món ăn sáng", "Món ăn nhanh"
+        "Appetizers", "Main Courses", "Vegetarian", "Soups", "Stir-Fries",
+        "Fried Dishes", "Grilled Dishes", "Steamed Dishes", "Braised Dishes", "Rice Dishes",
+        "Noodles and Pho", "Noodles", "Seafood", "Chicken", "Beef",
+        "Pork", "Salads", "Cakes", "Desserts", "Beverages",
+        "Breakfast", "Fast Food"
     ];
 
     private static readonly string[] MainIngredients =
     [
-        "thịt gà", "thịt bò", "thịt heo", "cá hồi", "cá thu", "cá basa",
-        "tôm", "mực", "nghêu", "đậu hũ", "nấm", "trứng", "khoai tây",
-        "cà tím", "bông cải", "bí đỏ", "rau củ", "sườn non", "vịt", "cua"
+        "chicken", "beef", "pork", "salmon", "mackerel", "basa fish",
+        "shrimp", "squid", "clams", "tofu", "mushrooms", "eggs", "potatoes",
+        "eggplant", "broccoli", "pumpkin", "vegetables", "pork ribs", "duck", "crab"
     ];
 
     private static readonly string[] CookingMethods =
     [
-        "chiên giòn", "xào", "hấp", "nướng", "kho", "rim", "luộc",
-        "áp chảo", "sốt tiêu", "sốt chua ngọt", "om", "rang muối"
+        "Crispy Fried", "Stir-Fried", "Steamed", "Grilled", "Braised", "Caramelized",
+        "Boiled", "Pan-Seared", "with Pepper Sauce", "with Sweet and Sour Sauce",
+        "Slow-Cooked", "Salt-Roasted"
     ];
 
     private static readonly string[] AllIngredients =
     [
-        "Muối", "Đường", "Tiêu đen", "Nước mắm", "Dầu ăn", "Hành tím",
-        "Tỏi", "Gừng", "Ớt", "Hành lá", "Rau mùi", "Nước tương",
-        "Dầu hào", "Bột ngọt", "Chanh", "Mật ong", "Bột năng", "Bột mì",
-        "Sữa tươi", "Nước dùng", "Sả", "Lá chanh", "Hành tây", "Cà chua",
-        "Cà rốt", "Khoai tây", "Nấm hương", "Ớt chuông", "Rau thơm",
-        "Dầu mè", "Giấm gạo", "Hạt nêm", "Nước cốt dừa", "Đậu phộng",
-        "Mè rang", "Bơ lạt", "Phô mai", "Trứng gà", "Bắp cải", "Dưa leo"
+        "Salt", "Sugar", "Black Pepper", "Fish Sauce", "Cooking Oil", "Shallots",
+        "Garlic", "Ginger", "Chili", "Green Onions", "Cilantro", "Soy Sauce",
+        "Oyster Sauce", "MSG", "Lime", "Honey", "Tapioca Starch", "Flour",
+        "Fresh Milk", "Stock", "Lemongrass", "Lime Leaves", "Onion", "Tomatoes",
+        "Carrots", "Potatoes", "Shiitake Mushrooms", "Bell Peppers", "Fresh Herbs",
+        "Sesame Oil", "Rice Vinegar", "Seasoning Powder", "Coconut Milk", "Peanuts",
+        "Toasted Sesame", "Unsalted Butter", "Cheese", "Eggs", "Cabbage", "Cucumber"
     ];
 
     private static readonly string[] IngredientUnits =
     [
-        "g", "kg", "ml", "l", "muỗng canh", "muỗng cà phê",
-        "quả", "củ", "nhánh", "phần"
+        "g", "kg", "ml", "l", "tablespoons", "teaspoons",
+        "pieces", "bulbs", "sprigs", "servings"
     ];
 
     private static readonly string[] IngredientNotes =
     [
-        "rửa sạch", "thái nhỏ", "băm nhuyễn", "để ráo", "thái lát",
-        "cắt khúc", "rang thơm", "đập dập"
+        "washed", "finely chopped", "minced", "drained", "sliced",
+        "cut into pieces", "toasted", "crushed"
     ];
 
     private static readonly string[] StepTitles =
     [
-        "Chuẩn bị nguyên liệu", "Sơ chế nguyên liệu", "Ướp nguyên liệu chính",
-        "Chuẩn bị dụng cụ", "Làm nóng chảo", "Chế biến nguyên liệu",
-        "Nêm nếm gia vị", "Hoàn thiện và trình bày"
+        "Gather the Ingredients", "Prepare the Ingredients", "Marinate the Main Ingredient",
+        "Prepare the Cookware", "Preheat the Pan", "Cook the Ingredients",
+        "Adjust the Seasoning", "Finish and Serve"
     ];
 
     private static readonly string[] StepDescriptions =
     [
-        "Chuẩn bị đầy đủ nguyên liệu theo định lượng, kiểm tra độ tươi và sắp xếp riêng từng nhóm.",
-        "Rửa sạch nguyên liệu, để ráo rồi cắt thái phù hợp để món ăn chín đều.",
-        "Trộn nguyên liệu chính với gia vị và để thấm trước khi bắt đầu chế biến.",
-        "Chuẩn bị nồi, chảo và các dụng cụ cần thiết; giữ khu vực nấu sạch sẽ, khô ráo.",
-        "Làm nóng dụng cụ nấu ở mức lửa vừa, thêm dầu hoặc nước dùng theo công thức.",
-        "Cho nguyên liệu vào chế biến, đảo nhẹ và giữ nhiệt độ ổn định để không bị cháy.",
-        "Nêm nếm lại cho vừa ăn, điều chỉnh độ mặn ngọt và tiếp tục nấu đến khi chín.",
-        "Tắt bếp, trình bày món ăn ra đĩa và dùng khi còn nóng để có hương vị tốt nhất."
+        "Measure all ingredients, check their freshness, and arrange them by group.",
+        "Wash and drain the ingredients, then cut them evenly so they cook at the same rate.",
+        "Mix the main ingredient with the seasonings and let it marinate before cooking.",
+        "Prepare the pots, pans, and utensils, and keep the cooking area clean and dry.",
+        "Preheat the cookware over medium heat and add oil or stock as directed.",
+        "Add the ingredients, stir gently, and maintain a steady temperature to prevent burning.",
+        "Taste and adjust the seasoning, then continue cooking until everything is done.",
+        "Turn off the heat, plate the dish, and serve it hot for the best flavor."
     ];
 
     private readonly ApplicationDbContext _dbContext;
@@ -168,7 +169,7 @@ public sealed class DatabaseSeeder
             _dbContext.Categories.Add(Category.Create(
                 name,
                 slug,
-                $"Tổng hợp các công thức thuộc danh mục {name.ToLowerInvariant()}.",
+                $"A collection of recipes in the {name.ToLowerInvariant()} category.",
                 orderIndex: index + 1));
         }
 
@@ -200,7 +201,7 @@ public sealed class DatabaseSeeder
         for (var recipeIndex = 1; recipeIndex <= RecipeCount; recipeIndex++)
         {
             // A seed per recipe keeps generated targets stable even when a recipe already exists.
-            var faker = new Faker("vi")
+            var faker = new Faker("en")
             {
                 Random = new Randomizer(2026 + recipeIndex)
             };
@@ -217,8 +218,8 @@ public sealed class DatabaseSeeder
                 recipe = Recipe.Create(
                     title,
                     slug,
-                    $"Công thức {title} thơm ngon, dễ thực hiện và phù hợp cho bữa ăn gia đình.",
-                    "Chuẩn bị nguyên liệu và thực hiện lần lượt theo các bước hướng dẫn bên dưới.",
+                    $"A delicious and approachable {title} recipe, perfect for a family meal.",
+                    "Prepare the ingredients and follow the cooking steps below in order.",
                     faker.Random.Int(5, 45),
                     faker.Random.Int(10, 120),
                     faker.Random.Int(1, 8),

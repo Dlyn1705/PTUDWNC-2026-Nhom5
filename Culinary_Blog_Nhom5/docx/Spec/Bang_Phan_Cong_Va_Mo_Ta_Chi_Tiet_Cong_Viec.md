@@ -5,7 +5,8 @@
 - `docx/Spec/struc.md` (Báo cáo Phân tích Kiến trúc & Danh mục Mã nguồn Backend/Frontend)  
 - `docx/Spec/Frontend_Spec.md` (Đặc tả Giao diện Next.js 16 App Router)  
 - `docx/SRS_Culinary_Blog_v1.0.0.pdf` (SRS gốc)  
-**Ngày cập nhật:** 2026-09-21  
+**Ngày cập nhật:** 2026-09-26
+
 **Phạm vi áp dụng:** Toàn bộ 4 thành viên trong nhóm (Ân, Linh, Tuấn, Trâm) thực hiện mô hình Full-stack theo chiều dọc tính năng (Feature-driven Full-stack).
 
 ---
@@ -135,6 +136,22 @@ Dự án áp dụng mô hình **Phân chia theo luồng chức năng End-to-End 
 ---
 
 ### 4.2. Nhiệm vụ Backend (.NET 10 Minimal APIs)
+
+#### Database Scope and English Naming
+
+All physical table and column names related to Linh's features must use English PascalCase to remain consistent with the existing EF Core and PostgreSQL schema. Vietnamese is used only for user-facing content and documentation explanations.
+
+| Database Table | Linh's Responsibility | Key English Columns | Relationship / Usage |
+| :--- | :--- | :--- | :--- |
+| `Categories` | Primary ownership: category CRUD, slug generation, ordering, soft deletion, and cache invalidation | `Id`, `Name`, `Slug`, `Description`, `ImageUrl`, `OrderIndex`, `CreatedAt`, `UpdatedAt`, `IsDeleted`, `RowVersion` | One `Category` has many `Recipes` through `Recipes.CategoryId` |
+| `Recipes` | Shared read scope: public recipe listing, category detail, SEO recipe detail, and sitemap generation | `Id`, `Title`, `Slug`, `Description`, `Instructions`, `PrepTime`, `CookTime`, `Servings`, `Difficulty`, `Status`, `PublishedAt`, `CategoryId`, `AuthorId`, `CreatedAt`, `UpdatedAt`, `IsDeleted` | Linh only queries published recipes; recipe creation and lifecycle updates belong to Trâm and Tuấn |
+| `RecipeImages` | Read-only scope for public recipe hero and image gallery | `Id`, `RecipeId`, `OriginalUrl`, `MediumUrl`, `ThumbnailUrl`, `AltText`, `IsPrimary`, `OrderIndex` | Many images belong to one `Recipe` |
+| `RecipeIngredients` | Read-only scope for the public ingredient checklist | `Id`, `RecipeId`, `Name`, `Quantity`, `Unit`, `Notes`, `OrderIndex` | Many ingredients belong to one `Recipe` |
+| `RecipeSteps` | Read-only scope for step-by-step instructions and recipe timers | `Id`, `RecipeId`, `StepNumber`, `Title`, `Description`, `TimerMinutes`, `ImageUrl` | Many steps belong to one `Recipe` |
+| `AspNetUsers` | Read-only scope for displaying public author information | `Id`, `DisplayName`, `AvatarUrl`, `Bio` | One author can own many `Recipes` through `Recipes.AuthorId` |
+
+`Nutrition` is not a separate table. Its English columns are stored directly in `Recipes` as `Nutrition_Calories`, `Nutrition_Protein`, `Nutrition_Carbohydrates`, `Nutrition_Fat`, `Nutrition_Fiber`, and `Nutrition_Sodium`.
+
 1. **Module Danh mục (Categories):**
    - Cấu hình bảng `Categories` bằng Fluent API: Khóa chính UUID, `Name` (max 100), `Slug` (max 120, Unique Filtered Index `WHERE "IsDeleted" = false`), `Description`, `ImageUrl`, `OrderIndex`, `RowVersion`.
    - Xây dựng `ICategoryRepository` và `CategoryRepository`:

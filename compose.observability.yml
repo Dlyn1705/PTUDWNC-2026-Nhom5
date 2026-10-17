@@ -1,0 +1,19 @@
+# Usage: docker compose --env-file .env.seq.local -f docker-compose.yml -f compose.observability.yml up -d seq jaeger
+# Compose >= 2.24.4 is required for !override.
+services:
+  seq:
+    image: datalust/seq@sha256:9e9cc9183c6efaa7c187407d16901506ab3bc0aed7522bfc3ad7b529be30d8d8
+    environment:
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_ADMIN_PASSWORD:?Set SEQ_ADMIN_PASSWORD in .env.seq.local}
+    ports: !override
+      - "127.0.0.1:5341:80"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: jaeger
+    ports:
+      - "127.0.0.1:16686:16686" # Web UI
+      - "127.0.0.1:4317:4317"   # OTLP gRPC receiver
+      - "127.0.0.1:4318:4318"   # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true

@@ -12,6 +12,7 @@ public class RecipeImage : BaseEntity
     public string? AltText { get; set; }
     public bool IsPrimary { get; set; } = false;
     public int OrderIndex { get; set; } = 0;
+    public string ProcessingStatus { get; set; } = "Pending";
 
     public virtual Recipe Recipe { get; set; } = null!;
 

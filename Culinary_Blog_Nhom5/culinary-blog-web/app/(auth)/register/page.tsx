@@ -27,7 +27,7 @@ export default function RegisterPage() {
 
       <section className="register-form-panel">
         <div className="form-heading">
-          <p className="eyebrow text-orange-700">Bắt đầu hành trình</p>
+          <p className="eyebrow text-primary">Bắt đầu hành trình</p>
           <h2>Tạo tài khoản mới</h2>
           <p>Đăng ký để lưu công thức yêu thích và chia sẻ món ăn của bạn.</p>
         </div>

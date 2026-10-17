@@ -6,5 +6,24 @@ namespace CulinaryBlog.Application.Contracts;
 
 public interface IAuthService
 {
-    Task<UserDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken);
+    Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken);
+    Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken);
+    Task<AuthResponseDto> LoginWithGoogleIdTokenAsync(string idToken, CancellationToken cancellationToken);
+    Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
+    Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(
+        string refreshToken,
+        string expectedUserId,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Internal result of a logout revocation attempt. The API intentionally maps
+/// non-success outcomes to non-disclosing responses where the request bearer is valid.
+/// </summary>
+public enum RefreshTokenRevocationResult
+{
+    Revoked,
+    NotFound,
+    OwnershipMismatch,
+    Expired
 }

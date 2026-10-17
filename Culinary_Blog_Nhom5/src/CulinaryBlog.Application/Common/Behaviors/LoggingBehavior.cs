@@ -1,40 +1,55 @@
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
+using CulinaryBlog.Application.Contracts;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CulinaryBlog.Application.Common.Behaviors;
 
-public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public class LoggingBehavior<TRequest, TResponse>(
+    ILogger<LoggingBehavior<TRequest, TResponse>> logger,
+    ICurrentUserService currentUser,
+    IOptions<StructuredLoggingOptions> options) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
-    private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
-
-    public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
-    {
-        _logger = logger;
-    }
-
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
     {
         var requestName = typeof(TRequest).Name;
-        _logger.LogInformation("Đang xử lý Request: {RequestName}", requestName);
-
-        var stopwatch = Stopwatch.StartNew();
-        var response = await next();
-        stopwatch.Stop();
-
-        var elapsedMs = stopwatch.ElapsedMilliseconds;
-        if (elapsedMs > 500)
+        using var userScope = logger.BeginScope(new Dictionary<string, object?>
         {
-            _logger.LogWarning("Cảnh báo hiệu năng: Request {RequestName} hoàn thành sau {ElapsedMs}ms (> 500ms)!", requestName, elapsedMs);
-        }
-        else
+            ["UserId"] = currentUser.IsAuthenticated ? currentUser.UserId : null
+        });
+        var started = Stopwatch.GetTimestamp();
+        var outcome = "Succeeded";
+        var level = LogLevel.Information;
+        try
         {
-            _logger.LogInformation("Đã xử lý xong Request: {RequestName} trong {ElapsedMs}ms", requestName, elapsedMs);
+            return await next();
         }
-
-        return response;
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            outcome = "Canceled";
+            level = LogLevel.Warning;
+            throw;
+        }
+        catch (Exception exception)
+        {
+            outcome = "Failed";
+            level = StructuredLoggingOptions.IsExpected(exception) ? LogLevel.Warning : LogLevel.Error;
+            throw;
+        }
+        finally
+        {
+            var elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            if (level == LogLevel.Information && options.Value.IsSlow(elapsed)) level = LogLevel.Warning;
+            // The HTTP exception handler owns exception details. Never serialize command/response.
+            using var completionScope = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["EventType"] = "ApplicationRequestCompleted"
+            });
+            logger.Log(level, "Application request {RequestName} {Outcome} in {Elapsed} ms",
+                requestName, outcome, elapsed);
+        }
     }
 }

@@ -1,9 +1,12 @@
 using System;
+using CulinaryBlog.API.Logging;
+using CulinaryBlog.Application.Common.Behaviors;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CulinaryBlog.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.API.Middlewares;
@@ -25,9 +28,25 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
+        catch (Exception ex) when (context.RequestAborted.IsCancellationRequested
+                                   && ex is OperationCanceledException or IOException)
+        {
+            // The completion event records Canceled. Do not write to an aborted response.
+            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Đã xảy ra lỗi không xử lý được: {Message}", ex.Message);
+            context.Items[RequestLogContext.FailedItem] = true;
+            using var scope = _logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["UserId"] = RequestLogContext.UserId(context),
+                ["EventType"] = StructuredLoggingOptions.IsExpected(ex) ? "RequestRejected" : "UnhandledException"
+            });
+            if (StructuredLoggingOptions.IsExpected(ex))
+                _logger.LogWarning("Request rejected with {ExceptionType}", ex.GetType().Name);
+            else
+                _logger.LogError(ex, "Unhandled request exception");
+            if (context.Response.HasStarted) throw;
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -36,8 +55,8 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/problem+json";
 
-        string correlationId = context.Items.TryGetValue("X-Correlation-ID", out var cid) 
-            ? cid?.ToString() ?? string.Empty 
+        string correlationId = context.Items.TryGetValue(RequestLogContext.CorrelationHeader, out var cid)
+            ? cid?.ToString() ?? string.Empty
             : string.Empty;
 
         var problemDetails = new ProblemDetails
@@ -78,6 +97,13 @@ public class GlobalExceptionMiddleware
                 problemDetails.Extensions["code"] = conflictEx.Code;
                 break;
 
+            case ExternalServiceException externalServiceEx:
+                context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                problemDetails.Status = StatusCodes.Status502BadGateway;
+                problemDetails.Title = "Dịch vụ xác thực bên ngoài không khả dụng.";
+                problemDetails.Detail = externalServiceEx.Message;
+                break;
+
             case ForbiddenException forbiddenEx:
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 problemDetails.Status = StatusCodes.Status403Forbidden;
@@ -86,22 +112,38 @@ public class GlobalExceptionMiddleware
                 problemDetails.Detail = forbiddenEx.Message;
                 break;
 
-            case UnauthorizedAccessException:
+            case UnauthorizedAccessException unauthorizedEx:
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 problemDetails.Status = StatusCodes.Status401Unauthorized;
                 problemDetails.Title = "Yêu cầu xác thực.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7235#section-3.1";
-                problemDetails.Detail = "Bạn cần đăng nhập để truy cập tài nguyên này.";
+                problemDetails.Detail = unauthorizedEx.Message;
                 break;
 
-            default:
+            case LockedException lockedEx:
+                context.Response.StatusCode = StatusCodes.Status423Locked;
+                problemDetails.Status = StatusCodes.Status423Locked;
+                problemDetails.Title = "Tài khoản bị tạm khóa.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.3";
+                problemDetails.Detail = lockedEx.Message;
+                break;
+
+            case DbUpdateConcurrencyException:
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                problemDetails.Status = StatusCodes.Status409Conflict;
+                problemDetails.Title = "Dữ liệu đã được thay đổi bởi một yêu cầu khác.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.10";
+                problemDetails.Detail = "Tải lại dữ liệu mới nhất rồi thử lại.";
+                break;
+
+           default:
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Lỗi máy chủ nội bộ.";
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = "Đã xảy ra lỗi không mong muốn trên hệ thống.";
+                problemDetails.Detail = "Lỗi máy chủ nội bộ. Hãy cung cấp correlation ID cho bộ phận hỗ trợ.";
                 break;
-        }
+            }
 
         var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
         {

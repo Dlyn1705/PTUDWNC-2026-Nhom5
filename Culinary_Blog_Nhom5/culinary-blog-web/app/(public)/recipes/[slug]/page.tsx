@@ -1,5 +1,7 @@
+import { ingredientStructuredText } from "@/lib/ingredient-form";
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { RecipeHero } from "@/components/recipes/RecipeHero";
@@ -87,9 +89,8 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       fiberContent: `${recipe.nutrition.fiber || 0} grams`,
       sodiumContent: `${recipe.nutrition.sodium} milligrams`,
     },
-    recipeIngredient: recipe.ingredients.map(
-      (item) => `${item.quantity ? `${item.quantity} ` : ""}${item.unit} ${item.name}`.trim()
-    ),
+    recipeIngredient: recipe.ingredients.map(ingredientStructuredText),
+
     recipeInstructions: recipe.steps.map((step) => ({
       "@type": "HowToStep",
       name: step.title || `Step ${step.order}`,
@@ -151,9 +152,12 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
             <div className="rounded-2xl border border-border bg-card p-6 shadow-soft space-y-4">
               <div className="flex items-center gap-3">
                 {recipe.author.avatarUrl ? (
-                  <img
+                  <Image
                     src={recipe.author.avatarUrl}
                     alt={recipe.author.displayName}
+                    width={48}
+                    height={48}
+                    unoptimized
                     className="size-12 rounded-full object-cover border-2 border-border"
                   />
                 ) : (

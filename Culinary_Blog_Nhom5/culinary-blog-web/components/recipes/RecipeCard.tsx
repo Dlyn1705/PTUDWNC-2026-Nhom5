@@ -1,17 +1,26 @@
 import React from "react";
 import Link from "next/link";
-import { Clock, Flame, Users, ChefHat } from "lucide-react";
+import Image from "next/image";
+import { Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { difficultyLabel, type RecipeDto, type DifficultyValue } from "@/types/recipe.types";
+import {
+  difficultyLabel,
+  type RecipeCardDto,
+  type DifficultyValue,
+} from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
 
 interface RecipeCardProps {
-  recipe: RecipeDto;
+  recipe: RecipeCardDto;
   viewMode?: "grid" | "list";
   showStatusBadge?: boolean;
 }
 
-export function DifficultyBadge({ difficulty }: { difficulty: DifficultyValue }) {
+export function DifficultyBadge({
+  difficulty,
+}: {
+  difficulty: DifficultyValue;
+}) {
   const styles: Record<DifficultyValue, string> = {
     1: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800",
     2: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800",
@@ -37,8 +46,15 @@ export function RecipeCard({
   viewMode = "grid",
   showStatusBadge = false,
 }: RecipeCardProps) {
-  const image = recipe.images?.find((i) => i.isPrimary) ?? recipe.images?.[0];
-  const totalMinutes = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
+  const image =
+    recipe.images?.find((i) => i.isPrimary) ?? recipe.images?.[0];
+
+  const fallbackImage =
+    "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1200&auto=format&fit=crop";
+
+  const totalMinutes =
+    (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
+
   const isList = viewMode === "list";
 
   return (
@@ -50,9 +66,12 @@ export function RecipeCard({
     >
       <Link
         href={`/recipes/${recipe.slug}`}
-        className={cn("block w-full", isList && "flex flex-col sm:flex-row w-full")}
+        className={cn(
+          "block w-full",
+          isList && "flex flex-col sm:flex-row w-full"
+        )}
       >
-        {/* Thumbnail (16:9 standard ratio) */}
+        {/* Thumbnail */}
         <div
           className={cn(
             "relative overflow-hidden bg-muted",
@@ -61,22 +80,20 @@ export function RecipeCard({
               : "aspect-[16/9] w-full"
           )}
         >
-          {image ? (
-            <img
-              src={image.url}
-              alt={image.alt || recipe.title}
-              loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground/50 bg-secondary/50">
-              <ChefHat className="size-10" />
-            </div>
-          )}
+          <Image
+            src={image?.url || fallbackImage}
+            alt={image?.alt || recipe.title}
+            width={800}
+            height={450}
+            unoptimized
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+          />
 
-          {/* Difficulty Badge on Image Top-Left */}
-          <div className="absolute left-3 top-3 flex items-center gap-1.5 z-10">
+          {/* Difficulty Badge */}
+          <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
             <DifficultyBadge difficulty={recipe.difficulty} />
+
             {showStatusBadge && recipe.status !== 1 && (
               <StatusBadge status={recipe.status} />
             )}
@@ -106,23 +123,27 @@ export function RecipeCard({
             </p>
           </div>
 
-          {/* Card Footer: Author + Cook Stats */}
-          <div className="mt-5 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-            {/* Author Avatar & Name */}
+          {/* Card Footer */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
+            {/* Author */}
             {recipe.author && (
               <div className="flex items-center gap-2">
                 {recipe.author.avatarUrl ? (
-                  <img
+                  <Image
                     src={recipe.author.avatarUrl}
                     alt={recipe.author.displayName}
-                    className="size-6 rounded-full object-cover border border-border"
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="size-6 rounded-full border border-border object-cover"
                   />
                 ) : (
-                  <div className="size-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                  <div className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                     {recipe.author.displayName?.charAt(0) || "C"}
                   </div>
                 )}
-                <span className="font-medium text-foreground/90 truncate max-w-[120px]">
+
+                <span className="max-w-[120px] truncate font-medium text-foreground/90">
                   {recipe.author.displayName}
                 </span>
               </div>
@@ -131,10 +152,13 @@ export function RecipeCard({
             {/* Quick Metrics */}
             <div className="flex items-center gap-3.5 tabular-nums">
               <span className="inline-flex items-center gap-1">
-                <Clock className="size-3.5 text-primary" /> {totalMinutes}m
+                <Clock className="size-3.5 text-primary" />
+                {totalMinutes}m
               </span>
+
               <span className="inline-flex items-center gap-1">
-                <Users className="size-3.5 text-primary" /> {recipe.servings}
+                <Users className="size-3.5 text-primary" />
+                {recipe.servings}
               </span>
             </div>
           </div>

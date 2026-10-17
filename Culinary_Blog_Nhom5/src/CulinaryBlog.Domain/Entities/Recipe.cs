@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CulinaryBlog.Domain.Common;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
+using NpgsqlTypes;
 
 namespace CulinaryBlog.Domain.Entities;
 
@@ -11,13 +12,19 @@ public class Recipe : BaseEntity
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Instructions { get; set; } = string.Empty;
+    public string? Instructions { get; set; }
     public int PrepTime { get; set; }
     public int CookTime { get; set; }
     public int Servings { get; set; }
     public RecipeDifficulty Difficulty { get; set; } = RecipeDifficulty.Easy;
     public RecipeStatus Status { get; set; } = RecipeStatus.Draft;
     public DateTime? PublishedAt { get; set; }
+
+    /// <summary>
+    /// Vector tìm kiếm toàn văn bản PostgreSQL tsvector (FR-SRCH-001)
+    /// Tự động cập nhật bởi trigger trg_recipes_search_vector_update
+    /// </summary>
+    public NpgsqlTsVector? SearchVector { get; set; }
 
     // Foreign Keys
     public Guid CategoryId { get; set; }
@@ -37,7 +44,7 @@ public class Recipe : BaseEntity
         string title,
         string slug,
         string description,
-        string instructions,
+        string? instructions,
         int prepTime,
         int cookTime,
         int servings,
@@ -64,7 +71,7 @@ public class Recipe : BaseEntity
     public void Update(
         string title,
         string description,
-        string instructions,
+        string? instructions,
         int prepTime,
         int cookTime,
         int servings,
@@ -79,6 +86,18 @@ public class Recipe : BaseEntity
         Servings = servings;
         Difficulty = difficulty;
         CategoryId = categoryId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SoftDelete()
+    {
+        if (IsDeleted)
+        {
+            return;
+        }
+
+        IsDeleted = true;
+        Status = RecipeStatus.Archived;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -97,12 +116,30 @@ public class Recipe : BaseEntity
     public void Unpublish()
     {
         Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void Archive()
     {
+        if (Status == RecipeStatus.Archived)
+        {
+            return;
+        }
+
         Status = RecipeStatus.Archived;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RestoreFromArchive()
+    {
+        if (Status != RecipeStatus.Archived)
+        {
+            throw new DomainException("Chỉ có thể khôi phục công thức đang ở trạng thái lưu trữ.");
+        }
+
+        Status = RecipeStatus.Draft;
+        PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

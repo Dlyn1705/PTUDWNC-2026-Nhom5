@@ -87,7 +87,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
       className={cn(
         "mt-4 overflow-hidden rounded-2xl border transition-all duration-300",
         done
-          ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
+          ? "border-herb/50 bg-herb/15"
           : running
           ? "border-primary/40 bg-card shadow-soft"
           : "border-border bg-card/60"
@@ -98,7 +98,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
         <div
           className={cn(
             "h-full transition-all duration-1000 ease-linear",
-            done ? "bg-emerald-500" : "bg-primary"
+            done ? "bg-herb" : "bg-primary"
           )}
           style={{ width: `${done ? 100 : progressPercent}%` }}
         />
@@ -111,13 +111,13 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
             className={cn(
               "flex size-10 items-center justify-center rounded-xl font-mono text-xs font-semibold",
               done
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                ? "bg-herb text-herb-foreground"
                 : running
                 ? "bg-primary/10 text-primary animate-pulse"
                 : "bg-muted text-muted-foreground"
             )}
           >
-            {done ? <Bell className="size-5 text-emerald-600 animate-bounce" /> : <Sparkles className="size-4" />}
+            {done ? <Bell className="size-5 animate-bounce text-herb-foreground" /> : <Sparkles className="size-4 text-ember" />}
           </div>
 
           <div>
@@ -126,7 +126,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
                 {mm}:{ss}
               </span>
               {done ? (
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <span className="text-xs font-semibold uppercase tracking-wider text-herb-foreground">
                   Ready!
                 </span>
               ) : (
@@ -152,7 +152,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
             variant={done ? "default" : running ? "secondary" : "default"}
             className={cn(
               "rounded-full px-4 h-9 shadow-soft font-medium text-xs gap-1.5 transition-all",
-              done && "bg-emerald-600 hover:bg-emerald-700 text-white"
+              done && "bg-herb hover:bg-herb/90 text-herb-foreground"
             )}
             onClick={() => {
               if (done) {
@@ -170,7 +170,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
           <Button
             size="sm"
             variant="outline"
-            className="rounded-full px-3 h-9 text-xs gap-1"
+            className="rounded-full px-3 h-9 text-xs gap-1 hover:bg-accent"
             title="Add 1 minute"
             onClick={addOneMinute}
           >
@@ -181,7 +181,7 @@ export function RecipeTimer({ minutes }: { minutes: number }) {
           <Button
             size="icon"
             variant="ghost"
-            className="size-9 rounded-full text-muted-foreground hover:text-foreground"
+            className="size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
             title="Reset timer"
             aria-label="Reset timer"
             onClick={resetTimer}

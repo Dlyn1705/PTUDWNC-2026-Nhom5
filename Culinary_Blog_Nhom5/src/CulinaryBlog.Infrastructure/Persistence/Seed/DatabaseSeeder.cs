@@ -1,6 +1,7 @@
 using CulinaryBlog.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace CulinaryBlog.Infrastructure.Persistence.Seed;
 
@@ -9,7 +10,8 @@ public static class DatabaseSeeder
     public static async Task SeedAsync(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IConfiguration configuration)
     {
         // 1. Migration
         await context.Database.MigrateAsync();
@@ -17,7 +19,8 @@ public static class DatabaseSeeder
         // 2. Users + Roles
         var users = await UserSeeder.SeedAsync(
             userManager,
-            roleManager);
+            roleManager,
+            configuration);
 
         // 3. Categories
         List<Category> categories;

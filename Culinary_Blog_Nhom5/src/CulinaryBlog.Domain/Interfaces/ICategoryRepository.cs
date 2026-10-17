@@ -11,5 +11,5 @@ public interface ICategoryRepository : IRepository<Category>
     Task<Category?> GetBySlugAsync(string slug, CancellationToken ct = default);
     Task<bool> ExistsByNameAsync(string name, CancellationToken ct = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default);
-    Task<IReadOnlyList<(Category Category, int RecipeCount)>> GetAllWithRecipeCountAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<(Category Category, int RecipeCount, int TotalRecipeCount)>> GetAllWithRecipeCountAsync(CancellationToken ct = default);
 }

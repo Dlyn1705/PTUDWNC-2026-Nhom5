@@ -6,6 +6,30 @@ export const Difficulty = {
 } as const;
 export type DifficultyValue = (typeof Difficulty)[keyof typeof Difficulty];
 
+export interface ManagedRecipeDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: RecipeStatusValue;
+  updatedAt: string;
+  category: { id: string; name: string } | null;
+  author: { id: string; displayName: string } | null;
+  primaryImageUrl?: string | null;
+}
+
+export interface ManagedRecipesPage {
+  data: ManagedRecipeDto[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 export const RecipeStatus = {
   Draft: 0,
   Published: 1,
@@ -29,30 +53,33 @@ export const statusLabel: Record<RecipeStatusValue, string> = {
 export interface AuthorDto {
   id: string;
   displayName: string;
-  avatarUrl: string;
-  bio?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 export interface RecipeImageDto {
   id: string;
   url: string;
   isPrimary: boolean;
-  alt: string;
+  alt?: string | null;
 }
 
 export interface RecipeNutritionDto {
   calories: number;
   protein: number;
-  carbs: number;
+  carbohydrates?: number;
+  carbs?: number; // legacy alias
   fat: number;
-  fiber?: number;
+  fiber?: number | null;
   sodium: number;
 }
 
 export interface RecipeStepDto {
   id: string;
+  stepNumber?: number;
   order: number;
   title?: string;
+  description?: string;
   text: string;
   imageUrl?: string;
   timerMinutes?: number;
@@ -60,13 +87,15 @@ export interface RecipeStepDto {
 
 export interface RecipeIngredientDto {
   id: string;
+  recipeId?: string;
   name: string;
-  quantity: number;
-  unit: string;
-  notes?: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+  orderIndex?: number;
 }
 
-export interface RecipeDto {
+export interface RecipeSummaryDto {
   id: string;
   title: string;
   slug: string;
@@ -83,14 +112,92 @@ export interface RecipeDto {
   categorySlug?: string;
   author: AuthorDto;
   images: RecipeImageDto[];
+  rowVersion?: string;
+}
+
+export type RecipeCardDto = RecipeSummaryDto;
+
+export interface RecipeDetailDto extends RecipeSummaryDto {
   nutrition: RecipeNutritionDto;
   steps: RecipeStepDto[];
   ingredients: RecipeIngredientDto[];
 }
 
+export type RecipeDto = RecipeDetailDto;
+
 export interface PagedResult<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+  data: T[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface RecipeMutationResponse {
+  message: string;
+  id: string;
+  slug: string;
+  rowVersion: string;
+}
+
+export interface RecipeWritePayload {
+  title: string;
+  description?: string;
+  instructions?: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  difficulty: DifficultyValue;
+  categoryId: string;
+  rowVersion?: string;
+}
+
+export interface CreateRecipeRequest extends Omit<RecipeWritePayload, "rowVersion"> {
+  ingredients?: CreateRecipeIngredientRequest[];
+  steps?: CreateRecipeStepRequest[];
+  nutrition?: CreateRecipeNutritionRequest;
+}
+
+export type UpdateRecipeRequest = RecipeWritePayload;
+
+export interface CreateRecipeIngredientRequest {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateRecipeStepRequest {
+  description: string;
+  title?: string | null;
+  timerMinutes?: number | null;
+}
+
+export interface CreateRecipeNutritionRequest {
+  calories?: number | null;
+  protein?: number | null;
+  carbohydrates?: number | null;
+  fat?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+}
+
+export interface SearchRecipeSummaryDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  primaryImageUrl?: string | null;
+  category: { id: string; name: string; slug: string };
+  author: AuthorDto;
+  difficulty: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  relevanceScore: number;
+  createdAt: string;
 }

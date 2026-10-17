@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChefHat, Clock, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
 import { categoryApi } from "@/lib/api/categoryApi";
-import { recipeApi } from "@/lib/api/recipeApi";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { Button } from "@/components/ui/button";
 
@@ -14,11 +14,13 @@ interface CategoryDetailPageProps {
 
 export async function generateMetadata({ params }: CategoryDetailPageProps) {
   const { slug } = await params;
-  const category = await categoryApi.getBySlug(slug);
+  const result = await categoryApi.getBySlug(slug, 1, 1);
 
-  if (!category) {
+  if (!result) {
     return { title: "Category Not Found — Culinary Blog" };
   }
+
+  const { category } = result;
 
   return {
     title: `${category.name} Recipes — Culinary Blog`,
@@ -42,45 +44,90 @@ export default async function CategoryDetailPage({
   const currentPage = Math.max(1, Number(sp.page || 1));
   const PAGE_SIZE = 12;
 
-  const category = await categoryApi.getBySlug(slug);
-
-  if (!category) {
-    notFound();
-  }
-
-  const [allRecipes, allCategories] = await Promise.all([
-    recipeApi.getAll(),
+  const [result, allCategories] = await Promise.all([
+    categoryApi.getBySlug(slug, currentPage, PAGE_SIZE),
     categoryApi.getAll(),
   ]);
 
-  const categoryRecipes = allRecipes.filter(
-    (r) =>
-      r.categoryId === category.id ||
-      r.categoryName?.toLowerCase() === category.name.toLowerCase()
-  );
+  if (!result) {
+    notFound();
+  }
 
-  const totalTime = categoryRecipes.reduce(
-    (sum, r) => sum + (r.prepTimeMinutes || 0) + (r.cookTimeMinutes || 0),
-    0
-  );
-  const avgTime = categoryRecipes.length
-    ? Math.round(totalTime / categoryRecipes.length)
-    : category.avgCookTimeMinutes || 0;
+  const { category, recipes: paginatedRecipes, meta } = result;
 
-  const cover =
-    category.imageUrl ||
-    categoryRecipes[0]?.images?.find((i) => i.isPrimary)?.url ||
-    categoryRecipes[0]?.images?.[0]?.url;
+  const categoryImages: Record<string, string> = {
+  appetizers:
+    "https://images.unsplash.com/photo-1541014741259-de529411b96a?q=80&w=1200&auto=format&fit=crop",
+
+  "main-courses":
+    "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1200&auto=format&fit=crop",
+
+  desserts:
+    "https://images.unsplash.com/photo-1551024506-0bccd828d307?q=80&w=1200&auto=format&fit=crop",
+
+  breakfast:
+    "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?q=80&w=1200&auto=format&fit=crop",
+
+  vegetarian:
+    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1200&auto=format&fit=crop",
+
+  "vietnamese-cuisine":
+    "https://images.unsplash.com/photo-1559314809-0d155014e29e?q=80&w=1200&auto=format&fit=crop",
+
+  "korean-cuisine":
+    "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1200&auto=format&fit=crop",
+
+  "japanese-cuisine":
+    "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=1200&auto=format&fit=crop",
+
+  "chinese-cuisine":
+    "https://images.unsplash.com/photo-1563245372-f21724e3856d?q=80&w=1200&auto=format&fit=crop",
+
+  "thai-cuisine":
+    "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?q=80&w=1200&auto=format&fit=crop",
+
+  "italian-cuisine":
+    "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?q=80&w=1200&auto=format&fit=crop",
+
+  "french-cuisine":
+    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1200&auto=format&fit=crop",
+
+  "mexican-cuisine":
+    "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?q=80&w=1200&auto=format&fit=crop",
+
+  "indian-cuisine":
+    "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=1200&auto=format&fit=crop",
+
+  "american-cuisine":
+    "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop",
+
+  seafood:
+    "https://images.unsplash.com/photo-1544943910-4c1dc44aab44?q=80&w=1200&auto=format&fit=crop",
+
+  "grilled-dishes":
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop",
+
+  "fried-dishes":
+    "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?q=80&w=1200&auto=format&fit=crop",
+
+  "steamed-dishes":
+    "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=1200&auto=format&fit=crop",
+
+  beverages:
+    "https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop",
+};
+
+const cover =
+  category.imageUrl ||
+  categoryImages[category.slug?.toLowerCase()] ||
+  paginatedRecipes[0]?.images?.find((i) => i.isPrimary)?.url ||
+  paginatedRecipes[0]?.images?.[0]?.url ||
+  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?q=80&w=1200&auto=format&fit=crop";
 
   const otherCategories = allCategories.filter((c) => c.id !== category.id).slice(0, 3);
 
-  // Pagination if recipes count > 12
-  const totalRecipes = categoryRecipes.length;
-  const totalPages = Math.ceil(totalRecipes / PAGE_SIZE);
-  const paginatedRecipes = categoryRecipes.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+  const totalRecipes = meta.totalCount;
+  const totalPages = meta.totalPages;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-12">
@@ -118,20 +165,17 @@ export default async function CategoryDetailPage({
               {totalRecipes} {totalRecipes === 1 ? "recipe" : "recipes"}
             </span>
 
-            {avgTime > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 tabular-nums shadow-2xs font-semibold text-foreground">
-                <Clock className="size-3.5 text-primary" />
-                ~{avgTime} min avg cook time
-              </span>
-            )}
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-soft">
           {cover ? (
-            <img
+            <Image
               src={cover}
               alt={category.name}
+              width={1200}
+              height={675}
+              unoptimized
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
               loading="eager"
             />

@@ -7,4 +7,4 @@ public sealed record RegisterCommand(
     string Email,
     string DisplayName,
     string Password,
-    string ConfirmPassword) : IRequest<UserDto>;
+    string ConfirmPassword) : IRequest<AuthResponseDto>;

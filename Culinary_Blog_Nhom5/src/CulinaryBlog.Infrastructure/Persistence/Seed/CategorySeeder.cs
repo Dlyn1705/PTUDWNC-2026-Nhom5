@@ -8,26 +8,26 @@ public static class CategorySeeder
     {
         var names = new[]
         {
-            "Mon khai vi",
-            "Mon chinh",
-            "Mon trang mieng",
-            "Mon an sang",
-            "Mon chay",
-            "Mon Viet Nam",
-            "Mon Han Quoc",
-            "Mon Nhat Ban",
-            "Mon Trung Quoc",
-            "Mon Thai Lan",
-            "Mon Italia",
-            "Mon Phap",
-            "Mon Mexico",
-            "Mon An",
-            "Mon My",
-            "Mon bien",
-            "Mon nuong",
-            "Mon chien",
-            "Mon hap",
-            "Do uong"
+            "Appetizers",
+            "Main Courses",
+            "Desserts",
+            "Breakfast",
+            "Vegetarian",
+            "Vietnamese Cuisine",
+            "Korean Cuisine",
+            "Japanese Cuisine",
+            "Chinese Cuisine",
+            "Thai Cuisine",
+            "Italian Cuisine",
+            "French Cuisine",
+            "Mexican Cuisine",
+            "Indian Cuisine",
+            "American Cuisine",
+            "Seafood",
+            "Grilled Dishes",
+            "Fried Dishes",
+            "Steamed Dishes",
+            "Beverages"
         };
 
         return names.Select((name, index) => new Category
@@ -35,7 +35,7 @@ public static class CategorySeeder
             Id = Guid.NewGuid(),
             Name = name,
             Slug = CreateSlug(name),
-            Description = $"Danh muc {name}",
+            Description = $"Recipes in the {name} category.",
             OrderIndex = index + 1
         }).ToList();
     }
