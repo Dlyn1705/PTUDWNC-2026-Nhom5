@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
+import IngredientManager from "@/components/recipes/editor/IngredientManager";
 
 type RouteProps = { params: Promise<{ id: string }> };
 
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
   const [recipeId, setRecipeId] = useState("");
+  const activeRecipeId = useRef("");
   const [recipe, setRecipe] = useState<RecipeDto | null>(null);
   const [form, setForm] = useState<RecipeWritePayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,10 +24,12 @@ export default function EditRecipePage({ params }: RouteProps) {
   useEffect(() => {
     let active = true;
     void params.then(({ id }) => {
+      if (!active) return null;
+      activeRecipeId.current = id;
       setRecipeId(id);
       return recipeApi.getById(id);
     }).then((loaded) => {
-      if (!active) return;
+      if (!active || !loaded) return;
       setRecipe(loaded);
       setForm({
         title: loaded.title,
@@ -43,7 +47,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     }).finally(() => {
       if (active) setLoading(false);
     });
-    return () => { active = false; };
+    return () => { active = false; activeRecipeId.current = ""; };
   }, [params]);
 
   const update = <K extends keyof RecipeWritePayload>(key: K, value: RecipeWritePayload[K]) => {
@@ -57,7 +61,10 @@ export default function EditRecipePage({ params }: RouteProps) {
     try {
       const result = await recipeApi.update(recipeId, form);
       setForm({ ...form, rowVersion: result.rowVersion });
-      setRecipe((current) => current ? { ...current, rowVersion: result.rowVersion } : current);
+      setRecipe((current) => current ? { ...current, title: form.title,
+        description: form.description ?? "", instructions: form.instructions ?? "",
+        prepTimeMinutes: form.prepTime, cookTimeMinutes: form.cookTime, servings: form.servings,
+        difficulty: form.difficulty, categoryId: form.categoryId, rowVersion: result.rowVersion } : current);
     } catch (reason) {
       const status = (reason as { response?: { status?: number } })?.response?.status;
       setError(status === 409
@@ -92,6 +99,20 @@ export default function EditRecipePage({ params }: RouteProps) {
         </div>
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
+        <IngredientManager key={recipeId} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
+          try {
+            const fresh = await recipeApi.getById(recipeId);
+            if (activeRecipeId.current !== fresh.id) return;
+            const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
+            if (keys.some(key => fresh[key] !== recipe[key])) {
+              setError("Nội dung công thức đã đổi ở nơi khác. Hãy tải lại trang trước khi lưu nội dung.");
+              return;
+            }
+            setForm(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+            setRecipe(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+          } catch { setError("Nguyên liệu đã lưu; hãy tải lại công thức trước khi lưu nội dung."); }
+        }} />
 
         <section className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
           <label className="block text-sm font-medium text-gray-700">

@@ -54,8 +54,9 @@ public sealed class RecipeDetailIngredientDto
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    public decimal Quantity { get; init; }
-    public string Unit { get; init; } = string.Empty;
+    public decimal? Quantity { get; init; }
+    public string? Unit { get; init; }
+    public int OrderIndex { get; init; }
     public string? Notes { get; init; }
 }
 
