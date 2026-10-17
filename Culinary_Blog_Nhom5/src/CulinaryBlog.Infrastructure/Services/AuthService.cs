@@ -376,29 +376,96 @@ public sealed class AuthService : IAuthService
             roles.ToArray());
     }
 
-    public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
+    public Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(
+        string refreshToken,
+        string expectedUserId,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            return;
+            return Task.FromResult(RefreshTokenRevocationResult.NotFound);
         }
 
         var tokenHash = _jwtService.HashToken(refreshToken);
-        var storedToken = await _dbContext.RefreshTokens
+        return ExecuteResilientAsync(
+            service => service.RevokeRefreshTokenCoreAsync(
+                tokenHash,
+                expectedUserId,
+                cancellationToken),
+            cancellationToken);
+    }
+
+    private async Task<RefreshTokenRevocationResult> RevokeRefreshTokenCoreAsync(
+        string tokenHash,
+        string expectedUserId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var storedToken = await _dbContext.RefreshTokens.AsNoTracking()
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
 
-        if (storedToken is null || storedToken.IsRevoked)
+        if (storedToken is null)
         {
-            return;
+            return RefreshTokenRevocationResult.NotFound;
         }
 
-        storedToken.Revoke();
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        if (!string.Equals(storedToken.UserId, expectedUserId, StringComparison.Ordinal))
+        {
+            return RefreshTokenRevocationResult.OwnershipMismatch;
+        }
+
+        var lockedUser = await LockUserAsync(storedToken.UserId, cancellationToken);
+        if (lockedUser is null)
+        {
+            return RefreshTokenRevocationResult.NotFound;
+        }
+
+        // Re-read after the row lock so a concurrent refresh cannot leave an active successor.
+        storedToken = await _dbContext.RefreshTokens.AsNoTracking()
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+        if (storedToken is null)
+        {
+            return RefreshTokenRevocationResult.NotFound;
+        }
+
+        if (!string.Equals(storedToken.UserId, expectedUserId, StringComparison.Ordinal))
+        {
+            return RefreshTokenRevocationResult.OwnershipMismatch;
+        }
+
+        var now = DateTime.UtcNow;
+        if (storedToken.ExpiresAt <= now)
+        {
+            return RefreshTokenRevocationResult.Expired;
+        }
+
+        // A logout carrying a refresh token from before rotation also revokes its successors.
+        // The user predicate prevents a malformed chain from crossing account boundaries.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            WITH RECURSIVE chain AS (
+                SELECT "TokenHash", "ReplacedByTokenHash" FROM "RefreshTokens"
+                WHERE "TokenHash" = {tokenHash} AND "UserId" = {storedToken.UserId}
+                UNION
+                SELECT child."TokenHash", child."ReplacedByTokenHash" FROM "RefreshTokens" child
+                JOIN chain parent ON child."TokenHash" = parent."ReplacedByTokenHash"
+                WHERE child."UserId" = {storedToken.UserId}
+            )
+            UPDATE "RefreshTokens" SET "RevokedAt" = COALESCE("RevokedAt", {now})
+            WHERE "UserId" = {storedToken.UserId}
+                AND "TokenHash" IN (SELECT "TokenHash" FROM chain)
+            """, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         _logger.LogInformation(
-            "Audit auth logout succeeded for user {UserId} at {OccurredAtUtc}",
+            "Audit auth logout processed for user {UserId} at {OccurredAtUtc}",
             storedToken.UserId,
             DateTimeOffset.UtcNow);
+        return RefreshTokenRevocationResult.Revoked;
     }
+
+    private Task<ApplicationUser?> LockUserAsync(string userId, CancellationToken cancellationToken) =>
+        _dbContext.Users.FromSqlInterpolated($"""SELECT * FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""")
+            .AsNoTracking()
+            .SingleOrDefaultAsync(cancellationToken);
 
     private async Task EnsureAuthorRoleAsync(ApplicationUser user)
     {

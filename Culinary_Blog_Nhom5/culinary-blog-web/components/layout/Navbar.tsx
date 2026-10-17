@@ -35,8 +35,8 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
-  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
-  const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
+  const isCategoriesActive = pathname === "/categories" || pathname?.startsWith("/categories/") === true;
+  const isRecipesActive = pathname === "/recipes" || pathname?.startsWith("/recipes/") === true;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">

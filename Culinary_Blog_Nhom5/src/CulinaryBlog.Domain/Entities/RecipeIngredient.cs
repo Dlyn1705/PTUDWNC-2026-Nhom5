@@ -19,11 +19,21 @@ public class RecipeIngredient : BaseEntity
         return new RecipeIngredient
         {
             RecipeId = recipeId,
-            Name = name,
+            Name = name.Trim(),
             Quantity = quantity,
-            Unit = unit,
-            Notes = notes,
+            Unit = Normalize(unit),
+            Notes = Normalize(notes),
             OrderIndex = orderIndex
         };
     }
+
+    public void Update(string name, decimal? quantity, string? unit, string? notes)
+    {
+        Name = name.Trim();
+        Quantity = quantity;
+        Unit = Normalize(unit);
+        Notes = Normalize(notes);
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
