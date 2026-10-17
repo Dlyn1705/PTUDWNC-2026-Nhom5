@@ -2,6 +2,7 @@ using System.Text;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
@@ -11,6 +12,7 @@ using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Services.Email;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -347,6 +349,11 @@ app.UseMiddleware<UserLogContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+});
+
 
 // ============================================================
 // 11. Map Endpoint Groups
@@ -383,6 +390,7 @@ recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
     Cron.Weekly,
     new RecurringJobOptions());
 
+recurringJobManager.RegisterWelcomeEmailJobs();
 
 // ============================================================
 // 12. Run
