@@ -1,6 +1,12 @@
 import axios from "axios";
+import {
+  forceClientSessionRefresh,
+  getClientAccessToken,
+  getCurrentCallbackUrl,
+  invalidateClientSession,
+} from "../auth/clientSessionBridge";
+import { installApiAuthInterceptors } from "./axiosAuth";
 import { installHttpLogging } from "./httpLogging";
-import { getSession } from "next-auth/react";
 
 const API_URL =
   typeof window === "undefined"
@@ -18,28 +24,15 @@ export const axiosClient = axios.create({
   timeout: 10000,
 });
 
-// Request Interceptor: Attach bearer token if available
-axiosClient.interceptors.request.use(
-  async (config) => {
-    if (typeof window !== "undefined") {
-      const session = await getSession();
-      if (session?.user.accessToken) {
-        config.headers.Authorization = `Bearer ${session.user.accessToken}`;
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-// Response Interceptor
-axiosClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    return Promise.reject(error);
-  },
-);
-
+// Install logging first so it receives the original Axios response and can keep
+// the server correlation ID before API errors are normalized for components.
 installHttpLogging(axiosClient);
+
+installApiAuthInterceptors(axiosClient, {
+  getAccessToken: getClientAccessToken,
+  refreshAccessToken: forceClientSessionRefresh,
+  invalidateSession: invalidateClientSession,
+  getCallbackUrl: getCurrentCallbackUrl,
+});
 
 export default axiosClient;

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
+import { recipeLifecycleApi } from "@/lib/api/recipeLifecycleApi";
+import { getApiErrorMessage, isApiProblemError } from "@/lib/api/problemDetails";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
 
@@ -23,7 +25,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     let active = true;
     void params.then(({ id }) => {
       setRecipeId(id);
-      return recipeApi.getById(id);
+      return recipeEditorApi.getById(id);
     }).then((loaded) => {
       if (!active) return;
       setRecipe(loaded);
@@ -55,14 +57,13 @@ export default function EditRecipePage({ params }: RouteProps) {
     setSaving(true);
     setError("");
     try {
-      const result = await recipeApi.update(recipeId, form);
+      const result = await recipeEditorApi.update(recipeId, form);
       setForm({ ...form, rowVersion: result.rowVersion });
       setRecipe((current) => current ? { ...current, rowVersion: result.rowVersion } : current);
     } catch (reason) {
-      const status = (reason as { response?: { status?: number } })?.response?.status;
-      setError(status === 409
+      setError(isApiProblemError(reason) && reason.status === 409
         ? "Công thức đã được người khác thay đổi. Hãy tải lại trước khi lưu."
-        : "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
+        : getApiErrorMessage(reason));
     } finally {
       setSaving(false);
     }
@@ -71,10 +72,10 @@ export default function EditRecipePage({ params }: RouteProps) {
   const remove = async () => {
     setDeleting(true);
     try {
-      await recipeApi.delete(recipeId);
+      await recipeLifecycleApi.delete(recipeId);
       router.replace("/dashboard/recipes");
-    } catch {
-      setError("Không thể xóa công thức. Vui lòng thử lại.");
+    } catch (reason) {
+      setError(getApiErrorMessage(reason));
       setDeleting(false);
     }
   };

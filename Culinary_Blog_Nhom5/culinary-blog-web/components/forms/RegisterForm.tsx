@@ -5,10 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import axiosClient from "@/lib/api/axiosClient";
+import {
+  getApiErrorMessage,
+  isApiProblemError,
+} from "@/lib/api/problemDetails";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { registerSchema, type RegisterFormData } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
+import type { AuthResponse } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -38,33 +42,25 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>(
+      const response = await axiosClient.post<AuthResponse>(
         "/api/v1/auth/register",
         data,
       );
       if (response.status === 201) {
-        router.push("/login?registered=true");
+        router.push("/auth/login?registered=true");
       }
     } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
-
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 409 && problem?.code === "AUTH_EMAIL_EXISTS") {
+      if (isApiProblemError(error) && error.status === 409 && error.code === "AUTH_EMAIL_EXISTS") {
         setError("email", {
           type: "server",
-          message: problem.detail ?? "Email này đã được sử dụng.",
+          message: error.detail ?? "Email này đã được sử dụng.",
         });
         return;
       }
 
-      if (response?.status === 422 && problem?.errors) {
-        Object.entries(problem.errors).forEach(([field, messages]) => {
+      if (isApiProblemError(error) && error.status === 422) {
+        let mappedFieldError = false;
+        Object.entries(error.errors).forEach(([field, messages]) => {
           const fieldMap: Record<string, keyof RegisterFormData> = {
             Email: "email",
             DisplayName: "displayName",
@@ -76,14 +72,13 @@ export function RegisterForm() {
             fieldMap[field.charAt(0).toUpperCase() + field.slice(1)];
           if (target && messages[0]) {
             setError(target, { type: "server", message: messages[0] });
+            mappedFieldError = true;
           }
         });
-        return;
+        if (mappedFieldError) return;
       }
 
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+      setServerError(getApiErrorMessage(error));
     }
   };
 
@@ -163,7 +158,7 @@ export function RegisterForm() {
       <p className="text-center text-sm text-stone-600">
         Đã có tài khoản?{" "}
         <Link
-          href="/login"
+          href="/auth/login"
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Đăng nhập ngay

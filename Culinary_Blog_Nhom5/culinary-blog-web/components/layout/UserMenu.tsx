@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { LogOut, UserRound } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function UserMenu({ name, image, email }: {
   name: string;
@@ -39,6 +40,7 @@ export function UserMenu({ name, image, email }: {
 
   async function handleSignOut() {
     setSigningOut(true);
+    useAuthStore.getState().clear();
     try {
       await signOut({ redirectTo: "/" });
     } catch {

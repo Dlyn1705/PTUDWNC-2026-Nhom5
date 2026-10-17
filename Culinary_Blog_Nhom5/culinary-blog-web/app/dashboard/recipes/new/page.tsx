@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import axiosClient from "@/lib/api/axiosClient";
 import { categoryApi } from "@/lib/api/categoryApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
+import { getApiErrorMessage } from "@/lib/api/problemDetails";
 import type { CategoryDto } from "@/types/category.types";
+import type { DifficultyValue, RecipeCreatePayload } from "@/types/recipe.types";
 import FileUploadDropzone from "@/components/common/FileUploadDropzone";
 
 type Ingredient = {
@@ -157,12 +159,12 @@ export default function NewRecipePage() {
       return;
     }
 
-    const recipeData = {
+    const recipeData: RecipeCreatePayload = {
       title: title.trim(),
       description: description.trim(),
       instructions: steps.map((step, index) => `Bước ${index + 1}: ${step.description.trim()}`).join("\n\n"),
       categoryId: category,
-      difficulty: Number(difficulty),
+      difficulty: Number(difficulty) as DifficultyValue,
       prepTime: Number(prepTime) || 0,
       cookTime: Number(cookTime) || 0,
       servings: Number(servings),
@@ -187,11 +189,10 @@ export default function NewRecipePage() {
 
     setIsSaving(true);
     try {
-      const response = await axiosClient.post<{ id: string }>("/api/v1/recipes", recipeData);
-      setCreatedRecipeId(response.data.id);
+      const response = await recipeEditorApi.create(recipeData);
+      setCreatedRecipeId(response.id);
     } catch (error) {
-      const data = (error as { response?: { data?: { detail?: string } } })?.response?.data;
-      setFormError(data?.detail ?? "Không thể lưu công thức. Vui lòng kiểm tra dữ liệu và thử lại.");
+      setFormError(getApiErrorMessage(error));
     } finally {
       setIsSaving(false);
     }

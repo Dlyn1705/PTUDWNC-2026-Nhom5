@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js"
+    "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
+    "test:client": "tsc -p tsconfig.client-tests.json && node --test build/client-tests/tests/problemDetails.test.js build/client-tests/tests/axiosAuth.test.js build/client-tests/tests/uiStore.test.js",
+    "test": "npm run test:client && npm run test:logging"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

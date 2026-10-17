@@ -11,7 +11,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session) redirect("/login?callbackUrl=/dashboard");
+  if (!session || session.error) redirect("/auth/login?callbackUrl=/dashboard");
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">

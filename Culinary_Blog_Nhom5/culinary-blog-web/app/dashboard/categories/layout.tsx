@@ -7,7 +7,7 @@ export default async function AdminCategoriesLayout({
   const session = await auth();
 
   if (!session) {
-    redirect("/login?callbackUrl=/dashboard/categories");
+    redirect("/auth/login?callbackUrl=/dashboard/categories");
   }
 
   if (session.user.role !== "Admin") {

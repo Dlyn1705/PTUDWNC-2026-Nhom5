@@ -15,6 +15,29 @@ type RefreshedSession = {
 };
 const refreshRequests = new Map<string, Promise<RefreshedSession>>();
 
+function appRoles(roles: readonly string[]): Array<"Admin" | "Author"> {
+  return roles.filter(
+    (candidate): candidate is "Admin" | "Author" =>
+      candidate === "Admin" || candidate === "Author",
+  );
+}
+
+function primaryRole(roles: readonly string[]): "Admin" | "Author" | undefined {
+  const filtered = appRoles(roles);
+  return filtered.includes("Admin")
+    ? "Admin"
+    : filtered.includes("Author")
+      ? "Author"
+      : undefined;
+}
+
+function isForcedRefresh(session: unknown): boolean {
+  return !!session
+    && typeof session === "object"
+    && "forceRefresh" in session
+    && (session as { forceRefresh?: unknown }).forceRefresh === true;
+}
+
 function getBackendRefreshToken(response: Response): string | undefined {
   const cookie = response.headers
     .getSetCookie()
@@ -28,15 +51,8 @@ async function readBackendAuthResponse(response: Response): Promise<User | null>
 
   const authResponse = (await response.json()) as AuthResponse;
   const backendRefreshToken = getBackendRefreshToken(response);
-  const roles = authResponse.roles.filter(
-    (candidate): candidate is "Admin" | "Author" =>
-      candidate === "Admin" || candidate === "Author",
-  );
-  const role = roles.includes("Admin")
-    ? "Admin"
-    : roles.includes("Author")
-      ? "Author"
-      : null;
+  const roles = appRoles(authResponse.roles);
+  const role = primaryRole(roles);
 
   if (
     !role ||
@@ -158,7 +174,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.picture = user.image;
@@ -167,33 +183,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.backendRefreshToken = user.backendRefreshToken;
         token.accessTokenExpiry = user.accessTokenExpiry;
         token.roles = user.roles;
+        token.error = undefined;
       }
 
       const expiresAt = Date.parse(String(token.accessTokenExpiry ?? ""));
+      const shouldRefresh = (trigger === "update" && isForcedRefresh(session))
+        || (Number.isFinite(expiresAt) && expiresAt <= Date.now() + 60_000);
       if (
-        typeof token.accessToken === "string" &&
-        typeof token.backendRefreshToken === "string" &&
-        Number.isFinite(expiresAt) &&
-        expiresAt <= Date.now() + 60_000
+        token.error !== "RefreshTokenError"
+        && shouldRefresh
+        && typeof token.accessToken === "string"
+        && typeof token.backendRefreshToken === "string"
       ) {
         try {
           const refreshed = await refreshBackendSession(token.backendRefreshToken);
           const refreshedSession = refreshed.session;
+          const roles = appRoles(refreshedSession.roles);
 
           token.accessToken = refreshedSession.accessToken;
           token.backendRefreshToken = refreshed.refreshToken;
           token.accessTokenExpiry = refreshedSession.accessTokenExpiry;
-          token.roles = refreshedSession.roles;
+          token.roles = roles;
           token.name = refreshedSession.user.displayName;
           token.picture = refreshedSession.user.avatarUrl ?? null;
-          token.role = refreshedSession.roles.includes("Admin")
-            ? "Admin"
-            : refreshedSession.roles.includes("Author")
-              ? "Author"
-              : undefined;
+          token.role = primaryRole(roles);
           token.error = undefined;
         } catch (error) {
           console.error("Backend access token refresh failed", error);
+          delete token.accessToken;
+          delete token.backendRefreshToken;
+          delete token.accessTokenExpiry;
+          delete token.roles;
+          delete token.role;
           token.error = "RefreshTokenError";
         }
       }
@@ -212,8 +233,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (token.role === "Admin" || token.role === "Author") {
           session.user.role = token.role;
         }
-        session.user.accessToken =
-          typeof token.accessToken === "string" ? token.accessToken : undefined;
+        session.user.accessToken = token.error
+          ? undefined
+          : typeof token.accessToken === "string"
+            ? token.accessToken
+            : undefined;
         session.user.roles = Array.isArray(token.roles)
           ? token.roles.filter(
               (role): role is "Admin" | "Author" =>

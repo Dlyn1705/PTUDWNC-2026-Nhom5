@@ -1,12 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function usePermission() {
   const { data: session, status } = useSession();
   const user = session?.user;
-  const isAdmin = user?.role === "Admin";
-  const isAuthor = user?.role === "Author";
+  const { isAdmin, isAuthor, isAuthenticated, isLoading } = useAuthStore();
 
   const canModifyRecipe = (authorId?: string) =>
     !!user && (isAdmin || (isAuthor && user.id === authorId));
@@ -17,7 +17,7 @@ export function usePermission() {
     isAdmin,
     isAuthor,
     canModifyRecipe,
-    isAuthenticated: status === "authenticated",
-    isLoading: status === "loading",
+    isAuthenticated: isAuthenticated && status === "authenticated" && !session?.error,
+    isLoading: isLoading || status === "loading",
   };
 }

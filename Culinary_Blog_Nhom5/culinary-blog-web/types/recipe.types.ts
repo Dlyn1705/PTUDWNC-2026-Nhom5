@@ -132,6 +132,41 @@ export interface RecipeWritePayload {
   rowVersion?: string;
 }
 
+export interface RecipeIngredientWritePayload {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+}
+
+export interface RecipeStepWritePayload {
+  title?: string | null;
+  description: string;
+  timerMinutes?: number | null;
+}
+
+export interface RecipeNutritionWritePayload {
+  calories?: number | null;
+  protein?: number | null;
+  carbohydrates?: number | null;
+  fat?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+}
+
+export interface RecipeCreatePayload extends Omit<RecipeWritePayload, "rowVersion"> {
+  ingredients?: RecipeIngredientWritePayload[];
+  steps?: RecipeStepWritePayload[];
+  nutrition?: RecipeNutritionWritePayload | null;
+}
+
+export interface RecipeLifecycleResponse {
+  id: string;
+  status: RecipeStatusValue;
+  publishedAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface SearchRecipeSummaryDto {
   id: string;
   title: string;

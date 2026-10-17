@@ -9,8 +9,8 @@ export default auth((request) => {
     pathname.startsWith("/recipes/new") ||
     /^\/recipes\/[^/]+\/edit(?:\/|$)/.test(pathname);
 
-  if (isProtected && !session) {
-    const loginUrl = new URL("/login", request.url);
+  if (isProtected && (!session || session.error)) {
+    const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }

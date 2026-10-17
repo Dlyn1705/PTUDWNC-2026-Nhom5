@@ -19,12 +19,4 @@ export interface AuthResponse {
   roles: string[];
 }
 
-export interface ProblemDetails {
-  status?: number;
-  title?: string;
-  detail?: string;
-  code?: string;
-  errors?: Record<string, string[]>;
-}
-
 export type AuthSessionResponse = AuthResponse;
