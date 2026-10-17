@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "target": "ES2022",
+    "noEmit": false, "incremental": false, "outDir": "build/auth-tests", "rootDir": "."
+  },
+  "include": ["tests/auth.test.ts", "tests/redis-auth.test.ts", "lib/auth/*.ts", "lib/api/sessionAuth.ts", "types/auth.ts"],
+  "exclude": ["node_modules", ".next", "build"]
+}

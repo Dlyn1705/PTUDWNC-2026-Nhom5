@@ -9,6 +9,7 @@ public class RefreshToken
     public string TokenHash { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
     public DateTime? RevokedAt { get; set; }
+    public bool IsUsed { get; set; }
     public string? ReplacedByTokenHash { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? CreatedByIp { get; set; }
@@ -17,11 +18,15 @@ public class RefreshToken
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
     public bool IsRevoked => RevokedAt != null;
-    public bool IsActive => !IsRevoked && !IsExpired;
+    public bool IsActive => !IsRevoked && !IsUsed && ReplacedByTokenHash is null && !IsExpired;
 
     public void Revoke(string? replacedByTokenHash = null)
     {
-        RevokedAt = DateTime.UtcNow;
-        ReplacedByTokenHash = replacedByTokenHash;
+        RevokedAt ??= DateTime.UtcNow;
+        if (replacedByTokenHash is not null)
+        {
+            IsUsed = true;
+            ReplacedByTokenHash = replacedByTokenHash;
+        }
     }
 }

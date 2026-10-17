@@ -442,6 +442,11 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");

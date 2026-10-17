@@ -10,6 +10,7 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken);
     Task<AuthResponseDto> LoginWithGoogleIdTokenAsync(string idToken, CancellationToken cancellationToken);
     Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
+    Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken);
     Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(
         string refreshToken,
         string expectedUserId,

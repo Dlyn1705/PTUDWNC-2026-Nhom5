@@ -32,12 +32,16 @@ export interface AuthUser {
   avatarUrl?: string | null;
 }
 
-export interface AuthResponse {
+export interface AuthSessionResponse {
   accessToken: string;
   accessTokenExpiry: string;
   user: AuthUser;
   roles: string[];
 }
+
+// Alias kept for existing form/API consumers. Refresh tokens are delivered
+// only through the HttpOnly cookie and are intentionally absent here.
+export type AuthResponse = AuthSessionResponse;
 
 export interface ProblemDetails {
   type?: string;
@@ -48,5 +52,3 @@ export interface ProblemDetails {
   code?: string;
   errors?: Record<string, string[]>;
 }
-
-export type AuthSessionResponse = AuthResponse;

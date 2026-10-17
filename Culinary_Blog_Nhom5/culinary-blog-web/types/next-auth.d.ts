@@ -1,4 +1,6 @@
 import type { DefaultSession } from "next-auth";
+import type {} from "@auth/core/jwt";
+import type { BackendTokens } from "../lib/auth/backendTokens";
 
 import type { AppRole } from "./auth";
 
@@ -8,6 +10,7 @@ declare module "next-auth" {
     role?: AppRole;
     accessToken?: string;
     backendRefreshToken?: string;
+    backendTokens?: BackendTokens;
     accessTokenExpiry?: string;
     error?: string;
     roles?: AppRole[];
@@ -25,12 +28,13 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
+declare module "@auth/core/jwt" {
   interface JWT {
     id?: string;
     role?: AppRole;
     accessToken?: string;
     backendRefreshToken?: string;
+    backendSessionId?: string;
     accessTokenExpiry?: string;
     error?: string;
     roles?: AppRole[];

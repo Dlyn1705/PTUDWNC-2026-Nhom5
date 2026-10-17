@@ -38,7 +38,27 @@ Content-Type: application/json
 POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/refresh
 Cookie: culinary_refresh_token={{refreshToken}}
 
-### Logout and revoke the current refresh token
+### Non-browser/Next server refresh (read the new token from Set-Cookie)
+POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
+
+### Replay the previous token: expect 401 and revoke active refresh tokens for the account
+# Set refreshToken back to the value used before the successful rotation.
+POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
+
+### Logout using refresh possession, including when the access token has expired
 POST {{CulinaryBlog.API_HostAddress}}/api/v1/auth/logout
-Authorization: Bearer REPLACE_WITH_ACCESS_TOKEN
-Cookie: culinary_refresh_token={{refreshToken}}
+Content-Type: application/json
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
