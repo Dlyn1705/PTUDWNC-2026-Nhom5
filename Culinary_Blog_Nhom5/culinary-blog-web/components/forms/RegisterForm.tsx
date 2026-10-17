@@ -4,11 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import apiClient from "@/lib/api/axios";
-import { PasswordField } from "@/components/forms/PasswordField";
-import { registerSchema, type RegisterFormData } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
+import {
+  getPasswordStrength,
+  registerSchema,
+  type RegisterFormData,
+} from "@/lib/validations/auth";
+import type { ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -23,6 +26,7 @@ export function RegisterForm() {
     register,
     handleSubmit,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -33,15 +37,14 @@ export function RegisterForm() {
       confirmPassword: "",
     },
   });
+  const passwordValue = useWatch({ control, name: "password" }) ?? "";
+  const passwordStrength = getPasswordStrength(passwordValue);
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/register",
-        data,
-      );
+      const response = await apiClient.post("/api/v1/auth/register", data);
       if (response.status === 201) {
         router.push("/login?registered=true");
       }
@@ -132,24 +135,79 @@ export function RegisterForm() {
           <label htmlFor="password" className="field-label">
             Mật khẩu
           </label>
-          <PasswordField
+          <input
             id="password"
+            type="password"
             autoComplete="new-password"
             placeholder="Tối thiểu 8 ký tự"
-            registration={register("password")}
+            {...register("password")}
             className={`field-input ${errors.password ? "field-input-error" : ""}`}
           />
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span id="password-strength-label" className="font-medium text-stone-600">
+                Độ mạnh mật khẩu: {passwordStrength.label}
+              </span>
+              <span className="text-stone-500">Tối thiểu 8 ký tự</span>
+            </div>
+            <div
+              role="meter"
+              aria-labelledby="password-strength-label"
+              aria-valuemin={0}
+              aria-valuemax={6}
+              aria-valuenow={passwordStrength.score}
+              aria-valuetext={passwordStrength.label}
+              className="flex h-1.5 gap-1"
+            >
+              {passwordStrength.criteria.map((criterion, index) => (
+                <span
+                  key={criterion.label}
+                  className={`h-full flex-1 rounded-full ${
+                    index < passwordStrength.score
+                      ? passwordStrength.score <= 2
+                        ? "bg-red-500"
+                        : passwordStrength.score <= 4
+                          ? "bg-amber-500"
+                          : passwordStrength.score === 5
+                            ? "bg-lime-600"
+                            : "bg-green-600"
+                      : "bg-stone-200"
+                  }`}
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
+            <ul
+              aria-label="Tiêu chí độ mạnh mật khẩu"
+              className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-stone-500"
+            >
+              {passwordStrength.criteria.map((criterion) => (
+                <li key={criterion.label} className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={criterion.met ? "text-green-700" : "text-stone-400"}
+                  >
+                    {criterion.met ? "✓" : "○"}
+                  </span>
+                  <span className={criterion.met ? "text-stone-700" : ""}>
+                    {criterion.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <FieldError message={errors.password?.message} />
         </div>
         <div>
           <label htmlFor="confirmPassword" className="field-label">
             Nhập lại mật khẩu
           </label>
-          <PasswordField
+          <input
             id="confirmPassword"
+            type="password"
             autoComplete="new-password"
             placeholder="Nhập lại mật khẩu"
-            registration={register("confirmPassword")}
+            {...register("confirmPassword")}
             className={`field-input ${errors.confirmPassword ? "field-input-error" : ""}`}
           />
           <FieldError message={errors.confirmPassword?.message} />
@@ -164,7 +222,7 @@ export function RegisterForm() {
         Đã có tài khoản?{" "}
         <Link
           href="/login"
-          className="font-semibold text-primary underline-offset-4 hover:underline"
+          className="font-semibold text-orange-700 underline-offset-4 hover:underline"
         >
           Đăng nhập ngay
         </Link>
