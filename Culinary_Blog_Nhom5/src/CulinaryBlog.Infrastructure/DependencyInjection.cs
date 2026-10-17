@@ -22,6 +22,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        Services.Images.ImageProcessingRegistration.AddImageProcessing(services);
         services.AddAuthorizationBuilder()
             .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
             .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))

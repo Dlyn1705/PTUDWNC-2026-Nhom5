@@ -82,7 +82,7 @@ public class GetPublicRecipesQueryHandler : IRequestHandler<GetPublicRecipesQuer
                 .Select(img => new RecipeImageSummaryDto
                 {
                     Id = img.Id,
-                    Url = img.OriginalUrl,
+                    Url = img.ThumbnailUrl ?? img.MediumUrl ?? img.OriginalUrl,
                     IsPrimary = img.IsPrimary,
                     Alt = img.AltText
                 })

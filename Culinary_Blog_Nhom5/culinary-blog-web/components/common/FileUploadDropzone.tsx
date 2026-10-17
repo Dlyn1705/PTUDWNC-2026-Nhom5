@@ -62,7 +62,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
       const image = await uploadRecipeImage(recipeId, file, setProgress, controller.signal, altText);
       if (controller.signal.aborted) return;
       setState("success");
-      setMessage(`Đã tải ảnh lên. Trạng thái xử lý: ${image.processingStatus}.`);
+      setMessage("Đã tải ảnh lên. Các kích thước xem trước sẽ được tạo trong nền.");
       onUploadSuccess?.(image);
     } catch (error) {
       if (controller.signal.aborted) {

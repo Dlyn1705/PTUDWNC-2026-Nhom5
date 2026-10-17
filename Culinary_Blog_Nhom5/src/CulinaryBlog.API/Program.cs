@@ -31,6 +31,13 @@ using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
 using Serilog;
 
+// Private process mode; no web host, DB, Hangfire or application secrets are needed to transform pixels.
+if (args.Length > 0 && args[0] == "--image-transform")
+{
+    Environment.ExitCode = CulinaryBlog.Infrastructure.Services.Images.ImageTransformWorker.Run(args);
+    return;
+}
+
 Log.Logger = StructuredLoggingExtensions.CreateBootstrapLogger();
 try
 {
@@ -370,6 +377,8 @@ v1.MapAdminEndpoints();
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();
 
+CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
+    app.Services.GetRequiredService<IRecurringJobManager>());
 app.MapHealthEndpoints();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
