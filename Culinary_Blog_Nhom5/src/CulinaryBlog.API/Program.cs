@@ -2,6 +2,7 @@ using System.Text;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
+using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
@@ -11,6 +12,7 @@ using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Seed;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Services.Email;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -28,6 +30,13 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Scalar.AspNetCore;
 using Serilog;
+
+// Private process mode; no web host, DB, Hangfire or application secrets are needed to transform pixels.
+if (args.Length > 0 && args[0] == "--image-transform")
+{
+    Environment.ExitCode = CulinaryBlog.Infrastructure.Services.Images.ImageTransformWorker.Run(args);
+    return;
+}
 
 Log.Logger = StructuredLoggingExtensions.CreateBootstrapLogger();
 try
@@ -347,6 +356,11 @@ app.UseMiddleware<UserLogContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+});
+
 
 // ============================================================
 // 11. Map Endpoint Groups
@@ -363,6 +377,8 @@ v1.MapAdminEndpoints();
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();
 
+CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
+    app.Services.GetRequiredService<IRecurringJobManager>());
 app.MapHealthEndpoints();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
@@ -383,6 +399,7 @@ recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
     Cron.Weekly,
     new RecurringJobOptions());
 
+recurringJobManager.RegisterWelcomeEmailJobs();
 
 // ============================================================
 // 12. Run

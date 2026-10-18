@@ -31,7 +31,7 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
 
         builder.Property(r => r.Instructions)
             .HasColumnType("text")
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(r => r.Difficulty)
             .HasConversion<short>();

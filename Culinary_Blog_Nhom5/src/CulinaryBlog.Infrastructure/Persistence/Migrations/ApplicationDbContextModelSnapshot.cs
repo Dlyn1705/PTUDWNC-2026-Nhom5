@@ -193,7 +193,6 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasColumnType("smallint");
 
                     b.Property<string>("Instructions")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
@@ -323,6 +322,85 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasFilter("\"IsDeleted\" = FALSE");
 
                     b.ToTable("RecipeImages", (string)null);
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageGeneration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CleanedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CleanupAfter")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ImageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CleanupAfter");
+
+                    b.HasIndex("ImageId");
+
+                    b.ToTable("RecipeImageGenerations");
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageWork", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HangfireJobId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("RecipeImageWork", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeImageWork_Attempts", "\"AttemptCount\" BETWEEN 0 AND 4");
+                        });
                 });
 
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeIngredient", b =>
@@ -471,6 +549,79 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens", (string)null);
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.WelcomeEmailDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HangfireJobId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("TemplateVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.HasIndex("UserId", "MessageType")
+                        .IsUnique();
+
+                    b.ToTable("WelcomeEmailDeliveries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WelcomeEmailDeliveries_AttemptCount", "\"AttemptCount\" BETWEEN 0 AND 4");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

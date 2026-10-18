@@ -91,6 +91,7 @@ public sealed class AuthService : IAuthService
                 throw new DbUpdateException("Không thể gán vai trò cho tài khoản mới.");
             }
 
+            _dbContext.WelcomeEmailDeliveries.Add(WelcomeEmailDelivery.Create(user));
             var response = await CreateAuthResponseAsync(user, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation(
@@ -204,6 +205,7 @@ public sealed class AuthService : IAuthService
                     }
 
                     await EnsureAuthorRoleAsync(user);
+                    _dbContext.WelcomeEmailDeliveries.Add(WelcomeEmailDelivery.Create(user));
                 }
                 else if (!user.IsActive)
                 {

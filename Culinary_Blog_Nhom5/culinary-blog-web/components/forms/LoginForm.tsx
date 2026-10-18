@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
+import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
@@ -77,11 +78,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
-      {registered && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Tài khoản đã được tạo. Hãy đăng nhập để tiếp tục.
-        </div>
-      )}
+      {registered && <WelcomeBanner />}
       {sessionExpired && (
         <div
           role="status"

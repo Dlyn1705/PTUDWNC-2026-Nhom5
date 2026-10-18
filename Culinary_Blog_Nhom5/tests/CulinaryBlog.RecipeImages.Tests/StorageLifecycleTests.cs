@@ -6,6 +6,7 @@ using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Interceptors;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Infrastructure.Services.Images;
 using ImageMagick;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,23 +28,43 @@ public sealed class StorageLifecycleTests
             ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_CONNECTION.");
         var bucket = "fr-rcp008-test-" + Guid.NewGuid().ToString("N");
         var dbConnection = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N") };
-        var services = new ServiceCollection();
-        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(dbConnection.ConnectionString)
-            .AddInterceptors(new AuditInterceptor()));
-        await using var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var adminConnection = new NpgsqlConnectionStringBuilder(configured) { Database = "postgres" };
+        await using (var admin = new NpgsqlConnection(adminConnection.ConnectionString))
+        {
+            await admin.OpenAsync();
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{dbConnection.Database}\"", admin);
+            await create.ExecuteNonQueryAsync();
+        }
+
         using var client = new MinioClient().WithEndpoint("localhost:9000")
             .WithCredentials(Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_USER")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_USER."),
                 Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_PASSWORD")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_PASSWORD."))
             .Build();
-        var storage = new MinioFileStorageService(client, Options.Create(new MinioOptions { Bucket = bucket }));
+        var minioOptions = Options.Create(new MinioOptions { PublicBaseUrl = "http://localhost:9000", Bucket = bucket });
+        var storage = new MinioFileStorageService(client, minioOptions);
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(dbConnection.ConnectionString, npgsql =>
+                npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
+            .AddInterceptors(new AuditInterceptor()));
+        services.AddSingleton<IFileStorageService>(storage);
+        services.Configure<MinioOptions>(options =>
+        {
+            options.PublicBaseUrl = minioOptions.Value.PublicBaseUrl;
+            options.Bucket = minioOptions.Value.Bucket;
+        });
+        services.AddImageProcessing();
+        services.AddTransient<RecipeImageProcessingJob>();
+        services.AddTransient<RecipeImageDeletionJob>();
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var uploadedUrls = new HashSet<string>();
         try
         {
-            await db.Database.EnsureCreatedAsync();
+            await db.Database.MigrateAsync();
             var owner = new ApplicationUser { DisplayName = "Storage test owner" };
             var category = Category.Create("Storage test", "storage-test");
             var recipe = Recipe.Create("Storage", "storage", "description", "instructions", 1, 1, 1,
@@ -68,7 +89,7 @@ public sealed class StorageLifecycleTests
                 Assert.Equal("Pending", result.ProcessingStatus);
                 using var processingScope = provider.CreateScope();
                 var processingDb = processingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var job = new RecipeImageProcessingJob(processingDb, storage, NullLogger<RecipeImageProcessingJob>.Instance);
+                var job = processingScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
                 await job.ProcessAsync(result.Id, default);
                 await job.ProcessAsync(result.Id, default); // Retry is idempotent.
                 var processed = await processingDb.RecipeImages.AsNoTracking().SingleAsync(x => x.Id == result.Id);
@@ -84,7 +105,7 @@ public sealed class StorageLifecycleTests
 
                 await mutations.DeleteAsync(recipe.Id, result.Id, default);
                 processingDb.ChangeTracker.Clear();
-                var deletion = new RecipeImageDeletionJob(processingDb, storage, NullLogger<RecipeImageDeletionJob>.Instance);
+                var deletion = processingScope.ServiceProvider.GetRequiredService<RecipeImageDeletionJob>();
                 await deletion.DeleteAsync(result.Id, default);
                 await deletion.DeleteAsync(result.Id, default);
                 using var http = new HttpClient();
@@ -107,8 +128,8 @@ public sealed class StorageLifecycleTests
             using (var failedScope = provider.CreateScope())
             {
                 var failedDb = failedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var failedJob = new RecipeImageProcessingJob(failedDb, storage, NullLogger<RecipeImageProcessingJob>.Instance);
-                await Assert.ThrowsAnyAsync<Exception>(() => failedJob.ProcessAsync(failed.Id, default));
+                var failedJob = failedScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
+                await failedJob.ProcessAsync(failed.Id, default);
                 failedDb.ChangeTracker.Clear();
                 var metadata = await failedDb.RecipeImages.SingleAsync(x => x.Id == failed.Id);
                 Assert.Equal("Failed", metadata.ProcessingStatus);
@@ -116,7 +137,7 @@ public sealed class StorageLifecycleTests
                 Assert.True(preserved.Length > 0);
                 await mutations.DeleteAsync(recipe.Id, failed.Id, default);
                 failedDb.ChangeTracker.Clear();
-                await new RecipeImageDeletionJob(failedDb, storage, NullLogger<RecipeImageDeletionJob>.Instance)
+                await failedScope.ServiceProvider.GetRequiredService<RecipeImageDeletionJob>()
                     .DeleteAsync(failed.Id, default);
             }
 

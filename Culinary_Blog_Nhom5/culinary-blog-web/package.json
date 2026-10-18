@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:image-ui": "node tests/image-processing-ui.cjs",
+    "test:security": "node --test tests/security.unit.cjs",
+    "test:e2e:security": "npm run build && node tests/security.e2e.cjs",
     "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
     "test:auth": "tsc -p tsconfig.auth-tests.json && node --conditions=react-server --test --test-force-exit build/auth-tests/tests/*.test.js",
     "test:auth:e2e": "node tests/auth.e2e.mjs"
@@ -43,6 +47,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "playwright": "1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
