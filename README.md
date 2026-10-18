@@ -159,12 +159,19 @@ npm run dev
 |---|---|
 | Frontend | <http://localhost:3000> |
 | Backend API | <http://localhost:5156> |
+| Hangfire Dashboard | <http://localhost:5156/hangfire> (Admin only) |
 | Scalar API UI | <http://localhost:5156/scalar/v1> |
 | PostgreSQL | `localhost:5433` |
 | Redis | `localhost:6379` |
 | MinIO API | <http://localhost:9000> |
 | MinIO Console | <http://localhost:9001> |
 | Seq | <http://localhost:5341> |
+
+## Welcome Email (FR-JOB-001)
+
+Đăng ký mới lưu yêu cầu welcome email cùng transaction tạo tài khoản. Hangfire gửi nền qua SMTP, retry tối đa 4 lần gọi transport và phục hồi yêu cầu còn chờ. Mặc định `Email:Enabled=false`; tài khoản vẫn đăng nhập bình thường và yêu cầu gửi được giữ Pending.
+
+Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP production, kiểm thử và xử lý Failed: [Runbook Welcome Email](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-001-Welcome-Email.md). Mail capture local dùng file riêng `compose.mail.yml`, cổng 1025/8025 chỉ bind localhost. Hangfire Dashboard nằm ở `/hangfire` và chỉ cho phép Admin. Secret SMTP phải đặt qua environment/User Secrets, không commit.
 
 ## Kiểm tra trước khi gửi bài
 
@@ -176,6 +183,12 @@ npm run build
 ```
 
 Ngoài ra, mở frontend và kiểm tra tối thiểu trang chủ, đăng nhập, danh sách công thức, chi tiết công thức và health check của API.
+
+## Xử lý ảnh nền (FR-JOB-002)
+
+Hangfire tạo medium 800×600 và thumbnail 300×300 từ original. Triển khai migration mới trước khi nhận upload và dừng worker phiên bản cũ để tránh trộn giao thức resize/delete. Runtime cần `dotnet` trong PATH và thư mục temp ghi được cho decoder tiến trình con.
+
+Xem [Runbook Image Resize / Thumbnail](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-002-Image-Resize-Thumbnail.md) để chạy test local, theo dõi retry/recovery/cleanup và xử lý Failed. Không cần bật dashboard hoặc cấu hình server Hangfire riêng.
 
 ## Xử lý lỗi thường gặp
 

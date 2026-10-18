@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import apiClient from "@/lib/api/axios";
+import { PasswordField } from "@/components/forms/PasswordField";
 import {
   getPasswordStrength,
   registerSchema,
   type RegisterFormData,
 } from "@/lib/validations/auth";
-import type { ProblemDetails } from "@/types/auth";
+import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -44,9 +45,12 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
-      const response = await apiClient.post("/api/v1/auth/register", data);
+      const response = await apiClient.post<AuthResponse>(
+        "/api/v1/auth/register",
+        data,
+      );
       if (response.status === 201) {
-        router.push("/login?registered=true");
+        router.push("/auth/login?registered=true");
       }
     } catch (error: unknown) {
       if (!error || typeof error !== "object" || !("response" in error)) {
@@ -123,7 +127,7 @@ export function RegisterForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="chef@culinaryblog.vn"
+          placeholder="chef@gmail.com"
           {...register("email")}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
@@ -135,12 +139,11 @@ export function RegisterForm() {
           <label htmlFor="password" className="field-label">
             Mật khẩu
           </label>
-          <input
+          <PasswordField
             id="password"
-            type="password"
             autoComplete="new-password"
             placeholder="Tối thiểu 8 ký tự"
-            {...register("password")}
+            registration={register("password")}
             className={`field-input ${errors.password ? "field-input-error" : ""}`}
           />
           <div className="mt-2 space-y-2">
@@ -202,12 +205,11 @@ export function RegisterForm() {
           <label htmlFor="confirmPassword" className="field-label">
             Nhập lại mật khẩu
           </label>
-          <input
+          <PasswordField
             id="confirmPassword"
-            type="password"
             autoComplete="new-password"
             placeholder="Nhập lại mật khẩu"
-            {...register("confirmPassword")}
+            registration={register("confirmPassword")}
             className={`field-input ${errors.confirmPassword ? "field-input-error" : ""}`}
           />
           <FieldError message={errors.confirmPassword?.message} />
@@ -221,8 +223,8 @@ export function RegisterForm() {
       <p className="text-center text-sm text-stone-600">
         Đã có tài khoản?{" "}
         <Link
-          href="/login"
-          className="font-semibold text-orange-700 underline-offset-4 hover:underline"
+          href="/auth/login"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Đăng nhập ngay
         </Link>

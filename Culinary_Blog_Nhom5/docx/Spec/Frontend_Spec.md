@@ -15,7 +15,7 @@ Dựa trên bảng phân chia trách nhiệm tính năng (FR/OBS/JOB) của Nhó
 
 | STT | Thành viên | Mã Yêu Cầu Gốc | Phân hệ / Nghiệp vụ đảm nhiệm | Các Trang (Pages) & Module Frontend Phụ Trách |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Ân** | `FR-AUTH-001` đến `007`, `FR-OBS-001` | **Xác thực, Hồ sơ cá nhân, Token Management & Sức khỏe hệ thống** | - Trang Đăng ký (`/register`)<br>- Trang Đăng nhập (`/auth/login`)<br>- Tích hợp Google OAuth 2.0 Button<br>- Cơ chế Refresh Token & Axios Interceptor ngầm<br>- Dropdown Đăng xuất (`UserNav`)<br>- Trang Hồ sơ cá nhân & Đổi mật khẩu (`/profile`)<br>- Trang/Widget Trạng thái hệ thống (`/status`) |
+| **1** | **Ân** | `FR-AUTH-001` đến `007`, `FR-OBS-001` | **Xác thực, Hồ sơ cá nhân, Token Management & Sức khỏe hệ thống** | - Trang Đăng ký (`/auth/register`)<br>- Trang Đăng nhập (`/auth/login`)<br>- Tích hợp Google OAuth 2.0 Button<br>- Cơ chế Refresh Token & Axios Interceptor ngầm<br>- Dropdown Đăng xuất (`UserNav`)<br>- Trang Hồ sơ cá nhân & Đổi mật khẩu (`/profile`)<br>- Trang/Widget Trạng thái hệ thống (`/status`) |
 | **2** | **Linh** | `FR-CAT-001` đến `005`, `FR-RCP-001`, `002`, `FR-JOB-003` | **Khám phá Công cộng, Danh mục, Chi tiết Công thức, SEO & Quản trị Danh mục** | - Trang Chủ công cộng (`/`)<br>- Trang Danh sách Danh mục (`/categories`)<br>- Trang Chi tiết Danh mục & Món ăn (`/categories/[slug]`)<br>- Trang Danh sách Công thức (`/recipes`)<br>- Trang Chi tiết Công thức Chuẩn SEO (`/recipes/[slug]`)<br>- Trang Quản lý Danh mục Admin (`/dashboard/categories`)<br>- Dynamic Sitemap Generator (`app/sitemap.ts`) |
 | **3** | **Tuấn** | `FR-SRCH-001` đến `004`, `FR-FILE-001`, `002`, `FR-OBS-002`, `003`, `FR-RCP-005`, `006` | **Tìm kiếm nâng cao, Quản lý File MinIO, Quản trị Trạng thái Công thức & Giám sát** | - Trang Tìm kiếm Toàn văn bản FTS (`/search`)<br>- Bộ lọc đa tiêu chí, Sắp xếp & Phân trang (`/search`)<br>- Component Upload File lên MinIO (Drag & Drop, Preview)<br>- Component Xóa File MinIO an toàn<br>- Trang Quản lý Trạng thái Recipe (`/dashboard/recipes`)<br>- Workflow Xuất bản (Publish) / Hủy xuất bản (Unpublish)<br>- Workflow Lưu trữ (Archive) / Khôi phục Recipe<br>- Client Structured Logging & Correlation ID Tracing |
 | **4** | **Trâm** | `FR-RCP-003`, `004`, `007` đến `010`, `FR-JOB-001`, `002` | **Biên soạn Công thức, Quản lý Dữ liệu Con (Ảnh/Nguyên liệu/Bước) & Onboarding** | - Trang Tạo mới Công thức Nấu ăn (`/dashboard/recipes/new`)<br>- Trang Chỉnh sửa Công thức & Concurrency (`/dashboard/recipes/[id]/edit`)<br>- Component Quản lý Bộ sưu tập Ảnh Recipe & Set Primary (`FR-RCP-008`, `FR-JOB-002`)<br>- Component Quản lý Nguyên liệu Động (`FR-RCP-009`)<br>- Component Quản lý Các bước thực hiện Động (`FR-RCP-010`)<br>- Modal & Thao tác Xóa Công thức an toàn (`FR-RCP-007`)<br>- Banner Chào mừng & Hướng dẫn Thành viên mới (`FR-JOB-001`) |
@@ -162,7 +162,7 @@ culinary-blog-web/
 **Trách nhiệm chính:** Toàn bộ luồng Xác thực tài khoản, Bảo mật phiên làm việc phía Client, Hồ sơ cá nhân và Giám sát Sức khỏe hệ thống.
 
 #### 1. Trang Đăng ký Tài khoản (`Register Page`)
-- **Route:** `/register`
+- **Route:** `/auth/register`
 - **Tập tin:** `app/(auth)/register/page.tsx`
 - **Components:** `components/auth/RegisterForm.tsx`
 - **Phân quyền truy cập:** Public (nếu đã đăng nhập, tự động redirect về trang chủ `/`).
@@ -496,15 +496,16 @@ culinary-blog-web/
   - Khi xóa thành công: Hiển thị Toast thông báo, tự động xóa bài viết khỏi cache và điều hướng người dùng về trang danh sách `/dashboard/recipes`.
 
 #### 7. Giao diện Chào mừng & Hướng dẫn Sau Đăng ký (`Welcome & Onboarding UI`)
-- **Route:** `/auth/welcome`
-- **Tập tin:** `app/(auth)/welcome/page.tsx`
+- **Route:** `/login?registered=true` (giữ redirect sau đăng ký hiện có).
+- **Tập tin:** `components/forms/LoginForm.tsx`
 - **Components:** `components/auth/WelcomeBanner.tsx`
 - **Phân quyền truy cập:** User vừa đăng ký tài khoản thành công.
 - **Nghiệp vụ chi tiết (`FR-JOB-001`):**
   - Tương thích với tác vụ nền `Welcome Email Job` ở backend.
   - Màn hình hiển thị thông điệp chúc mừng gia nhập cộng đồng Culinary Blog.
-  - Nhắc nhở thành viên kiểm tra hộp thư điện tử Email để đọc thư chào mừng và kích hoạt tài khoản.
-  - Nút điều hướng nhanh: "Khám phá công thức ngay" dẫn tới `/recipes` hoặc "Tạo công thức đầu tiên của bạn" dẫn tới `/dashboard/recipes/new`.
+  - Thông báo tài khoản đã tạo, email chào mừng có thể đến sau; có thể đăng nhập ngay. Welcome email không xác minh/kích hoạt tài khoản.
+  - Link "Khám phá công thức" dẫn tới `/recipes`; hướng dẫn đăng nhập để chia sẻ công thức đầu tiên.
+  - Banner không gọi API gửi lại thư, không hiển thị email từ query string và không xác nhận SMTP đã giao thư vào inbox.
 
 ---
 
@@ -545,8 +546,8 @@ culinary-blog-web/
 | :--- | :--- | :--- | :--- | :--- |
 | `/` | Trang chủ (Landing Page) | Linh | Public | Giới thiệu, banner, danh mục nổi bật, công thức mới nhất |
 | `/auth/login` | Đăng nhập | Ân | Public (Khách) | Form đăng nhập email/mật khẩu & nút Google OAuth |
-| `/register` | Đăng ký | Ân | Public (Khách) | Form tạo tài khoản thành viên mới |
-| `/auth/welcome` | Chào mừng thành viên | Trâm | User vừa đăng ký | Thông báo kích hoạt tài khoản & email chào mừng |
+| `/auth/register` | Đăng ký | Ân | Public (Khách) | Form tạo tài khoản thành viên mới |
+| `/login?registered=true` | Chào mừng thành viên | Trâm | Sau đăng ký | Banner chào mừng, hướng dẫn đăng nhập và khám phá công thức |
 | `/profile` | Hồ sơ cá nhân | Ân | Author, Admin | Xem/sửa thông tin cá nhân, avatar, đổi mật khẩu |
 | `/status` | Sức khỏe hệ thống | Ân | Public | Theo dõi trạng thái API, PostgreSQL, Redis, MinIO |
 | `/categories` | Danh sách danh mục | Linh | Public | Khám phá toàn bộ danh mục ẩm thực |

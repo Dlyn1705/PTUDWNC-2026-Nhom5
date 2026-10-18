@@ -12,6 +12,11 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 
         builder.HasKey(rt => rt.Id);
 
+        builder.Property(rt => rt.IsUsed).HasDefaultValue(false);
+        builder.Ignore(rt => rt.IsActive);
+        builder.Ignore(rt => rt.IsExpired);
+        builder.Ignore(rt => rt.IsRevoked);
+
         builder.Property(rt => rt.TokenHash)
             .HasMaxLength(64)
             .IsRequired();

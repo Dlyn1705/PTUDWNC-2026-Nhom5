@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Email;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Interfaces;
@@ -21,6 +22,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        Services.Images.ImageProcessingRegistration.AddImageProcessing(services);
         services.AddAuthorizationBuilder()
             .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
             .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))
@@ -32,9 +34,11 @@ public static class DependencyInjection
                     && context.User.HasClaim("email_verified", "true"))));
 
         services.AddSingleton<IAuthorizationHandler, RecipeAuthorizationHandler>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe.IRecipeCreationStore, RecipeCreationStore>();
 
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe.IRecipeUpdateStore, RecipeUpdateStore>();
 
         // 2. DbContext
         string connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -85,6 +89,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<DatabaseSeeder>();
+        services.AddWelcomeEmail(configuration);
 
         // 4. Repositories & Unit of Work
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -95,6 +100,7 @@ public static class DependencyInjection
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();

@@ -5,10 +5,7 @@ const passwordStrengthRules = [
   { label: "Có chữ hoa", matches: (password: string) => /[A-Z]/.test(password) },
   { label: "Có chữ thường", matches: (password: string) => /[a-z]/.test(password) },
   { label: "Có chữ số", matches: (password: string) => /[0-9]/.test(password) },
-  {
-    label: "Có ký tự đặc biệt",
-    matches: (password: string) => /[^a-zA-Z0-9]/.test(password),
-  },
+  { label: "Có ký tự đặc biệt", matches: (password: string) => /[^a-zA-Z0-9]/.test(password) },
   { label: "Từ 12 ký tự trở lên", matches: (password: string) => password.length >= 12 },
 ] as const;
 
