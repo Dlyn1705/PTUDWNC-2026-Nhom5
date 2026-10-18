@@ -116,7 +116,7 @@ test("logout racing refresh revokes latest token and stale responses cannot resu
 
 test("backend refresh requires a new HttpOnly cookie and reads its expiry", async () => {
   const result = tokens("r1");
-  const response = new Response(JSON.stringify(result.session), { headers: {
+  const response = new Response(JSON.stringify({ data: result.session, success: true }), { headers: {
     "Set-Cookie": `culinary_refresh_token=r1; expires=${new Date(result.refreshTokenExpiry).toUTCString()}; path=/api/v1/auth; secure; httponly; samesite=lax`,
   } });
   assert.equal((await readBackendTokens(response)).refreshToken, "r1");

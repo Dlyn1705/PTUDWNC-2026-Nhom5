@@ -49,7 +49,7 @@ const backend = createServer(async (request, response) => {
     const refreshToken = randomBytes(32).toString("base64url");
     backendTokens.add(refreshToken);
     response.setHeader("Set-Cookie", `culinary_refresh_token=${refreshToken}; expires=${new Date(Date.now() + 604_800_000).toUTCString()}; path=/api/v1/auth; httponly; secure; samesite=lax`);
-    response.end(JSON.stringify(authBody(refreshToken)));
+    response.end(JSON.stringify({ data: authBody(refreshToken), success: true }));
   } else if (request.url === "/api/v1/auth/logout") {
     revokedToken = body.refreshToken;
     backendTokens.delete(body.refreshToken);
@@ -131,6 +131,8 @@ try {
   const jwt = await decode({ token: jar.get("authjs.session-token"), secret, salt: "authjs.session-token" });
   assert.equal(typeof jwt.backendSessionId, "string");
   assert.equal(jwt.backendRefreshToken, undefined);
+  assert.equal(jwt.accessToken, undefined);
+  assert.equal(jwt.accessTokenExpiry, undefined);
   const id = jwt.backendSessionId;
   const key = `culinary:auth:v1:{${id}}`;
   ownedKeys.push(key, `${key}:lock`);
@@ -183,6 +185,8 @@ try {
   assert.equal(googleCalls, 1, "Google credentials must be forwarded to the backend ID token endpoint");
   const googleJwt = await decode({ token: googleJar.get("authjs.session-token"), secret, salt: "authjs.session-token" });
   assert.equal(googleJwt.backendRefreshToken, undefined);
+  assert.equal(googleJwt.accessToken, undefined);
+  assert.equal(googleJwt.accessTokenExpiry, undefined);
   const googleId = googleJwt.backendSessionId;
   assert.equal(typeof googleId, "string");
   const googleKey = `culinary:auth:v1:{${googleId}}`;

@@ -1,4 +1,4 @@
-import type { AuthSessionResponse } from "../../types/auth";
+import type { AuthResponse, AuthSessionResponse } from "../../types/auth";
 
 export type BackendTokens = {
   session: AuthSessionResponse;
@@ -14,10 +14,11 @@ export async function readBackendTokens(response: Response): Promise<BackendToke
   const refreshToken = cookieParts?.[0].slice("culinary_refresh_token=".length);
   const expires = cookieParts?.find((part) => part.toLowerCase().startsWith("expires="))?.slice(8);
   const refreshTokenExpiry = Date.parse(expires ?? "");
-  const session = await response.json() as AuthSessionResponse;
-  const accessExpiry = Date.parse(session.accessTokenExpiry ?? "");
+  const payload = await response.json() as Partial<AuthResponse>;
+  const session = payload.data as AuthSessionResponse | undefined;
+  const accessExpiry = Date.parse(session?.accessTokenExpiry ?? "");
   if (!response.ok || !refreshToken || !Number.isFinite(refreshTokenExpiry)
-    || refreshTokenExpiry <= Date.now() || !session.accessToken || !Number.isFinite(accessExpiry)
+    || refreshTokenExpiry <= Date.now() || !session?.accessToken || !Number.isFinite(accessExpiry)
     || accessExpiry <= Date.now() || !session.user?.id || !Array.isArray(session.roles)) {
     throw new Error("Invalid backend authentication response.");
   }

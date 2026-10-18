@@ -43,7 +43,7 @@ public sealed class RefreshTokenTests(AuthFixture fixture) : IClassFixture<AuthF
         var response = await fixture.Client.PostAsJsonAsync("/api/v1/auth/login",
             new { email = login.User.Email, password = "SecurePass123!" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
         Assert.False(body.TryGetProperty("refreshToken", out _));
         Assert.Equal(login.User.Id, body.GetProperty("user").GetProperty("id").GetString());
         Assert.Equal(HttpStatusCode.OK, (await Refresh(Cookie(response))).StatusCode);
@@ -63,7 +63,7 @@ public sealed class RefreshTokenTests(AuthFixture fixture) : IClassFixture<AuthF
         var before = DateTime.UtcNow;
         var response = await Refresh(login.RefreshToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
         Assert.False(body.TryGetProperty("refreshToken", out _));
         var accessToken = body.GetProperty("accessToken").GetString()!;
         Assert.NotEqual(login.AccessToken, accessToken);
@@ -126,7 +126,7 @@ public sealed class RefreshTokenTests(AuthFixture fixture) : IClassFixture<AuthF
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         await users.AddToRoleAsync((await users.FindByIdAsync(login.User.Id))!, "Admin");
         var response = await Refresh(login.RefreshToken);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
         Assert.Contains(body.GetProperty("roles").EnumerateArray(), role => role.GetString() == "Admin");
     }
 

@@ -41,11 +41,7 @@ export const registerSchema = z
       .trim()
       .min(1, "Vui lòng nhập email")
       .email("Địa chỉ email không đúng định dạng")
-      .max(256, "Email không được vượt quá 256 ký tự")
-      .refine(
-        (email) => email.toLowerCase().endsWith("@gmail.com"),
-        "Vui lòng sử dụng địa chỉ Gmail kết thúc bằng @gmail.com",
-      ),
+      .max(256, "Email không được vượt quá 256 ký tự"),
     password: z
       .string()
       .min(8, "Mật khẩu phải có ít nhất 8 ký tự")

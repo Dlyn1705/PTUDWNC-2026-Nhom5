@@ -121,7 +121,7 @@ export function RegisterForm() {
 
       <div>
         <label htmlFor="email" className="field-label">
-          Địa chỉ Gmail
+          Địa chỉ email
         </label>
         <input
           id="email"

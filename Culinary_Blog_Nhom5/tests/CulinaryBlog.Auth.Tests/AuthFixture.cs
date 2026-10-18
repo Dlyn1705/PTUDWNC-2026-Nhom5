@@ -81,7 +81,8 @@ public sealed class AuthFixture : IAsyncLifetime
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
-        app.MapAuthEndpoints();
+        // Production maps the auth endpoints inside the versioned /api/v1 group.
+        app.MapGroup("/api/v1").MapAuthEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())

@@ -24,7 +24,7 @@ async function readBackendUser(response: Response): Promise<User | null> {
   };
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update: updateSession } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
@@ -95,8 +95,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sub = current.user.id;
         token.name = current.user.displayName;
         token.email = current.user.email;
-        token.accessToken = current.accessToken;
-        token.accessTokenExpiry = current.accessTokenExpiry;
         token.roles = current.roles.filter((role): role is "Admin" | "Author" => role === "Admin" || role === "Author");
         token.role = token.roles.includes("Admin") ? "Admin" : token.roles.includes("Author") ? "Author" : undefined;
         token.error = undefined;
@@ -109,9 +107,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = typeof token.id === "string" ? token.id : "";
       session.user.role = token.role;
       session.user.roles = token.roles ?? [];
-      session.user.accessToken = token.accessToken;
-      session.user.accessTokenExpiry = token.accessTokenExpiry;
       session.error = token.error;
+
+      // Keep the access token out of the Auth.js JWT cookie. It is loaded into
+      // the React session response only, while the refresh token stays server-side.
+      if (typeof token.backendSessionId === "string" && !token.error) {
+        try {
+          const { session: current } = await backendSessions.resolve(token.backendSessionId);
+          session.user.id = current.user.id;
+          session.user.name = current.user.displayName;
+          session.user.email = current.user.email;
+          session.user.roles = current.roles.filter(
+            (role): role is "Admin" | "Author" => role === "Admin" || role === "Author",
+          );
+          session.user.role = session.user.roles.includes("Admin")
+            ? "Admin"
+            : session.user.roles.includes("Author")
+              ? "Author"
+              : undefined;
+          session.user.accessToken = current.accessToken;
+          session.user.accessTokenExpiry = current.accessTokenExpiry;
+          session.error = undefined;
+        } catch (error) {
+          session.user.accessToken = undefined;
+          session.user.accessTokenExpiry = undefined;
+          session.error = error instanceof RefreshRejected
+            ? "RefreshTokenError"
+            : "SessionUnavailableError";
+        }
+      } else {
+        session.user.accessToken = undefined;
+        session.user.accessTokenExpiry = undefined;
+      }
+
       // The browser receives neither the Redis session ID nor a refresh token.
       return session;
     },

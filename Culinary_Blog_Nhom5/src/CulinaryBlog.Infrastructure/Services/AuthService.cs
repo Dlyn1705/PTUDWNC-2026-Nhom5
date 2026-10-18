@@ -335,9 +335,9 @@ public sealed class AuthService : IAuthService
         return outcome.Response;
     }
 
-    public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
+    public Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
-        await RevokeRefreshTokenAsync(refreshToken, expectedUserId: null, cancellationToken);
+        return RevokeRefreshTokenAsync(refreshToken, expectedUserId: null, cancellationToken);
     }
 
     public async Task<RefreshTokenRevocationResult> RevokeRefreshTokenAsync(
@@ -355,9 +355,20 @@ public sealed class AuthService : IAuthService
             if (token is null) return RefreshTokenRevocationResult.NotFound;
             if (expectedUserId is not null && token.UserId != expectedUserId)
                 return RefreshTokenRevocationResult.OwnershipMismatch;
+
+            var user = await LockUserAsync(token.UserId, cancellationToken);
+            if (user is null) return RefreshTokenRevocationResult.NotFound;
+
+            var roles = await _userManager.GetRolesAsync(user);
+            if (!roles.Any(role =>
+                string.Equals(role, "Author", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)))
+            {
+                return RefreshTokenRevocationResult.Forbidden;
+            }
+
             if (token.ExpiresAt <= _timeProvider.GetUtcNow().UtcDateTime)
                 return RefreshTokenRevocationResult.Expired;
-            await LockUserAsync(token.UserId, cancellationToken);
             var now = _timeProvider.GetUtcNow().UtcDateTime;
             // A logout carrying an older cookie also revokes its successors without marking them used.
             await _dbContext.Database.ExecuteSqlInterpolatedAsync($"""

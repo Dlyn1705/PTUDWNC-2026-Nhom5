@@ -39,9 +39,13 @@ export interface AuthSessionResponse {
   roles: string[];
 }
 
-// Alias kept for existing form/API consumers. Refresh tokens are delivered
-// only through the HttpOnly cookie and are intentionally absent here.
-export type AuthResponse = AuthSessionResponse;
+// Success responses follow the API contract's { data: ... } wrapper. Refresh
+// tokens are delivered only through the HttpOnly cookie and are absent here.
+export interface AuthResponse {
+  data: AuthSessionResponse;
+  success?: boolean;
+  message?: string | null;
+}
 
 export interface ProblemDetails {
   type?: string;
