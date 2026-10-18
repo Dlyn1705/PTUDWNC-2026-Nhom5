@@ -20,6 +20,7 @@ namespace CulinaryBlog.Infrastructure.Services;
 /// </summary>
 public sealed class PurgeDeletedRecipesJob(
     IServiceScopeFactory scopes,
+    IFileStorageService storage,
     ILogger<PurgeDeletedRecipesJob> logger)
 {
     private const int BatchSize = 100;
@@ -55,7 +56,6 @@ public sealed class PurgeDeletedRecipesJob(
                         using var attempt = scopes.CreateScope();
                         var db = attempt.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                         var locks = attempt.ServiceProvider.GetRequiredService<ImageWorkLock>();
-                        var cleanup = attempt.ServiceProvider.GetRequiredService<ImageGenerationCleanup>();
                         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
                         var recipe = await db.Recipes.FromSqlInterpolated(
                             $"SELECT * FROM \"Recipes\" WHERE \"Id\" = {id} FOR UPDATE")
@@ -66,8 +66,14 @@ public sealed class PurgeDeletedRecipesJob(
                             .Where(image => image.RecipeId == id).ToListAsync(cancellationToken);
                         await using var held = await locks.TryAcquireManyAsync(images.Select(image => image.Id), cancellationToken)
                             ?? throw new InvalidOperationException("Image is still processing; purge will retry.");
-                        foreach (var image in images.OrderBy(image => image.Id))
-                            await cleanup.DeleteImageObjectsAsync(image.Id, cancellationToken);
+                        var urls = images
+                            .OrderBy(image => image.Id)
+                            .SelectMany(image => new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl })
+                            .Where(url => !string.IsNullOrWhiteSpace(url))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToArray();
+                        foreach (var url in urls)
+                            await storage.DeleteAsync(url!, cancellationToken);
 
                         db.Recipes.Remove(recipe);
                         await db.SaveChangesAsync(cancellationToken);

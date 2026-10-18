@@ -38,8 +38,9 @@ export default function DashboardRecipesPage() {
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("deleted") !== "1") return;
-    setSuccessMessage("Đã xóa công thức.");
     window.history.replaceState(null, "", window.location.pathname);
+    const timer = window.setTimeout(() => setSuccessMessage("Đã xóa công thức."), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const recipesQuery = useQuery({

@@ -8,8 +8,37 @@ const { randomUUID } = require("node:crypto");
 const { chromium } = require("playwright");
 const root = path.resolve(__dirname, "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+function listen(server) { return new Promise(resolve => server.listen(0, "127.0.0.1", () => resolve(server.address().port))); }
 
 async function main() {
+  const tokens = new Map();
+  const backend = http.createServer(async (request, response) => {
+    let raw = ""; for await (const chunk of request) raw += chunk;
+    let body; try { body = raw ? JSON.parse(raw) : {}; } catch { response.writeHead(400).end(); return; }
+    const send = (status, value) => {
+      response.writeHead(status, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(value));
+    };
+    const issue = () => {
+      const refresh = "deletion-refresh-" + randomUUID();
+      tokens.set(refresh, true);
+      return { refresh, data: { accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
+        user: { id: "owner", email: "owner@test.invalid", displayName: "Deletion Test" }, roles: ["Author"] } };
+    };
+    if (request.url === "/api/v1/auth/login") {
+      if (body.password !== "E2e-only-password1!") return send(401, { detail: "Invalid credentials" });
+      const result = issue(); response.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
+      return send(200, { data: result.data });
+    }
+    if (request.url === "/api/v1/auth/refresh") {
+      if (!tokens.has(body.refreshToken)) return send(401, { detail: "Refresh rejected" });
+      tokens.delete(body.refreshToken); const result = issue(); response.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
+      return send(200, { data: result.data });
+    }
+    if (request.url === "/api/v1/auth/logout") { tokens.delete(body.refreshToken); response.writeHead(204).end(); return; }
+    send(200, { data: [], meta: { page: 1, pageSize: 12, totalCount: 0, totalPages: 0 } });
+  });
+  const backendPort = await listen(backend);
   const reservation = http.createServer();
   const port = await new Promise(resolve => reservation.listen(0, "127.0.0.1", () => resolve(reservation.address().port)));
   await new Promise(resolve => reservation.close(resolve));
@@ -18,7 +47,7 @@ async function main() {
   let logs = "";
   const server = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", NEXT_PUBLIC_ENABLE_MOCKS: "false" },
+    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", API_INTERNAL_URL: `http://127.0.0.1:${backendPort}`, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   server.stdout.on("data", value => { logs = (logs + value).slice(-10000); });
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
@@ -35,14 +64,6 @@ async function main() {
       ...(process.env.E2E_BROWSER_CHANNEL === "bundled" ? {} : { channel: process.env.E2E_BROWSER_CHANNEL || "chrome" }),
     });
     const context = await browser.newContext();
-    const { encode } = await import("next-auth/jwt");
-    const cookieName = "__Secure-authjs.session-token";
-    // Test-only encrypted session; production authentication is unchanged.
-    await context.addCookies([{ name: cookieName, domain: "127.0.0.1", path: "/", secure: true, httpOnly: true, sameSite: "Lax",
-      value: await encode({ secret, salt: cookieName, maxAge: 3600,
-        token: { id: "owner", sub: "owner", name: "Deletion Test", email: "owner@test.invalid", role: "Author", roles: ["Author"],
-          accessToken: "test-only-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString() } }),
-    }]);
     const recipe = { id: "77777777-7777-4777-8777-777777777777", title: "Công thức kiểm thử xóa", slug: "deletion-test",
       description: "Mô tả kiểm thử", instructions: "Trộn", status: 0, difficulty: 1, prepTimeMinutes: 1, cookTimeMinutes: 1, servings: 2,
       categoryId: "11111111-1111-4111-8111-111111111111", rowVersion: "AAAAAAAAAAAAAAAAAAAAAA==",
@@ -54,7 +75,7 @@ async function main() {
         headers: { "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
       if (request.method() === "DELETE") {
         assert.equal(suffix, "/api/v1/recipes/" + recipe.id);
-        assert.equal(request.headers().authorization, "Bearer test-only-access");
+        assert.equal(request.headers().authorization, "Bearer deletion-access");
         deleteCalls++;
         if (releaseDelete) await releaseDelete;
         if (deleteStatus !== 204) return json({ status: deleteStatus, detail: "Test deletion failure" }, deleteStatus);
@@ -73,6 +94,11 @@ async function main() {
     const page = await context.newPage(); const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     assert.match((await context.request.get(origin + "/search")).headers()["cache-control"], /no-store/);
+    await page.goto(origin + "/login?callbackUrl=/dashboard/recipes");
+    await page.locator("#login-email").fill("owner@test.invalid");
+    await page.locator("#login-password").fill("E2e-only-password1!");
+    await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+    await page.waitForURL(url => url.pathname === "/dashboard/recipes");
     await page.goto(origin + "/dashboard/recipes");
     await page.getByRole("heading", { name: recipe.title }).waitFor({ timeout: 10000 }).catch(async error => {
       console.error("Page:", page.url(), "Body:", await page.locator("body").innerText(), "API calls:", mineCalls);
@@ -127,6 +153,6 @@ async function main() {
     assert.deepEqual(errors, []);
     console.log("PASS: Chrome/Next.js cancel/Escape, 403/404/409/500 messages, duplicate-click guard, pending dialog, 204 redirect and cached-list refresh.");
   } catch (error) { console.error(logs); throw error; }
-  finally { if (browser) await browser.close(); server.kill(); }
+  finally { if (browser) await browser.close(); server.kill(); await new Promise(resolve => backend.close(resolve)); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
