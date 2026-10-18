@@ -169,7 +169,7 @@ culinary-blog-web/
 - **Nghiệp vụ chi tiết (`FR-AUTH-001`):**
   - Cung cấp form đăng ký gồm các trường:
     - `DisplayName` (Họ và tên hiển thị): Chuỗi 2-100 ký tự.
-    - `Email`: Bắt buộc, đúng định dạng và phải kết thúc bằng `@gmail.com`.
+    - `Email`: Định dạng email hợp lệ, bắt buộc.
     - `Password`: Mật khẩu tối thiểu 8 ký tự, bao gồm ít nhất một chữ hoa, một chữ thường, một chữ số và một ký tự đặc biệt.
     - `ConfirmPassword`: Bắt buộc khớp với `Password`.
   - Validate form bằng **React Hook Form** kết hợp **Zod schema** trước khi gửi.

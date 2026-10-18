@@ -1,4 +1,3 @@
-using System;
 using FluentValidation;
 
 namespace CulinaryBlog.Application.Features.Auth.Commands.Register;
@@ -11,8 +10,6 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Email là bắt buộc.")
             .EmailAddress().WithMessage("Email không đúng định dạng.")
-            .Must(email => email.Trim().EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
-                .WithMessage("Vui lòng sử dụng địa chỉ Gmail kết thúc bằng @gmail.com.")
             .MaximumLength(256).WithMessage("Email không được vượt quá 256 ký tự.");
 
         RuleFor(x => x.DisplayName)
