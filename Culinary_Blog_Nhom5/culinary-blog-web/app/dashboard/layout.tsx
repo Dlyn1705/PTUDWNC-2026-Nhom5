@@ -5,6 +5,7 @@ import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } fr
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { hasRole } from "@/lib/permissions";
+import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
 
 export default async function DashboardLayout({
   children,
@@ -17,20 +18,21 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <a href="#dashboard-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-card focus:p-3">Đến nội dung chính</a>
       {/* Dashboard Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5">
+            <Link href="/" aria-label="Culinary Studio — Trang chủ" className="flex items-center gap-2.5">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
                 <ChefHat className="size-5" />
               </span>
-              <span className="font-display text-lg font-semibold tracking-tight">
+              <span className="font-display text-lg font-semibold tracking-tight hidden min-[400px]:inline">
                 Culinary Studio
               </span>
             </Link>
 
-            <nav className="hidden sm:flex items-center gap-2 text-sm">
+            <nav aria-label="Điều hướng dashboard" className="hidden lg:flex items-center gap-2 text-sm">
               {hasRole(session.user, "Admin") && (
                 <Link
                   href="/dashboard/categories"
@@ -64,9 +66,9 @@ export default async function DashboardLayout({
               size="sm"
               className="rounded-full gap-1.5 text-xs shadow-soft"
             >
-              <Link href="/dashboard/recipes/new">
+              <Link href="/dashboard/recipes/new" aria-label="Tạo công thức">
                 <Plus className="size-3.5" />
-                <span>Tạo công thức</span>
+                <span className="hidden sm:inline">Tạo công thức</span>
               </Link>
             </Button>
 
@@ -74,18 +76,19 @@ export default async function DashboardLayout({
               asChild
               variant="ghost"
               size="sm"
-              className="rounded-full gap-1.5 text-xs"
+              className="hidden lg:inline-flex rounded-full gap-1.5 text-xs"
             >
               <Link href="/">
                 <ArrowLeft className="size-3.5" />
                 <span>Back to Site</span>
               </Link>
             </Button>
+            <DashboardMobileNav isAdmin={hasRole(session.user, "Admin")} />
           </div>
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="dashboard-content" tabIndex={-1} className="flex-1">{children}</main>
     </div>
   );
 }

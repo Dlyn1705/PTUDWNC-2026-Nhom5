@@ -13,13 +13,17 @@ import { useSession } from "next-auth/react";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
 import type { CategoryDto } from "@/types/category.types";
+import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
+import { useRecipeValidation } from "@/hooks/useRecipeValidation";
 
 type RouteProps = { params: Promise<{ id: string }> };
+const snapshot = (value: RecipeWritePayload | null) => value ? JSON.stringify({ ...value, rowVersion: undefined }) : "";
 
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const mutationInFlight = useRef(false);
+  const deleteButton = useRef<HTMLButtonElement>(null);
   const { data: session, status: sessionStatus } = useSession();
   const savingRef = useRef(false);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -36,6 +40,11 @@ export default function EditRecipePage({ params }: RouteProps) {
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [error, setError] = useState("");
+  const [baseline, setBaseline] = useState("");
+  const [ingredientDirty, setIngredientDirty] = useState(false);
+  const validation = useRecipeValidation();
+  // RowVersion changes when images/ingredients are saved; it is not an editable field.
+  const { confirmDiscard, allowNavigation } = useUnsavedRecipe(Boolean(form && baseline && snapshot(form) !== baseline) || ingredientDirty);
 
   useEffect(() => {
     let active = true;
@@ -56,7 +65,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     }).then((loaded) => {
       if (!active || !loaded) return;
       setRecipe(loaded);
-      setForm({
+      const initial = {
         title: loaded.title,
         description: loaded.description,
         instructions: loaded.instructions ?? "",
@@ -66,7 +75,9 @@ export default function EditRecipePage({ params }: RouteProps) {
         difficulty: loaded.difficulty,
         categoryId: loaded.categoryId,
         rowVersion: loaded.rowVersion,
-      });
+      };
+      setForm(initial);
+      setBaseline(snapshot(initial));
     }).catch(() => {
       if (active) setError("Không thể tải công thức hoặc bạn không có quyền truy cập.");
     }).finally(() => {
@@ -93,6 +104,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       const result = await recipeApi.update(recipeId, payload);
       if (activeRecipeId.current !== recipeId) return;
       setForm({ ...payload, rowVersion: result.rowVersion });
+      setBaseline(snapshot(payload));
       setRecipe((current) => current ? { ...current, title: payload.title,
         description: payload.description ?? "", instructions: payload.instructions ?? "",
         prepTimeMinutes: payload.prepTime, cookTimeMinutes: payload.cookTime, servings: payload.servings,
@@ -123,6 +135,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     try {
       await recipeApi.delete(recipeId);
       await queryClient.invalidateQueries({ queryKey: ["managed-recipes"] });
+      allowNavigation();
       router.replace("/dashboard/recipes?deleted=1");
       router.refresh();
     } catch (reason) {
@@ -140,15 +153,15 @@ export default function EditRecipePage({ params }: RouteProps) {
     }
   };
 
-  if (loading || sessionStatus === "loading") return <main className="p-8">Đang tải công thức...</main>;
-  if (!recipe || !form) return <main className="p-8"><p role="alert" className="text-red-600">{error || "Không tìm thấy công thức."}</p>
-    <button type="button" onClick={() => setReload(n => n + 1)} className="mt-4 underline">Thử tải lại</button></main>;
+  if (loading || sessionStatus === "loading") return <div className="p-8">Đang tải công thức...</div>;
+  if (!recipe || !form) return <div className="p-8"><p role="alert" className="text-red-600">{error || "Không tìm thấy công thức."}</p>
+    <button type="button" onClick={() => setReload(n => n + 1)} className="mt-4 underline">Thử tải lại</button></div>;
   const isAdmin = session?.user.roles?.includes("Admin") || session?.user.role === "Admin";
   if (!session?.user || (!isAdmin && (!session.user.roles?.includes("Author") || recipe.author.id !== session.user.id)))
-    return <main role="alert" className="p-8 text-red-600">Bạn không có quyền cập nhật công thức này.</main>;
+    return <div role="alert" className="p-8 text-red-600">Bạn không có quyền cập nhật công thức này.</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10">
+    <div className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-3xl space-y-6 px-4">
         <div>
           <p className="text-sm font-medium text-primary">Dashboard / Recipes / Edit</p>
@@ -159,11 +172,11 @@ export default function EditRecipePage({ params }: RouteProps) {
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
         {categoryError && <p role="alert">{categoryError}</p>}
         {success && <p role="status" className="text-green-700">{success}</p>}
-        <button type="button" disabled={saving || deleting} onClick={() => setReload(n => n + 1)} className="text-sm underline">
+        <button type="button" disabled={saving || deleting} onClick={() => { if (confirmDiscard()) setReload(n => n + 1); }} className="text-sm underline">
           Tải bản mới (bỏ thay đổi đang nhập)
         </button>
 
-        <IngredientManager key={`ingredients-${recipeId}`} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
+        <IngredientManager key={`ingredients-${recipeId}-${reload}`} recipeId={recipeId} onDirtyChange={setIngredientDirty} parentVersion={recipe.rowVersion} onMutation={async () => {
           try {
             const fresh = await recipeApi.getById(recipeId);
             if (activeRecipeId.current !== fresh.id) return;
@@ -177,38 +190,43 @@ export default function EditRecipePage({ params }: RouteProps) {
           } catch { setError("Nguyên liệu đã lưu; hãy tải lại công thức trước khi lưu nội dung."); }
         }} />
 
-        <form noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
+        <form noValidate onChangeCapture={event => validation.clear(event.target)} onSubmit={event => { event.preventDefault(); if (validation.validate(event.currentTarget)) void save(); }}>
         <fieldset disabled={saving || deleting} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
           <label className="block text-sm font-medium text-gray-700">
             Tên món ăn
-            <input value={form.title} onChange={(event) => update("title", event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            <input {...validation.field("edit-title", "edit-title-hint")} required minLength={3} maxLength={200} value={form.title} onChange={(event) => update("title", event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            <span id="edit-title-hint" className="text-xs text-gray-500">Từ 3 đến 200 ký tự.</span>
+            {validation.fieldError("edit-title")}
           </label>
           <label className="block text-sm font-medium text-gray-700">
             Mô tả
-            <textarea value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            <textarea {...validation.field("edit-description")} maxLength={2000} value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            {validation.fieldError("edit-description")}
           </label>
           <label className="block text-sm font-medium text-gray-700">
             Hướng dẫn
-            <textarea value={form.instructions ?? ""} onChange={(event) => update("instructions", event.target.value)} rows={6} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            <textarea {...validation.field("edit-instructions")} maxLength={10000} value={form.instructions ?? ""} onChange={(event) => update("instructions", event.target.value)} rows={6} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+            {validation.fieldError("edit-instructions")}
           </label>
           <div className="grid gap-4 sm:grid-cols-3">
             {([["prepTime", "Chuẩn bị"], ["cookTime", "Nấu"], ["servings", "Khẩu phần"]] as const).map(([key, label]) => (
               <label key={key} className="text-sm font-medium text-gray-700">
                 {label}
-                <input type="number" min={key === "servings" ? 1 : 0} value={form[key]} onChange={(event) => update(key, Number(event.target.value))} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+                <input {...validation.field(`edit-${key}`)} required type="number" step={1} max={2147483647} min={key === "servings" ? 1 : 0} value={Number.isNaN(form[key]) ? "" : form[key]} onChange={(event) => update(key, event.target.value === "" ? NaN : Number(event.target.value))} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
+                {validation.fieldError(`edit-${key}`)}
               </label>
             ))}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-gray-700">
               Độ khó
-              <select value={form.difficulty} onChange={(event) => update("difficulty", Number(event.target.value) as DifficultyValue)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
+              <select {...validation.field("edit-difficulty")} required value={form.difficulty} onChange={(event) => update("difficulty", Number(event.target.value) as DifficultyValue)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
                 <option value={1}>Dễ</option><option value={2}>Trung bình</option><option value={3}>Khó</option><option value={4}>Chuyên gia</option>
               </select>
             </label>
             <label className="text-sm font-medium text-gray-700">
               Danh mục
-              <select value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
+              <select {...validation.field("edit-category")} required value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3">
                 {!categories.some(item => item.id === form.categoryId) && <option value={form.categoryId} disabled>Danh mục hiện tại không khả dụng — hãy chọn lại</option>}
                 {categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
@@ -231,12 +249,12 @@ export default function EditRecipePage({ params }: RouteProps) {
         }} />
 
         <div className="flex flex-wrap justify-between gap-3">
-          <button type="button" disabled={saving || deleting} onClick={() => setShowDelete(true)} className="rounded-xl border border-red-200 px-5 py-3 font-medium text-red-600">Xóa công thức</button>
+          <button ref={deleteButton} type="button" disabled={saving || deleting} onClick={() => setShowDelete(true)} className="rounded-xl border border-red-200 px-5 py-3 font-medium text-red-600">Xóa công thức</button>
           <button type="submit" disabled={saving || deleting || conflict || Boolean(categoryError) || !categories.some(item => item.id === form.categoryId)} className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-60">{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
         </div>
         </form>
       </div>
-      <DeleteRecipeModal open={showDelete} busy={deleting} onCancel={() => setShowDelete(false)} onConfirm={() => void remove()} />
-    </main>
+      <DeleteRecipeModal open={showDelete} busy={deleting} returnFocusRef={deleteButton} onCancel={() => setShowDelete(false)} onConfirm={() => void remove()} />
+    </div>
   );
 }

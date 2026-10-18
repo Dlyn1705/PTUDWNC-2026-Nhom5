@@ -8,6 +8,8 @@ import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
+import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
+import { useRecipeValidation } from "@/hooks/useRecipeValidation";
 
 type Step = {
   description: string;
@@ -51,6 +53,11 @@ export default function NewRecipePage() {
   const [steps, setSteps] = useState<Step[]>([
     { description: "" },
   ]);
+  const [ingredientDirty, setIngredientDirty] = useState(false);
+  const validation = useRecipeValidation();
+  const hasDraft = Boolean(title || description || category || difficulty !== "1" || prepTime || cookTime || servings ||
+    calories || protein || carbs || fat || fiber || sodium || ingredients.length || steps.length > 1 || steps.some(step => step.description));
+  useUnsavedRecipe((!createdRecipeId && hasDraft) || ingredientDirty);
 
   const slug = useMemo(() => {
     return title
@@ -103,16 +110,6 @@ export default function NewRecipePage() {
       return;
     }
 
-    // Kiểm tra các bước
-    const invalidStep = steps.some(
-      (step) => !step.description.trim()
-    );
-
-    if (invalidStep) {
-      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
-      return;
-    }
-
     if (Number(servings) <= 0 || !Number.isFinite(Number(servings))) {
       alert("Số khẩu phần phải lớn hơn 0.");
       return;
@@ -153,7 +150,7 @@ export default function NewRecipePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10">
+    <div className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-5xl px-4">
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium text-primary">
@@ -163,13 +160,15 @@ export default function NewRecipePage() {
           <h1 className="text-3xl font-bold text-gray-900">
             Tạo công thức mới
           </h1>
+          {((!createdRecipeId && hasDraft) || ingredientDirty) && <p role="status" className="mt-2 text-sm text-amber-700">Có thay đổi chưa lưu.</p>}
 
           <p className="mt-2 text-gray-500">
             Chia sẻ công thức món ăn của bạn với mọi người.
           </p>
         </div>
 
-        <form noValidate className="space-y-6" onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
+        <form noValidate className="space-y-6" onChangeCapture={event => validation.clear(event.target)} onSubmit={(event) => { event.preventDefault(); if (validation.validate(event.currentTarget)) void handleSubmit(); }}>
+          <fieldset aria-label="Thông tin cơ bản" disabled={isSaving || Boolean(createdRecipeId)} className="min-w-0 space-y-6">
           {/* BASIC INFORMATION */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="mb-6">
@@ -185,11 +184,13 @@ export default function NewRecipePage() {
             <div className="space-y-5">
               {/* Title */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor="new-title" className="mb-2 block text-sm font-medium text-gray-700">
                   Tên món ăn *
                 </label>
 
                 <input
+                  {...validation.field("new-title", "new-title-hint")}
+                  required minLength={3}
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -198,7 +199,8 @@ export default function NewRecipePage() {
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
-                <div className="mt-2 flex justify-between text-xs text-gray-400">
+                {validation.fieldError("new-title")}
+                <div id="new-title-hint" className="mt-2 flex justify-between text-xs text-gray-400">
                   <span>Từ 3 - 200 ký tự</span>
                   <span>{title.length}/200</span>
                 </div>
@@ -206,11 +208,12 @@ export default function NewRecipePage() {
 
               {/* Slug */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor="new-slug" className="mb-2 block text-sm font-medium text-gray-700">
                   Slug SEO (xem trước; hệ thống tự cấp slug duy nhất)
                 </label>
 
                 <input
+                  id="new-slug"
                   type="text"
                   value={createdSlug || slug}
                   readOnly
@@ -222,11 +225,12 @@ export default function NewRecipePage() {
               {/* Category + Difficulty */}
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="new-category" className="mb-2 block text-sm font-medium text-gray-700">
                     Danh mục *
                   </label>
 
                   <select
+                    {...validation.field("new-category", categoryError ? "new-category-load-error" : undefined)} required
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
@@ -236,15 +240,17 @@ export default function NewRecipePage() {
                       <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
-                  {categoryError && <p role="alert" className="mt-2 text-sm text-red-600">{categoryError}</p>}
+                  {validation.fieldError("new-category")}
+                  {categoryError && <p id="new-category-load-error" role="alert" className="mt-2 text-sm text-red-600">{categoryError}</p>}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="new-difficulty" className="mb-2 block text-sm font-medium text-gray-700">
                     Độ khó
                   </label>
 
                   <select
+                    id="new-difficulty"
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
@@ -259,11 +265,12 @@ export default function NewRecipePage() {
 
               {/* Description */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor="new-description" className="mb-2 block text-sm font-medium text-gray-700">
                   Mô tả ngắn
                 </label>
 
                 <textarea
+                  {...validation.field("new-description", "new-description-hint")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={2000}
@@ -272,7 +279,8 @@ export default function NewRecipePage() {
                   className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
 
-                <p className="mt-2 text-right text-xs text-gray-400">
+                {validation.fieldError("new-description")}
+                <p id="new-description-hint" className="mt-2 text-right text-xs text-gray-400">
                   {description.length}/2000
                 </p>
               </div>
@@ -280,11 +288,12 @@ export default function NewRecipePage() {
               {/* Time */}
               <div className="grid gap-5 md:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="new-prepTime" className="mb-2 block text-sm font-medium text-gray-700">
                     Chuẩn bị (phút)
                   </label>
 
                   <input
+                    {...validation.field("new-prepTime")} step={1} max={2147483647}
                     type="number"
                     min="0"
                     value={prepTime}
@@ -292,14 +301,16 @@ export default function NewRecipePage() {
                     placeholder="15"
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
+                  {validation.fieldError("new-prepTime")}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="new-cookTime" className="mb-2 block text-sm font-medium text-gray-700">
                     Nấu (phút)
                   </label>
 
                   <input
+                    {...validation.field("new-cookTime")} step={1} max={2147483647}
                     type="number"
                     min="0"
                     value={cookTime}
@@ -307,14 +318,16 @@ export default function NewRecipePage() {
                     placeholder="30"
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
+                  {validation.fieldError("new-cookTime")}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor="new-servings" className="mb-2 block text-sm font-medium text-gray-700">
                     Khẩu phần
                   </label>
 
                   <input
+                    {...validation.field("new-servings")} required step={1} max={2147483647}
                     type="number"
                     min="1"
                     value={servings}
@@ -322,11 +335,13 @@ export default function NewRecipePage() {
                     placeholder="4"
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
+                  {validation.fieldError("new-servings")}
                 </div>
               </div>
             </div>
           </section>
 
+          </fieldset>
           {/* IMAGE */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -337,6 +352,7 @@ export default function NewRecipePage() {
             {createdRecipeId && <div className="mt-5"><ImageGalleryManager key={createdRecipeId} recipeId={createdRecipeId} /></div>}
           </section>
 
+          <fieldset aria-label="Thông tin dinh dưỡng" disabled={isSaving || Boolean(createdRecipeId)} className="min-w-0 space-y-6">
           {/* NUTRITION */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -355,14 +371,15 @@ export default function NewRecipePage() {
                 ["Chất béo", fat, setFat, "g"],
                 ["Chất xơ", fiber, setFiber, "g"],
                 ["Natri", sodium, setSodium, "mg"],
-              ].map(([label, value, setter, unit]) => (
+              ].map(([label, value, setter, unit], index) => (
                 <div key={label as string}>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={`new-nutrition-${index}`} className="mb-2 block text-sm font-medium text-gray-700">
                     {label as string}
                   </label>
 
                   <div className="relative">
                     <input
+                      {...validation.field(`new-nutrition-${index}`)} max={999999.99}
                       type="number"
                       min="0"
                       step="0.01"
@@ -381,17 +398,22 @@ export default function NewRecipePage() {
                       {unit as string}
                     </span>
                   </div>
+                  {validation.fieldError(`new-nutrition-${index}`)}
                 </div>
               ))}
             </div>
           </section>
+          </fieldset>
 
+          <fieldset aria-label="Nguyên liệu công thức" disabled={isSaving} className="min-w-0">
           <IngredientManager key={createdRecipeId ?? "new-ingredients"} recipeId={createdRecipeId ?? undefined}
-            initialItems={ingredients} onChange={setIngredients} />
+            initialItems={ingredients} onChange={setIngredients} onDirtyChange={setIngredientDirty} />
+          </fieldset>
 
+          <fieldset aria-label="Các bước thực hiện" disabled={isSaving || Boolean(createdRecipeId)} className="min-w-0">
           {/* STEPS */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
                   Các bước thực hiện
@@ -415,25 +437,28 @@ export default function NewRecipePage() {
               {steps.map((step, index) => (
                 <div
                   key={index}
-                  className="flex gap-4 rounded-xl border border-gray-200 p-4"
+                  className="flex flex-col gap-4 rounded-xl sm:flex-row border border-gray-200 p-4"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
                     {index + 1}
                   </div>
 
                   <textarea
+                    {...validation.field(`new-step-${index}`)} aria-label={`Nội dung bước ${index + 1}`} maxLength={2000}
                     value={step.description}
                     onChange={(e) =>
                       updateStep(index, e.target.value)
                     }
                     rows={3}
                     placeholder={`Mô tả bước ${index + 1}...`}
-                    className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
+                    className="min-w-0 w-full flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
                   />
+                  {validation.fieldError(`new-step-${index}`)}
 
                   <button
                     type="button"
                     onClick={() => removeStep(index)}
+                    aria-label={`Xóa bước ${index + 1}`}
                     className="h-fit rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50"
                   >
                     Xóa
@@ -442,6 +467,7 @@ export default function NewRecipePage() {
               ))}
             </div>
           </section>
+          </fieldset>
 
           {/* ACTIONS */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -457,6 +483,6 @@ export default function NewRecipePage() {
           </div>
         </form>
       </div>
-    </main>
+    </div>
   );
 }
