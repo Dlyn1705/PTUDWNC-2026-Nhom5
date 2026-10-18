@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.Infrastructure.Services;
@@ -31,6 +32,7 @@ public sealed class AuthService : IAuthService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<AuthService> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public AuthService(
         ApplicationDbContext dbContext,
@@ -41,7 +43,8 @@ public sealed class AuthService : IAuthService
         IConfiguration configuration,
         IHttpContextAccessor httpContextAccessor,
         ILogger<AuthService> logger,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IServiceScopeFactory scopeFactory)
     {
         _dbContext = dbContext;
         _userManager = userManager;
@@ -52,9 +55,19 @@ public sealed class AuthService : IAuthService
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _timeProvider = timeProvider;
+        _scopeFactory = scopeFactory;
     }
 
-    public async Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
+    public Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
+    {
+        var userId = Guid.NewGuid().ToString();
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        return ExecuteResilientAsync(
+            service => service.RegisterCoreAsync(email, displayName, password, userId, refreshToken, cancellationToken),
+            cancellationToken);
+    }
+
+    private async Task<AuthResponseDto> RegisterLegacyAsync(string email, string displayName, string password, CancellationToken cancellationToken)
     {
         return await _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
@@ -100,6 +113,46 @@ public sealed class AuthService : IAuthService
                 DateTimeOffset.UtcNow);
             return response;
         });
+    }
+
+    // Kept as a separate transaction core so execution-strategy retries can
+    // recognize a previously committed registration by its stable id/token.
+    private async Task<AuthResponseDto> RegisterCoreAsync(
+        string email, string displayName, string password, string userId,
+        (string RawToken, string TokenHash) refreshToken, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var committedUser = await _userManager.FindByIdAsync(userId);
+        if (committedUser is not null)
+        {
+            var committedToken = await _dbContext.RefreshTokens.AsNoTracking()
+                .SingleOrDefaultAsync(token => token.UserId == userId && token.TokenHash == refreshToken.TokenHash, cancellationToken);
+            if (committedToken is not null)
+                return await BuildAuthResponseAsync(committedUser, refreshToken.RawToken, committedToken.ExpiresAt);
+        }
+
+        var normalizedEmail = email.Trim();
+        if (await _userManager.FindByEmailAsync(normalizedEmail) is not null)
+            throw new ConflictException("Email đã được sử dụng.", "AUTH_EMAIL_EXISTS");
+
+        var user = ApplicationUser.Create(normalizedEmail, normalizedEmail, displayName.Trim());
+        user.Id = userId;
+        var createResult = await _userManager.CreateAsync(user, password);
+        if (!createResult.Succeeded)
+        {
+            if (createResult.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+                throw new ConflictException("Email đã được sử dụng.", "AUTH_EMAIL_EXISTS");
+            var errors = createResult.Errors
+                .GroupBy(error => error.Code.StartsWith("Password", StringComparison.OrdinalIgnoreCase) ? "Password" : "Register")
+                .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray());
+            throw new ValidationException(errors);
+        }
+
+        await EnsureAuthorRoleAsync(user);
+        _dbContext.WelcomeEmailDeliveries.Add(WelcomeEmailDelivery.Create(user));
+        var response = await CreateAuthResponseAsync(user, cancellationToken, refreshToken);
+        await transaction.CommitAsync(cancellationToken);
+        return response;
     }
 
     public async Task<AuthResponseDto> LoginAsync(string email, string password, CancellationToken cancellationToken)
@@ -235,6 +288,54 @@ public sealed class AuthService : IAuthService
                 DateTimeOffset.UtcNow);
             return response;
         });
+    }
+
+    private async Task<AuthResponseDto> GoogleLoginCoreAsync(
+        string loginProvider, string subject, string email, string displayName, string? avatarUrl,
+        (string RawToken, string TokenHash) refreshToken, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await _userManager.FindByLoginAsync(loginProvider, subject);
+        if (user is not null)
+        {
+            var committedToken = await _dbContext.RefreshTokens.AsNoTracking()
+                .SingleOrDefaultAsync(token => token.UserId == user.Id && token.TokenHash == refreshToken.TokenHash, cancellationToken);
+            if (committedToken is not null)
+                return await BuildAuthResponseAsync(user, refreshToken.RawToken, committedToken.ExpiresAt);
+        }
+
+        if (user is null)
+        {
+            user = await _userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                user = ApplicationUser.Create(email, email, displayName, avatarUrl);
+                user.EmailConfirmed = true;
+                var createResult = await _userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                    throw new ConflictException("Could not create an account from the Google profile.", "GOOGLE_ACCOUNT_CREATE_FAILED");
+
+                await EnsureAuthorRoleAsync(user);
+                _dbContext.WelcomeEmailDeliveries.Add(WelcomeEmailDelivery.Create(user));
+            }
+            else if (!user.IsActive)
+            {
+                throw new UnauthorizedAccessException("The account is not available.");
+            }
+
+            var addLoginResult = await _userManager.AddLoginAsync(
+                user, new UserLoginInfo(loginProvider, subject, loginProvider));
+            if (!addLoginResult.Succeeded)
+                throw new ConflictException("The Google account is already linked to another account.", "GOOGLE_LOGIN_ALREADY_LINKED");
+        }
+        else if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("The account is not available.");
+        }
+
+        var response = await CreateAuthResponseAsync(user, cancellationToken, refreshToken);
+        await transaction.CommitAsync(cancellationToken);
+        return response;
     }
 
     public async Task<AuthResponseDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
@@ -422,28 +523,34 @@ public sealed class AuthService : IAuthService
             .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.RevokedAt, now), cancellationToken);
     }
 
-    private async Task<AuthResponseDto> CreateAuthResponseAsync(ApplicationUser user, CancellationToken cancellationToken)
+    private async Task<AuthResponseDto> CreateAuthResponseAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken,
+        (string RawToken, string TokenHash)? suppliedToken = null)
     {
         if (_dbContext.Database.CurrentTransaction is not null)
-            return await IssueTokensAsync(user.Id, cancellationToken);
+            return await IssueTokensAsync(user.Id, cancellationToken, suppliedToken);
 
         return await _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-            var response = await IssueTokensAsync(user.Id, cancellationToken);
+            var response = await IssueTokensAsync(user.Id, cancellationToken, suppliedToken);
             await transaction.CommitAsync(cancellationToken);
             return response;
         });
     }
 
-    private async Task<AuthResponseDto> IssueTokensAsync(string userId, CancellationToken cancellationToken)
+    private async Task<AuthResponseDto> IssueTokensAsync(
+        string userId,
+        CancellationToken cancellationToken,
+        (string RawToken, string TokenHash)? suppliedToken = null)
     {
         var user = await LockUserAsync(userId, cancellationToken);
         if (user is null || !user.IsActive) throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
         if (await _userManager.IsLockedOutAsync(user)) throw new LockedException();
         var roles = await _userManager.GetRolesAsync(user);
         var (accessToken, accessTokenExpiry) = _jwtService.GenerateAccessToken(user, roles);
-        var (refreshToken, refreshTokenHash) = _jwtService.GenerateRefreshToken();
+        var (refreshToken, refreshTokenHash) = suppliedToken ?? _jwtService.GenerateRefreshToken();
         var refreshLifetimeDays = _configuration.GetValue("Jwt:RefreshTokenDurationInDays", 7);
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var refreshTokenExpiry = now.AddDays(refreshLifetimeDays);
@@ -465,5 +572,35 @@ public sealed class AuthService : IAuthService
             refreshTokenExpiry,
             new UserDto(user.Id, user.Email!, user.DisplayName),
             roles.ToArray());
+    }
+
+    private async Task<AuthResponseDto> BuildAuthResponseAsync(
+        ApplicationUser user,
+        string refreshToken,
+        DateTime refreshTokenExpiry)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        var (accessToken, accessTokenExpiry) = _jwtService.GenerateAccessToken(user, roles);
+        return new AuthResponseDto(
+            accessToken,
+            refreshToken,
+            accessTokenExpiry,
+            refreshTokenExpiry,
+            new UserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl),
+            roles.ToArray());
+    }
+
+    private async Task<T> ExecuteResilientAsync<T>(
+        Func<AuthService, Task<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var scope = _scopeFactory.CreateScope();
+            var service = (AuthService)scope.ServiceProvider.GetRequiredService<IAuthService>();
+            return await operation(service);
+        });
     }
 }
