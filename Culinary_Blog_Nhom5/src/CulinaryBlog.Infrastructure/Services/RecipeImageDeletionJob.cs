@@ -7,17 +7,22 @@ using CulinaryBlog.Infrastructure.Persistence;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CulinaryBlog.Infrastructure.Services.Images;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
 public sealed class RecipeImageDeletionJob(
     ApplicationDbContext db,
     IFileStorageService storage,
-    ILogger<RecipeImageDeletionJob> logger)
+    ILogger<RecipeImageDeletionJob> logger,
+    ImageWorkLock locks,
+    ImageGenerationCleanup cleanup)
 {
     [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
     public async Task DeleteAsync(Guid imageId, CancellationToken cancellationToken)
     {
+        await using var held = await locks.TryAcquireAsync(imageId, cancellationToken)
+            ?? throw new InvalidOperationException("Image is still processing; deletion will retry.");
         var image = await db.RecipeImages.IgnoreQueryFilters()
             .FirstOrDefaultAsync(candidate => candidate.Id == imageId, cancellationToken);
         if (image is null) return;
@@ -31,6 +36,8 @@ public sealed class RecipeImageDeletionJob(
 
         foreach (var url in urls)
             await storage.DeleteAsync(url!, cancellationToken);
+
+        await cleanup.DeleteImageObjectsAsync(imageId, cancellationToken);
 
         db.RecipeImages.Remove(image);
         await db.SaveChangesAsync(cancellationToken);

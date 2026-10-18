@@ -101,7 +101,7 @@ export interface RecipeSummaryDto {
   slug: string;
   createdAt: string;
   description: string;
-  instructions?: string;
+  instructions?: string | null;
   prepTimeMinutes: number;
   cookTimeMinutes: number;
   servings: number;
@@ -147,7 +147,7 @@ export interface RecipeMutationResponse {
 export interface RecipeWritePayload {
   title: string;
   description?: string;
-  instructions?: string;
+  instructions?: string | null;
   prepTime: number;
   cookTime: number;
   servings: number;

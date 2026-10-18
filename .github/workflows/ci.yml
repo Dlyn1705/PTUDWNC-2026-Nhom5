@@ -56,6 +56,21 @@ jobs:
           done
           exit 1
 
+      - name: Start MailHog
+        run: |
+          docker run --detach --name culinary-mailhog \
+            --publish 1025:1025 \
+            --publish 8025:8025 \
+            mailhog/mailhog:v1.0.1
+
+      - name: Wait for MailHog
+        run: |
+          for attempt in {1..30}; do
+            curl --fail --silent http://localhost:8025/api/v2/messages && exit 0
+            sleep 2
+          done
+          exit 1
+
       - name: Restore backend
         working-directory: Culinary_Blog_Nhom5
         run: dotnet restore Culinary_Blog_Nhom5.sln
@@ -67,9 +82,15 @@ jobs:
       - name: Test backend and recipe image integration
         working-directory: Culinary_Blog_Nhom5
         env:
+          RECIPE_CREATE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+          RECIPE_UPDATE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
           RECIPE_IMAGES_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
           RECIPE_IMAGES_TEST_MINIO_USER: minioadmin
           RECIPE_IMAGES_TEST_MINIO_PASSWORD: minioadminpassword
+          IMAGE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+          IMAGE_TEST_MINIO_ACCESS: minioadmin
+          IMAGE_TEST_MINIO_SECRET: minioadminpassword
+          WELCOME_EMAIL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
         run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release
 
       - uses: actions/setup-node@v4
@@ -82,6 +103,10 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm ci
 
+      - name: Install Playwright Chromium
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npx playwright install --with-deps chromium
+
       - name: Lint frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run lint
@@ -89,3 +114,7 @@ jobs:
       - name: Build frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run build
+
+      - name: Test image processing UI
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:image-ui

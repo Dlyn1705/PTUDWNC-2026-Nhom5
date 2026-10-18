@@ -83,7 +83,7 @@ public sealed class GetRecipeBySlugQueryHandler
                 .Select(image => new RecipeDetailImageDto
                 {
                     Id = image.Id,
-                    Url = image.OriginalUrl,
+                    Url = image.MediumUrl ?? image.OriginalUrl,
                     IsPrimary = image.IsPrimary,
                     Alt = image.AltText
                 })
