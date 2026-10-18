@@ -193,7 +193,6 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasColumnType("smallint");
 
                     b.Property<string>("Instructions")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
@@ -522,6 +521,11 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(64)

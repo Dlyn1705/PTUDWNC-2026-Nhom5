@@ -491,7 +491,7 @@ culinary-blog-web/
 - **Phân quyền truy cập:** Author sở hữu bài viết hoặc Admin.
 - **Nghiệp vụ chi tiết (`FR-RCP-007`):**
   - Nút "Xóa công thức" hiển thị trong trang chỉnh sửa bài viết và trên menu thao tác của Dashboard.
-  - Hộp thoại cảnh báo bảo mật nguy hiểm: "Hành động này sẽ xóa hoàn toàn công thức cùng toàn bộ ảnh, nguyên liệu và các bước liên quan. Bạn có chắc chắn muốn xóa không?".
+  - Hộp thoại cảnh báo phải nêu rõ công thức sẽ bị ẩn ngay; nguyên liệu, các bước và ảnh được giữ tối thiểu 30 ngày trước khi tác vụ dọn dẹp định kỳ xóa vĩnh viễn.
   - Yêu cầu người dùng xác nhận rõ ràng trước khi gọi `DELETE /api/v1/recipes/{id}`.
   - Khi xóa thành công: Hiển thị Toast thông báo, tự động xóa bài viết khỏi cache và điều hướng người dùng về trang danh sách `/dashboard/recipes`.
 

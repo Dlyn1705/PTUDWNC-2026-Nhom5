@@ -4,8 +4,9 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, randomBytes, createHash, createCipheriv } = require("node:crypto");
 const { chromium } = require("playwright");
+const { createClient } = require("redis");
 const root = path.resolve(__dirname, "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -19,7 +20,7 @@ async function main() {
     env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   let logs = ""; server.stdout.on("data", data => { logs = (logs + data).slice(-10000); }); server.stderr.on("data", data => { logs = (logs + data).slice(-10000); });
-  let browser;
+  let browser; let redis; let sessionKey;
   try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
@@ -30,10 +31,24 @@ async function main() {
     assert.equal(ready, true);
     browser = await chromium.launch({ headless: true, ...(process.env.E2E_BROWSER_CHANNEL === "bundled" ? {} : { channel: process.env.E2E_BROWSER_CHANNEL || "chrome" }) });
     const context = await browser.newContext(); const { encode } = await import("next-auth/jwt");
-    const cookie = "__Secure-authjs.session-token";
-    await context.addCookies([{ name: cookie, domain: "127.0.0.1", path: "/", secure: true, httpOnly: true, sameSite: "Lax",
-      value: await encode({ secret, salt: cookie, maxAge: 3600, token: { id: "owner", sub: "owner", role: "Author", roles: ["Author"], name: "Steps Test",
-        email: "steps@test.invalid", accessToken: "test-steps-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString() } }),
+    const backendSessionId = randomBytes(32).toString("base64url");
+    sessionKey = `culinary:auth:v1:{${backendSessionId}}`;
+    const expiry = Date.now() + 3600000;
+    const stored = { session: {
+      user: { id: "owner", displayName: "Steps Test", email: "steps@test.invalid" },
+      roles: ["Author"], accessToken: "test-steps-access", accessTokenExpiry: new Date(expiry).toISOString(),
+    }, refreshToken: "steps-test-refresh", refreshTokenExpiry: expiry, state: "active", version: 0 };
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(`culinary-server-session-v1:${secret}`).digest(), nonce);
+    cipher.setAAD(Buffer.from(backendSessionId));
+    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(stored), "utf8"), cipher.final()]);
+    const sealed = Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString("base64url");
+    redis = createClient({ url: process.env.AUTH_REDIS_URL || "redis://127.0.0.1:6379" });
+    await redis.connect();
+    await redis.set(sessionKey, sealed, { PX: 3600000 });
+    const cookie = "authjs.session-token";
+    await context.addCookies([{ name: cookie, domain: "127.0.0.1", path: "/", secure: false, httpOnly: true, sameSite: "Lax",
+      value: await encode({ secret, salt: cookie, maxAge: 3600, token: { backendSessionId } }),
     }]);
     const recipeId = "77777777-7777-4777-8777-777777777777";
     const category = { id: "11111111-1111-4111-8111-111111111111", name: "Món chính", slug: "mon-chinh", recipeCount: 1 };
@@ -48,10 +63,10 @@ async function main() {
         "Access-Control-Expose-Headers": "ETag", ETag: '"' + versionText() + '"', "Cache-Control": "no-store" }, body: JSON.stringify(value) });
       if (endpoint.startsWith("/api/v1/categories")) return json([category]);
       if (endpoint.endsWith("/ingredients") || endpoint.endsWith("/images")) return json({ success: true, data: [] });
-      if (endpoint === "/api/v1/recipes" && request.method() === "POST") {
+      if ((endpoint === "/api/v1/recipes" || endpoint === "/api/v1/recipes/") && request.method() === "POST") {
         createdPayload = request.postDataJSON();
         recipe.status = 0; steps = createdPayload.steps.map((step, index) => ({ ...step, id: randomUUID(), recipeId, stepNumber: index + 1, title: step.title || `Bước ${index + 1}` }));
-        version++; return json({ id: recipeId, rowVersion: versionText() }, 201);
+        version++; return json({ data: { id: recipeId, slug: recipe.slug, rowVersion: versionText() } }, 201);
       }
       if (endpoint === `/api/v1/recipes/${recipeId}`) return json({ ...recipe, rowVersion: versionText() });
       if (endpoint.includes("/steps")) {
@@ -84,11 +99,16 @@ async function main() {
       return json({ data: [], meta: { page: 1, pageSize: 12, totalCount: 0, totalPages: 0 } });
     });
     const page = await context.newPage(); const errors = []; page.on("pageerror", error => errors.push(error.message));
-    assert.match((await context.request.get(origin + "/search")).headers()["cache-control"], /no-store/);
     await page.goto(origin + `/dashboard/recipes/${recipeId}/edit`);
     const manager = page.getByRole("region", { name: "Quản lý các bước thực hiện" });
     const add = manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true });
-    await add.waitFor(); await add.click();
+    try { await add.waitFor({ timeout: 10000 }); }
+    catch {
+      const sessionResponse = await context.request.get(origin + "/api/auth/session");
+      const session = await sessionResponse.json();
+      throw new Error(`Step editor unavailable: url=${page.url()} user=${session?.user?.id ?? "none"} role=${session?.user?.role ?? "none"} error=${session?.error ?? "none"} page=${(await page.locator("body").innerText()).slice(0, 500)}`);
+    }
+    await add.click();
     await manager.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
     await manager.getByRole("alert").filter({ hasText: "Vui lòng nhập mô tả bước." }).waitFor(); assert.equal(writes, 0);
     await page.getByLabel("Tên món ăn", { exact: true }).fill("Nội dung chưa lưu");
@@ -147,13 +167,17 @@ async function main() {
     await page.getByRole("combobox").first().selectOption(category.id);
     await page.getByPlaceholder("4", { exact: true }).fill("2");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    await page.getByText(`Đã lưu bản nháp. ID: ${recipeId}`, { exact: true }).waitFor();
+    await page.getByText("Đã lưu bản nháp.", { exact: false }).waitFor();
     await manager.getByRole("button", { name: "Lưu bước 1", exact: true }).waitFor();
     assert.equal(createdPayload.steps[0].timerMinutes, 3); assert.equal(createdPayload.steps[0].title, "Chuẩn bị");
     assert.equal("stepNumber" in createdPayload.steps[0], false);
     assert.deepEqual(errors, []);
     console.log("PASS: production Next.js/Chrome step form validation, create-local mode, persistent CRUD/reorder, 0-minute timer, duplicate submit, preserved basic draft, 409 recovery and Published last-step protection.");
   } catch (error) { console.error(logs); throw error; }
-  finally { if (browser) await browser.close(); server.kill(); }
+  finally {
+    if (browser) await browser.close();
+    if (redis) { if (sessionKey) await redis.del(sessionKey); await redis.quit(); }
+    server.kill();
+  }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

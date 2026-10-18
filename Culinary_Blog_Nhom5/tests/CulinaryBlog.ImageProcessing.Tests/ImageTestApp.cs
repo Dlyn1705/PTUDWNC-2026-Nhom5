@@ -108,7 +108,9 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         using var response = await Client().PostAsync($"/api/v1/recipes/{RecipeId}/images", form);
         Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
         using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return System.Text.Json.JsonSerializer.Deserialize<RecipeImageDto>(json.RootElement.GetProperty("data").GetRawText(), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var result = System.Text.Json.JsonSerializer.Deserialize<RecipeImageDto>(json.RootElement.GetProperty("data").GetRawText(), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        Clock.Reset();
+        return result;
     }
     public static byte[] Sample(MagickFormat format, uint width = 1200, uint height = 400)
     {
@@ -139,6 +141,7 @@ internal sealed class FakeClock : TimeProvider
 {
     private DateTimeOffset now = DateTimeOffset.UtcNow.AddSeconds(10);
     public override DateTimeOffset GetUtcNow() => now;
+    public void Reset() => now = DateTimeOffset.UtcNow.AddSeconds(1);
     public void Advance(int seconds) => now = now.AddSeconds(seconds);
 }
 

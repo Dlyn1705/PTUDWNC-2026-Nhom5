@@ -32,11 +32,19 @@ export interface AuthUser {
   avatarUrl?: string | null;
 }
 
-export interface AuthResponse {
+export interface AuthSessionResponse {
   accessToken: string;
   accessTokenExpiry: string;
   user: AuthUser;
   roles: string[];
+}
+
+// Success responses follow the API contract's { data: ... } wrapper. Refresh
+// tokens are delivered only through the HttpOnly cookie and are absent here.
+export interface AuthResponse {
+  data: AuthSessionResponse;
+  success?: boolean;
+  message?: string | null;
 }
 
 export interface ProblemDetails {
@@ -48,5 +56,3 @@ export interface ProblemDetails {
   code?: string;
   errors?: Record<string, string[]>;
 }
-
-export type AuthSessionResponse = AuthResponse;

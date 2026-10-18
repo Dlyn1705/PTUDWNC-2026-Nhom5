@@ -7,6 +7,7 @@ using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Infrastructure.Persistence;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using CulinaryBlog.Infrastructure.Services.Images;
 
@@ -18,11 +19,9 @@ namespace CulinaryBlog.Infrastructure.Services;
 /// have a dedicated DeletedAt column; the soft-delete path always updates it.
 /// </summary>
 public sealed class PurgeDeletedRecipesJob(
-    ApplicationDbContext db,
+    IServiceScopeFactory scopes,
     IFileStorageService storage,
-    ILogger<PurgeDeletedRecipesJob> logger,
-    ImageWorkLock locks,
-    ImageGenerationCleanup cleanup)
+    ILogger<PurgeDeletedRecipesJob> logger)
 {
     private const int BatchSize = 100;
     private static readonly TimeSpan RetentionPeriod = TimeSpan.FromDays(30);
@@ -32,56 +31,67 @@ public sealed class PurgeDeletedRecipesJob(
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         var cutoff = DateTime.UtcNow.Subtract(RetentionPeriod);
-        var recipes = await db.Recipes
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Include(recipe => recipe.Images)
-            .Where(recipe => recipe.IsDeleted
-                && recipe.UpdatedAt.HasValue
-                && recipe.UpdatedAt.Value <= cutoff)
-            .OrderBy(recipe => recipe.UpdatedAt)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
-
         List<Exception>? failures = null;
-        foreach (var recipe in recipes)
+        var failedIds = new List<Guid>();
+        var purgedCount = 0;
+        while (true)
         {
-            try
+            using var batchScope = scopes.CreateScope();
+            var batchDb = batchScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var ids = await batchDb.Recipes.IgnoreQueryFilters().AsNoTracking()
+                .Where(recipe => recipe.IsDeleted && recipe.UpdatedAt < cutoff
+                    && !failedIds.Contains(recipe.Id))
+                .OrderBy(recipe => recipe.UpdatedAt).ThenBy(recipe => recipe.Id)
+                .Select(recipe => recipe.Id).Take(BatchSize).ToListAsync(cancellationToken);
+            if (ids.Count == 0) break;
+
+            foreach (var id in ids)
             {
-                await using var held = await locks.TryAcquireManyAsync(recipe.Images.Select(x => x.Id), cancellationToken)
-                    ?? throw new InvalidOperationException("Image is still processing; purge will retry.");
-                // Stable ordering prevents deadlock; try-lock fails quickly instead of blocking other recipes.
-                foreach (var image in recipe.Images.OrderBy(x => x.Id))
+                try
                 {
-                    await cleanup.DeleteImageObjectsAsync(image.Id, cancellationToken);
-                }
-                var urls = recipe.Images
-                    .SelectMany(image => new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl })
-                    .Where(url => !string.IsNullOrWhiteSpace(url))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray();
+                    // Isolate each record and every retry. A failed SaveChanges must
+                    // never leave a pending DELETE in the next record's tracker.
+                    var removed = await batchDb.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+                    {
+                        using var attempt = scopes.CreateScope();
+                        var db = attempt.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var locks = attempt.ServiceProvider.GetRequiredService<ImageWorkLock>();
+                        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                        var recipe = await db.Recipes.FromSqlInterpolated(
+                            $"SELECT * FROM \"Recipes\" WHERE \"Id\" = {id} FOR UPDATE")
+                            .IgnoreQueryFilters().SingleOrDefaultAsync(cancellationToken);
+                        if (recipe is null || !recipe.IsDeleted || recipe.UpdatedAt is null || recipe.UpdatedAt >= cutoff)
+                            return false;
+                        var images = await db.RecipeImages.IgnoreQueryFilters()
+                            .Where(image => image.RecipeId == id).ToListAsync(cancellationToken);
+                        await using var held = await locks.TryAcquireManyAsync(images.Select(image => image.Id), cancellationToken)
+                            ?? throw new InvalidOperationException("Image is still processing; purge will retry.");
+                        var urls = images
+                            .OrderBy(image => image.Id)
+                            .SelectMany(image => new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl })
+                            .Where(url => !string.IsNullOrWhiteSpace(url))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToArray();
+                        foreach (var url in urls)
+                            await storage.DeleteAsync(url!, cancellationToken);
 
-                foreach (var url in urls)
+                        db.Recipes.Remove(recipe);
+                        await db.SaveChangesAsync(cancellationToken);
+                        await transaction.CommitAsync(cancellationToken);
+                        return true;
+                    });
+                    if (removed) purgedCount++;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    await storage.DeleteAsync(url!, cancellationToken);
+                    failures ??= [];
+                    failures.Add(exception);
+                    failedIds.Add(id);
+                    logger.LogError(
+                        exception,
+                        "Could not purge soft-deleted recipe {RecipeId}; it will be retried",
+                        id);
                 }
-
-                await db.Recipes.IgnoreQueryFilters().Where(x => x.Id == recipe.Id && x.IsDeleted && x.UpdatedAt <= cutoff)
-                    .ExecuteDeleteAsync(cancellationToken);
-
-                logger.LogInformation(
-                    "Purged soft-deleted recipe {RecipeId} and {ImageCount} image records",
-                    recipe.Id,
-                    recipe.Images.Count);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                failures ??= [];
-                failures.Add(exception);
-                logger.LogError(
-                    exception,
-                    "Could not purge soft-deleted recipe {RecipeId}; it will be retried",
-                    recipe.Id);
             }
         }
 
@@ -90,9 +100,9 @@ public sealed class PurgeDeletedRecipesJob(
             throw new AggregateException("One or more deleted recipes could not be purged.", failures);
         }
 
-        if (recipes.Count > 0)
+        if (purgedCount > 0)
         {
-            logger.LogInformation("Purged {RecipeCount} soft-deleted recipes", recipes.Count);
+            logger.LogInformation("Purged {RecipeCount} soft-deleted recipes", purgedCount);
         }
     }
 }

@@ -10,6 +10,7 @@ function protectedPath(pathname: string) {
 }
 
 function handleRequest(request: NextRequest & { auth?: Session | null }) {
+
   const { pathname, search } = request.nextUrl;
   const session = request.auth;
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -24,7 +25,8 @@ function handleRequest(request: NextRequest & { auth?: Session | null }) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const isProtected = protectedPath(pathname);
-  // Public recipe HTML must be re-read after a step mutation; Redis cannot evict CDN HTML.
+  // Public recipe HTML must disappear on the next request after a deletion.
+  // Redis invalidation cannot evict an HTML response held by a browser/CDN.
   const containsRecipes = pathname === "/" || pathname === "/sitemap.xml" ||
     /^\/(recipes|search|categories)(?:\/|$)/.test(pathname);
   const finalize = (response: NextResponse) => {
@@ -43,6 +45,12 @@ function handleRequest(request: NextRequest & { auth?: Session | null }) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return finalize(NextResponse.redirect(loginUrl));
+  }
+
+  if (isProtected && session?.error === "SessionUnavailableError") {
+    return finalize(new NextResponse("Phiên đăng nhập tạm thời chưa thể kiểm tra. Vui lòng thử lại sau.", {
+      status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "5" },
+    }));
   }
 
   if (

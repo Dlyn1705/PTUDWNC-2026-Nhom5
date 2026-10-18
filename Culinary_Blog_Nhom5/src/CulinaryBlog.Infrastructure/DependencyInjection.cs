@@ -34,9 +34,11 @@ public static class DependencyInjection
                     && context.User.HasClaim("email_verified", "true"))));
 
         services.AddSingleton<IAuthorizationHandler, RecipeAuthorizationHandler>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe.IRecipeCreationStore, RecipeCreationStore>();
 
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe.IRecipeUpdateStore, RecipeUpdateStore>();
 
         // 2. DbContext
         string connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -99,6 +101,7 @@ public static class DependencyInjection
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
