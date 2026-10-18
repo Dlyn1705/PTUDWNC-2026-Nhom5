@@ -361,11 +361,13 @@ app.UseMiddleware<UserLogContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+if (builder.Configuration.GetValue("Hangfire:Dashboard:Enabled", true))
 {
-    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
-});
-
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+    });
+}
 
 // ============================================================
 // 11. Map Endpoint Groups

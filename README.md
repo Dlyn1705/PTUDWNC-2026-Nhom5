@@ -96,6 +96,19 @@ Trước khi chạy Docker, sao chép `.env.example` ở gốc repository thành
 
 Khi chạy API riêng, cung cấp `ConnectionStrings__DefaultConnection` và `Jwt__Key` qua biến môi trường hoặc .NET user secrets. API sẽ dừng lúc khởi động nếu thiếu một trong hai giá trị hoặc khóa JWT ngắn hơn 32 byte.
 
+Khi chạy API ở môi trường Production (hoặc bất kỳ môi trường nào không phải Development), bắt buộc cấu hình ít nhất một origin frontend qua `Cors__AllowedOrigins__0`. Origin phải là URL HTTP(S) chỉ gồm scheme, host và port tùy chọn; không dùng wildcard, path hoặc dấu `/` ở cuối. Nhiều origin dùng các chỉ số tiếp theo (`Cors__AllowedOrigins__1`, `Cors__AllowedOrigins__2`, ...), không dùng chuỗi phân cách bằng dấu phẩy.
+
+Ví dụ cấu hình Production bằng PowerShell:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+$env:ConnectionStrings__DefaultConnection = "Host=postgres;Port=5432;Database=culinary_blog_db;Username=postgres;Password=<secret>"
+$env:Jwt__Key = "<at-least-32-byte-secret>"
+$env:Cors__AllowedOrigins__0 = "https://frontend.example.com"
+$env:Cors__AllowedOrigins__1 = "https://www.example.com"
+dotnet run --project .\Culinary_Blog_Nhom5\src\CulinaryBlog.API
+```
+
 ```powershell
 docker compose up -d
 docker compose ps

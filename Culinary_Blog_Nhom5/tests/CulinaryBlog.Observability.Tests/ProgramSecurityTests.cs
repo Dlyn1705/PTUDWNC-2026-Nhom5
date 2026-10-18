@@ -158,6 +158,7 @@ public class ProgramSecurityTests
                     ["Database:SeedOnStartup"] = "false",
                     ["Database:MigrateOnStartup"] = "false",
                     ["AdminSeed:OnStartup"] = "false",
+                    ["Hangfire:Dashboard:Enabled"] = "false",
                     ["Serilog:MinimumLevel:Default"] = "Fatal"
                 });
             });
