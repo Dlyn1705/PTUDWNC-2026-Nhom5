@@ -52,7 +52,12 @@ public sealed class ImageProcessingTests
         await using var app = await ImageTestApp.CreateAsync();
         await app.Db(async db =>
         {
-            var previous = db.Database.GetMigrations().Last(x => !x.EndsWith("AddDurableImageProcessing"));
+            var migrations = db.Database.GetMigrations().ToArray();
+            var durableImageMigration = Array.FindIndex(
+                migrations,
+                migration => migration.EndsWith("AddDurableImageProcessing", StringComparison.Ordinal));
+            Assert.True(durableImageMigration > 0, "The durable image processing migration must have a prior baseline.");
+            var previous = migrations[durableImageMigration - 1];
             await db.GetService<IMigrator>().MigrateAsync(previous);
             var states = new[] { "Processing", "Completed", "Failed", "Pending" };
             for (var index = 0; index < states.Length; index++)
