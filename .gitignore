@@ -4,6 +4,7 @@
 # Build directories
 [Bb]in/
 [Oo]bj/
+[Tt]est[Rr]esults/
 [Ll]og/
 [Ll]ogs/
 [Bb]uild/

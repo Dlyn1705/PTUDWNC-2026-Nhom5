@@ -28,7 +28,8 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/auth")
             .WithTags("Authentication")
-            .RequireRateLimiting("auth");
+            .RequireRateLimiting("auth")
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.AddEndpointFilter(async (context, next) =>
         {

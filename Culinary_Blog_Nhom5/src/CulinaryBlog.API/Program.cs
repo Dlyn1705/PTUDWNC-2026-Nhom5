@@ -83,11 +83,16 @@ if (builder.Environment.IsDevelopment())
 var allowedOrigins =
     builder.Configuration
         .GetSection("Cors:AllowedOrigins")
-        .Get<string[]>()
-    ?? new[]
-    {
-        "http://localhost:3000"
-    };
+        .Get<string[]>();
+
+if (allowedOrigins is not { Length: > 0 } || allowedOrigins.Any(origin =>
+        string.IsNullOrWhiteSpace(origin)
+        || !Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+        || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        || !string.IsNullOrEmpty(uri.UserInfo)
+        || origin.Contains('*')
+        || !string.Equals(origin, uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase)))
+    throw new InvalidOperationException("Configure Cors:AllowedOrigins with explicit HTTP(S) origins (scheme, host and optional port only).");
 
 builder.Services.AddCors(options =>
 {
@@ -356,11 +361,13 @@ app.UseMiddleware<UserLogContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+if (builder.Configuration.GetValue("Hangfire:Dashboard:Enabled", true))
 {
-    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
-});
-
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+    });
+}
 
 // ============================================================
 // 11. Map Endpoint Groups

@@ -14,7 +14,7 @@ public static class RecipeApiConfiguration
     {
         services.AddRateLimiter(options =>
         {
-            foreach (var (name, limit) in new[] { ("recipe-read", 120), ("recipe-write", 30) })
+            foreach (var (name, limit) in new[] { ("recipe-read", 100), ("recipe-write", 30) })
                 options.AddPolicy(name, context => RateLimitPartition.GetFixedWindowLimiter(
                     context.User.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
