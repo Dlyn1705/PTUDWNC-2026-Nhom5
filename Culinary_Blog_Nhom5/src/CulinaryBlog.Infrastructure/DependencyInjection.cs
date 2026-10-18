@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Email;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Interfaces;
@@ -21,6 +22,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        Services.Images.ImageProcessingRegistration.AddImageProcessing(services);
         services.AddAuthorizationBuilder()
             .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
             .AddPolicy("AuthorPolicy", policy => policy.RequireRole("Author", "Admin"))
@@ -55,6 +57,12 @@ public static class DependencyInjection
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
 
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+            options.InstanceName = "culinary-blog:";
+        });
+
         // 3. ASP.NET Core Identity
         services.AddIdentityCore<ApplicationUser>(options =>
         {
@@ -80,12 +88,14 @@ public static class DependencyInjection
         });
 
         services.AddScoped<DatabaseSeeder>();
+        services.AddWelcomeEmail(configuration);
 
         // 4. Repositories & Unit of Work
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IRecipeIngredientStore, RecipeIngredientStore>();
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
@@ -102,8 +112,11 @@ public static class DependencyInjection
             .WithSSL(minio.UseSSL)
             .Build());
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
+        services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();
         services.AddTransient<RecipeImageProcessingJob>();
+        services.AddTransient<RecipeImageProcessingRecoveryJob>();
         services.AddScoped<IRecipeImageDeletionQueue, HangfireRecipeImageDeletionQueue>();
         services.AddTransient<RecipeImageDeletionJob>();
         services.AddTransient<RecipeImageDeletionRecoveryJob>();

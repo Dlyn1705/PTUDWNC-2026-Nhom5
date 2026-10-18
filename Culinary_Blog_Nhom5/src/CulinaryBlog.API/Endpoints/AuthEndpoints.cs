@@ -1,14 +1,22 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
+using CulinaryBlog.Application.Features.Auth.Commands.Logout;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
+using CulinaryBlog.Domain.Exceptions;
 using MediatR;
 using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -73,12 +81,7 @@ public static class AuthEndpoints
 
         group.MapPost("/refresh", async (HttpContext context, ISender sender, CancellationToken cancellationToken) =>
         {
-            var refreshToken = context.Request.Cookies[RefreshCookieName];
-            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
-            {
-                var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
-                refreshToken = body?.RefreshToken;
-            }
+            var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
@@ -105,31 +108,148 @@ public static class AuthEndpoints
 
         group.MapPost("/logout", async (
             HttpContext context,
-            IAuthService authService,
+            ISender sender,
+            IOptionsMonitor<JwtBearerOptions> jwtBearerOptions,
             CancellationToken cancellationToken) =>
         {
-            var refreshToken = context.Request.Cookies[RefreshCookieName];
-            if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+            var accessToken = await ValidateLogoutAccessTokenAsync(context, jwtBearerOptions);
+            if (accessToken.State == LogoutAccessTokenState.Invalid
+                || string.IsNullOrWhiteSpace(accessToken.UserId))
             {
-                var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
-                refreshToken = body?.RefreshToken;
+                throw new UnauthorizedAccessException("Access token không hợp lệ.");
             }
 
-            if (!string.IsNullOrWhiteSpace(refreshToken))
+            if (accessToken.State == LogoutAccessTokenState.Forbidden)
             {
-                await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+                throw new ForbiddenException("Chỉ Author hoặc Admin mới được đăng xuất.");
+            }
+
+            var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
+            }
+
+            var result = await sender.Send(
+                new LogoutCommand(refreshToken, accessToken.UserId),
+                cancellationToken);
+
+            // A signed token that is expired may end only its own live session.
+            // A valid bearer remains idempotent for unknown or already-ended tokens.
+            if (accessToken.State == LogoutAccessTokenState.Expired
+                && result is not RefreshTokenRevocationResult.Revoked)
+            {
+                throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
             }
 
             ClearRefreshCookie(context);
             return Results.NoContent();
         })
-            .RequireAuthorization()
             .WithName("Logout")
-            .WithSummary("Đăng xuất và thu hồi refresh token")
+            .WithSummary("Thu hồi refresh token của phiên đăng nhập")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         return app;
+    }
+
+    private static async Task<LogoutAccessToken> ValidateLogoutAccessTokenAsync(
+        HttpContext context,
+        IOptionsMonitor<JwtBearerOptions> jwtBearerOptions)
+    {
+        var authorization = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrWhiteSpace(authorization))
+        {
+            return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+        }
+
+        const string bearerPrefix = "Bearer ";
+        if (!authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+        }
+
+        var rawToken = authorization[bearerPrefix.Length..].Trim();
+        if (rawToken.Length == 0 || rawToken.Any(char.IsWhiteSpace))
+        {
+            return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+        }
+
+        var authentication = await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+        if (authentication.Succeeded)
+        {
+            var userId = GetUserId(authentication.Principal!);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            return !LogoutAuthorization.HasRequiredRole(authentication.Principal!)
+                ? new LogoutAccessToken(LogoutAccessTokenState.Forbidden, userId)
+                : new LogoutAccessToken(LogoutAccessTokenState.Valid, userId);
+        }
+
+        var validationParameters = jwtBearerOptions
+            .Get(JwtBearerDefaults.AuthenticationScheme)
+            .TokenValidationParameters
+            .Clone();
+        validationParameters.ValidateLifetime = false;
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var principal = handler.ValidateToken(rawToken, validationParameters, out var securityToken);
+            if (securityToken is not JwtSecurityToken jwt)
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            var now = DateTime.UtcNow;
+            if (jwt.ValidTo == DateTime.MinValue || jwt.ValidTo > now || jwt.ValidFrom > now)
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            var userId = GetUserId(principal);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+            }
+
+            return !LogoutAuthorization.HasRequiredRole(principal)
+                ? new LogoutAccessToken(LogoutAccessTokenState.Forbidden, userId)
+                : new LogoutAccessToken(LogoutAccessTokenState.Expired, userId);
+        }
+        catch (SecurityTokenException)
+        {
+            return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+        }
+        catch (ArgumentException)
+        {
+            return new LogoutAccessToken(LogoutAccessTokenState.Invalid, null);
+        }
+    }
+
+    private static string? GetUserId(ClaimsPrincipal principal)
+    {
+        return principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? principal.FindFirst("userId")?.Value
+            ?? principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    }
+
+    private static async Task<string?> ReadRefreshTokenAsync(
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        var refreshToken = context.Request.Cookies[RefreshCookieName];
+        if (string.IsNullOrWhiteSpace(refreshToken) && context.Request.HasJsonContentType())
+        {
+            var body = await context.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
+            refreshToken = body?.RefreshToken;
+        }
+
+        return refreshToken;
     }
 
     private static void SetRefreshCookie(HttpContext context, AuthResponseDto response)
@@ -163,6 +283,25 @@ public static class AuthEndpoints
             Path = "/api/v1/auth"
         });
     }
+
+    private sealed record LogoutAccessToken(LogoutAccessTokenState State, string? UserId);
+
+    private enum LogoutAccessTokenState
+    {
+        Valid,
+        Expired,
+        Forbidden,
+        Invalid
+    }
+}
+
+internal static class LogoutAuthorization
+{
+    public static bool HasRequiredRole(ClaimsPrincipal principal) =>
+        principal.Claims.Any(claim =>
+            (claim.Type == ClaimTypes.Role || claim.Type == "role" || claim.Type == "roles")
+            && (string.Equals(claim.Value, "Author", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(claim.Value, "Admin", StringComparison.OrdinalIgnoreCase)));
 }
 
 /// <summary>Refresh token payload for non-browser API clients.</summary>

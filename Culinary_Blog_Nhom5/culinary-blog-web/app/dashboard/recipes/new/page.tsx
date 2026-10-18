@@ -1,17 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import { ingredientFormSchema, type IngredientDraft } from "@/lib/ingredient-form";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
-import FileUploadDropzone from "@/components/common/FileUploadDropzone";
-
-type Ingredient = {
-  name: string;
-  quantity: string;
-  unit: string;
-};
+import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 
 type Step = {
   description: string;
@@ -50,9 +46,7 @@ export default function NewRecipePage() {
     return () => { active = false; };
   }, []);
 
-  const [ingredients, setIngredients] = useState<Ingredient[]>([
-    { name: "", quantity: "", unit: "" },
-  ]);
+  const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
 
   const [steps, setSteps] = useState<Step[]>([
     { description: "" },
@@ -67,31 +61,6 @@ export default function NewRecipePage() {
       .trim()
       .replace(/\s+/g, "-");
   }, [title]);
-
-  const addIngredient = () => {
-    setIngredients([
-      ...ingredients,
-      { name: "", quantity: "", unit: "" },
-    ]);
-  };
-
-  const removeIngredient = (index: number) => {
-    if (ingredients.length === 1) return;
-
-    setIngredients(
-      ingredients.filter((_, i) => i !== index)
-    );
-  };
-
-  const updateIngredient = (
-    index: number,
-    field: keyof Ingredient,
-    value: string
-  ) => {
-    const updated = [...ingredients];
-    updated[index][field] = value;
-    setIngredients(updated);
-  };
 
   const addStep = () => {
     setSteps([...steps, { description: "" }]);
@@ -112,15 +81,62 @@ export default function NewRecipePage() {
   const handleSubmit = async () => {
     if (saving.current || createdRecipeId) return;
     setFormError("");
-    let recipeData;
+
+    if (!category) {
+      alert("Vui lòng chọn danh mục.");
+      return;
+    }
+
+    if (prepTime && (!Number.isFinite(Number(prepTime)) || Number(prepTime) < 0)) {
+      alert("Thời gian chuẩn bị không hợp lệ.");
+      return;
+    }
+
+    if (cookTime && (!Number.isFinite(Number(cookTime)) || Number(cookTime) < 0)) {
+      alert("Thời gian nấu không hợp lệ.");
+      return;
+    }
+
+    const checkedIngredients = ingredientFormSchema.safeParse({ items: ingredients });
+    if (!checkedIngredients.success) {
+      setFormError(checkedIngredients.error.issues.map(issue => issue.message).join(" "));
+      return;
+    }
+
+    // Kiểm tra các bước
+    const invalidStep = steps.some(
+      (step) => !step.description.trim()
+    );
+
+    if (invalidStep) {
+      alert("Vui lòng nhập đầy đủ nội dung các bước thực hiện.");
+      return;
+    }
+
+    if (Number(servings) <= 0 || !Number.isFinite(Number(servings))) {
+      alert("Số khẩu phần phải lớn hơn 0.");
+      return;
+    }
+
+    let recipeData: ReturnType<typeof buildCreateRecipePayload>;
     try {
-      recipeData = buildCreateRecipePayload({ title, description, category, difficulty,
-        prepTime, cookTime, servings, ingredients, steps,
-        nutrition: { calories, protein, carbohydrates: carbs, fat, fiber, sodium } });
+      recipeData = buildCreateRecipePayload({
+        title,
+        description,
+        category,
+        difficulty,
+        prepTime,
+        cookTime,
+        servings,
+        ingredients: checkedIngredients.data.items,
+        steps,
+        nutrition: { calories, protein, carbohydrates: carbs, fat, fiber, sodium },
+      });
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Dữ liệu không hợp lệ.");
       return;
     }
+
     saving.current = true;
     setIsSaving(true);
     try {
@@ -318,7 +334,7 @@ export default function NewRecipePage() {
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-            {createdRecipeId && <div className="mt-5"><FileUploadDropzone recipeId={createdRecipeId} /></div>}
+            {createdRecipeId && <div className="mt-5"><ImageGalleryManager key={createdRecipeId} recipeId={createdRecipeId} /></div>}
           </section>
 
           {/* NUTRITION */}
@@ -370,84 +386,8 @@ export default function NewRecipePage() {
             </div>
           </section>
 
-          {/* INGREDIENTS */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Nguyên liệu
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Thêm các nguyên liệu cần thiết (có thể để trống khi lưu bản nháp).
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={addIngredient}
-                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                + Thêm nguyên liệu
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {ingredients.map((ingredient, index) => (
-                <div
-                  key={index}
-                  className="grid gap-3 md:grid-cols-[1fr_150px_120px_auto]"
-                >
-                  <input
-                    value={ingredient.name}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "name",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Tên nguyên liệu"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <input
-                    value={ingredient.quantity}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "quantity",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Số lượng"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <input
-                    value={ingredient.unit}
-                    onChange={(e) =>
-                      updateIngredient(
-                        index,
-                        "unit",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Đơn vị"
-                    className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => removeIngredient(index)}
-                    className="rounded-xl border border-red-200 px-4 py-3 text-red-500 hover:bg-red-50"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+          <IngredientManager key={createdRecipeId ?? "new-ingredients"} recipeId={createdRecipeId ?? undefined}
+            initialItems={ingredients} onChange={setIngredients} />
 
           {/* STEPS */}
           <section className="rounded-2xl bg-white p-6 shadow-sm">

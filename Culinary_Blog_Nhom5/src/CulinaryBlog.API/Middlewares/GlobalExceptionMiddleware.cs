@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CulinaryBlog.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.API.Middlewares;
@@ -125,6 +126,14 @@ public class GlobalExceptionMiddleware
                 problemDetails.Title = "Tài khoản bị tạm khóa.";
                 problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc4918#section-11.3";
                 problemDetails.Detail = lockedEx.Message;
+                break;
+
+            case DbUpdateConcurrencyException:
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                problemDetails.Status = StatusCodes.Status409Conflict;
+                problemDetails.Title = "Dữ liệu đã được thay đổi bởi một yêu cầu khác.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.10";
+                problemDetails.Detail = "Tải lại dữ liệu mới nhất rồi thử lại.";
                 break;
 
            default:

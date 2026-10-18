@@ -33,7 +33,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
   useEffect(() => () => controllerRef.current?.abort(), []);
 
   const chooseFile = (candidate?: File) => {
-    if (!candidate) return;
+    if (!candidate || state === "uploading") return;
     if (!ACCEPTED_TYPES.has(candidate.type)) {
       setSelected(null);
       setMessage("Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc AVIF.");
@@ -60,8 +60,9 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
     setMessage("");
     try {
       const image = await uploadRecipeImage(recipeId, file, setProgress, controller.signal, altText);
+      if (controller.signal.aborted) return;
       setState("success");
-      setMessage(`Đã tải ảnh lên. Trạng thái xử lý: ${image.processingStatus}.`);
+      setMessage("Đã tải ảnh lên. Các kích thước xem trước sẽ được tạo trong nền.");
       onUploadSuccess?.(image);
     } catch (error) {
       if (controller.signal.aborted) {
@@ -94,6 +95,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
           ref={inputRef}
           className="sr-only"
           type="file"
+          disabled={state === "uploading"}
           tabIndex={0}
           accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif"
           aria-label="Chọn ảnh công thức"
@@ -105,7 +107,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
         <div>
           <progress className="w-full" value={progress} max={100} aria-label={`Đang tải ảnh ${progress}%`} />
           <div className="text-right text-sm text-gray-600">{progress}%</div>
-          {progress === 100 && <p className="text-sm text-gray-600">Đang tạo ảnh xem trước...</p>}
+          {progress === 100 && <p className="text-sm text-gray-600">Đang chờ máy chủ xác nhận ảnh...</p>}
         </div>
       )}
       {message && <p role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-sm text-red-600" : "text-sm text-gray-600"}>{message}</p>}
@@ -127,6 +129,7 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
         <input
           value={altText}
           maxLength={200}
+          disabled={state === "uploading"}
           onChange={(event) => setAltText(event.target.value)}
           className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
           placeholder="Mô tả ngắn về món ăn trong ảnh"
