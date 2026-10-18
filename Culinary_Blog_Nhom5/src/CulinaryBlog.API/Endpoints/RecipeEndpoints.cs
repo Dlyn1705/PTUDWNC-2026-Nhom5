@@ -17,6 +17,7 @@ using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
 using CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe;
+using CulinaryBlog.Application.Features.Recipes.Steps;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Application.Features.Recipes.Ingredients;
 using CulinaryBlog.Domain.Enums;
@@ -358,36 +359,12 @@ public static class RecipeEndpoints
         // FR-RCP-005: Xuáº¥t báº£n cÃ´ng thá»©c
         group.MapPatch("/{id:guid}/publish", async (
             Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            ApplicationDbContext db,
+            ISender sender,
             CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException();
-
-            if (recipe.Status == RecipeStatus.Published)
-                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
-
-            if (recipe.Status == RecipeStatus.Archived)
-                throw new ConflictException("KhÃ´ng thá»ƒ xuáº¥t báº£n cÃ´ng thá»©c Ä‘ang lÆ°u trá»¯. HÃ£y khÃ´i phá»¥c vá» báº£n nhÃ¡p trÆ°á»›c.");
-
-            try
-            {
-                recipe.Publish();
-            }
-            catch (DomainException ex)
-            {
-                throw new ValidationException("Steps", ex.Message);
-            }
-
-            await db.SaveChangesAsync(ct);
-            DiagnosticsConfig.RecipePublishedCounter.Add(1);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+            var result = await sender.Send(new PublishRecipeWithStepsCommand(id), ct);
+            if (result.WasPublished) DiagnosticsConfig.RecipePublishedCounter.Add(1);
+            return Results.Ok(result);
         })
         .WithName("PublishRecipe")
         .RequireRateLimiting("recipe-write")
@@ -469,7 +446,7 @@ public static class RecipeEndpoints
                 request.Ingredients?.Select(x => x is null ? null : new NewRecipeIngredient(
                     x.Name, x.Quantity, x.Unit, x.Notes)).ToArray(),
                 request.Steps?.Select(x => x is null ? null : new NewRecipeStep(
-                    x.Description, x.Title, x.TimerMinutes)).ToArray(),
+                    x.Description, x.Title, x.TimerMinutes, x.ImageUrl)).ToArray(),
                 request.Nutrition is { } n ? new NewRecipeNutrition(
                     n.Calories, n.Protein, n.Carbohydrates, n.Fat, n.Fiber, n.Sodium) : null), ct);
             DiagnosticsConfig.RecipeCreatedCounter.Add(1);
@@ -591,7 +568,8 @@ public sealed record CreateRecipeIngredientRequest(
 public sealed record CreateRecipeStepRequest(
     string Description,
     string? Title = null,
-    int? TimerMinutes = null);
+    int? TimerMinutes = null,
+    string? ImageUrl = null);
 
 public sealed record CreateRecipeNutritionRequest(
     decimal? Calories = null,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CulinaryBlog.Domain.Common;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -103,7 +104,7 @@ public class Recipe : BaseEntity
 
     public void Publish()
     {
-        if (Steps.Count == 0)
+        if (!Steps.Any(step => !step.IsDeleted))
         {
             throw new DomainException("Công thức phải có ít nhất 1 bước thực hiện trước khi xuất bản.");
         }

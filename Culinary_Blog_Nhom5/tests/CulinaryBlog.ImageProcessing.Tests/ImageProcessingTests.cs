@@ -59,6 +59,7 @@ public sealed class ImageProcessingTests
             Assert.True(durableImageMigration > 0, "The durable image processing migration must have a prior baseline.");
             var previous = migrations[durableImageMigration - 1];
             await db.GetService<IMigrator>().MigrateAsync(previous);
+            Assert.DoesNotContain(migrations[durableImageMigration], await db.Database.GetAppliedMigrationsAsync());
             var states = new[] { "Processing", "Completed", "Failed", "Pending" };
             for (var index = 0; index < states.Length; index++)
                 db.RecipeImages.Add(new RecipeImage { RecipeId = app.RecipeId, OrderIndex = index, OriginalUrl = "http://legacy.test/original.jpg",

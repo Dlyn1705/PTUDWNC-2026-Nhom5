@@ -9,6 +9,7 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import StepManager from "@/components/recipes/editor/StepManager";
 import { useSession } from "next-auth/react";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
@@ -215,6 +216,21 @@ export default function EditRecipePage({ params }: RouteProps) {
             </label>
           </div>
         </fieldset>
+
+        <StepManager key={`steps-${recipeId}`} recipeId={recipeId} published={recipe.status === 1} parentVersion={recipe.rowVersion}
+          disabled={saving || deleting} onMutation={async () => {
+            try {
+              const fresh = await recipeApi.getById(recipeId);
+              if (activeRecipeId.current !== fresh.id) return;
+              const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
+              if (keys.some(key => fresh[key] !== recipe[key])) {
+                setError("Nội dung công thức đã đổi ở nơi khác. Hãy tải lại trước khi lưu nội dung.");
+                return;
+              }
+              setForm(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+              setRecipe(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+            } catch { setError("Các bước đã lưu; hãy tải lại công thức trước khi lưu nội dung."); }
+          }} />
 
         <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.
