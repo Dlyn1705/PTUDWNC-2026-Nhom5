@@ -53,7 +53,7 @@ public sealed class UpdateRecipeCommandHandler(ICurrentUserService user, IRecipe
             throw new ForbiddenException("Bạn chỉ được cập nhật công thức do chính mình tạo.");
 
         var expectedVersion = RecipeUpdateVersion.Parse(request.RowVersion, request.IfMatch);
-        recipe.Update(request.Title.Trim(), request.Description?.Trim() ?? "", request.Instructions?.Trim() ?? "",
+        recipe.Update(request.Title.Trim(), request.Description?.Trim() ?? "", request.Instructions?.Trim(),
             request.PrepTime, request.CookTime, request.Servings, request.Difficulty, request.CategoryId);
         return await store.SaveAsync(recipe, expectedVersion, user.UserId, cancellationToken);
     }

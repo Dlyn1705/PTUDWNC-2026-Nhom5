@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
+using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
 using CulinaryBlog.Domain.Entities;
@@ -78,6 +79,7 @@ public sealed class RecipeUpdateTests
         await new UpdateRecipeCommandHandler(new User(true, "other", ["Admin"]), store).Handle(Valid(), default);
         Assert.True(store.Saved); Assert.Equal("owner", store.Recipe.AuthorId);
         Assert.Equal("original", store.Recipe.Slug);
+        Assert.Null(store.Recipe.Instructions);
     }
 
     private sealed class User(bool authenticated, string id, IReadOnlyList<string> roles) : ICurrentUserService
@@ -171,7 +173,7 @@ public sealed class RecipeUpdateTests
             Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Put(Payload(originalVersion), "\"AQ==\"")).StatusCode);
             var response = await Put(Payload(null), $"\"{originalVersion}\"");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var saved = (await response.Content.ReadFromJsonAsync<UpdatedRecipe>())!;
+            var saved = (await response.Content.ReadFromJsonAsync<ApiResponse<UpdatedRecipe>>())!.Data!;
             Assert.NotEqual(originalVersion, saved.RowVersion); Assert.Equal("original", saved.Slug);
             Assert.Equal(saved.RowVersion, response.Headers.ETag!.Tag.Trim('"'));
             Assert.True(response.Headers.CacheControl!.NoStore);
@@ -191,7 +193,7 @@ public sealed class RecipeUpdateTests
             var parallel = await Task.WhenAll(Put(Payload(saved.RowVersion)), Put(Payload(saved.RowVersion)));
             Assert.Single(parallel, x => x.StatusCode == HttpStatusCode.OK);
             Assert.Single(parallel, x => x.StatusCode == HttpStatusCode.Conflict);
-            saved = (await parallel.Single(x => x.StatusCode == HttpStatusCode.OK).Content.ReadFromJsonAsync<UpdatedRecipe>())!;
+            saved = (await parallel.Single(x => x.StatusCode == HttpStatusCode.OK).Content.ReadFromJsonAsync<ApiResponse<UpdatedRecipe>>())!.Data!;
             await using (var scope = app.Services.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

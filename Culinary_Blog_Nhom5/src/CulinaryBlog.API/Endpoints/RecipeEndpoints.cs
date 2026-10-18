@@ -10,6 +10,7 @@ using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
+using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
@@ -419,8 +420,8 @@ public static class RecipeEndpoints
                 throw new ValidationException("Description", "Description must not exceed 2000 characters.");
             }
 
-            var instructions = request.Instructions?.Trim() ?? string.Empty;
-            if (instructions.Length > 10000)
+            var instructions = request.Instructions?.Trim();
+            if (instructions?.Length > 10000)
             {
                 throw new ValidationException("Instructions", "Instructions must not exceed 10000 characters.");
             }
@@ -554,7 +555,7 @@ public static class RecipeEndpoints
                 request.RowVersion, httpContext.Request.Headers.IfMatch.ToString()), ct);
             httpContext.Response.Headers.ETag = $"\"{result.RowVersion}\"";
             httpContext.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(result);
+            return Results.Ok(ApiResponse<UpdatedRecipe>.Ok(result));
         })
         .RequireAuthorization("AuthorPolicy")
         .WithName("UpdateRecipe")

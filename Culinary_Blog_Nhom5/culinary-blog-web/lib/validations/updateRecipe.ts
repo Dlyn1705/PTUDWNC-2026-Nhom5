@@ -16,5 +16,5 @@ export function validateRecipeUpdate(value: RecipeWritePayload): RecipeWritePayl
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.categoryId) ||
       value.categoryId === "00000000-0000-0000-0000-000000000000") throw new Error("Vui lòng chọn danh mục.");
   if (!value.rowVersion) throw new Error("Thiếu phiên bản công thức. Hãy tải lại trước khi lưu.");
-  return { ...value, title, description, instructions };
+  return { ...value, title, description, instructions: instructions || undefined };
 }

@@ -35,9 +35,9 @@ Bản sửa ban đầu dựa trên `origin/main` tại `0452d23`; sau đó đư�
 - `RecipeUpdateStore` chỉ đọc root và owned nutrition, không tải các collection khi cập nhật. Mỗi lần retry dùng context/transaction mới; kiểm tra RowVersion hiện tại và vẫn đặt OriginalValue để EF bảo vệ race xảy ra sau lần đọc.
 - Kiểm tra actor còn hoạt động và category tồn tại/chưa xóa mềm trong transaction; giữ khóa đọc hàng actor/category đến khi commit. Chỉ copy các trường được sửa, không attach hoặc thay thế dữ liệu con do client gửi.
 - Giữ version vừa ghi để có thể nhận ra lần commit trước đã thành công nhưng acknowledgement bị mất. Kiểm thử tự động đã bao phủ retry SQLSTATE 40001; nhánh mất acknowledgement chưa được fault-inject riêng.
-- Endpoint PUT gửi command qua MediatR, giữ response phẳng `message/id/slug/rowVersion`, trả ETag mới. HTTP 200/401/403/404/409/422 giữ tương thích.
+- Endpoint PUT gửi command qua MediatR, trả success wrapper `{ data: { message, id, slug, rowVersion } }` theo API contract và ETag mới. HTTP 200/401/403/404/409/422 giữ tương thích.
 - Detail GET theo ID/slug và search trả `Cache-Control: no-store` để không phục vụ dữ liệu cũ qua HTTP shared cache sau khi sửa. Main hiện chưa có pipeline Redis cache tags chung; thay đổi này không giả lập việc invalidate tag hay tuyên bố đã hoàn thiện cache Redis toàn hệ thống. SearchVector tiếp tục được PostgreSQL trigger hiện có cập nhật.
-- Không thay schema/migration, luồng tạo, child CRUD hoặc publish/archive/delete.
+- Đồng bộ schema/migration cho `Instructions` nullable theo đặc tả; không thay luồng tạo, child CRUD hoặc publish/archive/delete.
 
 ### Frontend
 
