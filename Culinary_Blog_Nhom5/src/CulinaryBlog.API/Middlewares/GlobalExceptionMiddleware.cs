@@ -71,6 +71,14 @@ public class GlobalExceptionMiddleware
 
         switch (exception)
         {
+            case BadRequestException badRequestEx:
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                problemDetails.Status = StatusCodes.Status400BadRequest;
+                problemDetails.Title = "Yêu cầu không hợp lệ.";
+                problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1";
+                problemDetails.Detail = badRequestEx.Message;
+                break;
+
             case ValidationException valEx:
                 context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
                 problemDetails.Status = StatusCodes.Status422UnprocessableEntity;

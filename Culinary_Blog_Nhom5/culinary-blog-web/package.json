@@ -11,7 +11,9 @@
     "test:image-ui": "node tests/image-processing-ui.cjs",
     "test:security": "node --test tests/security.unit.cjs",
     "test:e2e:security": "npm run build && node tests/security.e2e.cjs",
-    "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js"
+    "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
+    "test:auth": "tsc -p tsconfig.auth-tests.json && node --conditions=react-server --test --test-force-exit build/auth-tests/tests/*.test.js",
+    "test:auth:e2e": "node tests/auth.e2e.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -27,11 +29,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.47.0",
-    "next": "16.3.8",
+    "next": "16.3.5",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.88.0",
+    "redis": "^6.3.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.7.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.15"
@@ -42,7 +46,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.3.5",
     "playwright": "1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5"
