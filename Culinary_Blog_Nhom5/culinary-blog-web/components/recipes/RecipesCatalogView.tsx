@@ -30,7 +30,7 @@ export function RecipesCatalogView({
   const [isPending, startTransition] = useTransition();
 
   function updateQuery(changes: Record<string, string>) {
-    const query = new URLSearchParams(searchParams.toString());
+    const query = new URLSearchParams(searchParams?.toString() ?? "");
     query.delete("page");
     for (const [key, value] of Object.entries(changes)) {
       if (value === "all" || value === "newest") query.delete(key);

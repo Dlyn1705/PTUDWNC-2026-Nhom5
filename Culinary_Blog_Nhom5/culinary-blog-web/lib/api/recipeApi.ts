@@ -1,5 +1,5 @@
 import axiosClient from "./axiosClient";
-import type { RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload } from "@/types/recipe.types";
+import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult, RecipeMutationResponse, RecipeWritePayload, CreateRecipeRequest } from "@/types/recipe.types";
 import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
@@ -11,6 +11,16 @@ const mockModeEnabled =
 type LegacyPagedRecipes = { items: RecipeSummaryDto[] };
 
 export const recipeApi = {
+  async getMine(params: {
+    page?: number;
+    pageSize?: number;
+    status?: number;
+    sortBy?: string;
+  } = {}): Promise<ManagedRecipesPage> {
+    const response = await axiosClient.get<ManagedRecipesPage>("/api/v1/recipes/mine", { params });
+    return response.data;
+  },
+
   async getPaged(params: {
     page?: number;
     pageSize?: number;
@@ -87,12 +97,12 @@ export const recipeApi = {
     return response.data;
   },
 
-  async create(payload: Omit<RecipeWritePayload, "rowVersion">): Promise<RecipeMutationResponse> {
-    const response = await axiosClient.post<RecipeMutationResponse>(
+  async create(payload: CreateRecipeRequest): Promise<RecipeMutationResponse> {
+    const response = await axiosClient.post<ApiResponse<RecipeMutationResponse>>(
       "/api/v1/recipes/",
       payload,
     );
-    return response.data;
+    return response.data.data;
   },
 
   async update(id: string, payload: RecipeWritePayload): Promise<RecipeMutationResponse> {

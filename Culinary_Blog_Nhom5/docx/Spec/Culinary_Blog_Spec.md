@@ -112,6 +112,8 @@ Quy tắc vòng đời:
 - `Notes`: Tùy chọn (tối đa 500 ký tự).
 - `OrderIndex`: Số nguyên biểu thị thứ tự hiển thị, mặc định 0 (thống nhất dùng `OrderIndex`, loại bỏ hoàn toàn `SortOrder`).
 
+**Chuẩn hóa triển khai FR-RCP-009:** Tối đa 100 nguyên liệu/công thức; `Unit` tối đa 50 ký tự; Quantity khớp `decimal(10,3)` (tối đa 9999999.999, không tự làm tròn số có quá 3 chữ số thập phân có nghĩa). Server quản lý thứ tự liên tục từ 0; thêm ở cuối, xóa tự đánh lại thứ tự, đổi vị trí qua endpoint reorder. Owner/Admin được quản lý nguyên liệu trên Draft/Published/Archived chưa xóa mềm; được xóa nguyên liệu cuối. Xóa một nguyên liệu là soft-delete. Mutation nguyên liệu của recipe đã lưu yêu cầu `If-Match` chứa ETag Recipe hiện tại; GET quản lý và các mutation thành công trả ETag mới. Version cũ trả 409, thiếu/sai version hoặc tập id reorder không hợp lệ trả 422. Quantity/Unit/Notes rỗng được chuẩn hóa về null; không tự gộp nguyên liệu trùng tên.
+
 **Bước thực hiện (RecipeStep):**
 - `Title`: Bắt buộc, độ dài 1–200 ký tự (nếu client để trống, backend tự động gán mặc định `$"Bước {stepNumber}"`).
 - `Description`: Bắt buộc, không rỗng, tối đa 2.000 ký tự.
@@ -233,9 +235,11 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | | `PUT /recipes/{id}/steps/{stepId}` | Owner/Admin | Cập nhật nội dung bước (title, desc, timer) |
 | | `PUT /recipes/{id}/steps/reorder` | Owner/Admin | Đổi thứ tự toàn bộ các bước an toàn |
 | | `DELETE /recipes/{id}/steps/{stepId}` | Owner/Admin | Xóa bước & tự động renumber (chặn xóa nếu bài Published còn 1 bước) |
-| **Ingredients** | `POST /recipes/{id}/ingredients` | Owner/Admin | Thêm nguyên liệu (Quantity/Unit là tùy chọn) |
+| **Ingredients** | `GET /recipes/{id}/ingredients` | Owner/Admin | Danh sách nguyên liệu đã lưu kèm ETag Recipe (no-store) |
+| | `POST /recipes/{id}/ingredients` | Owner/Admin | Thêm nguyên liệu (Quantity/Unit là tùy chọn, yêu cầu If-Match) |
 | | `PUT /recipes/{id}/ingredients/{ingId}` | Owner/Admin | Cập nhật nguyên liệu |
 | | `DELETE /recipes/{id}/ingredients/{ingId}` | Owner/Admin | Xóa nguyên liệu |
+| | `PUT /recipes/{id}/ingredients/reorder` | Owner/Admin | Đổi thứ tự toàn bộ qua ingredientIds; yêu cầu If-Match như PUT/DELETE nguyên liệu |
 | **Operations** | `GET /health`, `/health/live`, `/health/ready` | Public/Probe | Health check probes |
 
 HTTP status codes quan trọng:

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePermission } from "@/hooks/usePermission";
 
-type AppRole = "Admin" | "Author";
+import type { AppRole } from "@/types/auth";
 
 interface CanProps {
   role?: AppRole;
