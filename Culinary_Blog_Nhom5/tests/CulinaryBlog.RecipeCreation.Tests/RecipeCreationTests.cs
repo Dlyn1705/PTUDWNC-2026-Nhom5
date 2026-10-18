@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
+using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe;
 using CulinaryBlog.Domain.Entities;
@@ -32,6 +33,13 @@ public class RecipeCreationTests
 {
     private static CreateRecipeCommand Valid() => new("Đậu đỏ", null, null, 0, 0, 1,
         RecipeDifficulty.Easy, Guid.NewGuid());
+
+    private static async Task<CreatedRecipe> ReadCreated(HttpResponseMessage response)
+    {
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponse<CreatedRecipe>>();
+        return envelope?.Data ?? throw new InvalidOperationException("Create response did not contain data.");
+    }
 
     [Theory]
     [InlineData("title")][InlineData("difficulty")][InlineData("quantity")]
@@ -137,7 +145,7 @@ public class RecipeCreationTests
             client.DefaultRequestHeaders.Authorization = new("Bearer", Token("Author"));
             var createdResponse = await Post(Payload());
             Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
-            var created = (await createdResponse.Content.ReadFromJsonAsync<CreatedRecipe>())!;
+            var created = await ReadCreated(createdResponse);
             Assert.Equal("dau-do", created.Slug);
             Assert.NotEmpty(Convert.FromBase64String(created.RowVersion));
             Assert.EndsWith(created.Slug, createdResponse.Headers.Location!.ToString());
@@ -147,7 +155,7 @@ public class RecipeCreationTests
             client.DefaultRequestHeaders.Authorization = new("Bearer", Token("Author"));
             var concurrent = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => Post(Payload())));
             Assert.All(concurrent, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
-            var results = await Task.WhenAll(concurrent.Select(r => r.Content.ReadFromJsonAsync<CreatedRecipe>()));
+            var results = await Task.WhenAll(concurrent.Select(ReadCreated));
             Assert.Equal(5, results.Select(r => r!.Slug).Distinct().Count());
             Assert.Contains(results, r => r!.Slug == "dau-do-6");
             var invalid = Payload(); invalid["difficulty"] = 99;
@@ -159,10 +167,10 @@ public class RecipeCreationTests
             invalid = Payload(); invalid["ingredients"] = new JsonArray(new JsonObject { ["name"] = "Muối", ["quantity"] = 0 });
             Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Post(invalid)).StatusCode);
             var longTitle = new string('a', 200);
-            var longOne = (await (await Post(Payload(longTitle))).Content.ReadFromJsonAsync<CreatedRecipe>())!;
-            var longTwo = (await (await Post(Payload(longTitle))).Content.ReadFromJsonAsync<CreatedRecipe>())!;
+            var longOne = await ReadCreated(await Post(Payload(longTitle)));
+            var longTwo = await ReadCreated(await Post(Payload(longTitle)));
             Assert.Equal(longTitle, longOne.Slug); Assert.Equal(longTitle + "-2", longTwo.Slug);
-            var symbol = (await (await Post(Payload("🍲🍲🍲"))).Content.ReadFromJsonAsync<CreatedRecipe>())!;
+            var symbol = await ReadCreated(await Post(Payload("🍲🍲🍲")));
             Assert.StartsWith("recipe-", symbol.Slug);
             var full = Payload("Món đầy đủ");
             full["ingredients"] = new JsonArray(new JsonObject { ["name"] = " Muối ", ["quantity"] = null });
@@ -174,13 +182,15 @@ public class RecipeCreationTests
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var draft = await db.Recipes.SingleAsync(x => x.Id == created.Id);
-                Assert.Equal(user.Id, draft.AuthorId); Assert.Equal(RecipeStatus.Draft, draft.Status); Assert.Null(draft.PublishedAt);
+                Assert.Equal(user.Id, draft.AuthorId); Assert.Equal(RecipeStatus.Draft, draft.Status);
+                Assert.Null(draft.PublishedAt); Assert.Null(draft.Instructions);
                 var complete = await db.Recipes.Include(x => x.Ingredients).Include(x => x.Steps).SingleAsync(x => x.Slug == "mon-day-du");
                 Assert.Equal("Muối", Assert.Single(complete.Ingredients).Name);
+                Assert.Equal(0, Assert.Single(complete.Ingredients).OrderIndex);
                 Assert.Equal("Bước 1", Assert.Single(complete.Steps).Title);
                 Assert.Equal(1, complete.Steps.Single().StepNumber); Assert.Equal(12.34m, complete.Nutrition.Calories);
                 draft.SoftDelete(); await db.SaveChangesAsync();
-                Assert.Equal("dau-do", (await (await Post(Payload())).Content.ReadFromJsonAsync<CreatedRecipe>())!.Slug);
+                Assert.Equal("dau-do", (await ReadCreated(await Post(Payload()))).Slug);
                 // A child insert failure must roll back the root and every sibling in the same transaction.
                 await db.Database.ExecuteSqlRawAsync("CREATE FUNCTION reject_test_step() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test child failure'; END $$; CREATE TRIGGER reject_test_step BEFORE INSERT ON \"RecipeSteps\" FOR EACH ROW EXECUTE FUNCTION reject_test_step();");
                 full["title"] = "Rollback recipe";

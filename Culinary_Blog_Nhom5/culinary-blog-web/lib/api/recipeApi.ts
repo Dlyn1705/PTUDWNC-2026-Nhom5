@@ -88,11 +88,11 @@ export const recipeApi = {
   },
 
   async create(payload: Omit<RecipeWritePayload, "rowVersion">): Promise<RecipeMutationResponse> {
-    const response = await axiosClient.post<RecipeMutationResponse>(
+    const response = await axiosClient.post<ApiResponse<RecipeMutationResponse>>(
       "/api/v1/recipes/",
       payload,
     );
-    return response.data;
+    return response.data.data;
   },
 
   async update(id: string, payload: RecipeWritePayload): Promise<RecipeMutationResponse> {

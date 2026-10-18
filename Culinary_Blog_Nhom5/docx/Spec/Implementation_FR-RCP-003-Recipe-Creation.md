@@ -24,7 +24,7 @@ Ngày kiểm tra: 16/10/2026. Nhánh: `2312778-phanthibaotram-taocongthuc`, xu�
 ## Thay đổi
 
 - Thêm `CreateRecipeCommand`, validator, handler và contract `IRecipeCreationStore`. Handler kiểm tra đăng nhập và vai trò Author/Admin. Không bổ sung yêu cầu xác minh email ngoài đặc tả đang áp dụng.
-- Endpoint POST giữ request và response tương thích: `201`, Location theo slug thực tế, JSON gồm message/id/slug/rowVersion. Bổ sung mô tả lỗi 404/409/422.
+- Endpoint POST dùng success wrapper chuẩn `{ success, message, data }`, trả `201` và Location theo slug thực tế; `data` gồm id/slug/rowVersion. Bổ sung mô tả lỗi 404/409/422.
 - `RecipeCreationStore` dùng PostgreSQL transaction, giữ khóa đọc category/user trong lúc lưu, kiểm tra tài khoản còn hoạt động, khóa advisory theo slug gốc và unique index hiện có. Collision từ writer cũ được thử lại có giới hạn. EF execution strategy dùng context mới mỗi lần thử; ID aggregate ổn định để nhận ra lần commit đã thành công nhưng mất acknowledgement.
 - Lưu dữ liệu con bằng một lần SaveChanges. StepNumber được cấp 1..n, Title bước trống tự gán “Bước n”. OrderIndex nguyên liệu giữ quy ước 1..n của luồng tạo trên main.
 - Validator kiểm tra số lượng danh sách tối đa 100, độ dài sau trim, số lượng nguyên liệu dương và phù hợp decimal(10,3), nutrition không âm và phù hợp decimal(8,2), thời gian không âm, servings dương và enum hợp lệ.

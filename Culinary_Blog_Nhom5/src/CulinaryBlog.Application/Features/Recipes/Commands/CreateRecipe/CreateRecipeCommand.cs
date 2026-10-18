@@ -94,14 +94,14 @@ public sealed class CreateRecipeCommandHandler(ICurrentUserService user, IRecipe
         var slug = SlugHelper.Generate(title.Normalize());
         if (slug.Length > 200) slug = slug[..200].TrimEnd('-');
         var recipe = Recipe.Create(title, slug, request.Description?.Trim() ?? "",
-            request.Instructions?.Trim() ?? "", request.PrepTime, request.CookTime,
+            request.Instructions?.Trim(), request.PrepTime, request.CookTime,
             request.Servings, request.Difficulty, request.CategoryId, user.UserId);
         if (string.IsNullOrEmpty(slug)) recipe.Slug = $"recipe-{recipe.Id:N}";
         if (request.Nutrition is { } n)
             recipe.SetNutrition(n.Calories, n.Protein, n.Carbohydrates, n.Fat, n.Fiber, n.Sodium);
         foreach (var item in request.Ingredients ?? [])
             recipe.Ingredients.Add(RecipeIngredient.Create(recipe.Id, item!.Name.Trim(), item.Quantity,
-                item.Unit?.Trim(), item.Notes?.Trim(), recipe.Ingredients.Count + 1));
+                item.Unit?.Trim(), item.Notes?.Trim(), recipe.Ingredients.Count));
         foreach (var item in request.Steps ?? [])
         {
             var number = recipe.Steps.Count + 1;

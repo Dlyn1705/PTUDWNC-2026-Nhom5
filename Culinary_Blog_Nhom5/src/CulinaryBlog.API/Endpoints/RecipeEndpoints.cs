@@ -396,12 +396,14 @@ public static class RecipeEndpoints
                 request.Nutrition is { } n ? new NewRecipeNutrition(
                     n.Calories, n.Protein, n.Carbohydrates, n.Fat, n.Fiber, n.Sodium) : null), ct);
             DiagnosticsConfig.RecipeCreatedCounter.Add(1);
-            return Results.Created($"/api/v1/recipes/{result.Slug}", result);
+            return Results.Created(
+                $"/api/v1/recipes/{result.Slug}",
+                ApiResponse<CreatedRecipe>.Ok(result));
         })
         .RequireAuthorization("AuthorPolicy")
         .WithName("CreateRecipe")
         .WithSummary("Tạo công thức mới - Author/Admin")
-        .Produces(StatusCodes.Status201Created)
+        .Produces<ApiResponse<CreatedRecipe>>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -472,8 +474,8 @@ public static class RecipeEndpoints
                 throw new ValidationException("Description", "Description must not exceed 2000 characters.");
             }
 
-            var instructions = request.Instructions?.Trim() ?? string.Empty;
-            if (instructions.Length > 10000)
+            var instructions = request.Instructions?.Trim();
+            if (instructions?.Length > 10000)
             {
                 throw new ValidationException("Instructions", "Instructions must not exceed 10000 characters.");
             }
