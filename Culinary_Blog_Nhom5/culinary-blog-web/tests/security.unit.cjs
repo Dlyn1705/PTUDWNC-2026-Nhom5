@@ -16,14 +16,66 @@ function load(relative, dependencies = {}, globals = {}) {
     if (!(name in dependencies)) throw new Error(`Unexpected dependency: ${name}`);
     return dependencies[name];
   }, URL, Headers, Response, Buffer, crypto: require("node:crypto").webcrypto,
-  process: { env: { NODE_ENV: "production" } }, console: { error() {} }, ...globals }, { filename: relative });
+  process: { env: { NODE_ENV: "production" } }, AbortSignal, console: { error() {} }, ...globals }, { filename: relative });
   return loaded.exports;
 }
 function authFixture(fetcher) {
   let configuration;
+  class RefreshRejected extends Error {}
+  class RefreshUnavailable extends Error {
+    constructor(retryAfterMs = 60000) { super("temporarily unavailable"); this.retryAfterMs = retryAfterMs; }
+  }
+  const sessions = new Map(); let nextSession = 0;
+  const readBackendTokens = async response => {
+    if (!response.ok) throw new RefreshRejected();
+    const payload = await response.json();
+    const cookie = response.headers.get("set-cookie") || "";
+    const refreshToken = cookie.match(/culinary_refresh_token=([^;]+)/)?.[1];
+    if (!refreshToken) throw new Error("Missing refresh token");
+    return { session: { accessToken: payload.accessToken, accessTokenExpiry: payload.accessTokenExpiry,
+      user: payload.user, roles: payload.roles }, refreshToken,
+      refreshTokenExpiry: Date.now() + 3600000 };
+  };
+  const backendTokens = {
+    backendUrl: path => new URL(path, "http://backend.test"),
+    readBackendTokens,
+    refreshBackendTokens: async refreshToken => {
+      const result = await fetcher(new URL("/api/v1/auth/refresh", "http://backend.test"), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (result.status === 401 || result.status === 423) throw new RefreshRejected();
+      if (result.status === 429) throw new RefreshUnavailable();
+      return readBackendTokens(result);
+    },
+    revokeBackendTokens: async refreshToken => {
+      const result = await fetcher(new URL("/api/v1/auth/logout", "http://backend.test"), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!result.ok) throw new Error("logout failed");
+    },
+    RefreshRejected, RefreshUnavailable,
+  };
+  class SessionCoordinator {
+    constructor(_store, refresh, revoke) { this.refresh = refresh; this.revoke = revoke; }
+    async create(tokens) { const id = `session-${++nextSession}`; sessions.set(id, tokens); return id; }
+    async resolve(id) {
+      const stored = sessions.get(id);
+      if (!stored) throw new RefreshRejected();
+      if (Date.parse(stored.session.accessTokenExpiry) <= Date.now() + 60000) {
+        const refreshed = await this.refresh(stored.refreshToken); sessions.set(id, refreshed); return refreshed;
+      }
+      return stored;
+    }
+    async logout(id) { const stored = sessions.get(id); if (stored) await this.revoke(stored.refreshToken); sessions.delete(id); }
+  }
   load("lib/auth.ts", {
     "server-only": {}, "next-auth": { __esModule: true, default: options => { configuration = options; return {}; } },
     "next-auth/providers/credentials": { __esModule: true, default: options => options },
+    "./auth/backendTokens": backendTokens,
+    "./auth/sessionCoordinator": { SessionCoordinator },
+    "./auth/redisSessionStore": { redisSessionStore: {} },
   }, { fetch: fetcher });
   return configuration;
 }
@@ -36,7 +88,7 @@ test("login sends credentials server-side and captures HttpOnly backend refresh 
   const calls = [];
   const config = authFixture(async (url, options) => { calls.push({ url, options }); return response(); });
   const user = await config.providers[0].authorize({ email: "author@test.invalid", password: "Test-only-password1!" });
-  assert.equal(user.role, "Author"); assert.equal(user.backendRefreshToken, "refresh-private");
+  assert.equal(user.backendTokens.session.roles[0], "Author"); assert.equal(user.backendTokens.refreshToken, "refresh-private");
   assert.equal(calls[0].url.pathname, "/api/v1/auth/login");
   assert.equal(calls[0].options.cache, "no-store");
   const token = await config.callbacks.jwt({ token: {}, user });
@@ -55,43 +107,52 @@ test("invalid credentials and unsupported roles are rejected", async () => {
 });
 
 test("valid access token is reused without refresh", async () => {
-  const config = authFixture(async () => { throw new Error("Unexpected refresh"); });
-  const token = { accessToken: "current", backendRefreshToken: "private", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString() };
-  assert.equal((await config.callbacks.jwt({ token })).accessToken, "current");
+  const config = authFixture(async url => {
+    if (url.pathname.endsWith("/login")) return response();
+    throw new Error("Unexpected refresh");
+  });
+  const user = await config.providers[0].authorize({ email: "author@test.invalid", password: "Test-only-password1!" });
+  const token = await config.callbacks.jwt({ token: {}, user });
+  assert.equal((await config.callbacks.jwt({ token })).error, undefined);
 });
 
-test("concurrent expiry shares one refresh and rotates token and roles", async () => {
+test("expired backend session refreshes and rotates token and roles", async () => {
   let calls = 0;
   const config = authFixture(async (url, options) => {
+    if (url.pathname.endsWith("/login")) return response(["Author"], "old-refresh", "old-access");
     calls++; assert.equal(url.pathname, "/api/v1/auth/refresh");
     assert.equal(JSON.parse(options.body).refreshToken, "old-refresh");
     await new Promise(resolve => setImmediate(resolve));
     return response(["Admin"], "rotated-refresh", "rotated-access");
   });
-  const expired = { accessToken: "old", backendRefreshToken: "old-refresh", accessTokenExpiry: new Date(0).toISOString() };
-  const tokens = await Promise.all([config.callbacks.jwt({ token: { ...expired } }), config.callbacks.jwt({ token: { ...expired } })]);
+  const expired = await config.providers[0].authorize({ email: "author@test.invalid", password: "Test-only-password1!" });
+  expired.backendTokens.session.accessTokenExpiry = new Date(0).toISOString();
+  const token = await config.callbacks.jwt({ token: {}, user: expired });
   assert.equal(calls, 1);
-  for (const token of tokens) {
-    assert.equal(token.accessToken, "rotated-access"); assert.equal(token.backendRefreshToken, "rotated-refresh");
-    assert.equal(token.role, "Admin"); assert.equal(token.error, undefined);
-  }
+  assert.equal(token.role, "Admin"); assert.equal(token.error, undefined);
 });
 
 test("failed refresh marks session invalid", async () => {
-  const config = authFixture(async () => new Response(null, { status: 401 }));
-  const token = await config.callbacks.jwt({ token: { accessToken: "old", backendRefreshToken: "revoked", accessTokenExpiry: new Date(0).toISOString() } });
+  const config = authFixture(async url => url.pathname.endsWith("/login") ? response() : new Response(null, { status: 401 }));
+  const user = await config.providers[0].authorize({ email: "author@test.invalid", password: "Test-only-password1!" });
+  user.backendTokens.session.accessTokenExpiry = new Date(0).toISOString();
+  const token = await config.callbacks.jwt({ token: {}, user });
   assert.equal(token.error, "RefreshTokenError");
   const session = await config.callbacks.session({ session: { user: {} }, token });
   assert.equal(session.error, "RefreshTokenError");
 });
 
-test("logout revokes the backend refresh token with bearer authentication", async () => {
+test("logout revokes the backend refresh token", async () => {
   const calls = [];
-  const config = authFixture(async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); });
-  await config.events.signOut({ token: { accessToken: "access", backendRefreshToken: "refresh" } });
+  const config = authFixture(async (url, options) => {
+    if (url.pathname.endsWith("/login")) return response();
+    calls.push({ url, options }); return new Response(null, { status: 204 });
+  });
+  const user = await config.providers[0].authorize({ email: "author@test.invalid", password: "Test-only-password1!" });
+  const token = await config.callbacks.jwt({ token: {}, user });
+  await config.events.signOut({ token });
   assert.equal(calls[0].url.pathname, "/api/v1/auth/logout");
-  assert.equal(calls[0].options.headers.Authorization, "Bearer access");
-  assert.equal(JSON.parse(calls[0].options.body).refreshToken, "refresh");
+  assert.equal(JSON.parse(calls[0].options.body).refreshToken, "refresh-private");
 });
 
 const permissions = load("lib/permissions.ts");
@@ -128,6 +189,13 @@ test("public prefetch does not invoke Auth.js or roll a session cookie", () => {
   assert.equal(handler(request).headers.get("x-middleware-next"), "1");
   assert.equal(calls, 0);
 });
+
+for (const route of ["/", "/recipes", "/recipes/deleted-slug", "/search", "/categories", "/categories/mon-chinh", "/sitemap.xml"]) {
+  test(`recipe HTML ${route} cannot serve a cached deleted recipe`, () => {
+    const response = proxy(new NextRequest(`https://example.invalid${route}`));
+    assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  });
+}
 test("CSP uses a fresh nonce, no production script bypass, and security headers on rewrites", () => {
   const request = () => { const r = new NextRequest("https://example.invalid/dashboard/categories"); r.auth = { user: { roles: ["Author"] } }; return r; };
   const first = proxy(request()); const second = proxy(request());

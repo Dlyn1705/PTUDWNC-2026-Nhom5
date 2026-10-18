@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   keepPreviousData,
   useMutation,
@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { recipeApi } from "@/lib/api/recipeApi";
 import {
@@ -31,6 +32,16 @@ export default function DashboardRecipesPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortValue>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  const deleteInFlight = useRef(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("deleted") !== "1") return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const timer = window.setTimeout(() => setSuccessMessage("Đã xóa công thức."), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const recipesQuery = useQuery({
     queryKey: ["managed-recipes", { page, pageSize: PAGE_SIZE, status, sortBy }],
@@ -75,17 +86,21 @@ export default function DashboardRecipesPage() {
   };
 
   const handleDelete = async (recipeId: string) => {
-    if (!window.confirm("Xóa công thức này?")) return;
+    if (deleteInFlight.current) return;
+    deleteInFlight.current = true;
 
     const shouldGoToPreviousPage = recipes.length === 1 && page > 1;
     deleteMutation.reset();
     setDeletingId(recipeId);
     try {
       await deleteMutation.mutateAsync(recipeId);
+      setSuccessMessage("Đã xóa công thức.");
+      setDeleteTargetId(null);
       if (shouldGoToPreviousPage) setPage((current) => current - 1);
     } catch {
       // The normalized mutation error is rendered below without an unhandled rejection.
     } finally {
+      deleteInFlight.current = false;
       setDeletingId(null);
     }
   };
@@ -173,6 +188,12 @@ export default function DashboardRecipesPage() {
         </div>
       )}
 
+      {successMessage && (
+        <p role="status" aria-live="polite" className="mb-4 rounded bg-green-50 p-4 text-green-700">
+          {successMessage}
+        </p>
+      )}
+
       {deleteMutation.error && !queryError && (
         <p role="alert" className="mb-4 rounded bg-red-50 p-4 text-red-700">
           {deleteError instanceof ApiProblemError && deleteError.status === 401
@@ -212,7 +233,7 @@ export default function DashboardRecipesPage() {
                   variant="link"
                   className="h-auto p-0 text-red-700"
                   disabled={deletingId !== null}
-                  onClick={() => void handleDelete(recipe.id)}
+                  onClick={() => setDeleteTargetId(recipe.id)}
                 >
                   {deletingId === recipe.id ? "Đang xóa…" : "Xóa"}
                 </Button>
@@ -245,6 +266,13 @@ export default function DashboardRecipesPage() {
           </Button>
         </nav>
       )}
+
+      <DeleteRecipeModal
+        open={deleteTargetId !== null}
+        busy={deletingId !== null}
+        onCancel={() => { if (!deletingId) setDeleteTargetId(null); }}
+        onConfirm={() => { if (deleteTargetId) void handleDelete(deleteTargetId); }}
+      />
     </main>
   );
 }

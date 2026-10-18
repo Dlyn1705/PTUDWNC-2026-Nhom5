@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,15 +14,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await connection();
   return (
     <html lang="vi" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        <QueryProvider>
+          <AuthSessionProvider>{children}</AuthSessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );
