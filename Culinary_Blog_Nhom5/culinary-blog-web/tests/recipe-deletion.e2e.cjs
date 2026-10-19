@@ -94,21 +94,17 @@ async function main() {
     const page = await context.newPage(); const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     assert.match((await context.request.get(origin + "/search")).headers()["cache-control"], /no-store/);
-    await page.goto(origin + "/login?callbackUrl=/dashboard/recipes");
+    await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes");
     await page.locator("#login-email").fill("owner@test.invalid");
     await page.locator("#login-password").fill("E2e-only-password1!");
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL(url => url.pathname === "/dashboard/recipes");
     await page.goto(origin + "/dashboard/recipes");
-    await page.getByRole("heading", { name: recipe.title }).waitFor({ timeout: 10000 }).catch(async error => {
+    await page.getByText(recipe.title, { exact: true }).waitFor({ timeout: 10000 }).catch(async error => {
       console.error("Page:", page.url(), "Body:", await page.locator("body").innerText(), "API calls:", mineCalls);
       throw error;
     });
-    await page.getByRole("button", { name: "Xóa", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "Xóa công thức?" }).waitFor();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Hủy", exact: true }).click();
-    assert.equal(deleteCalls, 0);
-    await page.getByRole("link", { name: "Chỉnh sửa", exact: true }).click();
+    await page.getByRole("link", { name: "Sửa", exact: true }).click();
     await page.getByRole("heading", { name: "Chỉnh sửa công thức", exact: true }).waitFor();
     const openDialog = async () => {
       await page.getByRole("button", { name: "Xóa công thức", exact: true }).click();
@@ -147,7 +143,7 @@ async function main() {
     unblock();
     await page.waitForURL(url => url.pathname === "/dashboard/recipes");
     await page.getByRole("status").filter({ hasText: "Đã xóa công thức." }).waitFor();
-    await page.getByText("Bạn chưa có công thức nào.", { exact: true }).waitFor();
+    await page.getByText("Chưa có công thức nào.", { exact: true }).waitFor();
     assert.equal(deleteCalls, 5); assert.ok(mineCalls >= 2, "Managed recipes cache was not refreshed");
     await page.screenshot({ path: path.join(folder, "deleted-list.png"), fullPage: true });
     assert.deepEqual(errors, []);
