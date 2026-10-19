@@ -18,7 +18,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   fs.writeFileSync(path.join(directory, "image.cjs"), 'module.exports=({unoptimized,...props})=>require("react").createElement("img",props);');
   fs.writeFileSync(path.join(directory, "api.cjs"), `exports.getRecipeImageStatus=async()=>{
     window.pollCalls++;const next=window.responses.shift()||{processingStatus:"Processing"};
-    if(next.error)throw {response:{status:next.error}};return {...window.initial,...next};
+    if(next.error)throw {status:next.error,correlationId:"preview-test-id"};return {...window.initial,...next};
   };`);
   fs.writeFileSync(path.join(directory, "entry.cjs"), `const React=require("react"),{createRoot}=require("react-dom/client"),Preview=require("./preview.cjs").default;
     const root=createRoot(document.getElementById("root"));let key=0;
@@ -41,7 +41,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.clock.runFor(3100); await page.getByRole("link", { name: "Ảnh vừa 800×600" }).waitFor();
     await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 2);
     await page.evaluate(() => window.renderCase([{ error: 403 }])); await page.clock.runFor(1200);
-    await page.getByRole("alert").waitFor(); await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 1);
+    await page.getByRole("alert").waitFor(); assert.match(await page.getByRole("alert").innerText(), /preview-test-id/);
+    await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 1);
     await page.evaluate(() => window.renderCase([{ error: 500 }, { error: 500 }, { error: 500 }]));
     await page.clock.runFor(1100); await page.clock.runFor(3100); await page.clock.runFor(3100); await page.clock.runFor(15000);
     assert.equal(await page.evaluate(() => window.pollCalls), 3);
