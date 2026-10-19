@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { CategoryDto } from "@/types/category.types";
 import CategoryCard from "./CategoryCard";
 import { UtensilsCrossed, Search, ArrowUpDown, X } from "lucide-react";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/common/Skeleton";
 import { LoadingState } from "@/components/common/LoadingState";
 import { EmptyState } from "@/components/common/EmptyState";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface CategoryGridProps {
   categories: CategoryDto[];
@@ -18,8 +19,18 @@ export function CategoryGrid({
   categories,
   isLoading = false,
 }: CategoryGridProps) {
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"count" | "name">("count");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams?.get("q") ?? "";
+  const sortBy = searchParams?.get("sortBy") === "name" ? "name" : "count";
+
+  const updateQuery = (key: "q" | "sortBy", value: string) => {
+    const query = new URLSearchParams(searchParams?.toString() ?? "");
+    if (!value || (key === "sortBy" && value === "count")) query.delete(key);
+    else query.set(key, value);
+    router.replace(`${pathname}${query.size ? `?${query.toString()}` : ""}`, { scroll: false });
+  };
 
   const filtered = useMemo(() => {
     const result = categories.filter((c) =>
@@ -71,13 +82,13 @@ export function CategoryGrid({
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateQuery("q", e.target.value)}
             placeholder="Tìm danh mục theo tên hoặc từ khóa..."
             className="pl-9.5 pr-8 h-10 rounded-xl bg-background border-border text-sm"
           />
           {search && (
             <button
-              onClick={() => setSearch("")}
+              onClick={() => updateQuery("q", "")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
               aria-label="Xóa từ khóa tìm kiếm danh mục"
             >
@@ -92,7 +103,7 @@ export function CategoryGrid({
           <span className="font-medium hidden md:inline">Sắp xếp:</span>
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "count" | "name")}
+            onChange={(e) => updateQuery("sortBy", e.target.value)}
             className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="count">Nhiều công thức nhất</option>
@@ -115,7 +126,7 @@ export function CategoryGrid({
             search ? (
               <button
                 type="button"
-                onClick={() => setSearch("")}
+                onClick={() => updateQuery("q", "")}
                 className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-primary hover:bg-muted cursor-pointer"
               >
                 Xóa bộ lọc tìm kiếm

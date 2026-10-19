@@ -106,6 +106,22 @@ test("ServerApiError holds status, message, and optional correlationId", () => {
   assert.equal(errorWithoutId.correlationId, undefined);
 });
 
+test("ServerApiError preserves RFC 7807 fields and validation errors", () => {
+  const error = new ServerApiError(422, "Validation failed", "req-422", {
+    type: "https://example.test/problems/validation",
+    title: "Validation error",
+    detail: "Please correct the highlighted fields.",
+    code: "VALIDATION_FAILED",
+    errors: { title: ["Title is required"] },
+  });
+
+  assert.equal(error.type, "https://example.test/problems/validation");
+  assert.equal(error.title, "Validation error");
+  assert.equal(error.detail, "Please correct the highlighted fields.");
+  assert.equal(error.code, "VALIDATION_FAILED");
+  assert.deepEqual(error.errors, { title: ["Title is required"] });
+});
+
 test("validCorrelationId filters out malformed or overly long IDs", () => {
   assert.equal(validCorrelationId("req_123.abc-456"), "req_123.abc-456");
   assert.equal(validCorrelationId(""), undefined);

@@ -19,6 +19,10 @@ export const metadata: Metadata = {
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 const positiveOrZeroInt = (value: string) => /^\d+$/.test(value) ? Number(value) : undefined;
+const serverErrorMessage = (error: ServerApiError) => {
+  const fieldMessages = Object.values(error.errors).flat().filter(Boolean);
+  return fieldMessages.length > 0 ? fieldMessages.join(" ") : error.message;
+};
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -84,9 +88,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         page = response.data.meta.page;
       }
     } catch (error) {
-      searchError = "Không kết nối được máy chủ tìm kiếm. Vui lòng thử lại.";
-      if (error instanceof ServerApiError && error.correlationId) {
+      if (error instanceof ServerApiError) {
+        searchError = serverErrorMessage(error);
         searchCorrelationId = error.correlationId;
+      } else {
+        searchError = "Không kết nối được máy chủ tìm kiếm. Vui lòng thử lại.";
       }
     }
   }

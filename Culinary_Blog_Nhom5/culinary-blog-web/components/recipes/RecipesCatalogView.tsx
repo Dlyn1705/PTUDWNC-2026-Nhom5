@@ -19,12 +19,13 @@ interface RecipesCatalogViewProps {
   totalPublished: number;
   selectedCategory: string;
   selectedDifficulty: string;
-  sortBy: "newest" | "time" | "title";
+  sortBy: "createdAt" | "cookTime" | "title";
+  sortOrder: "asc" | "desc";
 }
 
 export function RecipesCatalogView({
   initialRecipes,
-  categories, meta, totalPublished, selectedCategory, selectedDifficulty, sortBy,
+  categories, meta, totalPublished, selectedCategory, selectedDifficulty, sortBy, sortOrder,
 }: RecipesCatalogViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const router = useRouter();
@@ -34,8 +35,9 @@ export function RecipesCatalogView({
   function updateQuery(changes: Record<string, string>) {
     const query = new URLSearchParams(searchParams?.toString() ?? "");
     query.delete("page");
+    query.delete("sort");
     for (const [key, value] of Object.entries(changes)) {
-      if (value === "all" || value === "newest") query.delete(key);
+      if (value === "" || value === "all") query.delete(key);
       else query.set(key, value);
     }
     startTransition(() => router.push(`/recipes${query.size ? `?${query}` : ""}`, { scroll: false }));
@@ -43,7 +45,7 @@ export function RecipesCatalogView({
 
   const activeFiltersCount =
     (selectedCategory !== "all" ? 1 : 0) + (selectedDifficulty !== "all" ? 1 : 0);
-  const resetFilters = () => updateQuery({ categoryId: "all", difficulty: "all", sort: "newest" });
+  const resetFilters = () => updateQuery({ categoryId: "all", difficulty: "all", sortBy: "", sortOrder: "" });
 
   return (
     <div className="space-y-8" aria-busy={isPending}>
@@ -107,12 +109,25 @@ export function RecipesCatalogView({
               <select
                 id="catalog-sort"
                 value={sortBy}
-                onChange={(e) => updateQuery({ sort: e.target.value })}
+                onChange={(e) => updateQuery({ sortBy: e.target.value, sortOrder: e.target.value === "createdAt" ? "desc" : "asc" })}
                 className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="newest">Newest First</option>
-                <option value="time">Quickest Cook Time</option>
-                <option value="title">Title (A-Z)</option>
+                <option value="createdAt">Published date</option>
+                <option value="cookTime">Cook time</option>
+                <option value="title">Title</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <label htmlFor="catalog-sort-order">Order:</label>
+              <select
+                id="catalog-sort-order"
+                value={sortOrder}
+                onChange={(e) => updateQuery({ sortOrder: e.target.value })}
+                className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
               </select>
             </div>
 

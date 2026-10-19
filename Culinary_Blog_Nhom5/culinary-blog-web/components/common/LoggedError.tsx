@@ -28,12 +28,14 @@ export default function LoggedError({
   useErrorLog(error);
   const correlationId = errorCorrelationId(error) || error.correlationId;
   const handleRetry = retry ?? reset;
+  const isServerApiError = error.name === "ServerApiError";
+  const visibleDescription = isServerApiError && error.message ? error.message : description;
 
   return (
     <main className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center px-4 py-16">
       <ErrorState
         title={title}
-        description={description}
+        description={visibleDescription}
         correlationId={correlationId}
         onRetry={handleRetry}
         headingLevel="h1"
