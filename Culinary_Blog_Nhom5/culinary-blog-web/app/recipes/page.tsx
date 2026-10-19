@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { publicApi } from "@/lib/api/serverClient";
 import { Can } from "@/components/auth/Can";
 import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
@@ -19,6 +20,26 @@ export const metadata = {
   },
 };
 
+type CatalogSortBy = "createdAt" | "cookTime" | "title";
+type SortOrder = "asc" | "desc";
+
+const sortByMap: Record<string, CatalogSortBy> = {
+  createdat: "createdAt",
+  cooktime: "cookTime",
+  title: "title",
+};
+
+const legacySortMap: Record<string, { sortBy: CatalogSortBy; sortOrder: SortOrder }> = {
+  newest: { sortBy: "createdAt", sortOrder: "desc" },
+  time: { sortBy: "cookTime", sortOrder: "asc" },
+  title: { sortBy: "title", sortOrder: "asc" },
+  createdat: { sortBy: "createdAt", sortOrder: "asc" },
+  "-createdat": { sortBy: "createdAt", sortOrder: "desc" },
+  cooktime: { sortBy: "cookTime", sortOrder: "asc" },
+  "-cooktime": { sortBy: "cookTime", sortOrder: "desc" },
+  "-title": { sortBy: "title", sortOrder: "desc" },
+};
+
 export default async function RecipesPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -29,15 +50,35 @@ export default async function RecipesPage({ searchParams }: {
   const categoryId = first(params.categoryId) || "all";
   const rawDifficulty = first(params.difficulty);
   const difficulty = rawDifficulty && ["1", "2", "3", "4"].includes(rawDifficulty) ? rawDifficulty : "all";
-  const rawSort = first(params.sort);
-  const sort = rawSort === "time" || rawSort === "title" ? rawSort : "newest";
+  const rawSortBy = (first(params.sortBy) ?? "").toLowerCase();
+  const rawSortOrder = first(params.sortOrder);
+  const legacySort = (first(params.sort) ?? "").toLowerCase();
+  const canonicalSortBy = sortByMap[rawSortBy];
+  const canonicalSortOrder = rawSortOrder === "asc" || rawSortOrder === "desc" ? rawSortOrder : undefined;
+  const resolvedSort = canonicalSortBy
+    ? { sortBy: canonicalSortBy, sortOrder: canonicalSortOrder ?? "desc" as SortOrder }
+    : legacySortMap[legacySort] ?? { sortBy: "createdAt" as CatalogSortBy, sortOrder: "desc" as SortOrder };
+  const { sortBy, sortOrder } = resolvedSort;
+
+  if (legacySort) {
+    const canonicalParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (key === "sort" || key === "sortBy" || key === "sortOrder") continue;
+      const firstValue = first(value);
+      if (firstValue !== undefined) canonicalParams.set(key, firstValue);
+    }
+    canonicalParams.set("sortBy", sortBy);
+    canonicalParams.set("sortOrder", sortOrder);
+    redirect(`/recipes?${canonicalParams.toString()}`);
+  }
+
   const query = {
     page,
     pageSize: 12,
     categoryId: categoryId === "all" ? undefined : categoryId,
     difficulty: difficulty === "all" ? undefined : Number(difficulty),
-    sortBy: sort === "time" ? "cookTime" : sort === "title" ? "title" : "createdAt",
-    sortOrder: sort === "newest" ? "desc" as const : "asc" as const,
+    sortBy,
+    sortOrder,
   };
   const [firstResult, categories] = await Promise.all([
     publicApi.getRecipes(query),
@@ -92,7 +133,7 @@ export default async function RecipesPage({ searchParams }: {
       </div>
 
       {/* Catalog View with Interactive Grid/List toggle & Category filters */}
-      <RecipesCatalogView initialRecipes={result.data} meta={result.meta} totalPublished={totalPublished} categories={categories} selectedCategory={categoryId} selectedDifficulty={difficulty} sortBy={sort} />
+      <RecipesCatalogView initialRecipes={result.data} meta={result.meta} totalPublished={totalPublished} categories={categories} selectedCategory={categoryId} selectedDifficulty={difficulty} sortBy={sortBy} sortOrder={sortOrder} />
     </div>
   );
 }

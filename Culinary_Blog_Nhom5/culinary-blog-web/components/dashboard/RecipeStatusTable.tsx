@@ -1,29 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { Archive, Edit3, Globe2, RotateCcw } from "lucide-react";
+import { Archive, Edit3, Globe2, RotateCcw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { Skeleton } from "@/components/common/Skeleton";
+import { LoadingState } from "@/components/common/LoadingState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { EmptyState } from "@/components/common/EmptyState";
 import { useManagedRecipes } from "@/hooks/queries/useRecipes";
 import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
+import { errorCorrelationId } from "@/lib/logger";
 
 export function RecipeStatusTable() {
-  const { data, isPending, isError, refetch } = useManagedRecipes();
+  const { data, isPending, isError, error, refetch, isRefetching } = useManagedRecipes();
   const { publish, archive, restore } = useRecipeMutations();
   const busy = publish.isPending || archive.isPending || restore.isPending;
 
   if (isPending) {
-    return <div className="h-64 animate-pulse rounded-2xl bg-muted" />;
+    return (
+      <LoadingState label="Đang tải danh sách công thức quản lý…">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card p-6 shadow-soft space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </LoadingState>
+    );
   }
 
   if (isError) {
+    const correlationId = error ? (errorCorrelationId(error as object) || (error as { correlationId?: string })?.correlationId) : undefined;
     return (
-      <div role="alert" className="rounded-2xl border border-destructive/30 p-6">
-        <p>Không thể tải danh sách công thức.</p>
-        <Button className="mt-4" variant="outline" onClick={() => void refetch()}>
-          Thử lại
-        </Button>
-      </div>
+      <ErrorState
+        title="Không thể tải danh sách công thức"
+        description="Đã xảy ra lỗi khi kết nối với máy chủ dữ liệu. Bạn hãy kiểm tra backend và thử lại."
+        correlationId={correlationId}
+        onRetry={() => void refetch()}
+        isRetrying={isRefetching}
+        retryLabel="Thử lại"
+      />
     );
   }
 
@@ -71,7 +88,22 @@ export function RecipeStatusTable() {
             </tr>
           ))}
           {data?.data.length === 0 && (
-            <tr><td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">Chưa có công thức nào.</td></tr>
+            <tr>
+              <td colSpan={5} className="p-8">
+                <EmptyState
+                  title="Chưa có công thức nào"
+                  description="Bạn chưa tạo công thức nào trong danh sách. Hãy tạo công thức đầu tiên ngay bây giờ."
+                  action={
+                    <Button asChild size="sm">
+                      <Link href="/dashboard/recipes/new">
+                        <Plus className="mr-1.5 size-4" />
+                        Tạo công thức mới
+                      </Link>
+                    </Button>
+                  }
+                />
+              </td>
+            </tr>
           )}
         </tbody>
       </table>

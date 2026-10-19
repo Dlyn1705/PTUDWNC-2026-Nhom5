@@ -9,6 +9,7 @@ import type {
   SearchRecipeSummaryDto,
 } from "@/types/recipe.types";
 import type { SearchRecipesParams } from "@/types/api.types";
+import { validCorrelationId } from "../logger";
 
 const backendBaseUrl =
   process.env.API_INTERNAL_URL ??
@@ -16,13 +17,57 @@ const backendBaseUrl =
   "http://localhost:5156";
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
+export interface ServerProblemDetails {
+  type?: string;
+  title?: string;
+  detail?: string;
+  message?: string;
+  code?: string;
+  correlationId?: string;
+  errors?: Record<string, string[]>;
+}
+
+function readServerProblem(value: unknown): ServerProblemDetails {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const problem: ServerProblemDetails = {};
+
+  for (const key of ["type", "title", "detail", "message", "code", "correlationId"] as const) {
+    if (typeof source[key] === "string") problem[key] = source[key];
+  }
+
+  if (source.errors && typeof source.errors === "object" && !Array.isArray(source.errors)) {
+    problem.errors = Object.fromEntries(
+      Object.entries(source.errors).filter(
+        (entry): entry is [string, string[]] =>
+          Array.isArray(entry[1]) && entry[1].every((item) => typeof item === "string"),
+      ),
+    );
+  }
+
+  return problem;
+}
+
 export class ServerApiError extends Error {
+  public readonly type?: string;
+  public readonly title?: string;
+  public readonly detail?: string;
+  public readonly code?: string;
+  public readonly errors: Record<string, string[]>;
+
   constructor(
     public readonly status: number,
     message: string,
+    public readonly correlationId?: string,
+    details: ServerProblemDetails = {},
   ) {
     super(message);
     this.name = "ServerApiError";
+    this.type = details.type;
+    this.title = details.title;
+    this.detail = details.detail ?? message;
+    this.code = details.code;
+    this.errors = details.errors ?? {};
   }
 }
 
@@ -56,10 +101,35 @@ export async function serverClient<T>(
   });
 
   if (!response.ok) {
-    throw new ServerApiError(
-      response.status,
-      `Backend request failed (${response.status}) for ${url.pathname}.`,
-    );
+    const rawHeaderId =
+      response.headers.get("x-correlation-id") ||
+      response.headers.get("x-request-id") ||
+      undefined;
+    let correlationId = validCorrelationId(rawHeaderId);
+    let message = `Backend request failed (${response.status}) for ${url.pathname}.`;
+    let problem: ServerProblemDetails = {};
+
+    try {
+      const cloned = response.clone();
+      problem = readServerProblem(await cloned.json());
+      if (!correlationId && problem.correlationId) {
+        correlationId = validCorrelationId(problem.correlationId);
+      }
+      if (problem.detail?.trim()) {
+        message = problem.detail.trim();
+      } else if (problem.title?.trim()) {
+        message = problem.title.trim();
+      } else if (problem.message?.trim()) {
+        message = problem.message.trim();
+      }
+    } catch {
+      // Body parse error must not lose response status or break failure flow
+    }
+
+    throw new ServerApiError(response.status, message, correlationId, {
+      ...problem,
+      correlationId,
+    });
   }
 
   return (await response.json()) as T;

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PaginationMeta } from "@/types/api.types";
+import { Pagination } from "@/components/common/Pagination";
+import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
 interface RecipesCatalogViewProps {
   initialRecipes: RecipeSummaryDto[];
@@ -17,12 +19,13 @@ interface RecipesCatalogViewProps {
   totalPublished: number;
   selectedCategory: string;
   selectedDifficulty: string;
-  sortBy: "newest" | "time" | "title";
+  sortBy: "createdAt" | "cookTime" | "title";
+  sortOrder: "asc" | "desc";
 }
 
 export function RecipesCatalogView({
   initialRecipes,
-  categories, meta, totalPublished, selectedCategory, selectedDifficulty, sortBy,
+  categories, meta, totalPublished, selectedCategory, selectedDifficulty, sortBy, sortOrder,
 }: RecipesCatalogViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const router = useRouter();
@@ -32,8 +35,9 @@ export function RecipesCatalogView({
   function updateQuery(changes: Record<string, string>) {
     const query = new URLSearchParams(searchParams?.toString() ?? "");
     query.delete("page");
+    query.delete("sort");
     for (const [key, value] of Object.entries(changes)) {
-      if (value === "all" || value === "newest") query.delete(key);
+      if (value === "" || value === "all") query.delete(key);
       else query.set(key, value);
     }
     startTransition(() => router.push(`/recipes${query.size ? `?${query}` : ""}`, { scroll: false }));
@@ -41,7 +45,7 @@ export function RecipesCatalogView({
 
   const activeFiltersCount =
     (selectedCategory !== "all" ? 1 : 0) + (selectedDifficulty !== "all" ? 1 : 0);
-  const resetFilters = () => updateQuery({ categoryId: "all", difficulty: "all", sort: "newest" });
+  const resetFilters = () => updateQuery({ categoryId: "all", difficulty: "all", sortBy: "", sortOrder: "" });
 
   return (
     <div className="space-y-8" aria-busy={isPending}>
@@ -105,12 +109,25 @@ export function RecipesCatalogView({
               <select
                 id="catalog-sort"
                 value={sortBy}
-                onChange={(e) => updateQuery({ sort: e.target.value })}
+                onChange={(e) => updateQuery({ sortBy: e.target.value, sortOrder: e.target.value === "createdAt" ? "desc" : "asc" })}
                 className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="newest">Newest First</option>
-                <option value="time">Quickest Cook Time</option>
-                <option value="title">Title (A-Z)</option>
+                <option value="createdAt">Published date</option>
+                <option value="cookTime">Cook time</option>
+                <option value="title">Title</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <label htmlFor="catalog-sort-order">Order:</label>
+              <select
+                id="catalog-sort-order"
+                value={sortOrder}
+                onChange={(e) => updateQuery({ sortOrder: e.target.value })}
+                className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
               </select>
             </div>
 
@@ -177,18 +194,24 @@ export function RecipesCatalogView({
         emptyMessage="No recipes found matching your selected filters. Try choosing 'All Categories' or resetting difficulty."
       />
       {meta.totalPages > 1 && (
-        <nav aria-label="Recipe pagination" className="flex flex-wrap items-center justify-center gap-2">
-          <Button variant="outline" disabled={isPending || !meta.hasPreviousPage} onClick={() => updateQuery({ page: String(meta.page - 1) })}>Trang trước</Button>
-          {Array.from({ length: meta.totalPages }, (_, index) => index + 1)
-            .filter((page) => meta.totalPages <= 10 || page === 1 || page === meta.totalPages || Math.abs(page - meta.page) <= 2)
-            .map((page, index, pages) => (
-              <React.Fragment key={page}>
-                {index > 0 && page - pages[index - 1] > 1 && <span className="px-1 text-muted-foreground">…</span>}
-                <Button variant={page === meta.page ? "default" : "outline"} disabled={isPending} aria-current={page === meta.page ? "page" : undefined} aria-label={`Page ${page}`} onClick={() => updateQuery({ page: String(page) })}>{page}</Button>
-              </React.Fragment>
-            ))}
-          <Button variant="outline" disabled={isPending || !meta.hasNextPage} onClick={() => updateQuery({ page: String(meta.page + 1) })}>Trang sau</Button>
-        </nav>
+        <Pagination
+          mode="link"
+          page={meta.page}
+          totalPages={meta.totalPages}
+          disabled={isPending}
+          links={buildPaginationLinks(
+            getPaginationItems(meta.page, meta.totalPages),
+            meta.page,
+            meta.totalPages,
+            (pageNumber) => {
+              const query = new URLSearchParams(searchParams?.toString() ?? "");
+              if (pageNumber === 1) query.delete("page");
+              else query.set("page", String(pageNumber));
+              return `/recipes${query.size ? `?${query}` : ""}`;
+            },
+          )}
+          ariaLabel="Phân trang công thức"
+        />
       )}
       <p role="status" className="sr-only">{isPending ? "Loading recipes" : `${meta.totalCount} recipes, page ${meta.page} of ${Math.max(1, meta.totalPages)}`}</p>
     </div>
