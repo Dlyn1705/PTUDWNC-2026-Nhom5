@@ -1,10 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
+import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { hasRole } from "@/lib/permissions";
 
 export default async function DashboardLayout({
   children,
@@ -12,8 +11,13 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session || session.error) redirect("/login?callbackUrl=/dashboard");
-  if (!hasRole(session.user, "Author") && !hasRole(session.user, "Admin")) redirect("/forbidden");
+  if (!session || session.error === "RefreshTokenError") {
+    redirect("/auth/login?callbackUrl=/dashboard");
+  }
+
+  if (session.user.role !== "Admin" && session.user.role !== "Author") {
+    redirect("/forbidden");
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -31,7 +35,15 @@ export default async function DashboardLayout({
             </Link>
 
             <nav className="hidden sm:flex items-center gap-2 text-sm">
-              {hasRole(session.user, "Admin") && (
+              <Link
+                href="/dashboard"
+                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
+              >
+                <LayoutDashboard className="size-4" />
+                <span>Tổng quan</span>
+              </Link>
+
+              {session.user.role === "Admin" && (
                 <Link
                   href="/dashboard/categories"
                   className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
@@ -47,13 +59,6 @@ export default async function DashboardLayout({
               >
                 <BookOpen className="size-4" />
                 <span>Recipes</span>
-              </Link>
-              <Link
-                href="/dashboard/recipes/images"
-                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
-              >
-                <ImageIcon className="size-4" />
-                <span>Images</span>
               </Link>
             </nav>
           </div>
