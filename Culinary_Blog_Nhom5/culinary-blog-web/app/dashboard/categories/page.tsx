@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FolderPlus,
   CheckCircle2,
@@ -12,15 +12,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { categoryApi } from "@/lib/api/categoryApi";
 import { CategoryDto } from "@/types/category.types";
-import { CategoryTable } from "@/components/dashboard/CategoryTable";
-import { CategoryModal } from "@/components/dashboard/CategoryModal";
-import { DeleteCategoryModal } from "@/components/dashboard/DeleteCategoryModal";
+import { AdminCategoryTable } from "@/components/dashboard/categories/AdminCategoryTable";
+import { AdminCategoryFormModal } from "@/components/dashboard/categories/AdminCategoryFormModal";
+import { AdminDeleteCategoryModal } from "@/components/dashboard/categories/AdminDeleteCategoryModal";
+import { useCategories } from "@/hooks/queries/useCategories";
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: categories = [], isPending: loading, refetch } = useCategories();
   const [search, setSearch] = useState("");
 
   // Create / Edit modal state
@@ -43,42 +42,6 @@ export default function AdminCategoriesPage() {
       setNotification((prev) => (prev?.message === message ? null : prev));
     }, 4500);
   };
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await categoryApi.getAll();
-      setCategories(data);
-    } catch {
-      showNotification("error", "Không thể tải danh sách danh mục từ máy chủ.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let ignore = false;
-    categoryApi
-      .getAll()
-      .then((data) => {
-        if (!ignore) setCategories(data);
-      })
-      .catch(() => {
-        if (!ignore) {
-          setNotification({
-            type: "error",
-            message: "Không thể tải danh sách danh mục từ máy chủ.",
-          });
-        }
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   const handleCreateNew = () => {
     setEditingCategory(null);
@@ -210,7 +173,7 @@ export default function AdminCategoriesPage() {
         </div>
 
         {/* Modularized Category Table */}
-        <CategoryTable
+        <AdminCategoryTable
           categories={filteredCategories}
           isLoading={loading}
           onEdit={handleEdit}
@@ -219,25 +182,25 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* Modal Tạo mới / Cập nhật Danh mục */}
-      <CategoryModal
+      <AdminCategoryFormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         editingCategory={editingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          fetchCategories();
+          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />
 
       {/* Modal Xác nhận Xóa Danh mục an toàn */}
-      <DeleteCategoryModal
+      <AdminDeleteCategoryModal
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
         category={deletingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          fetchCategories();
+          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />

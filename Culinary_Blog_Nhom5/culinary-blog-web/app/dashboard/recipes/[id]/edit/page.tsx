@@ -14,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
 import type { CategoryDto } from "@/types/category.types";
+import { recipeKeys } from "@/hooks/queries/recipeKeys";
 
 type RouteProps = { params: Promise<{ id: string }> };
 
@@ -123,7 +124,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     setError("");
     try {
       await recipeApi.delete(recipeId);
-      await queryClient.invalidateQueries({ queryKey: ["managed-recipes"] });
+      queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       router.replace("/dashboard/recipes?deleted=1");
       router.refresh();
     } catch (reason) {
