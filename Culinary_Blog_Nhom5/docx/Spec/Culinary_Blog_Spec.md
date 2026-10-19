@@ -1,7 +1,7 @@
 # Culinary Blog - Business and Architecture Specification
 
 **Tài liệu nguồn:** `docx/SRS_Culinary_Blog_v1.0.0.pdf`  
-**Phiên bản tổng hợp:** 1.2.0 (Bổ sung kiểm tra kiến trúc và phân tích frontend)  
+**Phiên bản tổng hợp:** 1.2.1 (Chuẩn hóa route quản trị Recipe và response phân trang tìm kiếm)
 **Ngày phân tích:** 2026-09-21  
 **Phạm vi:** Làm rõ logic nghiệp vụ, kiến trúc mục tiêu, công nghệ frontend, chuẩn hóa các mâu thuẫn đặc tả và hiện trạng mã nguồn.
 
@@ -221,6 +221,8 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | | `DELETE /categories/{id}` | Admin | Xóa mềm danh mục (chặn nếu còn chứa recipes) |
 | **Recipes** | `GET /recipes` | Public | Danh sách recipes (lọc, phân trang, `sortBy`, `sortOrder`) |
 | | `GET /recipes/{slug}` | Public / Owner | Chi tiết recipe theo slug (kèm đầy đủ nested data) |
+| | `GET /recipes/by-id/{id}` | Owner/Admin | Chi tiết quản trị theo UUID; không dùng UUID tại route public `{slug}` |
+| | `GET /recipes/mine` | Author/Admin | Danh sách quản trị: recipe của Author hoặc mọi recipe đối với Admin; private/no-store |
 | | `GET /recipes/search` | Public | Tìm kiếm FTS không dấu (`?q=...`) |
 | | `POST /recipes` | Author/Admin | Tạo recipe mới (trạng thái Draft) |
 | | `PUT /recipes/{id}` | Owner/Admin | Cập nhật thông tin cơ bản của recipe |

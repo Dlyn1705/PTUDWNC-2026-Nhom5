@@ -5,7 +5,7 @@ import IngredientManager from "@/components/recipes/editor/IngredientManager";
 import StepManager from "@/components/recipes/editor/StepManager";
 import { ingredientFormSchema, type IngredientDraft } from "@/lib/ingredient-form";
 import { stepFormSchema, type StepDraft } from "@/lib/step-form";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { categoryApi } from "@/lib/api/categoryApi";
 import type { CategoryDto } from "@/types/category.types";
@@ -116,7 +116,7 @@ export default function NewRecipePage() {
     saving.current = true;
     setIsSaving(true);
     try {
-      const response = await recipeApi.create(recipeData);
+      const response = await recipeEditorApi.create(recipeData);
       setCreatedRecipeId(response.id);
       setCreatedSlug(response.slug);
     } catch (error) {

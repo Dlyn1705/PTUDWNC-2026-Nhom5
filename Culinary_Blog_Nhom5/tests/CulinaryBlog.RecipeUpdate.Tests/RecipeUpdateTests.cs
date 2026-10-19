@@ -158,6 +158,7 @@ public sealed class RecipeUpdateTests
                 ["steps"] = new JsonArray(), ["ingredients"] = new JsonArray(), ["nutrition"] = new JsonObject { ["calories"] = 999 }
             };
             var url = $"/api/v1/recipes/{recipe.Id}";
+            var detailUrl = $"/api/v1/recipes/by-id/{recipe.Id}";
             async Task<HttpResponseMessage> Put(JsonObject payload, string? etag = null)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(payload) };
@@ -177,10 +178,11 @@ public sealed class RecipeUpdateTests
             Assert.NotEqual(originalVersion, saved.RowVersion); Assert.Equal("original", saved.Slug);
             Assert.Equal(saved.RowVersion, response.Headers.ETag!.Tag.Trim('"'));
             Assert.True(response.Headers.CacheControl!.NoStore);
-            var refreshed = await client.GetAsync(url);
+            var refreshed = await client.GetAsync(detailUrl);
             Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
             Assert.True(refreshed.Headers.CacheControl!.NoStore);
-            Assert.Equal("Updated title", (await refreshed.Content.ReadFromJsonAsync<JsonObject>())!["title"]!.GetValue<string>());
+            var refreshedBody = (await refreshed.Content.ReadFromJsonAsync<JsonObject>())!;
+            Assert.Equal("Updated title", refreshedBody["data"]!["title"]!.GetValue<string>());
             Assert.Equal(HttpStatusCode.Conflict, (await Put(Payload(originalVersion))).StatusCode);
             foreach (var invalid in new[] { Payload(saved.RowVersion), Payload(saved.RowVersion), Payload(saved.RowVersion) }.Select((x, i) =>
             { if (i == 0) x["difficulty"] = 99; if (i == 1) x["servings"] = 0; if (i == 2) x["title"] = new string('a', 201); return x; }))

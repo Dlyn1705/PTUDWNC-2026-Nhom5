@@ -1,4 +1,3 @@
-import axios from "axios";
 import axiosClient from "./axiosClient";
 import type { ApiResponse, PaginationMeta } from "@/types/api.types";
 import {
@@ -9,7 +8,7 @@ import {
 } from "@/types/category.types";
 import type { RecipeCardDto } from "@/types/recipe.types";
 import { mockCategories, mockRecipes } from "../mock-data";
-import { toApiProblemError } from "./problemDetails";
+import { isApiProblemError, toApiProblemError } from "./problemDetails";
 
 let localCategories: CategoryDto[] = [...mockCategories];
 const mockModeEnabled =
@@ -65,7 +64,7 @@ export const categoryApi = {
         meta: response.data.meta,
       };
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) return null;
+      if (isApiProblemError(error) && error.status === 404) return null;
       if (!canUseMockFallback()) throw toApiProblemError(error);
 
       const category = localCategories.find(

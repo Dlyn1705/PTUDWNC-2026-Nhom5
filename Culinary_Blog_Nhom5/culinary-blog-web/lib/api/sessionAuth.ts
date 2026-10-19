@@ -2,13 +2,13 @@ import { type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 
 type ApiSession = {
   error?: string;
-  user: { accessToken?: string; accessTokenExpiry?: string };
+  user?: { accessToken?: string; accessTokenExpiry?: string };
 } | null;
 type AuthConfig = InternalAxiosRequestConfig & { authRetried?: boolean; authAccessToken?: string };
 
 const isAuthEndpoint = (url = "") => /\/api\/v1\/auth\/(login|register|refresh|logout|google)(?:[/?]|$)/.test(url);
 const usableToken = (session: ApiSession) => !session?.error
-  && Date.parse(session?.user.accessTokenExpiry ?? "") > Date.now() ? session?.user.accessToken : undefined;
+  && Date.parse(session?.user?.accessTokenExpiry ?? "") > Date.now() ? session?.user?.accessToken : undefined;
 
 export function installSessionAuth(client: AxiosInstance, readSession: () => Promise<ApiSession>) {
   let pending: Promise<ApiSession> | undefined;
@@ -19,6 +19,9 @@ export function installSessionAuth(client: AxiosInstance, readSession: () => Pro
 
   client.interceptors.request.use(async (config: AuthConfig) => {
     if (isAuthEndpoint(config.url)) return config;
+    // The response interceptor already attached the freshly resolved token.
+    // Re-reading the session here would create one extra refresh/read per retry.
+    if (config.authRetried && config.authAccessToken) return config;
     const session = await currentSession();
     if (session?.error) throw new Error(session.error === "RefreshTokenError"
       ? "Phiên đăng nhập đã hết hạn." : "Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại.");

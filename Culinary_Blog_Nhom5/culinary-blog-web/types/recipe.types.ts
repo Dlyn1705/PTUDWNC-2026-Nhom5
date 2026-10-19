@@ -125,16 +125,18 @@ export interface RecipeDetailDto extends RecipeSummaryDto {
 
 export type RecipeDto = RecipeDetailDto;
 
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface PagedResult<T> {
   data: T[];
-  meta: {
-    page: number;
-    pageSize: number;
-    totalCount: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+  meta: PaginationMeta;
 }
 
 export interface RecipeMutationResponse {

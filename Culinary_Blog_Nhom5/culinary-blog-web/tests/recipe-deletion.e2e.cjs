@@ -88,7 +88,9 @@ async function main() {
       }
       if (suffix.endsWith("/ingredients")) return json({ success: true, data: [] }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       if (suffix.endsWith("/images")) return json({ success: true, data: [] });
-      if (suffix === "/api/v1/recipes/" + recipe.id) return json(deleted ? { status: 404 } : recipe, deleted ? 404 : 200);
+      if (suffix === "/api/v1/recipes/by-id/" + recipe.id) {
+        return json(deleted ? { status: 404 } : { data: recipe }, deleted ? 404 : 200);
+      }
       return json([]);
     });
     const page = await context.newPage(); const errors = [];

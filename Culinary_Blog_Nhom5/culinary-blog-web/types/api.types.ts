@@ -1,5 +1,5 @@
 export interface ApiResponse<T> {
-  success: boolean;
+  success?: boolean;
   message?: string | null;
   data: T;
 }

@@ -176,7 +176,7 @@ public static class RecipeEndpoints
         .WithSummary("Láº¥y danh sÃ¡ch cÃ´ng thá»©c Ä‘Ã£ xuáº¥t báº£n kÃ¨m phÃ¢n trang vÃ  lá»c (FR-RCP-001)")
         .Produces<PagedResult<RecipeSummaryDto>>(StatusCodes.Status200OK);
 
-        group.MapGet("/{id:guid}", async (
+        group.MapGet("/by-id/{id:guid}", async (
             Guid id,
             IRecipeRepository recipes,
             ICurrentUserService currentUser,
@@ -196,13 +196,13 @@ public static class RecipeEndpoints
             var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
-            return Results.Ok(detail);
+            return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(detail));
         })
         .WithName("GetRecipeById")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y chi tiáº¿t cÃ´ng thá»©c theo ID; Owner/Admin xem Ä‘Æ°á»£c Draft vÃ  Archived")
-        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeDetailDto>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/mine", async (
@@ -286,7 +286,7 @@ public static class RecipeEndpoints
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("TÃ¬m kiáº¿m toÃ n vÄƒn báº£n cÃ´ng thá»©c náº¥u Äƒn (FR-SRCH-001)")
-        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<PagedResult<SearchRecipeSummaryDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         // FR-RCP-006: LÆ°u trá»¯ cÃ´ng thá»©c
@@ -306,7 +306,7 @@ public static class RecipeEndpoints
 
             recipe.Archive();
             await unitOfWork.SaveChangesAsync(ct);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+            return Results.Ok(new { data = new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt } });
         })
         .WithName("ArchiveRecipe")
         .RequireRateLimiting("recipe-write")
@@ -343,7 +343,7 @@ public static class RecipeEndpoints
             }
 
             await unitOfWork.SaveChangesAsync(ct);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+            return Results.Ok(new { data = new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt } });
         })
         .WithName("UnarchiveRecipe")
         .RequireRateLimiting("recipe-write")
@@ -364,7 +364,7 @@ public static class RecipeEndpoints
         {
             var result = await sender.Send(new PublishRecipeWithStepsCommand(id), ct);
             if (result.WasPublished) DiagnosticsConfig.RecipePublishedCounter.Add(1);
-            return Results.Ok(result);
+            return Results.Ok(new { data = result });
         })
         .WithName("PublishRecipe")
         .RequireRateLimiting("recipe-write")
@@ -393,14 +393,14 @@ public static class RecipeEndpoints
                 throw new ForbiddenException();
 
             if (recipe.Status == RecipeStatus.Draft)
-                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+                return Results.Ok(new { data = new { recipe.Id, recipe.Status, recipe.PublishedAt } });
 
             if (recipe.Status == RecipeStatus.Archived)
                 throw new ConflictException("KhÃ´ng thá»ƒ há»§y xuáº¥t báº£n cÃ´ng thá»©c Ä‘ang lÆ°u trá»¯.");
 
             recipe.Unpublish();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+            return Results.Ok(new { data = new { recipe.Id, recipe.Status, recipe.PublishedAt } });
         })
         .WithName("UnpublishRecipe")
         .RequireRateLimiting("recipe-write")
@@ -423,13 +423,13 @@ public static class RecipeEndpoints
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
-            return Results.Ok(recipe);
+            return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(recipe));
         })
         .WithName("GetRecipeBySlug")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y chi tiáº¿t cÃ´ng thá»©c theo slug; khÃ¡ch chá»‰ xem Published, Owner/Admin xem thÃªm Draft vÃ  Archived (FR-RCP-002)")
-        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeDetailDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         // ============================================================

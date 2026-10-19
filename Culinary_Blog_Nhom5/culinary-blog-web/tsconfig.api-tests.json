@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./*"] },
+    "outDir": "build/api-tests",
+    "types": ["node"],
+    "rootDir": "."
+  },
+  "include": [
+    "lib/api/problemDetails.ts",
+    "lib/api/installProblemDetails.ts",
+    "lib/api/recipePublicApi.ts",
+    "lib/api/recipeEditorApi.ts",
+    "lib/api/recipeLifecycleApi.ts",
+    "lib/api/sessionAuth.ts",
+    "hooks/queries/recipeKeys.ts",
+    "types/next-auth.d.ts",
+    "tests/problemDetails.test.ts",
+    "tests/recipeApiContract.test.ts"
+  ]
+}

@@ -26,7 +26,7 @@ public record SearchRecipesQuery(
     int? MaxServings = null,
     string? SortBy = null,
     string? SortOrder = null,
-    string? Sort = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
+    string? Sort = null) : IRequest<PagedResult<SearchRecipeSummaryDto>>;
 
 
 public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
@@ -84,7 +84,7 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
     }
 }
 
-public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<SearchRecipeSummaryDto>>>
+public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, PagedResult<SearchRecipeSummaryDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -93,7 +93,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<SearchRecipeSummaryDto>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
     {
         var keyword = request.Q.Trim();
         var normalized = NormalizeKeyword(keyword);
@@ -144,8 +144,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
             CreatedAt = r.CreatedAt
         }).ToList();
 
-        var paged = new PagedResult<SearchRecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
-        return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
+        return new PagedResult<SearchRecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
     }
 
     private static (string SortBy, string SortOrder) ResolveSort(SearchRecipesQuery request)

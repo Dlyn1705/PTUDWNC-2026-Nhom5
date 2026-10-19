@@ -12,6 +12,7 @@
     "test:security": "node --test tests/security.unit.cjs",
     "test:e2e:security": "npm run build && node tests/security.e2e.cjs",
     "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
+    "test:api": "tsc -p tsconfig.api-tests.json && node --test build/api-tests/tests/*.test.js",
     "test:auth": "tsc -p tsconfig.auth-tests.json && node --conditions=react-server --test --test-force-exit build/auth-tests/tests/*.test.js",
     "test:auth:e2e": "node tests/auth.e2e.mjs"
   },

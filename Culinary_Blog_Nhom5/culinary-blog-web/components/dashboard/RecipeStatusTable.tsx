@@ -9,8 +9,8 @@ import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
 
 export function RecipeStatusTable() {
   const { data, isPending, isError, refetch } = useManagedRecipes();
-  const { publish, archive, restore } = useRecipeMutations();
-  const busy = publish.isPending || archive.isPending || restore.isPending;
+  const { publish, archive, unarchive } = useRecipeMutations();
+  const busy = publish.isPending || archive.isPending || unarchive.isPending;
 
   if (isPending) {
     return <div className="h-64 animate-pulse rounded-2xl bg-muted" />;
@@ -62,7 +62,7 @@ export function RecipeStatusTable() {
                     </Button>
                   )}
                   {recipe.status === 2 && (
-                    <Button size="sm" variant="outline" disabled={busy} onClick={() => restore.mutate(recipe.id)}>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => unarchive.mutate(recipe.id)}>
                       <RotateCcw className="size-4" /> Khôi phục
                     </Button>
                   )}

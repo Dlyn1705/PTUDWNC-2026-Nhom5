@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 import { categoryApi } from "@/lib/api/categoryApi";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { collectPublishedRecipes } from "@/lib/api/recipePublicApi";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [categories, recipes] = await Promise.all([
     categoryApi.getAll(),
-    recipeApi.getAll(),
+    collectPublishedRecipes(),
   ]);
 
   // Static core routes
@@ -43,8 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Dynamic recipe routes (Published only)
-  const publishedRecipes = recipes.filter((r) => r.status === 1);
-  const recipeRoutes: MetadataRoute.Sitemap = publishedRecipes.map((recipe) => ({
+  const recipeRoutes: MetadataRoute.Sitemap = recipes.map((recipe) => ({
     url: `${baseUrl}/recipes/${recipe.slug}`,
     lastModified: new Date(recipe.createdAt),
     changeFrequency: "monthly",

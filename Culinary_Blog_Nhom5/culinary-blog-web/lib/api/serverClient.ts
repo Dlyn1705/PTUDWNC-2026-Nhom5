@@ -131,10 +131,11 @@ export const publicApi = {
 
   async getRecipe(slug: string): Promise<RecipeDetailDto | null> {
     try {
-      return await serverClient<RecipeDetailDto>(
+      const response = await serverClient<ApiResponse<RecipeDetailDto>>(
         `/api/v1/recipes/${encodeURIComponent(slug)}`,
         { cache: "no-store" },
       );
+      return response.data;
     } catch (error) {
       if (error instanceof ServerApiError && error.status === 404) return null;
       throw error;
@@ -143,8 +144,8 @@ export const publicApi = {
 
   async searchRecipes(
     params: SearchRecipesParams,
-  ): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
-    return serverClient<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
+  ): Promise<PagedResult<SearchRecipeSummaryDto>> {
+    return serverClient<PagedResult<SearchRecipeSummaryDto>>(
       "/api/v1/recipes/search",
       { revalidate: 60, tags: ["recipe-search"], searchParams: { ...params } },
     );

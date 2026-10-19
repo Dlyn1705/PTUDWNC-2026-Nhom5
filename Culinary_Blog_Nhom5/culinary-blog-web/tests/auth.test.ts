@@ -141,6 +141,50 @@ test("API 401 retries only once with a different token", async () => {
   assert.equal(sends, 2);
 });
 
+test("twenty concurrent API 401 responses share one session refresh and one new token", async () => {
+  let sends = 0;
+  let reads = 0;
+  const client = axios.create({ adapter: async (config) => {
+    sends++;
+    if (config.headers.Authorization === "Bearer old") {
+      throw new AxiosError("unauthorized", "401", config, null, {
+        config, status: 401, statusText: "", headers: {}, data: null,
+      });
+    }
+    assert.equal(config.headers.Authorization, "Bearer new");
+    return { config, status: 200, statusText: "", headers: {}, data: config.url };
+  } });
+  installSessionAuth(client, async () => {
+    const token = reads++ === 0 ? "old" : "new";
+    await Promise.resolve();
+    return apiSession(token);
+  });
+
+  const responses = await Promise.all(Array.from({ length: 20 }, (_, index) =>
+    client.get(`/api/v1/recipes?request=${index}`)));
+
+  assert.equal(reads, 2);
+  assert.equal(sends, 40);
+  assert.equal(new Set(responses.map((response) => response.config.headers.Authorization)).size, 1);
+  assert.ok(responses.every((response) => response.config.headers.Authorization === "Bearer new"));
+});
+
+test("a retried request that receives another 401 stops after one retry", async () => {
+  let sends = 0;
+  let reads = 0;
+  const client = axios.create({ adapter: async (config) => {
+    sends++;
+    throw new AxiosError("unauthorized", "401", config, null, {
+      config, status: 401, statusText: "", headers: {}, data: null,
+    });
+  } });
+  installSessionAuth(client, async () => apiSession(reads++ === 0 ? "old" : "new"));
+
+  await assert.rejects(client.get("/api/v1/recipes"));
+  assert.equal(reads, 2);
+  assert.equal(sends, 2);
+});
+
 for (const status of [401, 403, 500]) {
   test(`API ${status} with unchanged token does not loop`, async () => {
     let sends = 0;
@@ -154,11 +198,13 @@ for (const status of [401, 403, 500]) {
   });
 }
 
-test("auth endpoints do not invoke session refresh", async () => {
-  const client = axios.create({ adapter: async (config) => ({ config, status: 200, statusText: "", headers: {}, data: null }) });
-  installSessionAuth(client, async () => { throw new Error("unexpected session read"); });
-  await client.post("/api/v1/auth/login", {});
-});
+for (const endpoint of ["login", "register", "refresh", "logout", "google"]) {
+  test(`auth endpoint ${endpoint} does not invoke session refresh`, async () => {
+    const client = axios.create({ adapter: async (config) => ({ config, status: 200, statusText: "", headers: {}, data: null }) });
+    installSessionAuth(client, async () => { throw new Error("unexpected session read"); });
+    await client.post(`/api/v1/auth/${endpoint}`, {});
+  });
+}
 
 test("invalid session cannot send stale bearer token", async () => {
   let sends = 0;

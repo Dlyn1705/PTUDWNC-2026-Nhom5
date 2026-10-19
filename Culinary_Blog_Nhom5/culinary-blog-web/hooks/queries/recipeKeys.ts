@@ -1,6 +1,10 @@
+import type { ManagedRecipeParams } from "../../lib/api/recipeEditorApi";
+import type { PublicRecipeParams } from "../../lib/api/recipePublicApi";
+
 export const recipeKeys = {
   all: ["recipes"] as const,
   lists: () => [...recipeKeys.all, "list"] as const,
-  managed: (status?: number) => [...recipeKeys.all, "managed", status ?? "all"] as const,
-  detail: (id: string) => [...recipeKeys.all, "detail", id] as const,
+  publicList: (filters: PublicRecipeParams = {}) => [...recipeKeys.lists(), "public", filters] as const,
+  managed: (filters: ManagedRecipeParams = {}) => [...recipeKeys.lists(), "managed", filters] as const,
+  detail: (identifier: string) => [...recipeKeys.all, "detail", identifier] as const,
 };

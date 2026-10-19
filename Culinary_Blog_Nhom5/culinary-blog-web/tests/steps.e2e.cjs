@@ -68,7 +68,7 @@ async function main() {
         recipe.status = 0; steps = createdPayload.steps.map((step, index) => ({ ...step, id: randomUUID(), recipeId, stepNumber: index + 1, title: step.title || `Bước ${index + 1}` }));
         version++; return json({ data: { id: recipeId, slug: recipe.slug, rowVersion: versionText() } }, 201);
       }
-      if (endpoint === `/api/v1/recipes/${recipeId}`) return json({ ...recipe, rowVersion: versionText() });
+      if (endpoint === `/api/v1/recipes/by-id/${recipeId}`) return json({ data: { ...recipe, rowVersion: versionText() } });
       if (endpoint.includes("/steps")) {
         if (request.method() === "GET") return json({ success: true, data: steps });
         writes++;
