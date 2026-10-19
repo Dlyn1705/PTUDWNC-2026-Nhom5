@@ -79,7 +79,14 @@ export function createFileApi(client: Pick<AxiosInstance, "post" | "get" | "dele
           if (image.processingStatus === "Failed") {
             throw responseProblem(response!, { ...context, kind: "image_processing", clientCode: "IMAGE_PROCESSING_FAILED" });
           }
-          await delay(Math.min(options.intervalMs ?? 1000, Math.max(0, deadline - performance.now())), controller.signal);
+          const interval = Math.max(0, options.intervalMs ?? 1000);
+          const remainingBeforeDelay = deadline - performance.now();
+          if (remainingBeforeDelay <= interval + 1) {
+            await delay(Math.max(0, remainingBeforeDelay), controller.signal);
+            abort("processing_timeout");
+            checkAbort(controller.signal);
+          }
+          await delay(interval, controller.signal);
         }
         checkAbort(controller.signal);
         const remaining = deadline - performance.now();
