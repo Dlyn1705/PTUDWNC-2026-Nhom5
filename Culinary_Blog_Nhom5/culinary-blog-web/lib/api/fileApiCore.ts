@@ -83,7 +83,9 @@ export function createFileApi(client: Pick<AxiosInstance, "post" | "get" | "dele
         }
         checkAbort(controller.signal);
         const remaining = deadline - performance.now();
-        if (remaining <= 0) { abort("processing_timeout"); checkAbort(controller.signal); }
+        // Leave a small scheduling margin so a poll cannot start on the deadline
+        // and race the processing-timeout timer on slower CI runners.
+        if (remaining <= 1) { abort("processing_timeout"); checkAbort(controller.signal); }
         const nextResponse: AxiosResponse = await client.get(`${path(recipeId)}/${imageId}`, {
           signal: controller.signal, timeout: Math.max(1, Math.min(10_000, Math.ceil(remaining))),
         });
