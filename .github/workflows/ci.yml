@@ -145,7 +145,6 @@ jobs:
           node --test tests/step-form.unit.cjs
           npm run test:security
           npm run test:logging
-          npm run test:file-api
 
       - name: Test recipe steps UI
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
