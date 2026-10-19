@@ -3,6 +3,9 @@ import { RecipeCardDto } from "@/types/recipe.types";
 import { RecipeCard } from "./RecipeCard";
 import { ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/common/Skeleton";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
 
 interface RecipeGridProps {
   recipes: RecipeCardDto[];
@@ -14,62 +17,58 @@ interface RecipeGridProps {
 export function RecipeGrid({
   recipes,
   isLoading = false,
-  emptyMessage = "No recipes found in this collection.",
+  emptyMessage = "Không có công thức nào phù hợp với bộ lọc đã chọn.",
   viewMode = "grid",
 }: RecipeGridProps) {
   const isList = viewMode === "list";
 
   if (isLoading) {
     return (
-      <div
-        className={cn(
-          "grid gap-6",
-          isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"
-        )}
-      >
-        {[1, 2, 3, 4, 5, 6].map((idx) => (
-          <div
-            key={idx}
-            className={cn(
-              "overflow-hidden rounded-2xl border border-border bg-card shadow-soft animate-pulse",
-              isList && "flex flex-col sm:flex-row"
-            )}
-          >
+      <LoadingState label="Đang tải danh sách công thức…">
+        <div
+          className={cn(
+            "grid gap-6",
+            isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+          )}
+        >
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
             <div
+              key={idx}
               className={cn(
-                "bg-muted",
-                isList ? "aspect-[16/9] sm:w-64 sm:shrink-0" : "aspect-[16/9] w-full"
+                "overflow-hidden rounded-2xl border border-border bg-card shadow-soft",
+                isList && "flex flex-col sm:flex-row",
               )}
-            />
-            <div className="space-y-3 p-5 sm:p-6 flex-1">
-              <div className="h-3.5 w-20 rounded bg-muted" />
-              <div className="h-6 w-3/4 rounded bg-muted" />
-              <div className="h-4 w-full rounded bg-muted" />
-              <div className="h-4 w-2/3 rounded bg-muted" />
-              <div className="border-t border-border pt-4 flex justify-between items-center">
-                <div className="h-5 w-24 rounded-full bg-muted" />
-                <div className="h-3 w-16 rounded bg-muted" />
+            >
+              <Skeleton
+                className={cn(
+                  isList ? "aspect-[16/9] sm:w-64 sm:shrink-0 rounded-none" : "aspect-[16/9] w-full rounded-none",
+                )}
+              />
+              <div className="space-y-3 p-5 sm:p-6 flex-1">
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+                <div className="border-t border-border pt-4 flex justify-between items-center">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </LoadingState>
     );
   }
 
   if (recipes.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-soft my-8">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
-          <ChefHat className="size-6" />
-        </div>
-        <h3 className="font-display text-xl font-semibold text-foreground">
-          No recipes found
-        </h3>
-        <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-          {emptyMessage}
-        </p>
-      </div>
+      <EmptyState
+        title="Chưa có công thức nào"
+        description={emptyMessage}
+        icon={<ChefHat className="size-7" />}
+        className="my-8"
+      />
     );
   }
 
@@ -77,7 +76,7 @@ export function RecipeGrid({
     <div
       className={cn(
         "grid gap-6",
-        isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"
+        isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
       )}
     >
       {recipes.map((recipe) => (

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, SlidersHorizontal, Clock3, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, SlidersHorizontal, Clock3, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { publicApi } from "@/lib/api/serverClient";
+import { publicApi, ServerApiError } from "@/lib/api/serverClient";
 import type { SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import type { CategoryDto } from "@/types/category.types";
+import { Pagination, ErrorState, EmptyState } from "@/components/common";
+import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
 export const metadata: Metadata = {
   title: "Tìm công thức — Culinary Blog",
@@ -17,20 +19,6 @@ export const metadata: Metadata = {
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 const positiveOrZeroInt = (value: string) => /^\d+$/.test(value) ? Number(value) : undefined;
-
-function getPageNumbers(current: number, total: number): (number | "ellipsis-start" | "ellipsis-end")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  const pages = new Set([1, total, current, current - 1, current + 1]);
-  if (current <= 3) [2, 3, 4].forEach((page) => pages.add(page));
-  if (current >= total - 2) [total - 3, total - 2, total - 1].forEach((page) => pages.add(page));
-  const sorted = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
-  const result: (number | "ellipsis-start" | "ellipsis-end")[] = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) result.push(index === 1 ? "ellipsis-start" : "ellipsis-end");
-    result.push(page);
-  });
-  return result;
-}
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -62,6 +50,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   let totalCount = 0;
   let totalPages = 0;
   let searchError = "";
+  let searchCorrelationId: string | undefined;
   let categories: CategoryDto[] = [];
   let page = requestedPage;
 
@@ -94,8 +83,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         totalPages = response.data.meta.totalPages;
         page = response.data.meta.page;
       }
-    } catch {
+    } catch (error) {
       searchError = "Không kết nối được máy chủ tìm kiếm. Vui lòng thử lại.";
+      if (error instanceof ServerApiError && error.correlationId) {
+        searchCorrelationId = error.correlationId;
+      }
     }
   }
 
@@ -111,6 +103,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   };
   const resetUrl = new URLSearchParams({ q, page: "1", pageSize: String(pageSize), sortBy, sortOrder });
   const resetHref = `/search?${resetUrl.toString()}`;
+
+  const paginationItems = getPaginationItems(page, totalPages);
+  const paginationLinks = buildPaginationLinks(paginationItems, page, totalPages, pageUrl);
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -190,7 +185,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           <p className="mt-2 text-sm text-muted-foreground">Nhập ít nhất 2 ký tự để xem các công thức phù hợp.</p>
         </section>
       ) : searchError ? (
-        <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">{searchError}</div>
+        <ErrorState
+          title="Không thể tìm kiếm công thức"
+          description={searchError}
+          correlationId={searchCorrelationId}
+        />
       ) : (
         <section id="search-results" className="space-y-5" aria-live="polite" aria-label="Kết quả tìm kiếm">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
@@ -205,11 +204,19 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           )}
 
           {recipes.length === 0 ? (
-            <div className="rounded-3xl border border-border bg-card px-6 py-14 text-center shadow-soft">
-              <Search className="mx-auto size-8 text-muted-foreground" />
-              <h3 className="mt-4 font-display text-xl font-semibold">Chưa tìm thấy công thức phù hợp</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Thử cách viết khác hoặc bỏ bớt bộ lọc.</p>
-            </div>
+            <EmptyState
+              title="Chưa tìm thấy công thức phù hợp"
+              description="Thử cách viết khác hoặc bỏ bớt bộ lọc."
+              icon={<Search className="size-7" />}
+              action={
+                <Link
+                  href={resetHref}
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-primary hover:bg-muted"
+                >
+                  Đặt lại bộ lọc
+                </Link>
+              }
+            />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {recipes.map((recipe) => (
@@ -231,17 +238,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             </div>
           )}
 
-          {totalPages > 1 && <nav className="flex flex-wrap items-center justify-center gap-2 pt-2" aria-label="Phân trang kết quả">
-            {page > 1 ? <Button asChild variant="outline" className="rounded-xl"><Link href={pageUrl(page - 1)}><ChevronLeft className="mr-1 size-4" />Trang trước</Link></Button> : <Button variant="outline" className="rounded-xl" disabled><ChevronLeft className="mr-1 size-4" />Trang trước</Button>}
-            <div className="flex items-center gap-1" aria-label={`Trang ${page} trong tổng số ${totalPages}`}>
-              {getPageNumbers(page, totalPages).map((item, index) => typeof item === "number" ? (
-                <Button key={item} asChild variant={item === page ? "default" : "ghost"} size="sm" className="min-w-9 rounded-lg" aria-current={item === page ? "page" : undefined}>
-                  <Link href={pageUrl(item)} aria-label={`Trang ${item}`}>{item}</Link>
-                </Button>
-              ) : <span key={`${item}-${index}`} className="px-1 text-muted-foreground" aria-hidden="true">…</span>)}
-            </div>
-            {page < totalPages ? <Button asChild variant="outline" className="rounded-xl"><Link href={pageUrl(page + 1)}>Trang sau<ChevronRight className="ml-1 size-4" /></Link></Button> : <Button variant="outline" className="rounded-xl" disabled>Trang sau<ChevronRight className="ml-1 size-4" /></Button>}
-          </nav>}
+          <Pagination
+            mode="link"
+            page={page}
+            totalPages={totalPages}
+            links={paginationLinks}
+            ariaLabel="Phân trang kết quả"
+          />
         </section>
       )}
     </main>

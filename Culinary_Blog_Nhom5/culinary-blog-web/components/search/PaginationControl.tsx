@@ -1,13 +1,25 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/common/Pagination";
+import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
-export function PaginationControl({ page, totalPages, href }: { page: number; totalPages: number; href: (page: number) => string }) {
+export interface PaginationControlProps {
+  page: number;
+  totalPages: number;
+  href: (page: number) => string;
+}
+
+export function PaginationControl({ page, totalPages, href }: PaginationControlProps) {
   if (totalPages <= 1) return null;
+  const items = getPaginationItems(page, totalPages);
+  const links = buildPaginationLinks(items, page, totalPages, href);
   return (
-    <nav className="flex items-center justify-center gap-3" aria-label="Phân trang">
-      <Button asChild={page > 1} variant="outline" disabled={page <= 1}>{page > 1 ? <Link href={href(page - 1)}>Trang trước</Link> : <span>Trang trước</span>}</Button>
-      <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
-      <Button asChild={page < totalPages} variant="outline" disabled={page >= totalPages}>{page < totalPages ? <Link href={href(page + 1)}>Trang sau</Link> : <span>Trang sau</span>}</Button>
-    </nav>
+    <Pagination
+      mode="link"
+      page={page}
+      totalPages={totalPages}
+      links={links}
+      ariaLabel="Phân trang"
+    />
   );
 }
+
+export default PaginationControl;

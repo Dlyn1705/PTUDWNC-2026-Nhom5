@@ -16,10 +16,13 @@ const backendBaseUrl =
   "http://localhost:5156";
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
+import { validCorrelationId } from "../logger";
+
 export class ServerApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly correlationId?: string,
   ) {
     super(message);
     this.name = "ServerApiError";
@@ -56,10 +59,33 @@ export async function serverClient<T>(
   });
 
   if (!response.ok) {
-    throw new ServerApiError(
-      response.status,
-      `Backend request failed (${response.status}) for ${url.pathname}.`,
-    );
+    const rawHeaderId =
+      response.headers.get("x-correlation-id") ||
+      response.headers.get("x-request-id") ||
+      undefined;
+    let correlationId = validCorrelationId(rawHeaderId);
+    let message = `Backend request failed (${response.status}) for ${url.pathname}.`;
+
+    try {
+      const cloned = response.clone();
+      const body = await cloned.json();
+      if (body && typeof body === "object") {
+        if (!correlationId && body.correlationId) {
+          correlationId = validCorrelationId(body.correlationId);
+        }
+        if (typeof body.detail === "string" && body.detail.trim()) {
+          message = body.detail.trim();
+        } else if (typeof body.title === "string" && body.title.trim()) {
+          message = body.title.trim();
+        } else if (typeof body.message === "string" && body.message.trim()) {
+          message = body.message.trim();
+        }
+      }
+    } catch {
+      // Body parse error must not lose response status or break failure flow
+    }
+
+    throw new ServerApiError(response.status, message, correlationId);
   }
 
   return (await response.json()) as T;

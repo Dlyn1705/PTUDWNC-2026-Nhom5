@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PaginationMeta } from "@/types/api.types";
+import { Pagination } from "@/components/common/Pagination";
+import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
 interface RecipesCatalogViewProps {
   initialRecipes: RecipeSummaryDto[];
@@ -177,18 +179,24 @@ export function RecipesCatalogView({
         emptyMessage="No recipes found matching your selected filters. Try choosing 'All Categories' or resetting difficulty."
       />
       {meta.totalPages > 1 && (
-        <nav aria-label="Recipe pagination" className="flex flex-wrap items-center justify-center gap-2">
-          <Button variant="outline" disabled={isPending || !meta.hasPreviousPage} onClick={() => updateQuery({ page: String(meta.page - 1) })}>Trang trước</Button>
-          {Array.from({ length: meta.totalPages }, (_, index) => index + 1)
-            .filter((page) => meta.totalPages <= 10 || page === 1 || page === meta.totalPages || Math.abs(page - meta.page) <= 2)
-            .map((page, index, pages) => (
-              <React.Fragment key={page}>
-                {index > 0 && page - pages[index - 1] > 1 && <span className="px-1 text-muted-foreground">…</span>}
-                <Button variant={page === meta.page ? "default" : "outline"} disabled={isPending} aria-current={page === meta.page ? "page" : undefined} aria-label={`Page ${page}`} onClick={() => updateQuery({ page: String(page) })}>{page}</Button>
-              </React.Fragment>
-            ))}
-          <Button variant="outline" disabled={isPending || !meta.hasNextPage} onClick={() => updateQuery({ page: String(meta.page + 1) })}>Trang sau</Button>
-        </nav>
+        <Pagination
+          mode="link"
+          page={meta.page}
+          totalPages={meta.totalPages}
+          disabled={isPending}
+          links={buildPaginationLinks(
+            getPaginationItems(meta.page, meta.totalPages),
+            meta.page,
+            meta.totalPages,
+            (pageNumber) => {
+              const query = new URLSearchParams(searchParams?.toString() ?? "");
+              if (pageNumber === 1) query.delete("page");
+              else query.set("page", String(pageNumber));
+              return `/recipes${query.size ? `?${query}` : ""}`;
+            },
+          )}
+          ariaLabel="Phân trang công thức"
+        />
       )}
       <p role="status" className="sr-only">{isPending ? "Loading recipes" : `${meta.totalCount} recipes, page ${meta.page} of ${Math.max(1, meta.totalPages)}`}</p>
     </div>
