@@ -10,17 +10,15 @@ import {
   Heart,
   Flame,
 } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import { SiteShell } from "@/components/layout/SiteShell";
 import { Button } from "@/components/ui/button";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { difficultyLabel } from "@/types/recipe.types";
 import { RecipeBookmark } from "@/components/recipes/RecipeBookmark";
 import { CategoryCard } from "@/components/categories/CategoryCard";
-import { categoryApi } from "@/lib/api/categoryApi";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { publicApi } from "@/lib/api/serverClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 export const metadata = {
   title: "Culinary Blog — Recipes worth cooking twice",
@@ -35,10 +33,11 @@ export const metadata = {
 };
 
 export default async function HomePage() {
-  const [categories, recipes] = await Promise.all([
-    categoryApi.getAll(),
-    recipeApi.getAll(),
+  const [categories, recipeResult] = await Promise.all([
+    publicApi.getCategories(),
+    publicApi.getRecipes({ page: 1, pageSize: 7 }),
   ]);
+  const recipes = recipeResult.data;
 
   const featured = recipes[0];
   const latestRecipes = recipes.slice(1, 7);
@@ -48,10 +47,8 @@ export default async function HomePage() {
     (featured?.prepTimeMinutes || 0) + (featured?.cookTimeMinutes || 0);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary">
-      <Navbar />
-
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-20">
+    <SiteShell className="selection:bg-primary/20 selection:text-primary">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-20">
         {/* Featured recipe banner */}
         <section aria-labelledby="featured-recipe-title" className="relative isolate overflow-hidden rounded-3xl bg-[#211b1c] text-white shadow-soft">
             <Image
@@ -59,7 +56,6 @@ export default async function HomePage() {
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
               fill
               sizes="(max-width: 1280px) 100vw, 1216px"
-              unoptimized
               loading="eager"
               className="-z-20 object-cover object-center"
             />
@@ -208,9 +204,7 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </SiteShell>
   );
 }

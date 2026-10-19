@@ -1,9 +1,8 @@
-import { ingredientStructuredText } from "@/lib/ingredient-form";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { publicApi } from "@/lib/api/serverClient";
 import { RecipeHero } from "@/components/recipes/RecipeHero";
 import { IngredientList } from "@/components/recipes/IngredientList";
 import { NutritionCard } from "@/components/recipes/NutritionCard";
@@ -17,7 +16,8 @@ interface RecipeDetailPageProps {
 
 export async function generateMetadata({ params }: RecipeDetailPageProps) {
   const { slug } = await params;
-  const recipe = await recipeApi.getBySlug(slug);
+  const recipe = await publicApi.getRecipe(slug);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
   if (!recipe) {
     return { title: "Recipe Not Found — Culinary Blog" };
@@ -29,12 +29,15 @@ export async function generateMetadata({ params }: RecipeDetailPageProps) {
   return {
     title: `${recipe.title} — Culinary Blog`,
     description: recipe.description,
+    alternates: { canonical: `${siteUrl}/recipes/${recipe.slug}` },
+    robots: recipe.status === 1 ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
       title: `${recipe.title} — Culinary Blog`,
       description: recipe.description,
       type: "article",
       publishedTime: recipe.createdAt,
       authors: [recipe.author?.displayName || "Culinary Chef"],
+      url: `${siteUrl}/recipes/${recipe.slug}`,
       images: primaryImage ? [{ url: primaryImage }] : [],
     },
     twitter: {
@@ -48,15 +51,19 @@ export async function generateMetadata({ params }: RecipeDetailPageProps) {
 
 export default async function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const { slug } = await params;
-  const recipe = await recipeApi.getBySlug(slug);
+  const recipe = await publicApi.getRecipe(slug);
 
   if (!recipe) {
     notFound();
   }
 
   // Fetch related recipes
-  const allRecipes = await recipeApi.getAll();
-  const relatedRecipes = allRecipes
+  const allRecipes = await publicApi.getRecipes({
+    page: 1,
+    pageSize: 12,
+    categoryId: recipe.categoryId,
+  });
+  const relatedRecipes = allRecipes.data
     .filter((r) => r.id !== recipe.id && (r.categoryId === recipe.categoryId || r.categoryName === recipe.categoryName))
     .slice(0, 3);
 
@@ -89,8 +96,9 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       fiberContent: `${recipe.nutrition.fiber || 0} grams`,
       sodiumContent: `${recipe.nutrition.sodium} milligrams`,
     },
-    recipeIngredient: recipe.ingredients.map(ingredientStructuredText),
-
+    recipeIngredient: recipe.ingredients.map(
+      (item) => `${item.quantity ? `${item.quantity} ` : ""}${item.unit} ${item.name}`.trim()
+    ),
     recipeInstructions: recipe.steps.map((step) => ({
       "@type": "HowToStep",
       name: step.title || `Step ${step.order}`,
@@ -157,7 +165,6 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
                     alt={recipe.author.displayName}
                     width={48}
                     height={48}
-                    unoptimized
                     className="size-12 rounded-full object-cover border-2 border-border"
                   />
                 ) : (

@@ -1,13 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import { recipeApi } from "@/lib/api/recipeApi";
-import { categoryApi } from "@/lib/api/categoryApi";
+import { publicApi } from "@/lib/api/serverClient";
+import { Can } from "@/components/auth/Can";
 import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
 import { UtensilsCrossed, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 export const metadata = {
   title: "All Recipes — Culinary Blog",
@@ -40,17 +39,14 @@ export default async function RecipesPage({ searchParams }: {
     sortBy: sort === "time" ? "cookTime" : sort === "title" ? "title" : "createdAt",
     sortOrder: sort === "newest" ? "desc" as const : "asc" as const,
   };
-  const [firstResult, categories, session] = await Promise.all([
-    recipeApi.getPaged(query),
-    categoryApi.getAll(),
-    auth(),
+  const [firstResult, categories] = await Promise.all([
+    publicApi.getRecipes(query),
+    publicApi.getCategories(),
   ]);
   const result = firstResult.meta.totalPages > 0 && page > firstResult.meta.totalPages
-    ? await recipeApi.getPaged({ ...query, page: firstResult.meta.totalPages })
+    ? await publicApi.getRecipes({ ...query, page: firstResult.meta.totalPages })
     : firstResult;
   const totalPublished = categories.reduce((total, category) => total + category.recipeCount, 0);
-  const canCreateRecipe = !!session?.user && !session.error &&
-    (session.user.role === "Author" || session.user.role === "Admin");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
@@ -84,14 +80,14 @@ export default async function RecipesPage({ searchParams }: {
             </span>
           </div>
 
-          {canCreateRecipe && (
+          <Can role="Author">
             <Button asChild className="rounded-2xl gap-2 shadow-soft h-11 px-5 font-medium">
               <Link href="/dashboard/recipes/new">
                 <Plus className="size-4" />
                 <span>Tạo công thức</span>
               </Link>
             </Button>
-          )}
+          </Can>
         </div>
       </div>
 
