@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "noEmit": false,
+    "incremental": false,
+    "outDir": "build/common-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "next-env.d.ts",
+    "lib/pagination.ts",
+    "lib/logger.ts",
+    "lib/api/serverClient.ts",
+    "types/**/*.ts",
+    "tests/common-components.test.ts"
+  ],
+  "exclude": ["node_modules", ".next", "build"]
+}
