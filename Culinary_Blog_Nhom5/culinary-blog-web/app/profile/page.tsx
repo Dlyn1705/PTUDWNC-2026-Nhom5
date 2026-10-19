@@ -7,7 +7,7 @@ export const metadata = { title: "Hồ sơ — Culinary Blog" };
 
 export default async function ProfilePage() {
   const session = await auth();
-  if (!session?.user || session.error) redirect("/login?callbackUrl=/profile");
+  if (!session?.user || session.error) redirect("/auth/login?callbackUrl=/profile");
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
