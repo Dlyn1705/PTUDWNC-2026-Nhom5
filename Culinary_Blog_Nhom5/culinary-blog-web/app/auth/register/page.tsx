@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { RegisterForm } from "@/components/forms/RegisterForm";
-
-export const dynamic = "force-dynamic";
+import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export const metadata: Metadata = {
   title: "Đăng ký tài khoản | Culinary Blog",

@@ -160,7 +160,7 @@ export function LoginForm() {
       <p className="text-center text-sm text-stone-600">
         Chưa có tài khoản?{" "}
         <Link
-          href="/register"
+          href="/auth/register"
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Tạo tài khoản

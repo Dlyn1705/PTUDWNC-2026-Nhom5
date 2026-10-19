@@ -35,8 +35,8 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
-  const isCategoriesActive = pathname === "/categories" || pathname?.startsWith("/categories/") === true;
-  const isRecipesActive = pathname === "/recipes" || pathname?.startsWith("/recipes/") === true;
+  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
+  const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
@@ -102,7 +102,7 @@ export default function Navbar() {
             size="sm"
             className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
           >
-            <Link href="/register">
+            <Link href="/auth/register">
               <UserPlus className="size-3.5" />
               <span>Đăng ký</span>
             </Link>
@@ -187,18 +187,18 @@ export default function Navbar() {
               <div className="pt-3 border-t border-border flex flex-col gap-2">
                 {isAuthenticated && (
                   <Link
-                    href={isAdmin ? "/dashboard/categories" : "/dashboard/recipes"}
+                    href="/dashboard"
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <LayoutDashboard className="size-4 text-primary" />
-                    <span>{isAdmin ? "Admin Dashboard" : "Quản lý công thức"}</span>
+                    <span>{isAdmin ? "Bảng điều khiển Admin" : "Bảng điều khiển tác giả"}</span>
                   </Link>
                 )}
 
                 {status === "loading" ? null : isAuthenticated ? (
                   <div className="mt-1 flex items-center gap-3 px-3"><UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /><span className="truncate text-sm font-medium">{accountName}</span></div>
                 ) : <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
-                  <Link href="/register">
+                  <Link href="/auth/register">
                     <UserPlus className="size-4" />
                     <span>Đăng ký tài khoản</span>
                   </Link>

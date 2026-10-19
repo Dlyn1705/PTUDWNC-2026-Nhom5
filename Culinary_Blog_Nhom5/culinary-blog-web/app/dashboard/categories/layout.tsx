@@ -1,17 +1,16 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasRole } from "@/lib/permissions";
 
 export default async function AdminCategoriesLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
 
-  if (!session || session.error) {
-    redirect("/login?callbackUrl=/dashboard/categories");
+  if (!session || session.error === "RefreshTokenError") {
+    redirect("/auth/login?callbackUrl=/dashboard/categories");
   }
 
-  if (!hasRole(session.user, "Admin")) {
+  if (session.user.role !== "Admin") {
     redirect("/dashboard/recipes");
   }
 

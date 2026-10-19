@@ -42,7 +42,7 @@ function handleRequest(request: NextRequest & { auth?: Session | null }) {
     return response;
   };
   if (isProtected && (!session || session.error)) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
     return finalize(NextResponse.redirect(loginUrl));
   }

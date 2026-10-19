@@ -69,8 +69,8 @@ export default function Footer() {
               </Link>
             </li>
             <li>
-              <Link href="/dashboard/categories" className="transition-colors hover:text-primary">
-                Admin Management
+              <Link href="/dashboard" className="transition-colors hover:text-primary">
+                Author/Admin Dashboard
               </Link>
             </li>
           </ul>

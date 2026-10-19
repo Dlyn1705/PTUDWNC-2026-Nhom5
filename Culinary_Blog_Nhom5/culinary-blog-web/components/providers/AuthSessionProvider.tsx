@@ -10,7 +10,7 @@ function SessionStatus() {
     if (session?.error !== "RefreshTokenError" || signingOut.current) return;
     signingOut.current = true;
     const callbackUrl = `${window.location.pathname}${window.location.search}`;
-    void signOut({ redirectTo: `/login?reason=session-expired&callbackUrl=${encodeURIComponent(callbackUrl)}` });
+    void signOut({ redirectTo: `/auth/login?reason=session-expired&callbackUrl=${encodeURIComponent(callbackUrl)}` });
   }, [session?.error]);
   if (session?.error === "SessionUnavailableError") {
     return <p role="status" className="bg-amber-50 p-3 text-center text-sm text-amber-900">Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại sau.</p>;

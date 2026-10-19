@@ -2,9 +2,9 @@ import React from "react";
 import type { Metadata } from "next";
 import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
-import { categoryApi } from "@/lib/api/categoryApi";
+import { publicApi } from "@/lib/api/serverClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "All Categories - Culinary Blog",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriesPage() {
-  const categories = await categoryApi.getAll();
+  const categories = await publicApi.getCategories();
 
   const totalCategories = categories.length;
   const totalRecipes = categories.reduce(

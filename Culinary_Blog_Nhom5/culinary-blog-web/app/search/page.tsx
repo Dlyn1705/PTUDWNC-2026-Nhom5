@@ -4,8 +4,7 @@ import Link from "next/link";
 import { Search, SlidersHorizontal, Clock3, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { recipeApi } from "@/lib/api/recipeApi";
-import { categoryApi } from "@/lib/api/categoryApi";
+import { publicApi } from "@/lib/api/serverClient";
 import type { SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import type { CategoryDto } from "@/types/category.types";
@@ -67,14 +66,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   let page = requestedPage;
 
   try {
-    categories = await categoryApi.getAll();
+    categories = await publicApi.getCategories();
   } catch {
     // Category filtering remains optional when the category service is unavailable.
   }
 
   if (q.length >= 2) {
     try {
-      const response = await recipeApi.search({
+      const response = await publicApi.searchRecipes({
         q,
         page: requestedPage,
         pageSize,
@@ -217,7 +216,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                 <article key={recipe.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
                   <Link href={`/recipes/${recipe.slug}`} className="block">
                     <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                      {recipe.primaryImageUrl ? <Image src={recipe.primaryImageUrl} alt={recipe.title} fill unoptimized className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-3xl">🍲</div>}
+                      {recipe.primaryImageUrl ? <Image src={recipe.primaryImageUrl} alt={recipe.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-3xl">🍲</div>}
                       <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-xs font-semibold text-primary">{recipe.category.name}</span>
                     </div>
                     <div className="space-y-3 p-5">

@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
-import { categoryApi } from "@/lib/api/categoryApi";
+import { publicApi } from "@/lib/api/serverClient";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +14,8 @@ interface CategoryDetailPageProps {
 
 export async function generateMetadata({ params }: CategoryDetailPageProps) {
   const { slug } = await params;
-  const result = await categoryApi.getBySlug(slug, 1, 1);
+  const result = await publicApi.getCategory(slug, 1, 1);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
   if (!result) {
     return { title: "Category Not Found — Culinary Blog" };
@@ -26,11 +27,14 @@ export async function generateMetadata({ params }: CategoryDetailPageProps) {
     title: `${category.name} Recipes — Culinary Blog`,
     description:
       category.description || `Browse tested ${category.name} recipes with timings and nutrition.`,
+    alternates: { canonical: `${siteUrl}/categories/${category.slug}` },
     openGraph: {
       title: `${category.name} Recipes — Culinary Blog`,
       description:
         category.description || `Browse tested ${category.name} recipes with timings and nutrition.`,
       type: "website",
+      url: `${siteUrl}/categories/${category.slug}`,
+      images: category.imageUrl ? [{ url: category.imageUrl }] : [],
     },
   };
 }
@@ -45,8 +49,8 @@ export default async function CategoryDetailPage({
   const PAGE_SIZE = 12;
 
   const [result, allCategories] = await Promise.all([
-    categoryApi.getBySlug(slug, currentPage, PAGE_SIZE),
-    categoryApi.getAll(),
+    publicApi.getCategory(slug, currentPage, PAGE_SIZE),
+    publicApi.getCategories(),
   ]);
 
   if (!result) {
@@ -175,7 +179,6 @@ const cover =
               alt={category.name}
               width={1200}
               height={675}
-              unoptimized
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
               loading="eager"
             />
