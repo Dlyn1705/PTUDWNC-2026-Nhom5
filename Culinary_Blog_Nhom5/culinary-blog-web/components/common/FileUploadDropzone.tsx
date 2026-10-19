@@ -2,78 +2,100 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { uploadRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+import { getRecipeImages, uploadRecipeImage, waitForRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
+import { imageErrorMessage, needsImageReconciliation, validateImageFile } from "@/lib/api/imageErrors";
+import { toApiProblemError } from "@/lib/api/problemDetails";
 
 type Props = {
   recipeId: string;
+  disabled?: boolean;
   onUploadSuccess?: (image: RecipeImageDto) => void;
+  onImageChange?: (image: RecipeImageDto) => void;
+  onImagesChange?: (images: RecipeImageDto[]) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props) {
+export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess, onImageChange, onImagesChange, onBusyChange }: Props) {
   const [selected, setSelected] = useState<{ file: File; previewUrl: string } | null>(null);
-  const file = selected?.file ?? null;
-  const previewUrl = selected?.previewUrl ?? null;
   const [progress, setProgress] = useState(0);
-  const [state, setState] = useState<"idle" | "uploading" | "success" | "error" | "cancelled">("idle");
+  const [state, setState] = useState<"idle" | "uploading" | "processing" | "checking" | "success" | "error" | "cancelled">("idle");
   const [message, setMessage] = useState("");
   const [altText, setAltText] = useState("");
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [savedImage, setSavedImage] = useState<RecipeImageDto | null>(null);
+  const [mustReconcile, setMustReconcile] = useState(false);
+  const [retryAfterMs, setRetryAfterMs] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
+  const busy = state === "uploading" || state === "processing" || state === "checking";
 
   useEffect(() => {
     if (!selected) return;
-    const url = selected.previewUrl;
-    return () => URL.revokeObjectURL(url);
+    return () => URL.revokeObjectURL(selected.previewUrl);
   }, [selected]);
-
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    const controller = controllerRef.current;
+    controllerRef.current = null;
+    controller?.abort();
+    onBusyChange?.(false);
+  }, [recipeId, onBusyChange]);
+  useEffect(() => {
+    if (!retryAfterMs) return;
+    const timer = setTimeout(() => setRetryAfterMs(0), Math.min(retryAfterMs, 2_147_483_647));
+    return () => clearTimeout(timer);
+  }, [retryAfterMs]);
 
   const chooseFile = (candidate?: File) => {
-    if (!candidate || state === "uploading") return;
-    if (!ACCEPTED_TYPES.has(candidate.type)) {
-      setSelected(null);
-      setMessage("Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc AVIF.");
-      setState("error");
-      return;
-    }
-    if (candidate.size <= 0 || candidate.size > MAX_FILE_SIZE) {
-      setSelected(null);
-      setMessage("Ảnh phải có dung lượng từ 1 byte đến 5 MiB.");
-      setState("error");
-      return;
-    }
+    if (!candidate || controllerRef.current || disabled) return;
+    try { validateImageFile(candidate); }
+    catch (cause) { setSelected(null); setSavedImage(null); setMessage(imageErrorMessage(cause)); setState("error"); return; }
     setSelected({ file: candidate, previewUrl: URL.createObjectURL(candidate) });
+    setSavedImage(null);
     setProgress(0);
     setMessage("");
     setState("idle");
   };
 
   const upload = async () => {
-    if (!file || state === "uploading") return;
+    if (controllerRef.current || disabled || retryAfterMs || (!selected && !savedImage && !mustReconcile)) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setState("uploading");
+    onBusyChange?.(true);
+    const current = () => controllerRef.current === controller;
+    setState(mustReconcile ? "checking" : savedImage ? "processing" : "uploading");
     setMessage("");
+    const onImage = (image: RecipeImageDto) => {
+      if (!current() || controller.signal.aborted) return;
+      setSavedImage(image);
+      setState("processing");
+      onImageChange?.(image);
+    };
     try {
-      const image = await uploadRecipeImage(recipeId, file, setProgress, controller.signal, altText);
-      if (controller.signal.aborted) return;
-      setState("success");
-      setMessage("Đã tải ảnh lên. Các kích thước xem trước sẽ được tạo trong nền.");
-      onUploadSuccess?.(image);
-    } catch (error) {
-      if (controller.signal.aborted) {
-        setState("cancelled");
-        setMessage("Đã dừng thao tác. Nếu máy chủ đã nhận file, ảnh vẫn có thể được lưu.");
-      } else {
-        setState("error");
-        setMessage(error instanceof Error ? error.message : "Tải ảnh thất bại. Vui lòng thử lại.");
+      if (mustReconcile) {
+        const images = await getRecipeImages(recipeId, controller.signal);
+        if (!current() || controller.signal.aborted) return;
+        onImagesChange?.(images);
+        setMustReconcile(false);
+        setState("idle");
+        setMessage("Đã tải lại danh sách. Kiểm tra ảnh đã lưu trước khi chọn tải lên lần nữa để tránh tạo ảnh trùng.");
+        return;
       }
+      const image = savedImage
+        ? await waitForRecipeImage(recipeId, savedImage.id, controller.signal, { onImage })
+        : await uploadRecipeImage(recipeId, selected!.file, value => { if (current()) setProgress(value); }, controller.signal, altText, { onImage });
+      if (!current() || controller.signal.aborted) return;
+      setState("success");
+      setMessage("Ảnh đã tải lên và xử lý hoàn tất.");
+      onUploadSuccess?.(image);
+    } catch (cause) {
+      if (!current()) return;
+      const error = toApiProblemError(cause);
+      if (error.image) { setSavedImage(error.image); onImageChange?.(error.image); }
+      if (!savedImage && !error.image && needsImageReconciliation(error)) setMustReconcile(true);
+      setRetryAfterMs(error.retryAfterMs ?? 0);
+      setState(error.kind === "cancelled" ? "cancelled" : "error");
+      setMessage(imageErrorMessage(error));
     } finally {
-      controllerRef.current = null;
+      if (current()) { controllerRef.current = null; onBusyChange?.(false); }
     }
   };
 
@@ -82,58 +104,38 @@ export default function FileUploadDropzone({ recipeId, onUploadSuccess }: Props)
       <label
         className={`flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition ${dragging ? "border-primary bg-primary/5" : "border-gray-300 bg-gray-50 hover:border-primary"}`}
         aria-describedby="recipe-image-upload-help"
-        onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragOver={event => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); }}
+        onDrop={event => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); }}
       >
-        {previewUrl ? (
-          <Image src={previewUrl} alt="Xem trước ảnh đã chọn" width={640} height={400} unoptimized className="mb-3 max-h-48 w-auto rounded-lg object-contain" />
-        ) : <span className="mb-2 text-3xl" aria-hidden="true">📷</span>}
-        <span className="font-medium">{file?.name ?? "Chọn ảnh hoặc kéo thả vào đây"}</span>
+        {selected ? <Image src={selected.previewUrl} alt="Xem trước ảnh đã chọn" width={640} height={400} unoptimized className="mb-3 max-h-48 w-auto rounded-lg object-contain" />
+          : <span className="mb-2 text-3xl" aria-hidden="true">📷</span>}
+        <span className="font-medium">{selected?.file.name ?? "Chọn ảnh hoặc kéo thả vào đây"}</span>
         <span id="recipe-image-upload-help" className="mt-1 text-sm text-gray-500">JPEG, PNG, WebP, AVIF · tối đa 5 MiB</span>
-        <input
-          ref={inputRef}
-          className="sr-only"
-          type="file"
-          disabled={state === "uploading"}
-          tabIndex={0}
-          accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif"
-          aria-label="Chọn ảnh công thức"
-          onChange={(event) => { chooseFile(event.target.files?.[0]); event.currentTarget.value = ""; }}
-        />
+        <input className="sr-only" type="file" disabled={busy || disabled} tabIndex={0}
+          accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" aria-label="Chọn ảnh công thức"
+          onChange={event => { chooseFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
       </label>
-
-      {state === "uploading" && (
-        <div>
-          <progress className="w-full" value={progress} max={100} aria-label={`Đang tải ảnh ${progress}%`} />
-          <div className="text-right text-sm text-gray-600">{progress}%</div>
-          {progress === 100 && <p className="text-sm text-gray-600">Đang chờ máy chủ xác nhận ảnh...</p>}
-        </div>
-      )}
+      {state === "uploading" && <div>
+        <progress className="w-full" value={progress} max={100} aria-label={`Đang tải ảnh ${progress}%`} />
+        <div className="text-right text-sm text-gray-600">{progress}%</div>
+        {progress === 100 && <p role="status">Đang chờ máy chủ xác nhận ảnh...</p>}
+      </div>}
+      {state === "processing" && <p role="status">Ảnh gốc đã được lưu. Đang kiểm tra xử lý ảnh xem trước...</p>}
+      {state === "checking" && <p role="status">Đang tải lại danh sách ảnh...</p>}
       {message && <p role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-sm text-red-600" : "text-sm text-gray-600"}>{message}</p>}
-
       <div className="flex gap-2">
-        {state === "uploading" ? (
-          <button type="button" className="rounded-lg border px-4 py-2" onClick={() => controllerRef.current?.abort()}>Hủy</button>
-        ) : (
-          <button type="button" className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50" disabled={!file || state === "success"} onClick={upload}>
-            {state === "error" || state === "cancelled" ? "Thử lại" : "Tải ảnh lên"}
-          </button>
-        )}
-        {file && state !== "uploading" && (
-          <button type="button" className="rounded-lg border px-4 py-2" onClick={() => { setSelected(null); setProgress(0); setState("idle"); setMessage(""); }}>Chọn ảnh khác</button>
-        )}
+        {busy ? <button type="button" className="rounded-lg border px-4 py-2" onClick={() => controllerRef.current?.abort()}>Hủy</button>
+          : <button type="button" className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+            disabled={disabled || retryAfterMs > 0 || (!selected && !savedImage && !mustReconcile) || state === "success"} onClick={() => void upload()}>
+            {mustReconcile ? "Kiểm tra danh sách trước khi thử lại" : savedImage ? "Kiểm tra lại trạng thái" : "Tải ảnh lên"}
+          </button>}
+        {selected && !busy && <button type="button" disabled={disabled} className="rounded-lg border px-4 py-2"
+          onClick={() => { setSelected(null); setSavedImage(null); setProgress(0); setState("idle"); setMessage(""); }}>Chọn ảnh khác</button>}
       </div>
-      <label className="block text-sm text-gray-700">
-        Văn bản thay thế (không bắt buộc)
-        <input
-          value={altText}
-          maxLength={200}
-          disabled={state === "uploading"}
-          onChange={(event) => setAltText(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-          placeholder="Mô tả ngắn về món ăn trong ảnh"
-        />
+      <label className="block text-sm text-gray-700">Văn bản thay thế (không bắt buộc)
+        <input value={altText} maxLength={200} disabled={busy || disabled} onChange={event => setAltText(event.target.value)}
+          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="Mô tả ngắn về món ăn trong ảnh" />
       </label>
     </section>
   );

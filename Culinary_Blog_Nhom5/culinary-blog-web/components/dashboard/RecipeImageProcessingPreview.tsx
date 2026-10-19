@@ -33,9 +33,11 @@ export default function RecipeImageProcessingPreview({ initial }: { initial: Rec
         if (updated.processingStatus === "Completed" || updated.processingStatus === "Failed") return;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const status = (error as { response?: { status?: number } }).response?.status;
+        const problem = error as { status?: number; correlationId?: string; response?: { status?: number } };
+        const status = problem.status ?? problem.response?.status;
         failures++;
-        setNotice("Không đọc được trạng thái ảnh. Ảnh đã tải lên vẫn được giữ trên máy chủ.");
+        setNotice("Không đọc được trạng thái ảnh. Ảnh đã tải lên vẫn được giữ trên máy chủ."
+          + (problem.correlationId ? ` Mã tham chiếu: ${problem.correlationId}.` : ""));
         if ([401, 403, 404].includes(status ?? 0) || failures >= 3) return;
       }
       timer = setTimeout(poll, 3000);

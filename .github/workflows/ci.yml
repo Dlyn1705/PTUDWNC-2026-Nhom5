@@ -112,6 +112,10 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm ci
 
+      - name: Test file API client
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:file-api
+
       - name: Install Playwright Chromium
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npx playwright install --with-deps chromium
@@ -127,6 +131,13 @@ jobs:
       - name: Test image processing UI
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:image-ui
+
+      - name: Test file API browser flows
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          AUTH_REDIS_URL: redis://localhost:6379
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:e2e:file-api
 
       - name: Test recipe step forms and security
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
