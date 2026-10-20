@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Trash2, ExternalLink, ChefHat, Layers } from "lucide-react";
+import { Pencil, Trash2, ExternalLink, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -15,9 +15,14 @@ import {
 } from "@/components/ui/table";
 import { CategoryDto } from "@/types/category.types";
 
+import { LoadingState } from "@/components/common/LoadingState";
+import { Skeleton } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
+
 interface CategoryTableProps {
   categories: CategoryDto[];
   isLoading: boolean;
+  filtered?: boolean;
   onEdit: (category: CategoryDto) => void;
   onDelete: (category: CategoryDto) => void;
 }
@@ -25,33 +30,16 @@ interface CategoryTableProps {
 export function CategoryTable({
   categories,
   isLoading,
+  filtered = false,
   onEdit,
   onDelete,
 }: CategoryTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
-        <div className="inline-block size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="mt-3 text-xs text-muted-foreground font-medium">Loading category catalog...</p>
-      </div>
-    );
-  }
-
-  if (categories.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-soft">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
-          <Layers className="size-6" />
-        </div>
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          No categories created yet
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-          Start by adding your first food category to organize culinary recipes.
-        </p>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState label="Đang tải danh mục…">
+    {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+  </LoadingState>;
+  if (categories.length === 0) return <EmptyState
+    title={filtered ? "Không tìm thấy danh mục phù hợp" : "Chưa có danh mục nào"}
+    description={filtered ? "Thử từ khóa khác hoặc xóa bộ lọc." : "Tạo danh mục đầu tiên để sắp xếp các công thức."} />;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">

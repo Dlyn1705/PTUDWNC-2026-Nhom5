@@ -16,6 +16,10 @@ import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
 import type { CategoryDto } from "@/types/category.types";
 import { recipeKeys } from "@/hooks/queries/recipeKeys";
 
+import { RouteLoading } from "@/components/common/RouteLoading";
+import { ErrorState } from "@/components/common/ErrorState";
+import { errorPresentation } from "@/lib/errorPresentation";
+
 type RouteProps = { params: Promise<{ id: string }> };
 
 export default function EditRecipePage({ params }: RouteProps) {
@@ -33,6 +37,7 @@ export default function EditRecipePage({ params }: RouteProps) {
   const activeRecipeId = useRef("");
   const [recipe, setRecipe] = useState<RecipeDto | null>(null);
   const [form, setForm] = useState<RecipeWritePayload | null>(null);
+  const [loadError, setLoadError] = useState<ReturnType<typeof errorPresentation> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -45,6 +50,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       if (!active) return null;
       activeRecipeId.current = id;
       setLoading(true);
+      setLoadError(null);
       setError("");
       setSuccess("");
       setConflict(false);
@@ -69,8 +75,8 @@ export default function EditRecipePage({ params }: RouteProps) {
         categoryId: loaded.categoryId,
         rowVersion: loaded.rowVersion,
       });
-    }).catch(() => {
-      if (active) setError("Không thể tải công thức hoặc bạn không có quyền truy cập.");
+    }).catch((reason) => {
+      if (active) setLoadError(errorPresentation(reason));
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -142,15 +148,16 @@ export default function EditRecipePage({ params }: RouteProps) {
     }
   };
 
-  if (loading || sessionStatus === "loading") return <main className="p-8">Đang tải công thức...</main>;
-  if (!recipe || !form) return <main className="p-8"><p role="alert" className="text-red-600">{error || "Không tìm thấy công thức."}</p>
-    <button type="button" onClick={() => setReload(n => n + 1)} className="mt-4 underline">Thử tải lại</button></main>;
+  if (loading || sessionStatus === "loading") return <RouteLoading variant="form" label="Đang tải công thức…" />;
+  if (!recipe || !form) return <div className="p-8"><ErrorState headingLevel="h1" title="Không thể tải công thức"
+    description={loadError?.description ?? "Không tìm thấy công thức."} correlationId={loadError?.correlationId}
+    onRetry={loadError?.canRetry ? () => setReload(n => n + 1) : undefined} /></div>;
   const isAdmin = session?.user.roles?.includes("Admin") || session?.user.role === "Admin";
   if (!session?.user || (!isAdmin && (!session.user.roles?.includes("Author") || recipe.author.id !== session.user.id)))
-    return <main role="alert" className="p-8 text-red-600">Bạn không có quyền cập nhật công thức này.</main>;
+    return <div role="alert" className="p-8 text-red-600">Bạn không có quyền cập nhật công thức này.</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10">
+    <div className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-3xl space-y-6 px-4">
         <div>
           <p className="text-sm font-medium text-primary">Dashboard / Recipes / Edit</p>
@@ -254,6 +261,6 @@ export default function EditRecipePage({ params }: RouteProps) {
         </form>
       </div>
       <DeleteRecipeModal open={showDelete} busy={deleting} onCancel={() => setShowDelete(false)} onConfirm={() => void remove()} />
-    </main>
+    </div>
   );
 }

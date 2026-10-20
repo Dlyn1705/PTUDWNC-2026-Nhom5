@@ -100,7 +100,7 @@ export function buildPaginationLinks(
     }
   }
 
-  if (safeCurrent > 1) {
+  if (safeCurrent > 1 && safeCurrent - 1 <= safeTotal) {
     pagesToInclude.add(safeCurrent - 1);
   }
   if (safeCurrent < safeTotal) {

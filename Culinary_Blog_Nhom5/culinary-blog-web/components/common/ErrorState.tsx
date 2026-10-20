@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,26 @@ export function ErrorState({
 }: ErrorStateProps) {
   const HeadingTag = headingLevel;
   const safeId = validCorrelationId(correlationId);
+  const retryInFlight = useRef(false);
+  const [localPending, setLocalPending] = useState(false);
+  const [retryFailed, setRetryFailed] = useState(false);
+  const pending = isRetrying || localPending;
+
+  async function retry() {
+    if (!onRetry || pending || retryInFlight.current) return;
+    retryInFlight.current = true;
+    setLocalPending(true);
+    setRetryFailed(false);
+    try {
+      await onRetry();
+    } catch {
+      // Keep the recovery UI usable without displaying a raw exception.
+      setRetryFailed(true);
+    } finally {
+      retryInFlight.current = false;
+      setLocalPending(false);
+    }
+  }
 
   return (
     <div
@@ -60,25 +80,22 @@ export function ErrorState({
         </p>
       )}
 
+      {retryFailed && <p className="mt-3 text-sm">Chưa thể tải lại. Vui lòng thử lại sau ít phút.</p>}
       {(onRetry || action) && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {onRetry && (
             <Button
               type="button"
               variant="default"
-              onClick={() => {
-                if (!isRetrying) {
-                  void onRetry();
-                }
-              }}
-              disabled={isRetrying}
+              onClick={() => void retry()}
+              disabled={pending}
               className="gap-2 rounded-xl"
             >
               <RefreshCw
-                className={cn("size-4", isRetrying && "animate-spin")}
+                className={cn("size-4", pending && "animate-spin motion-reduce:animate-none")}
                 aria-hidden="true"
               />
-              {isRetrying ? "Đang thử lại…" : retryLabel}
+              {pending ? "Đang thử lại…" : retryLabel}
             </Button>
           )}
           {action}
