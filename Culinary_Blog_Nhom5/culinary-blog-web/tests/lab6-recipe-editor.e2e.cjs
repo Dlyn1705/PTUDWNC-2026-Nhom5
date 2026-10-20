@@ -186,7 +186,10 @@ async function main() {
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
     await page.locator('[id$="-edit-title-error"]:visible').waitFor();
     assert.equal(await page.locator('[id$="-edit-title"]:visible').getAttribute("aria-invalid"), "true");
-    assert.equal(await page.locator('[id$="-edit-title"]:visible').evaluate(element => element === document.activeElement), true);
+    await page.waitForFunction(() => {
+      const field = document.querySelector('[id$="-edit-title"][aria-invalid="true"]');
+      return field && !field.matches(":disabled") && field === document.activeElement;
+    });
     await page.locator('[id$="-edit-title-error"]:visible').waitFor();
     assert.equal(putCalls, 0);
     await page.locator('[id$="-edit-title"]:visible').fill("Bản sửa chưa lưu");
@@ -308,7 +311,10 @@ async function main() {
     await page.locator('select[id$="-new-category"]:visible option').nth(1).waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     await page.locator('[id$="-new-title-error"]:visible').waitFor();
-    assert.equal(await page.locator('[id$="-new-title"]:visible').evaluate(element => element === document.activeElement), true);
+    await page.waitForFunction(() => {
+      const field = document.querySelector('[id$="-new-title"][aria-invalid="true"]');
+      return field && !field.matches(":disabled") && field === document.activeElement;
+    });
     assert.equal(createCalls, 0);
     assert.equal(await page.locator('[id$="-new-title"]').evaluateAll(elements => new Set(elements.map(element => element.id)).size === elements.length), true, "Cached recipe forms must have distinct field IDs");
     assert.equal(await page.locator("input:not([type=hidden]), textarea, select").evaluateAll(elements => elements.every(element => element.labels?.length || element.getAttribute("aria-label"))), true);

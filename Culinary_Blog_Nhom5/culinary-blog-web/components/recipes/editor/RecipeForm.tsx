@@ -42,7 +42,7 @@ export default function RecipeForm(props: Props) {
   const { mode, onDirtyChange, onSave, onCollectionErrors } = props;
   const prefix = useId();
   const form = useForm<RecipeEditorValues>({ resolver: zodResolver(recipeEditorSchema),
-    defaultValues: { ...emptyRecipeEditor, ...props.defaultValues }, shouldFocusError: true });
+    defaultValues: { ...emptyRecipeEditor, ...props.defaultValues }, shouldFocusError: false });
   const { register, handleSubmit, setError, setFocus, reset, clearErrors, formState: { errors, isDirty, isSubmitting } } = form;
   const title = useWatch({ control: form.control, name: "title" });
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
@@ -60,7 +60,7 @@ export default function RecipeForm(props: Props) {
     pendingFocus.current = null;
     if (pending.first) setFocus(pending.first);
     onCollectionErrors?.(pending.errors, !pending.first);
-  }, [locked, problem, setFocus, onCollectionErrors]);
+  }, [locked, problem, errors, setFocus, onCollectionErrors]);
 
   const inputId = (name: RecipeEditorField) => {
     const nutritionIndex = nutritionFields.indexOf(name as typeof nutritionFields[number]);
@@ -113,7 +113,13 @@ export default function RecipeForm(props: Props) {
     } finally { saving.current = false; }
   };
 
-  return <form noValidate className="space-y-6" onChange={props.onEdited} onSubmit={event => { void handleSubmit(submit)(event); }} aria-busy={locked}>
+  return <form noValidate className="space-y-6" onChange={props.onEdited} onSubmit={event => {
+    void handleSubmit(submit, invalidFields => {
+      // Resolver validation also runs while the fieldset is disabled. Focus only
+      // after React commits the enabled inputs, just as for API field errors.
+      pendingFocus.current = { first: fieldOrder.find(name => invalidFields[name]), errors: {} };
+    })(event);
+  }} aria-busy={locked}>
     {problem && <ErrorState title="Không thể lưu công thức" description={problem.message} correlationId={problem.correlationId}
       focusOnMount={problem.status !== 400 && problem.status !== 422}
       action={problem.status === 401
