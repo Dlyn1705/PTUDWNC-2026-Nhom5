@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/common/Skeleton";
 export default function RecipesLoading() {
   return (
     <LoadingState
-      label="Loading recipes"
+      label="Đang tải công thức"
       className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8"
     >
       <div className="space-y-3 border-b border-border pb-8">

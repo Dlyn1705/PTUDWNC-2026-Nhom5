@@ -8,6 +8,25 @@ import {
 } from "../lib/pagination";
 import { validCorrelationId } from "../lib/logger";
 import { ServerApiError } from "../lib/api/serverClient";
+import { errorPresentation } from "../lib/errorPresentation";
+
+test("error presentation keeps correlation without exposing backend text and separates permission failures", () => {
+  for (const status of [400, 401, 403, 404, 422, 429, 500, 503]) {
+    const value = errorPresentation(new ServerApiError(status, "SECRET backend stack", "request-id"));
+    assert.equal(value.status, status);
+    assert.equal(value.correlationId, "request-id");
+    assert.ok(!value.description.includes("SECRET"));
+    assert.equal(value.canRetry, [429, 500, 503].includes(status));
+  }
+  assert.equal(errorPresentation({ response: { status: 403, data: { correlationId: "body-id" } } }).correlationId, "body-id");
+  assert.equal(errorPresentation({ correlationId: "bad id", digest: "not-a-correlation" }).correlationId, undefined);
+  assert.equal(errorPresentation(new TypeError("SECRET")).canRetry, true);
+});
+
+test("pagination links never target pages outside the response range", () => {
+  const links = buildPaginationLinks(getPaginationItems(99, 3), 99, 3, p => `/search?page=${p}&q=pho`);
+  assert.deepEqual(links.map(link => link.page), [1, 2, 3]);
+});
 
 test("sanitizePageNumber and sanitizeTotalPages handle invalid inputs cleanly", () => {
   // Page number sanitization

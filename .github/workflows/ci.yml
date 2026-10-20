@@ -132,6 +132,10 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:image-ui
 
+      - name: Test route boundaries and common states in production
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:e2e:states
+
       - name: Test file API browser flows
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         env:

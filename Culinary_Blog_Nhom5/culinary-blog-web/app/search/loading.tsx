@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/common/Skeleton";
 export default function SearchLoading() {
   return (
     <LoadingState
-      label="Loading recipe search"
+      label="Đang tải trang tìm kiếm…"
       className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8"
     >
       <div className="space-y-3">
