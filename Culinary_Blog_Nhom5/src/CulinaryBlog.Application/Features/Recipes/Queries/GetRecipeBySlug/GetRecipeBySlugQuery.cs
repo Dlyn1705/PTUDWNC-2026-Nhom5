@@ -14,19 +14,30 @@ public sealed class GetRecipeBySlugQueryHandler
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPublicContentCache _cache;
 
     public GetRecipeBySlugQueryHandler(
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<RecipeDetailDto> Handle(
         GetRecipeBySlugQuery request,
         CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsAuthenticated)
+        {
+            return await _cache.GetRecipeAsync(
+                request.Slug,
+                ct => MapPublishedAsync(request.Slug, ct),
+                cancellationToken);
+        }
+
         var recipe = await _unitOfWork.Recipes.GetBySlugAsync(
             request.Slug,
             cancellationToken);
@@ -44,6 +55,29 @@ public sealed class GetRecipeBySlugQueryHandler
             throw new NotFoundException("Recipe", request.Slug);
         }
 
+        if (recipe.Status == RecipeStatus.Published)
+        {
+            return await _cache.GetRecipeAsync(
+                request.Slug,
+                ct => MapPublishedAsync(request.Slug, ct),
+                cancellationToken);
+        }
+
+        return Map(recipe);
+    }
+
+    private async Task<RecipeDetailDto> MapPublishedAsync(string slug, CancellationToken cancellationToken)
+    {
+        var recipe = await _unitOfWork.Recipes.GetBySlugAsync(slug, cancellationToken);
+        if (recipe is null || recipe.IsDeleted || recipe.Status != RecipeStatus.Published)
+            throw new NotFoundException("Recipe", slug);
+
+        return Map(recipe);
+    }
+
+    private static RecipeDetailDto Map(CulinaryBlog.Domain.Entities.Recipe recipe)
+    {
+
         return new RecipeDetailDto
         {
             Id = recipe.Id,
@@ -51,6 +85,8 @@ public sealed class GetRecipeBySlugQueryHandler
             Title = recipe.Title,
             Slug = recipe.Slug,
             CreatedAt = recipe.CreatedAt,
+            UpdatedAt = recipe.UpdatedAt,
+            PublishedAt = recipe.PublishedAt,
             Description = recipe.Description,
             Instructions = recipe.Instructions,
             PrepTimeMinutes = recipe.PrepTime,

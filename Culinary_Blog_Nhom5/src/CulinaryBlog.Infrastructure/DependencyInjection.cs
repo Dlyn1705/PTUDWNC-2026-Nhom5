@@ -115,6 +115,7 @@ public static class DependencyInjection
             .WithSSL(minio.UseSSL)
             .Build());
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IPublicContentCache, PublicContentCache>();
         services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
         services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();

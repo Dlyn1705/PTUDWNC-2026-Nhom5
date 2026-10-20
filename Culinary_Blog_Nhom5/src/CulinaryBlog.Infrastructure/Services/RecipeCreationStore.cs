@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.Features.Recipes.Commands.CreateRecipe;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
@@ -8,7 +9,7 @@ using Npgsql;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class RecipeCreationStore(IServiceScopeFactory scopes) : IRecipeCreationStore
+public sealed class RecipeCreationStore(IServiceScopeFactory scopes, IRecipeCacheInvalidator cache) : IRecipeCreationStore
 {
     public async Task<CreatedRecipe> CreateAsync(Recipe recipe, CancellationToken cancellationToken)
     {
@@ -16,7 +17,7 @@ public sealed class RecipeCreationStore(IServiceScopeFactory scopes) : IRecipeCr
         await using var strategyScope = scopes.CreateAsyncScope();
         var strategy = strategyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
             .Database.CreateExecutionStrategy();
-        return await strategy.ExecuteAsync(async () =>
+        var result = await strategy.ExecuteAsync(async () =>
         {
             // A fresh context is essential after a failed transaction or a commit acknowledgement retry.
             for (var attempt = 0; attempt < 16; attempt++)
@@ -58,6 +59,8 @@ public sealed class RecipeCreationStore(IServiceScopeFactory scopes) : IRecipeCr
             }
             throw new ConflictException("Chưa thể cấp slug cho công thức. Vui lòng thử lại.");
         });
+        await cache.InvalidateRecipeAsync(result.Id, result.Slug, CancellationToken.None);
+        return result;
     }
 
     private static CreatedRecipe Result(Recipe recipe) => new("Tạo công thức thành công.", recipe.Id,

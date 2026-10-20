@@ -14,11 +14,13 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPublicContentCache _cache;
 
-    public DeleteCategoryCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUser)
+    public DeleteCategoryCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUser, IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<bool> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
@@ -42,6 +44,8 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
 
         _unitOfWork.Categories.Delete(category);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.InvalidateCategoriesAsync(category.Slug, CancellationToken.None);
+        await _cache.InvalidateRecipesAsync(cancellationToken: CancellationToken.None);
         return true;
     }
 }

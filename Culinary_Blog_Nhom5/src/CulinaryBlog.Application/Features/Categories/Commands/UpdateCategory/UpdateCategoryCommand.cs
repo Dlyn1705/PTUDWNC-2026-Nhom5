@@ -60,13 +60,16 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPublicContentCache _cache;
 
     public UpdateCategoryCommandHandler(
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<CategoryDto> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
@@ -104,6 +107,8 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
         // Keep slug unchanged to protect SEO backlinks as mandated by FR-CAT-004
         category.Update(name, description, imageUrl, request.OrderIndex);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.InvalidateCategoriesAsync(category.Slug, CancellationToken.None);
+        await _cache.InvalidateRecipesAsync(cancellationToken: CancellationToken.None);
 
         int recipeCount = await _unitOfWork.Recipes.CountByCategoryIdAsync(category.Id, cancellationToken);
 

@@ -57,11 +57,13 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPublicContentCache _cache;
 
-    public CreateCategoryCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUser)
+    public CreateCategoryCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUser, IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<CategoryDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
@@ -99,6 +101,8 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
         var category = Category.Create(name, slug, description, imageUrl, request.OrderIndex);
         await _unitOfWork.Categories.AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.InvalidateCategoriesAsync(category.Slug, CancellationToken.None);
+        await _cache.InvalidateRecipesAsync(cancellationToken: CancellationToken.None);
 
         return new CategoryDto
         {

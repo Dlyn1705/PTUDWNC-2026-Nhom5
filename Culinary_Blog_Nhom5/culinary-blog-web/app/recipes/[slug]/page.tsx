@@ -35,7 +35,8 @@ export async function generateMetadata({ params }: RecipeDetailPageProps) {
       title: `${recipe.title} — Culinary Blog`,
       description: recipe.description,
       type: "article",
-      publishedTime: recipe.createdAt,
+      publishedTime: recipe.publishedAt || recipe.createdAt,
+      modifiedTime: recipe.updatedAt || recipe.publishedAt || recipe.createdAt,
       authors: [recipe.author?.displayName || "Culinary Chef"],
       url: `${siteUrl}/recipes/${recipe.slug}`,
       images: primaryImage ? [{ url: primaryImage }] : [],
@@ -80,7 +81,8 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       "@type": "Person",
       name: recipe.author?.displayName || "Culinary Chef",
     },
-    datePublished: recipe.createdAt,
+    datePublished: recipe.publishedAt || recipe.createdAt,
+    dateModified: recipe.updatedAt || recipe.publishedAt || recipe.createdAt,
     description: recipe.description,
     prepTime: `PT${recipe.prepTimeMinutes}M`,
     cookTime: `PT${recipe.cookTimeMinutes}M`,
@@ -97,7 +99,9 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       sodiumContent: `${recipe.nutrition.sodium} milligrams`,
     },
     recipeIngredient: recipe.ingredients.map(
-      (item) => `${item.quantity ? `${item.quantity} ` : ""}${item.unit} ${item.name}`.trim()
+      (item) => [item.quantity, item.unit, item.name]
+        .filter((value) => value !== null && value !== undefined && value !== "")
+        .join(" ")
     ),
     recipeInstructions: recipe.steps.map((step) => ({
       "@type": "HowToStep",
@@ -112,7 +116,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       {/* Schema.org Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaLd).replace(/</g, "\\u003c") }}
       />
 
       {/* Breadcrumbs */}

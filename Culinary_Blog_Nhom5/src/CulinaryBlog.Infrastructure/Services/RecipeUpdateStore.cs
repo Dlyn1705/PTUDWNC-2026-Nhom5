@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
@@ -7,7 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IServiceScopeFactory scopes) : IRecipeUpdateStore
+public sealed class RecipeUpdateStore(
+    ApplicationDbContext readContext,
+    IServiceScopeFactory scopes,
+    IRecipeCacheInvalidator cache) : IRecipeUpdateStore
 {
     public Task<Recipe?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         readContext.Recipes.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -16,7 +20,7 @@ public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IService
     {
         var strategy = readContext.Database.CreateExecutionStrategy();
         byte[]? writtenVersion = null;
-        return await strategy.ExecuteAsync(async () =>
+        var result = await strategy.ExecuteAsync(async () =>
         {
             // Never reuse a failed change tracker across execution-strategy attempts.
             await using var scope = scopes.CreateAsyncScope();
@@ -50,6 +54,8 @@ public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IService
             }
             catch (DbUpdateConcurrencyException) { throw Conflict(); }
         });
+        await cache.InvalidateRecipeAsync(result.Id, result.Slug, CancellationToken.None);
+        return result;
     }
 
     private static ConflictException Conflict() => new("Công thức đã thay đổi. Vui lòng tải lại trước khi lưu.", "RECIPE_VERSION_CONFLICT");

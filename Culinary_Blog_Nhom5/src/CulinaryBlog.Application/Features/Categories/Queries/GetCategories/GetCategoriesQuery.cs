@@ -14,17 +14,22 @@ public record GetCategoriesQuery : IRequest<IReadOnlyList<CategoryDto>>;
 public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, IReadOnlyList<CategoryDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ICurrentUserService _currentUser;
+    private readonly IPublicContentCache _cache;
 
     public GetCategoriesQueryHandler(
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUser)
+        IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
-        _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<IReadOnlyList<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
+    {
+        return await _cache.GetCategoriesAsync(LoadAsync, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<CategoryDto>> LoadAsync(CancellationToken cancellationToken)
     {
         var results = await _unitOfWork.Categories.GetAllWithRecipeCountAsync(cancellationToken);
 
@@ -37,9 +42,8 @@ public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, IRe
             ImageUrl = item.Category.ImageUrl,
             OrderIndex = item.Category.OrderIndex,
             RecipeCount = item.RecipeCount,
-            TotalRecipeCount = _currentUser.IsAdmin
-                ? item.TotalRecipeCount
-                : item.RecipeCount
+            // This is a public, shared-cache response. Never mix admin-only counts into it.
+            TotalRecipeCount = item.RecipeCount
         }).OrderBy(x => x.OrderIndex).ThenBy(x => x.Name).ToList();
     }
 }

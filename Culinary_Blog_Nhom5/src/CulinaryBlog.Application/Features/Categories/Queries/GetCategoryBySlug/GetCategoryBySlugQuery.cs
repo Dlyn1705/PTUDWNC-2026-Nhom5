@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
@@ -15,28 +16,44 @@ public sealed class GetCategoryBySlugQueryHandler
     : IRequestHandler<GetCategoryBySlugQuery, CategoryDetailDto>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublicContentCache _cache;
 
-    public GetCategoryBySlugQueryHandler(IUnitOfWork unitOfWork)
+    public GetCategoryBySlugQueryHandler(IUnitOfWork unitOfWork, IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task<CategoryDetailDto> Handle(
         GetCategoryBySlugQuery request,
         CancellationToken cancellationToken)
     {
-        var category = await _unitOfWork.Categories.GetBySlugAsync(
+        var page = Math.Max(request.Page, 1);
+        var pageSize = Math.Clamp(request.PageSize, 1, 50);
+        return await _cache.GetCategoryAsync(
             request.Slug,
+            page,
+            pageSize,
+            ct => LoadAsync(request.Slug, page, pageSize, ct),
             cancellationToken);
+    }
+
+    private async Task<CategoryDetailDto> LoadAsync(
+        string slug,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var category = await _unitOfWork.Categories.GetBySlugAsync(slug, cancellationToken);
 
         if (category is null)
         {
-            throw new NotFoundException("Category", request.Slug);
+            throw new NotFoundException("Category", slug);
         }
 
         var (recipes, totalCount) = await _unitOfWork.Recipes.GetPagedAsync(
-            request.Page,
-            request.PageSize,
+            page,
+            pageSize,
             categoryId: category.Id,
             ct: cancellationToken);
 
@@ -92,8 +109,8 @@ public sealed class GetCategoryBySlugQueryHandler
             Recipes = new PagedResult<RecipeSummaryDto>(
                 recipeDtos,
                 totalCount,
-                request.Page,
-                request.PageSize)
+                page,
+                pageSize)
         };
     }
 }

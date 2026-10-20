@@ -295,6 +295,7 @@ public static class RecipeEndpoints
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
             IUnitOfWork unitOfWork,
+            IRecipeCacheInvalidator cache,
             CancellationToken ct) =>
         {
             var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
@@ -306,6 +307,7 @@ public static class RecipeEndpoints
 
             recipe.Archive();
             await unitOfWork.SaveChangesAsync(ct);
+            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
         .WithName("ArchiveRecipe")
@@ -324,6 +326,7 @@ public static class RecipeEndpoints
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
             IUnitOfWork unitOfWork,
+            IRecipeCacheInvalidator cache,
             CancellationToken ct) =>
         {
             var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
@@ -343,6 +346,7 @@ public static class RecipeEndpoints
             }
 
             await unitOfWork.SaveChangesAsync(ct);
+            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
         })
         .WithName("UnarchiveRecipe")
@@ -383,6 +387,7 @@ public static class RecipeEndpoints
             IRecipeRepository recipeRepo,
             ICurrentUserService currentUser,
             ApplicationDbContext db,
+            IRecipeCacheInvalidator cache,
             CancellationToken ct) =>
         {
             var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
@@ -400,6 +405,7 @@ public static class RecipeEndpoints
 
             recipe.Unpublish();
             await db.SaveChangesAsync(ct);
+            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
             return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
         })
         .WithName("UnpublishRecipe")
@@ -421,15 +427,17 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
-            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.CacheControl = recipe.Status == (int)RecipeStatus.Published
+                ? "public, max-age=3600"
+                : "no-store";
             context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
-            return Results.Ok(recipe);
+            return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(recipe));
         })
         .WithName("GetRecipeBySlug")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y chi tiáº¿t cÃ´ng thá»©c theo slug; khÃ¡ch chá»‰ xem Published, Owner/Admin xem thÃªm Draft vÃ  Archived (FR-RCP-002)")
-        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeDetailDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         // ============================================================

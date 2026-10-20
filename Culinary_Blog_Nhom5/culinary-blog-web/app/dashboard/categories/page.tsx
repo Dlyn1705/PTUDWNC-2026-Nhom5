@@ -19,7 +19,7 @@ import { AdminDeleteCategoryModal } from "@/components/dashboard/categories/Admi
 import { useCategories } from "@/hooks/queries/useCategories";
 
 export default function AdminCategoriesPage() {
-  const { data: categories = [], isPending: loading, refetch } = useCategories();
+  const { data: categories = [], isPending: loading } = useCategories();
   const [search, setSearch] = useState("");
 
   // Create / Edit modal state
@@ -188,7 +188,6 @@ export default function AdminCategoriesPage() {
         editingCategory={editingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />
@@ -200,7 +199,6 @@ export default function AdminCategoriesPage() {
         category={deletingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />

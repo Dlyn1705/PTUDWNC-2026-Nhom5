@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Interfaces;
@@ -24,10 +25,12 @@ public record GetPublicRecipesQuery(
 public class GetPublicRecipesQueryHandler : IRequestHandler<GetPublicRecipesQuery, PagedResult<RecipeSummaryDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublicContentCache _cache;
 
-    public GetPublicRecipesQueryHandler(IUnitOfWork unitOfWork)
+    public GetPublicRecipesQueryHandler(IUnitOfWork unitOfWork, IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task<PagedResult<RecipeSummaryDto>> Handle(GetPublicRecipesQuery request, CancellationToken cancellationToken)
@@ -35,12 +38,39 @@ public class GetPublicRecipesQueryHandler : IRequestHandler<GetPublicRecipesQuer
         int page = Math.Max(request.Page, 1);
         int pageSize = Math.Clamp(request.PageSize, 1, 50);
 
-        string sortParam = request.SortBy ?? "createdAt";
-        if (!string.IsNullOrWhiteSpace(request.SortOrder) && request.SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase))
+        string sortBy = request.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "title" => "title",
+            "cooktime" => "cookTime",
+            _ => "createdAt"
+        };
+        string sortOrder = string.Equals(request.SortOrder, "asc", StringComparison.OrdinalIgnoreCase)
+            ? "asc"
+            : "desc";
+        var queryKey = string.Join(':', page, pageSize, request.CategoryId, request.Difficulty, request.MaxCookTime, sortBy, sortOrder);
+
+        return await _cache.GetRecipesAsync(
+            queryKey,
+            ct => LoadAsync(page, pageSize, request.CategoryId, request.Difficulty, request.MaxCookTime, sortBy, sortOrder, ct),
+            cancellationToken);
+    }
+
+    private async Task<PagedResult<RecipeSummaryDto>> LoadAsync(
+        int page,
+        int pageSize,
+        Guid? categoryId,
+        RecipeDifficulty? difficulty,
+        int? maxCookTime,
+        string sortBy,
+        string sortOrder,
+        CancellationToken cancellationToken)
+    {
+        string sortParam = sortBy;
+        if (sortOrder == "asc")
         {
             if (sortParam.StartsWith("-")) sortParam = sortParam.Substring(1);
         }
-        else if (!string.IsNullOrWhiteSpace(request.SortOrder) && request.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase))
+        else
         {
             if (!sortParam.StartsWith("-")) sortParam = $"-{sortParam}";
         }
@@ -48,9 +78,9 @@ public class GetPublicRecipesQueryHandler : IRequestHandler<GetPublicRecipesQuer
         var (items, totalCount) = await _unitOfWork.Recipes.GetPagedAsync(
             page,
             pageSize,
-            categoryId: request.CategoryId,
-            difficulty: request.Difficulty,
-            maxCookTime: request.MaxCookTime,
+            categoryId: categoryId,
+            difficulty: difficulty,
+            maxCookTime: maxCookTime,
             sortBy: sortParam,
             includeDrafts: false,
             ct: cancellationToken);
@@ -61,6 +91,8 @@ public class GetPublicRecipesQueryHandler : IRequestHandler<GetPublicRecipesQuer
             Title = r.Title,
             Slug = r.Slug,
             CreatedAt = r.CreatedAt,
+            UpdatedAt = r.UpdatedAt,
+            PublishedAt = r.PublishedAt,
             Description = r.Description,
             PrepTimeMinutes = r.PrepTime,
             CookTimeMinutes = r.CookTime,
