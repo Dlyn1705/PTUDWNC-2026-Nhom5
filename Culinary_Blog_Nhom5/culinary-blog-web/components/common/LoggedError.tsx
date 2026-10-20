@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import { errorCorrelationId, reportRuntimeError } from "@/lib/logger";
 import { ErrorState } from "./ErrorState";
 
@@ -16,6 +16,7 @@ export interface LoggedErrorProps {
   reset?: () => void;
   title?: string;
   description?: string;
+  standalone?: boolean;
 }
 
 export default function LoggedError({
@@ -24,22 +25,24 @@ export default function LoggedError({
   reset,
   title = "Không thể tải trang",
   description = "Đã xảy ra lỗi trong quá trình tải trang. Bạn có thể thử lại sau ít phút.",
+  standalone = false,
 }: LoggedErrorProps) {
   useErrorLog(error);
+  const [isPending, startTransition] = useTransition();
   const correlationId = errorCorrelationId(error) || error.correlationId;
   const handleRetry = retry ?? reset;
-  const isServerApiError = error.name === "ServerApiError";
-  const visibleDescription = isServerApiError && error.message ? error.message : description;
+  const Container = standalone ? "main" : "div";
 
   return (
-    <main className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center px-4 py-16">
+    <Container className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center px-4 py-16">
       <ErrorState
         title={title}
-        description={visibleDescription}
+        description={description}
         correlationId={correlationId}
-        onRetry={handleRetry}
+        onRetry={handleRetry ? () => startTransition(handleRetry) : undefined}
+        isRetrying={isPending}
         headingLevel="h1"
       />
-    </main>
+    </Container>
   );
 }

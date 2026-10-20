@@ -4,11 +4,14 @@ import Link from "next/link";
 import { Search, SlidersHorizontal, Clock3, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { publicApi, ServerApiError } from "@/lib/api/serverClient";
+import { publicApi } from "@/lib/api/serverClient";
 import type { SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import type { CategoryDto } from "@/types/category.types";
-import { Pagination, ErrorState, EmptyState } from "@/components/common";
+import { Pagination, EmptyState } from "@/components/common";
+import { errorPresentation } from "@/lib/errorPresentation";
+import { RouteRequestError } from "@/components/common/RouteRequestError";
+import { unstable_rethrow } from "next/navigation";
 import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
 export const metadata: Metadata = {
@@ -19,11 +22,6 @@ export const metadata: Metadata = {
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 const positiveOrZeroInt = (value: string) => /^\d+$/.test(value) ? Number(value) : undefined;
-const serverErrorMessage = (error: ServerApiError) => {
-  const fieldMessages = Object.values(error.errors).flat().filter(Boolean);
-  return fieldMessages.length > 0 ? fieldMessages.join(" ") : error.message;
-};
-
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const q = first(params.q).trim();
@@ -55,12 +53,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   let totalPages = 0;
   let searchError = "";
   let searchCorrelationId: string | undefined;
+  let canRetry = true;
   let categories: CategoryDto[] = [];
   let page = requestedPage;
 
   try {
     categories = await publicApi.getCategories();
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error);
     // Category filtering remains optional when the category service is unavailable.
   }
 
@@ -80,7 +80,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         sortOrder,
       });
       if (!response.success || !response.data) {
-        searchError = response.message || "Không thể tìm công thức lúc này.";
+        searchError = "Không thể tìm công thức lúc này. Vui lòng thử lại.";
       } else {
         recipes = response.data.data;
         totalCount = response.data.meta.totalCount;
@@ -88,12 +88,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         page = response.data.meta.page;
       }
     } catch (error) {
-      if (error instanceof ServerApiError) {
-        searchError = serverErrorMessage(error);
-        searchCorrelationId = error.correlationId;
-      } else {
-        searchError = "Không kết nối được máy chủ tìm kiếm. Vui lòng thử lại.";
-      }
+      unstable_rethrow(error);
+      const presentation = errorPresentation(error);
+      searchError = presentation.description;
+      searchCorrelationId = presentation.correlationId;
+      canRetry = presentation.canRetry;
     }
   }
 
@@ -114,7 +113,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const paginationLinks = buildPaginationLinks(paginationItems, page, totalPages, pageUrl);
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
       <div className="space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
           <Sparkles className="size-3.5" /> Khám phá món ngon
@@ -185,16 +184,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       </form>
 
       {q.length < 2 ? (
-        <section className="rounded-3xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
-          <Search className="mx-auto size-8 text-primary" />
-          <h2 className="mt-4 font-display text-2xl font-semibold">Bắt đầu với một món ăn</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Nhập ít nhất 2 ký tự để xem các công thức phù hợp.</p>
-        </section>
+        <EmptyState headingLevel="h2" title="Bắt đầu với một món ăn"
+          description="Nhập ít nhất 2 ký tự để xem các công thức phù hợp." icon={<Search className="size-7" />} />
       ) : searchError ? (
-        <ErrorState
+        <RouteRequestError
           title="Không thể tìm kiếm công thức"
           description={searchError}
           correlationId={searchCorrelationId}
+          canRetry={canRetry}
         />
       ) : (
         <section id="search-results" className="space-y-5" aria-live="polite" aria-label="Kết quả tìm kiếm">
@@ -253,6 +250,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           />
         </section>
       )}
-    </main>
+    </div>
   );
 }

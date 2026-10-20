@@ -159,8 +159,8 @@ export function Pagination(props: PaginationProps) {
                 variant={variant}
                 size="sm"
                 className="min-w-9 rounded-lg"
-                disabled={disabled}
-                aria-disabled={disabled}
+                disabled
+                aria-disabled="true"
                 aria-current={isCurrent ? "page" : undefined}
                 aria-label={`Trang ${item}`}
               >

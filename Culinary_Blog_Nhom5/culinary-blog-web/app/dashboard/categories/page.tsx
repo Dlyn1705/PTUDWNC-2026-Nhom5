@@ -16,10 +16,13 @@ import { CategoryDto } from "@/types/category.types";
 import { AdminCategoryTable } from "@/components/dashboard/categories/AdminCategoryTable";
 import { AdminCategoryFormModal } from "@/components/dashboard/categories/AdminCategoryFormModal";
 import { AdminDeleteCategoryModal } from "@/components/dashboard/categories/AdminDeleteCategoryModal";
+import { RouteLoading } from "@/components/common/RouteLoading";
+import { ErrorState } from "@/components/common/ErrorState";
+import { errorPresentation } from "@/lib/errorPresentation";
 import { useCategories } from "@/hooks/queries/useCategories";
 
 export default function AdminCategoriesPage() {
-  const { data: categories = [], isPending: loading } = useCategories();
+  const { data: categories = [], isPending: loading, isError, error, isFetching, refetch } = useCategories();
   const [search, setSearch] = useState("");
 
   // Create / Edit modal state
@@ -68,6 +71,14 @@ export default function AdminCategoriesPage() {
   }, [categories, search]);
 
   const totalRecipes = categories.reduce((sum, c) => sum + (c.recipeCount || 0), 0);
+
+  if (loading) return <RouteLoading variant="table" label="Đang tải danh mục quản lý…" />;
+  if (isError) {
+    const presentation = errorPresentation(error);
+    return <div className="p-6"><ErrorState title="Không thể tải danh mục quản lý" headingLevel="h1"
+      description={presentation.description} correlationId={presentation.correlationId}
+      onRetry={presentation.canRetry ? async () => { await refetch(); } : undefined} isRetrying={isFetching} /></div>;
+  }
 
   return (
     <div className="space-y-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -176,6 +187,7 @@ export default function AdminCategoriesPage() {
         <AdminCategoryTable
           categories={filteredCategories}
           isLoading={loading}
+          filtered={Boolean(search.trim())}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />

@@ -213,7 +213,7 @@ export function RecipesCatalogView({
           ariaLabel="Phân trang công thức"
         />
       )}
-      <p role="status" className="sr-only">{isPending ? "Loading recipes" : `${meta.totalCount} recipes, page ${meta.page} of ${Math.max(1, meta.totalPages)}`}</p>
+      <p role="status" className="sr-only">{isPending ? "Đang tải công thức" : `${meta.totalCount} recipes, page ${meta.page} of ${Math.max(1, meta.totalPages)}`}</p>
     </div>
   );
 }

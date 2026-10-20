@@ -193,9 +193,9 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
         </aside>
 
         {/* Right Column: Steps with Interactive Timers */}
-        <main className="lg:col-span-7">
+        <div className="lg:col-span-7">
           <StepByStepList steps={recipe.steps} />
-        </main>
+        </div>
       </div>
 
       {/* Related Recipes Section */}

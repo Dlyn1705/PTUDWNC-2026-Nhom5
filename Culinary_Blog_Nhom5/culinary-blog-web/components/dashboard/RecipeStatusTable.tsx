@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useManagedRecipes } from "@/hooks/queries/useRecipes";
 import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
-import { errorCorrelationId } from "@/lib/logger";
+import { errorPresentation } from "@/lib/errorPresentation";
 
 export function RecipeStatusTable() {
   const { data, isPending, isError, error, refetch, isRefetching } = useManagedRecipes();
@@ -31,13 +31,13 @@ export function RecipeStatusTable() {
   }
 
   if (isError) {
-    const correlationId = error ? (errorCorrelationId(error as object) || (error as { correlationId?: string })?.correlationId) : undefined;
+    const presentation = errorPresentation(error);
     return (
       <ErrorState
         title="Không thể tải danh sách công thức"
-        description="Đã xảy ra lỗi khi kết nối với máy chủ dữ liệu. Bạn hãy kiểm tra backend và thử lại."
-        correlationId={correlationId}
-        onRetry={() => void refetch()}
+        description={presentation.description}
+        correlationId={presentation.correlationId}
+        onRetry={presentation.canRetry ? async () => { await refetch(); } : undefined}
         isRetrying={isRefetching}
         retryLabel="Thử lại"
       />
