@@ -32,12 +32,15 @@ export default function Navbar() {
     const desktop = window.matchMedia("(min-width: 768px)");
     const resize = () => {
       if (!desktop.matches) return;
-      if (panelRef.current?.contains(document.activeElement) || document.activeElement === triggerRef.current) brandRef.current?.focus();
+      // Some browsers move focus to body as soon as CSS hides the mobile panel,
+      // before the media-query listener runs. Restore focus in that case too.
+      if (panelRef.current?.contains(document.activeElement) || document.activeElement === triggerRef.current ||
+        (mobileMenuOpen && document.activeElement === document.body)) brandRef.current?.focus();
       setMobileMenuOpen(false);
     };
     desktop.addEventListener("change", resize);
     return () => desktop.removeEventListener("change", resize);
-  }, []);
+  }, [mobileMenuOpen]);
 
   // Handle Cmd+K / Ctrl+K keyboard shortcut to open search
   useEffect(() => {

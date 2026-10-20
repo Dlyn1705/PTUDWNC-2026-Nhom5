@@ -1,27 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ingredientApi, type IngredientDto } from "@/lib/api/ingredientApi";
 import { emptyIngredient, ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
+import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
 
 type Props = {
   recipeId?: string;
   initialItems?: IngredientDraft[];
   onChange?: (items: IngredientDraft[]) => void;
   onMutation?: () => Promise<void> | void;
+  onDirtyChange?: (dirty: boolean) => void;
+  validationRef?: Ref<RecipeCollectionValidation>;
   /** Parent writes rotate the aggregate token. Ask for an explicit reload, never silently adopt it. */
   parentVersion?: string;
 };
 const toDraft = (item: IngredientDto): IngredientDraft => ({ ingredientId: item.id, name: item.name,
   quantity: item.quantity === null ? "" : String(item.quantity), unit: item.unit ?? "", notes: item.notes ?? "" });
 
-export default function IngredientManager({ recipeId, initialItems = [], onChange, onMutation, parentVersion }: Props) {
+export default function IngredientManager({ recipeId, initialItems = [], onChange, onMutation, onDirtyChange, validationRef, parentVersion }: Props) {
   const form = useForm<{ items: IngredientDraft[] }>({ resolver: zodResolver(ingredientFormSchema), mode: "onBlur", defaultValues: { items: initialItems } });
   const { fields, append, remove, move, update, replace } = useFieldArray({ control: form.control, name: "items" });
-  const { reset } = form;
+  const { reset, trigger, getValues, setError: setFieldError } = form;
+  useImperativeHandle(validationRef, () => ({
+    validate: () => trigger(undefined, { shouldFocus: true }),
+    setServerErrors: (errors, focus = true) => {
+      const entries = collectionFieldErrors(errors, "ingredients", getValues("items").length, ["name", "quantity", "unit", "notes"] as const);
+      entries.forEach((entry, index) => setFieldError(`items.${entry.index}.${entry.field}`, { type: "server", message: entry.message }, { shouldFocus: focus && index === 0 }));
+      return entries.length;
+    },
+  }), [trigger, getValues, setFieldError]);
   const items = useWatch({ control: form.control, name: "items" });
+  const [savedItems, setSavedItems] = useState<IngredientDraft[]>([]);
+  const hasUnsavedItems = items.length !== savedItems.length || items.some(item => {
+      const saved = savedItems.find(row => row.ingredientId === item.ingredientId);
+      return !item.ingredientId || !saved || (["name", "quantity", "unit", "notes"] as const)
+        .some(key => (item[key] ?? "") !== (saved[key] ?? ""));
+  });
+  useEffect(() => {
+    if (recipeId) onDirtyChange?.(hasUnsavedItems);
+  }, [hasUnsavedItems, recipeId, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const [etag, setEtag] = useState("");
   const [acknowledgedParent, setAcknowledgedParent] = useState(parentVersion);
   const [loading, setLoading] = useState(Boolean(recipeId));
@@ -43,6 +64,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
       void ingredientApi.list(recipeId, abort.signal).then(result => {
         if (abort.signal.aborted) return;
         reset({ items: result.items.map(toDraft) });
+        setSavedItems(result.items.map(toDraft));
         setEtag(result.etag);
       }).catch(() => {
         if (!abort.signal.aborted) setError("Không thể tải nguyên liệu hoặc bạn không có quyền truy cập.");
@@ -53,13 +75,14 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
 
   const reload = async () => {
     if (!recipeId || locked.current) return;
-    if (form.formState.isDirty && !window.confirm("Tải bản mới sẽ bỏ các thay đổi nguyên liệu chưa lưu. Tiếp tục?")) return;
+    if (hasUnsavedItems && !window.confirm("Tải bản mới sẽ bỏ các thay đổi nguyên liệu chưa lưu. Tiếp tục?")) return;
     locked.current = true;
     setBusy(true);
     try {
       const result = await ingredientApi.list(recipeId);
       if (!mounted.current) return;
       reset({ items: result.items.map(toDraft) });
+      setSavedItems(result.items.map(toDraft));
       setEtag(result.etag); setAcknowledgedParent(parentVersion); setConflict(false); setError("");
     } catch { if (mounted.current) setError("Không thể tải lại nguyên liệu. Vui lòng thử lại."); }
     finally { locked.current = false; if (mounted.current) setBusy(false); }
@@ -81,11 +104,16 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
   };
 
   const save = async (index: number) => {
-    if (!recipeId || !await form.trigger(`items.${index}`)) return;
+    if (!recipeId || !await form.trigger(`items.${index}`, { shouldFocus: true })) return;
     const draft = form.getValues(`items.${index}`);
     await perform(async () => {
       const result = await ingredientApi.save(recipeId, draft.ingredientId, ingredientPayload(draft), etag);
-      if (mounted.current) { update(index, toDraft(result.item)); setEtag(result.etag); }
+      if (mounted.current) {
+        const saved = toDraft(result.item);
+        update(index, saved);
+        setSavedItems(current => [...current.filter(item => item.ingredientId !== saved.ingredientId), saved]);
+        setEtag(result.etag);
+      }
     });
   };
 
@@ -95,7 +123,11 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
     if (!window.confirm(`Xóa nguyên liệu “${item.name}”?`)) return;
     await perform(async () => {
       const next = await ingredientApi.remove(recipeId, item.ingredientId!, etag);
-      if (mounted.current) { remove(index); setEtag(next); }
+      if (mounted.current) {
+        remove(index);
+        setSavedItems(current => current.filter(row => row.ingredientId !== item.ingredientId));
+        setEtag(next);
+      }
     });
   };
 
@@ -132,14 +164,16 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
             <p className="text-sm font-medium">Nguyên liệu {index + 1}{recipeId && !field.ingredientId ? " — chưa lưu" : ""}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {([ ["name", "Tên nguyên liệu"], ["quantity", "Số lượng (tùy chọn)"], ["unit", "Đơn vị (tùy chọn)"], ["notes", "Ghi chú (tùy chọn)"] ] as const).map(([key, label]) => (
-                <label key={key} className="block text-sm">
-                  {label}
+                <div key={key} className="text-sm">
+                  <label htmlFor={`ingredient-${field.id}-${key}`} className="block">{label}</label>
                   <input {...form.register(`items.${index}.${key}`)} inputMode={key === "quantity" ? "decimal" : undefined}
+                    id={`ingredient-${field.id}-${key}`}
                     aria-invalid={Boolean(form.formState.errors.items?.[index]?.[key])}
+                    aria-describedby={form.formState.errors.items?.[index]?.[key] ? `ingredient-${field.id}-${key}-error` : undefined}
                     maxLength={key === "name" ? 200 : key === "unit" ? 50 : key === "notes" ? 500 : undefined}
                     className="mt-1 w-full rounded-lg border px-3 py-2" />
-                  {form.formState.errors.items?.[index]?.[key]?.message && <span role="alert" className="text-red-600">{form.formState.errors.items[index]?.[key]?.message}</span>}
-                </label>
+                  {form.formState.errors.items?.[index]?.[key]?.message && <span id={`ingredient-${field.id}-${key}-error`} role="alert" className="text-red-600">{form.formState.errors.items[index]?.[key]?.message}</span>}
+                </div>
               ))}
             </div>
             <div className="flex flex-wrap gap-2">

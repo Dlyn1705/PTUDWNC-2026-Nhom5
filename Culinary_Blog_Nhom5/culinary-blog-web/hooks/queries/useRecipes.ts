@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { recipeKeys } from "./recipeKeys";
 
-export function useManagedRecipes(status?: number) {
+export function useManagedRecipes(status?: number, page = 1, pageSize = 12) {
   return useQuery({
-    queryKey: recipeKeys.managed(status),
-    queryFn: () => recipeApi.getMine({ status }),
+    queryKey: [...recipeKeys.managed(status), { page, pageSize }],
+    queryFn: () => recipeApi.getMine({ status, page, pageSize }),
+    placeholderData: keepPreviousData,
   });
 }
 export function useRecipe(id: string) {

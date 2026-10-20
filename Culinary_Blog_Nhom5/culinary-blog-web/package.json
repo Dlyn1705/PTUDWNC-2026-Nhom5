@@ -9,6 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:image-ui": "node tests/image-processing-ui.cjs",
+    "test:lab6-editor": "node tests/lab6-recipe-editor.e2e.cjs",
+    "test:recipe-editor": "tsc -p tsconfig.recipe-editor-tests.json && node --test build/recipe-editor-tests/tests/recipe-editor.test.js",
     "test:security": "node --test tests/security.unit.cjs",
     "test:e2e:security": "npm run build && node tests/security.e2e.cjs",
     "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
