@@ -19,15 +19,15 @@ async function main() {
       response.writeHead(status, { "Content-Type": "application/json" });
       response.end(JSON.stringify(value));
     };
-    const issue = () => {
+    const issue = (email) => {
       const refresh = "deletion-refresh-" + randomUUID();
       tokens.set(refresh, true);
       return { refresh, data: { accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
-        user: { id: "owner", email: "owner@test.invalid", displayName: "Deletion Test" }, roles: ["Author"] } };
+        user: { id: email === "admin@test.invalid" ? "admin" : "owner", email: email || "owner@test.invalid", displayName: "Editor Test" }, roles: [email === "admin@test.invalid" ? "Admin" : "Author"] } };
     };
     if (request.url === "/api/v1/auth/login") {
       if (body.password !== "E2e-only-password1!") return send(401, { detail: "Invalid credentials" });
-      const result = issue(); response.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
+      const result = issue(body.email); response.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
       return send(200, { data: result.data });
     }
     if (request.url === "/api/v1/auth/refresh") {
@@ -51,7 +51,7 @@ async function main() {
   });
   server.stdout.on("data", value => { logs = (logs + value).slice(-10000); });
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
-  let browser; let context; let page;
+  let browser; let context; let adminContext; let page;
   const errors = [];
   try {
     let ready = false;
@@ -70,6 +70,7 @@ async function main() {
       categoryId: "11111111-1111-4111-8111-111111111111", rowVersion: "AAAAAAAAAAAAAAAAAAAAAA==",
       category: { id: "11111111-1111-4111-8111-111111111111", name: "Món chính" }, author: { id: "owner", displayName: "Deletion Test" } };
     let putStatus = 200; let putCalls = 0; let createCalls = 0;
+    let createStatus = 200; let mutationErrors = {}; let pendingPut;
     let mineStatus = 200; let mineEmpty = false; let recipeStatus = 200;
     const stepRows = [];
     const ingredients = [];
@@ -80,13 +81,18 @@ async function main() {
         headers: { "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
-        if (putStatus !== 200) return json({ status: putStatus, detail: "Test conflict" }, putStatus);
+        if (pendingPut) await pendingPut;
+        if (putStatus !== 200) return json({ status: putStatus, detail: "PRIVATE_BACKEND_DETAIL", errors: mutationErrors, correlationId: "lab6-save-error" }, putStatus);
         const payload = request.postDataJSON();
         Object.assign(recipe, { ...payload, prepTimeMinutes: payload.prepTime, cookTimeMinutes: payload.cookTime, rowVersion: "Ag==" });
         return json({ data: { id: recipe.id, slug: recipe.slug, rowVersion: recipe.rowVersion } });
       }
       if (request.method() === "POST" && url.pathname.replace(/\/$/, "") === "/api/v1/recipes") {
         createCalls++;
+        if (createStatus !== 200) return json({ status: createStatus, errors: mutationErrors, correlationId: "lab6-create-error" }, createStatus);
+        const payload = request.postDataJSON();
+        ingredients.splice(0, ingredients.length, ...(payload.ingredients || []).map((row, index) => ({ ...row, notes: row.notes || null, id: randomUUID(), recipeId: recipe.id, orderIndex: index })));
+        stepRows.splice(0, stepRows.length, ...(payload.steps || []).map((row, index) => ({ ...row, id: randomUUID(), recipeId: recipe.id, stepNumber: index + 1, title: row.title || `Bước ${index + 1}` })));
         return json({ data: { id: recipe.id, slug: recipe.slug, rowVersion: recipe.rowVersion } });
       }
       if (url.pathname.endsWith("/ingredients")) {
@@ -178,6 +184,7 @@ async function main() {
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Mở menu dashboard");
     await page.locator('[id$="-edit-title"]:visible').fill("");
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+    await page.locator('[id$="-edit-title-error"]:visible').waitFor();
     assert.equal(await page.locator('[id$="-edit-title"]:visible').getAttribute("aria-invalid"), "true");
     assert.equal(await page.locator('[id$="-edit-title"]:visible').evaluate(element => element === document.activeElement), true);
     await page.locator('[id$="-edit-title-error"]:visible').waitFor();
@@ -217,9 +224,37 @@ async function main() {
     await page.getByRole("button", { name: "Xóa công thức", exact: true }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Hủy", exact: true }).click();
     await page.waitForFunction(() => document.activeElement?.textContent === "Xóa công thức");
-    await page.locator('[id$="-edit-title"]:visible').fill("Công thức đã lưu thử nghiệm");
+    await page.locator('[id$="-edit-title"]:visible').fill("Bản nháp kiểm tra lỗi API");
+    putStatus = 422;
+    mutationErrors = { Title: ["Tên công thức chưa được chấp nhận."], PrepTimeMinutes: ["Kiểm tra thời gian chuẩn bị."] };
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+    await page.locator('[id$="-edit-title-error"]:visible').filter({ hasText: "Tên công thức chưa được chấp nhận." }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.id.endsWith("-edit-title"));
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').evaluate(element => element === document.activeElement), true);
+    await page.locator('[id$="-edit-prepTime-error"]:visible').waitFor();
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Bản nháp kiểm tra lỗi API");
+    mutationErrors = {};
+    for (const status of [401, 403, 500]) {
+      putStatus = status;
+      await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+      const expected = status === 401 ? "Phiên đăng nhập đã hết hạn." : status === 403 ? "Bạn không có quyền lưu công thức này." : "Không thể lưu công thức lúc này.";
+      await page.getByRole("alert").filter({ hasText: expected }).waitFor();
+      assert.equal(await page.getByRole("link", { name: "Đăng nhập lại", exact: true }).count(), status === 401 ? 1 : 0);
+      assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Bản nháp kiểm tra lỗi API");
+      assert.equal(page.url(), editUrl);
+      assert.equal(await page.getByText("PRIVATE_BACKEND_DETAIL", { exact: false }).count(), 0);
+      await page.getByText("lab6-save-error", { exact: true }).waitFor();
+    }
+    putStatus = 200;
+    await page.locator('[id$="-edit-title"]:visible').fill("Công thức đã lưu thử nghiệm");
+    const beforeDuplicate = putCalls;
+    let unblockPut;
+    pendingPut = new Promise(resolve => { unblockPut = resolve; });
+    await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).evaluate(button => { button.click(); button.click(); });
+    await page.getByRole("button", { name: "Đang lưu...", exact: true }).waitFor();
+    unblockPut(); pendingPut = undefined;
     await page.getByRole("status").filter({ hasText: "Đã lưu thay đổi thành công." }).waitFor();
+    assert.equal(putCalls, beforeDuplicate + 1);
     let unexpectedDialogs = 0;
     const unexpected = prompt => { unexpectedDialogs++; void prompt.dismiss(); };
     page.on("dialog", unexpected);
@@ -264,11 +299,15 @@ async function main() {
     await page.getByRole("alert").filter({ hasText: "Công thức đã được người khác thay đổi" }).waitFor();
     assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Giữ bản nháp khi xung đột");
     assert.equal(await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).isDisabled(), true);
+    page.once("dialog", prompt => prompt.dismiss());
+    await page.getByRole("button", { name: "Tải bản công thức mới", exact: true }).click();
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Giữ bản nháp khi xung đột");
     page.once("dialog", prompt => prompt.accept());
     await page.goto(origin + "/dashboard/recipes/new");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).waitFor();
     await page.locator('select[id$="-new-category"]:visible option').nth(1).waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+    await page.locator('[id$="-new-title-error"]:visible').waitFor();
     assert.equal(await page.locator('[id$="-new-title"]:visible').evaluate(element => element === document.activeElement), true);
     assert.equal(createCalls, 0);
     assert.equal(await page.locator('[id$="-new-title"]').evaluateAll(elements => new Set(elements.map(element => element.id)).size === elements.length), true, "Cached recipe forms must have distinct field IDs");
@@ -282,27 +321,70 @@ async function main() {
     assert.equal(await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby"), (await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error");
     assert.equal(createCalls, 0);
     await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("");
+    createStatus = 422;
+    mutationErrors = { Title: ["Tên bản nháp cần kiểm tra."], "Nutrition.Protein": ["Protein chưa hợp lệ."] };
+    await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+    await page.locator('[id$="-new-title-error"]:visible').filter({ hasText: "Tên bản nháp cần kiểm tra." }).waitFor();
+    await page.locator('[id$="-new-nutrition-1-error"]:visible').waitFor();
+    await page.getByRole("button", { name: "+ Thêm nguyên liệu", exact: true }).click();
+    await page.getByLabel("Tên nguyên liệu", { exact: true }).filter({ visible: true }).fill("Bột");
+    await page.getByLabel("Số lượng (tùy chọn)", { exact: true }).filter({ visible: true }).fill("1,25");
+    await page.getByLabel("Ghi chú (tùy chọn)", { exact: true }).filter({ visible: true }).fill("Chọn loại mịn");
+    await page.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();
+    await page.getByLabel("Mô tả bước 1", { exact: true }).filter({ visible: true }).fill("Trộn bột");
+    mutationErrors = { "Ingredients[0].Name": ["Tên nguyên liệu cần kiểm tra."], "Steps[0].Description": ["Mô tả bước cần kiểm tra."] };
+    await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+    await page.getByRole("alert").filter({ hasText: "Tên nguyên liệu cần kiểm tra." }).waitFor();
+    await page.getByRole("alert").filter({ hasText: "Mô tả bước cần kiểm tra." }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.id.startsWith("ingredient-") && document.activeElement.id.endsWith("-name"));
+    createStatus = 200; mutationErrors = {};
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
-    assert.equal(createCalls, 1);
+    assert.equal(createCalls, 3);
+    assert.equal(ingredients[0].quantity, 1.25);
+    assert.equal(ingredients[0].notes, "Chọn loại mịn");
     assert.equal(await page.locator('[id$="-new-title"]:visible').isDisabled(), true);
     const folder = path.join(root, "build", "lab6-recipe-editor-e2e"); fs.mkdirSync(folder, { recursive: true });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: path.join(folder, "mobile-recipe-created.png"), fullPage: true });
+    await page.getByRole("status").filter({ hasText: "Có thay đổi chưa lưu." }).filter({ visible: true }).waitFor({ state: "hidden" });
+    // Ownership guard and an actual Admin session, independent of the author context.
+    recipe.author.id = "another-author";
+    await page.goto(editUrl);
+    await page.getByRole("heading", { name: "Bạn không có quyền cập nhật công thức này.", exact: true }).waitFor();
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').count(), 0);
+    adminContext = await browser.newContext({ viewport: { width: 375, height: 900 } });
+    // Reuse the deterministic API fixtures, while the Admin session is issued by Auth.js itself.
+    await adminContext.route("**/api/v1/**", route => {
+      const suffix = new URL(route.request().url()).pathname;
+      const data = suffix.endsWith("/categories") ? { success: true, data: [category] }
+        : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { success: true, data: [] } : recipe;
+      return route.fulfill({ contentType: "application/json", headers: { "Access-Control-Expose-Headers": "ETag", ETag: '"' + recipe.rowVersion + '"' }, body: JSON.stringify(data) });
+    });
+    const adminPage = await adminContext.newPage();
+    await adminPage.goto(origin + "/auth/login?callbackUrl=" + encodeURIComponent(`/dashboard/recipes/${recipe.id}/edit`));
+    await adminPage.locator("#login-email").fill("admin@test.invalid");
+    await adminPage.locator("#login-password").fill("E2e-only-password1!");
+    await adminPage.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+    await adminPage.locator('[id$="-edit-title"]:visible').waitFor();
+    await adminPage.getByRole("button", { name: "Mở menu dashboard", exact: true }).click();
+    await adminPage.getByRole("dialog").getByRole("link", { name: "Danh mục", exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS: common pagination/error/retry/empty states, editor error recovery, mobile 320/375/640/1024px, dialog focus, validation, dirty link/Back/unload/reload cancellation, ingredient and step drafts, saved navigation, conflict preservation and draft creation.");
+    console.log("PASS: RHF validation and 422 mapping (basic/nutrition/ingredients/steps), 401/403/409/500 recovery, duplicate submit, ownership/Admin, ingredient notes/decimal comma, common states/pagination, mobile focus and unsaved drafts.");
   } catch (error) {
     console.error(logs);
     if (page) console.error("Browser:", page.url(), "UI:", await page.locator("body").innerText().catch(() => "unavailable"), "Errors:", errors);
     throw error;
   }
   finally {
-    if (context && server.exitCode === null) {
+    for (const sessionContext of [context, adminContext].filter(Boolean)) {
+    if (server.exitCode === null) {
       try {
-        const response = await context.request.get(origin + "/api/auth/csrf");
+        const response = await sessionContext.request.get(origin + "/api/auth/csrf");
         const { csrfToken } = await response.json();
-        await context.request.post(origin + "/api/auth/signout", { form: { csrfToken, callbackUrl: origin, json: "true" } });
+        await sessionContext.request.post(origin + "/api/auth/signout", { form: { csrfToken, callbackUrl: origin, json: "true" } });
       } catch { /* Stop owned processes even when logout cannot complete. Session TTL still applies. */ }
+    }
     }
     if (browser) await browser.close();
     server.kill();

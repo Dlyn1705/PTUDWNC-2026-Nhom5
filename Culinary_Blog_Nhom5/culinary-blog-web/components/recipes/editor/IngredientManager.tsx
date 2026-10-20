@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ingredientApi, type IngredientDto } from "@/lib/api/ingredientApi";
 import { emptyIngredient, ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
+import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
 
 type Props = {
   recipeId?: string;
@@ -12,16 +13,25 @@ type Props = {
   onChange?: (items: IngredientDraft[]) => void;
   onMutation?: () => Promise<void> | void;
   onDirtyChange?: (dirty: boolean) => void;
+  validationRef?: Ref<RecipeCollectionValidation>;
   /** Parent writes rotate the aggregate token. Ask for an explicit reload, never silently adopt it. */
   parentVersion?: string;
 };
 const toDraft = (item: IngredientDto): IngredientDraft => ({ ingredientId: item.id, name: item.name,
   quantity: item.quantity === null ? "" : String(item.quantity), unit: item.unit ?? "", notes: item.notes ?? "" });
 
-export default function IngredientManager({ recipeId, initialItems = [], onChange, onMutation, onDirtyChange, parentVersion }: Props) {
+export default function IngredientManager({ recipeId, initialItems = [], onChange, onMutation, onDirtyChange, validationRef, parentVersion }: Props) {
   const form = useForm<{ items: IngredientDraft[] }>({ resolver: zodResolver(ingredientFormSchema), mode: "onBlur", defaultValues: { items: initialItems } });
   const { fields, append, remove, move, update, replace } = useFieldArray({ control: form.control, name: "items" });
-  const { reset } = form;
+  const { reset, trigger, getValues, setError: setFieldError } = form;
+  useImperativeHandle(validationRef, () => ({
+    validate: () => trigger(undefined, { shouldFocus: true }),
+    setServerErrors: (errors, focus = true) => {
+      const entries = collectionFieldErrors(errors, "ingredients", getValues("items").length, ["name", "quantity", "unit", "notes"] as const);
+      entries.forEach((entry, index) => setFieldError(`items.${entry.index}.${entry.field}`, { type: "server", message: entry.message }, { shouldFocus: focus && index === 0 }));
+      return entries.length;
+    },
+  }), [trigger, getValues, setFieldError]);
   const items = useWatch({ control: form.control, name: "items" });
   const [savedItems, setSavedItems] = useState<IngredientDraft[]>([]);
   const hasUnsavedItems = items.length !== savedItems.length || items.some(item => {
@@ -154,8 +164,8 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
             <p className="text-sm font-medium">Nguyên liệu {index + 1}{recipeId && !field.ingredientId ? " — chưa lưu" : ""}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {([ ["name", "Tên nguyên liệu"], ["quantity", "Số lượng (tùy chọn)"], ["unit", "Đơn vị (tùy chọn)"], ["notes", "Ghi chú (tùy chọn)"] ] as const).map(([key, label]) => (
-                <label key={key} className="block text-sm">
-                  {label}
+                <div key={key} className="text-sm">
+                  <label htmlFor={`ingredient-${field.id}-${key}`} className="block">{label}</label>
                   <input {...form.register(`items.${index}.${key}`)} inputMode={key === "quantity" ? "decimal" : undefined}
                     id={`ingredient-${field.id}-${key}`}
                     aria-invalid={Boolean(form.formState.errors.items?.[index]?.[key])}
@@ -163,7 +173,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
                     maxLength={key === "name" ? 200 : key === "unit" ? 50 : key === "notes" ? 500 : undefined}
                     className="mt-1 w-full rounded-lg border px-3 py-2" />
                   {form.formState.errors.items?.[index]?.[key]?.message && <span id={`ingredient-${field.id}-${key}-error`} role="alert" className="text-red-600">{form.formState.errors.items[index]?.[key]?.message}</span>}
-                </label>
+                </div>
               ))}
             </div>
             <div className="flex flex-wrap gap-2">

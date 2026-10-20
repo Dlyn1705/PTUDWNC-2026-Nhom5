@@ -154,9 +154,17 @@ jobs:
           npm run test:security
           npm run test:logging
           npm run test:common
+          npm run test:recipe-editor
 
       - name: Test recipe steps UI
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         env:
           E2E_BROWSER_CHANNEL: bundled
         run: node tests/steps.e2e.cjs
+
+      - name: Test Lab 6 recipe editor and permission errors
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          AUTH_REDIS_URL: redis://localhost:6379
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:lab6-editor

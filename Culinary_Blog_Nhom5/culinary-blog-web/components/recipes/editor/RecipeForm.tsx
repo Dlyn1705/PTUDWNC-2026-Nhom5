@@ -1,154 +1,172 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { FormProvider, useForm } from "react-hook-form";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { useCategories } from "@/hooks/queries/useCategories";
-import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
-import { recipeFormSchema, type RecipeFormValues } from "@/lib/validations/recipe";
-import type { CreateRecipeRequest, RecipeDetailDto, RecipeWritePayload } from "@/types/recipe.types";
-import { BasicInfoFields } from "./BasicInfoFields";
-import { NutritionFields } from "./NutritionFields";
-import IngredientManager from "./IngredientManager";
-import StepManager from "./StepManager";
-import ImageGalleryManager from "./ImageGalleryManager";
-import { DeleteRecipeModal } from "./DeleteRecipeModal";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingState } from "@/components/common/LoadingState";
+import { toApiProblemError } from "@/lib/api/problemDetails";
+import { recipeEditorSchema, emptyRecipeEditor, nutritionFields, recipeErrorField, RecipeFormValidationError,
+  type RecipeEditorValues, type RecipeEditorField } from "@/lib/validations/recipeEditor";
+import type { CategoryDto } from "@/types/category.types";
 
-const emptyValues: RecipeFormValues = {
-  title: "",
-  description: "",
-  categoryId: "",
-  difficulty: 1,
-  prepTime: 0,
-  cookTime: 0,
-  servings: 1,
-  nutrition: { calories: null, protein: null, carbohydrates: null, fat: null, fiber: null, sodium: null },
-  ingredients: [{ name: "", quantity: null, unit: "", notes: "" }],
-  steps: [{ title: "", description: "", timerMinutes: null }],
+type Props = {
+  mode: "create" | "edit";
+  defaultValues?: Partial<RecipeEditorValues>;
+  categories: CategoryDto[];
+  categoriesLoading?: boolean;
+  categoryError?: unknown;
+  onRetryCategories: () => void;
+  onSave: (values: RecipeEditorValues) => Promise<void>;
+  onDirtyChange: (dirty: boolean) => void;
+  onReload?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  blockSubmit?: boolean;
+  createdSlug?: string;
+  onEdited?: () => void;
+  onCollectionErrors?: (errors: Record<string, string[]>, focus: boolean) => void;
+  children?: ReactNode;
+  actions?: ReactNode;
 };
+type SaveProblem = { status?: number; message: string; correlationId?: string };
+const labels: Record<RecipeEditorField, string> = {
+  title: "Tên món ăn", description: "Mô tả", instructions: "Hướng dẫn", categoryId: "Danh mục", difficulty: "Độ khó",
+  prepTime: "Chuẩn bị (phút)", cookTime: "Nấu (phút)", servings: "Khẩu phần",
+  calories: "Calories", protein: "Protein", carbohydrates: "Carbohydrates", fat: "Chất béo", fiber: "Chất xơ", sodium: "Natri",
+};
+const fieldOrder: RecipeEditorField[] = ["title", "categoryId", "difficulty", "description", "instructions", "prepTime", "cookTime", "servings", ...nutritionFields];
 
-function valuesFromRecipe(recipe: RecipeDetailDto): RecipeFormValues {
-  return {
-    title: recipe.title,
-    description: recipe.description ?? "",
-    categoryId: recipe.categoryId,
-    difficulty: recipe.difficulty,
-    prepTime: recipe.prepTimeMinutes,
-    cookTime: recipe.cookTimeMinutes,
-    servings: recipe.servings,
-    nutrition: {
-      calories: recipe.nutrition?.calories ?? null,
-      protein: recipe.nutrition?.protein ?? null,
-      carbohydrates: recipe.nutrition?.carbohydrates ?? recipe.nutrition?.carbs ?? null,
-      fat: recipe.nutrition?.fat ?? null,
-      fiber: recipe.nutrition?.fiber ?? null,
-      sodium: recipe.nutrition?.sodium ?? null,
-    },
-    ingredients: recipe.ingredients?.length ? recipe.ingredients.map((item) => ({
-      name: item.name,
-      quantity: item.quantity ?? null,
-      unit: item.unit ?? "",
-      notes: item.notes ?? "",
-    })) : emptyValues.ingredients,
-    steps: recipe.steps?.length ? recipe.steps.map((step) => ({
-      title: step.title ?? "",
-      description: step.description ?? step.text,
-      timerMinutes: step.timerMinutes ?? null,
-    })) : emptyValues.steps,
+export default function RecipeForm(props: Props) {
+  const { mode, onDirtyChange, onSave, onCollectionErrors } = props;
+  const prefix = useId();
+  const form = useForm<RecipeEditorValues>({ resolver: zodResolver(recipeEditorSchema),
+    defaultValues: { ...emptyRecipeEditor, ...props.defaultValues }, shouldFocusError: true });
+  const { register, handleSubmit, setError, setFocus, reset, clearErrors, formState: { errors, isDirty, isSubmitting } } = form;
+  const title = useWatch({ control: form.control, name: "title" });
+  const categoryId = useWatch({ control: form.control, name: "categoryId" });
+  const saving = useRef(false);
+  const pendingFocus = useRef<{ first?: RecipeEditorField; errors: Record<string, string[]> } | null>(null);
+  const [problem, setProblem] = useState<SaveProblem | null>(null);
+  const [callbackUrl, setCallbackUrl] = useState("");
+  const locked = isSubmitting || props.busy;
+  const conflict = mode === "edit" && problem?.status === 409;
+  useEffect(() => { onDirtyChange(isDirty); }, [isDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
+  useEffect(() => {
+    if (locked || !pendingFocus.current) return;
+    const pending = pendingFocus.current;
+    pendingFocus.current = null;
+    if (pending.first) setFocus(pending.first);
+    onCollectionErrors?.(pending.errors, !pending.first);
+  }, [locked, problem, setFocus, onCollectionErrors]);
+
+  const inputId = (name: RecipeEditorField) => {
+    const nutritionIndex = nutritionFields.indexOf(name as typeof nutritionFields[number]);
+    const suffix = nutritionIndex >= 0 ? `nutrition-${nutritionIndex}` : name === "categoryId" ? "category" : name;
+    return `${prefix}-${mode === "create" ? "new" : "edit"}-${suffix}`;
   };
-}
-
-export function RecipeForm({ initialRecipe }: { initialRecipe?: RecipeDetailDto }) {
-  const router = useRouter();
-  const categories = useCategories();
-  const mutations = useRecipeMutations();
-  const [recipeId, setRecipeId] = useState(initialRecipe?.id);
-  const [rowVersion, setRowVersion] = useState(initialRecipe?.rowVersion);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string }>();
-  const [showDelete, setShowDelete] = useState(false);
-  const methods = useForm<RecipeFormValues>({
-    resolver: zodResolver(recipeFormSchema),
-    defaultValues: initialRecipe ? valuesFromRecipe(initialRecipe) : emptyValues,
+  const field = (name: RecipeEditorField, hint = false) => ({
+    ...register(name), id: inputId(name), "aria-invalid": Boolean(errors[name]),
+    "aria-describedby": [hint ? `${inputId(name)}-hint` : "", errors[name] ? `${inputId(name)}-error` : ""].filter(Boolean).join(" ") || undefined,
   });
+  const fieldError = (name: RecipeEditorField) => errors[name]?.message
+    ? <p role="alert" id={`${inputId(name)}-error`} className="mt-1 text-sm text-red-600">{errors[name]?.message}</p> : null;
+  const inputClass = "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus-visible:outline-2 focus-visible:outline-primary disabled:bg-gray-100";
 
-  const submit = methods.handleSubmit(async (values) => {
-    setMessage(undefined);
-    const payload: RecipeWritePayload = {
-      title: values.title,
-      description: values.description || undefined,
-      categoryId: values.categoryId,
-      difficulty: values.difficulty,
-      prepTime: values.prepTime,
-      cookTime: values.cookTime,
-      servings: values.servings,
-      instructions: values.steps.map((step, index) => `Bước ${index + 1}: ${step.description}`).join("\n\n"),
-      rowVersion,
-    };
-
+  const submit = async (data: RecipeEditorValues) => {
+    if (saving.current || props.disabled || props.busy || props.blockSubmit || conflict || props.categoriesLoading || props.categoryError || props.categories.length === 0) return;
+    saving.current = true;
+    clearErrors(); setProblem(null);
     try {
-      if (initialRecipe) {
-        const result = await mutations.update.mutateAsync({ id: initialRecipe.id, payload });
-        setRowVersion(result.rowVersion);
-        setMessage({ type: "success", text: "Đã cập nhật công thức." });
-      } else {
-        const createPayload: CreateRecipeRequest = {
-          title: payload.title,
-          description: payload.description,
-          instructions: payload.instructions,
-          categoryId: payload.categoryId,
-          difficulty: payload.difficulty,
-          prepTime: payload.prepTime,
-          cookTime: payload.cookTime,
-          servings: payload.servings,
-          ingredients: values.ingredients.map((item) => ({ ...item, unit: item.unit || undefined, notes: item.notes || undefined })),
-          steps: values.steps.map((step, index) => ({ ...step, title: step.title || `Bước ${index + 1}` })),
-          nutrition: values.nutrition,
-        };
-        const result = await mutations.create.mutateAsync(createPayload);
-        setRecipeId(result.id);
-        setRowVersion(result.rowVersion);
-        setMessage({ type: "success", text: "Đã tạo công thức. Bạn có thể tải ảnh lên ngay bây giờ." });
+      await onSave(data);
+      reset(data);
+    } catch (reason) {
+      if (reason instanceof RecipeFormValidationError) {
+        setProblem({ status: 422, message: reason.message });
+        return;
       }
-    } catch (error) {
-      const status = (error as { response?: { status?: number; data?: { detail?: string } } }).response?.status;
-      setMessage({
-        type: "error",
-        text: status === 409
-          ? "Dữ liệu đã được thay đổi ở nơi khác. Hãy tải lại trang trước khi lưu lại."
-          : (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Không thể lưu công thức.",
-      });
-    }
-  });
-
-  const deleting = mutations.remove.isPending;
-  const removeRecipe = async () => {
-    if (!initialRecipe) return;
-    await mutations.remove.mutateAsync(initialRecipe.id);
-    router.replace("/dashboard/recipes");
+      const error = toApiProblemError(reason);
+      const status = error.status;
+      if (status === 400 || status === 422) {
+        const mapped = new Set<RecipeEditorField>();
+        for (const [key, messages] of Object.entries(error.errors)) {
+          const name = recipeErrorField(key);
+          if (!name || !messages.length || (mode === "edit" && nutritionFields.includes(name as typeof nutritionFields[number])) ||
+            (mode === "create" && name === "instructions")) continue;
+          setError(name, { type: "server", message: messages.join(" ") });
+          mapped.add(name);
+        }
+        const first = fieldOrder.find(name => mapped.has(name));
+        // Inputs inside a disabled fieldset cannot receive focus until submit ends.
+        pendingFocus.current = { first, errors: error.errors };
+      }
+      const message = status === 401 ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : status === 403 ? "Bạn không có quyền lưu công thức này."
+        : status === 409 ? "Công thức đã được người khác thay đổi. Nội dung đang nhập vẫn được giữ; hãy tải bản mới trước khi lưu."
+        : status === 400 || status === 422 ? "Dữ liệu chưa hợp lệ. Hãy kiểm tra các ô được đánh dấu, nguyên liệu và các bước thực hiện."
+        : status === 404 ? "Công thức hoặc danh mục không còn tồn tại. Hãy tải lại để kiểm tra."
+        : "Không thể lưu công thức lúc này. Vui lòng thử lại sau ít phút.";
+      setCallbackUrl(window.location.pathname + window.location.search);
+      setProblem({ status, message, correlationId: error.correlationId });
+    } finally { saving.current = false; }
   };
 
-  return (
-    <FormProvider {...methods}>
-      <form onSubmit={submit} className="space-y-6" noValidate>
-        {message && <div role="status" className={`rounded-xl border p-4 text-sm ${message.type === "error" ? "border-destructive/30 text-destructive" : "border-emerald-300 bg-emerald-50 text-emerald-800"}`}>{message.text}</div>}
-        {categories.isError && <div role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive">Không thể tải danh mục.</div>}
-        <BasicInfoFields categories={categories.data ?? []} />
-        {recipeId && (
-          <ImageGalleryManager
-            recipeId={recipeId}
-          />
-        )}
-        <NutritionFields />
-        <IngredientManager />
-        <StepManager />
-        <div className="flex flex-wrap justify-between gap-3">
-          {initialRecipe ? <Button type="button" variant="outline" className="text-destructive" onClick={() => setShowDelete(true)}>Xóa công thức</Button> : <span />}
-          <Button type="submit" disabled={methods.formState.isSubmitting || categories.isPending}>{methods.formState.isSubmitting ? "Đang lưu..." : initialRecipe ? "Lưu thay đổi" : "Tạo công thức"}</Button>
+  return <form noValidate className="space-y-6" onChange={props.onEdited} onSubmit={event => { void handleSubmit(submit)(event); }} aria-busy={locked}>
+    {problem && <ErrorState title="Không thể lưu công thức" description={problem.message} correlationId={problem.correlationId}
+      focusOnMount={problem.status !== 400 && problem.status !== 422}
+      action={problem.status === 401
+        ? <Link className="rounded-lg border px-4 py-2 underline" href={`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}>Đăng nhập lại</Link>
+        : conflict && props.onReload ? <button type="button" aria-label="Tải bản công thức mới" className="rounded-lg border px-4 py-2" onClick={props.onReload}>Tải bản mới</button> : undefined} />}
+    <fieldset disabled={locked || props.disabled} aria-label="Thông tin cơ bản" className="min-w-0 space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
+      <div>
+        <label htmlFor={inputId("title")} className="block text-sm font-medium">{mode === "create" ? "Tên món ăn *" : labels.title}</label>
+        <input {...field("title", true)} required maxLength={200} className={inputClass} placeholder="Ví dụ: Phở bò truyền thống" />
+        <p id={`${inputId("title")}-hint`} className="mt-1 text-xs text-gray-500">Từ 3 đến 200 ký tự. {title.length}/200</p>
+        {fieldError("title")}
+      </div>
+      {mode === "create" && <div><label htmlFor={`${prefix}-slug`} className="block text-sm font-medium">Slug SEO (xem trước)</label>
+        <input id={`${prefix}-slug`} readOnly className={inputClass} value={props.createdSlug || title.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-")} /></div>}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div><label htmlFor={inputId("categoryId")} className="block text-sm font-medium">{mode === "create" ? "Danh mục *" : labels.categoryId}</label>
+          <select {...field("categoryId")} required disabled={locked || props.disabled || props.categoriesLoading || Boolean(props.categoryError)} className={inputClass}>
+            <option value="">Chọn danh mục</option>
+            {categoryId && !props.categories.some(item => item.id === categoryId) && <option value={categoryId} disabled>Danh mục hiện tại không khả dụng — hãy chọn lại</option>}
+            {props.categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>{fieldError("categoryId")}
+          {props.categoriesLoading && <LoadingState label="Đang tải danh mục…" />}
+          {props.categoryError ? <ErrorState title="Không thể tải danh mục" description="Thông tin đang nhập được giữ nguyên. Hãy thử tải lại danh mục."
+            onRetry={props.onRetryCategories} /> : !props.categoriesLoading && props.categories.length === 0 && <p role="status" className="mt-2 text-sm">Chưa có danh mục để chọn. Hãy liên hệ quản trị viên.</p>}
         </div>
-      </form>
-      {initialRecipe && <DeleteRecipeModal open={showDelete} busy={deleting} onCancel={() => setShowDelete(false)} onConfirm={() => void removeRecipe()} />}
-    </FormProvider>
-  );
+        <div><label htmlFor={inputId("difficulty")} className="block text-sm font-medium">Độ khó</label>
+          <select {...field("difficulty")} className={inputClass}><option value="1">Dễ</option><option value="2">Trung bình</option><option value="3">Khó</option><option value="4">Chuyên gia</option></select>{fieldError("difficulty")}</div>
+      </div>
+      {(["description", ...(mode === "edit" ? ["instructions"] : [])] as ("description" | "instructions")[]).map(name => <div key={name}>
+        <label htmlFor={inputId(name)} className="block text-sm font-medium">{name === "description" && mode === "create" ? "Mô tả ngắn" : labels[name]}</label>
+        <textarea {...field(name)} rows={name === "description" ? 4 : 6} maxLength={name === "description" ? 2000 : 10000} className={inputClass} />{fieldError(name)}
+      </div>)}
+      <div className="grid gap-5 sm:grid-cols-3">{(["prepTime", "cookTime", "servings"] as const).map(name => <div key={name}>
+        <label htmlFor={inputId(name)} className="block text-sm font-medium">{labels[name]}</label>
+        <input {...field(name)} type="number" min={name === "servings" ? 1 : 0} max={2147483647} step={1} placeholder={name === "servings" ? "4" : name === "prepTime" ? "15" : "30"} className={inputClass} />{fieldError(name)}
+      </div>)}</div>
+    </fieldset>
+    {mode === "create" && <fieldset disabled={locked || props.disabled} aria-label="Thông tin dinh dưỡng" className="min-w-0 rounded-2xl bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold">Thông tin dinh dưỡng</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {nutritionFields.map(name => <div key={name}><label htmlFor={inputId(name)} className="block text-sm font-medium">{labels[name]}</label>
+          <div className="relative"><input {...field(name)} type="number" min={0} max={999999.99} step="0.01" className={`${inputClass} pr-14`} />
+            <span aria-hidden="true" className="absolute right-4 top-1/2 text-sm text-gray-500">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
+          </div>{fieldError(name)}</div>)}
+      </div>
+    </fieldset>}
+    {props.children}
+    <div className="flex flex-wrap justify-between gap-3">
+      {props.actions && <fieldset disabled={locked} aria-label="Thao tác công thức" className="contents">{props.actions}</fieldset>}
+      <button type="submit" disabled={locked || props.disabled || props.blockSubmit || conflict || props.categoriesLoading || Boolean(props.categoryError) || props.categories.length === 0}
+        className="ml-auto rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-60">
+        {locked ? "Đang lưu..." : props.disabled && mode === "create" ? "Đã lưu" : mode === "create" ? "Lưu bản nháp" : "Lưu thay đổi"}
+      </button>
+    </div>
+  </form>;
 }

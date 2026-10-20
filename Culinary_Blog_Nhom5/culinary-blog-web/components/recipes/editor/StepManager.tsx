@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import Image from "next/image";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { stepApi, type StepDto } from "@/lib/api/stepApi";
 import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { emptyStep, stepFormSchema, stepPayload, type StepDraft } from "@/lib/step-form";
+import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
 
 type Props = { recipeId?: string; published?: boolean; parentVersion?: string; onChange?: (items: StepDraft[]) => void;
-  onMutation?: () => Promise<void> | void; onDirtyChange?: (dirty: boolean) => void; disabled?: boolean };
+  onMutation?: () => Promise<void> | void; onDirtyChange?: (dirty: boolean) => void; validationRef?: Ref<RecipeCollectionValidation>; disabled?: boolean };
 const toDraft = (step: StepDto): StepDraft => ({ stepId: step.id, title: step.title, description: step.description,
   timerMinutes: step.timerMinutes === null ? "" : String(step.timerMinutes), imageUrl: step.imageUrl ?? "" });
 const signature = (step: StepDraft) => JSON.stringify([step.title, step.description, step.timerMinutes, step.imageUrl]);
 const imagePreview = (value: string) => { try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; } };
 
-export default function StepManager({ recipeId, published = false, parentVersion, onChange, onMutation, onDirtyChange, disabled = false }: Props) {
+export default function StepManager({ recipeId, published = false, parentVersion, onChange, onMutation, onDirtyChange, validationRef, disabled = false }: Props) {
   const form = useForm<{ items: StepDraft[] }>({ resolver: zodResolver(stepFormSchema), mode: "onBlur", defaultValues: { items: [] } });
-  const { control, reset, getValues, trigger, register, formState: { errors } } = form;
+  const { control, reset, getValues, trigger, setError: setFieldError, register, formState: { errors } } = form;
+  useImperativeHandle(validationRef, () => ({
+    validate: () => trigger(undefined, { shouldFocus: true }),
+    setServerErrors: (errors, focus = true) => {
+      const entries = collectionFieldErrors(errors, "steps", getValues("items").length, ["title", "description", "timerMinutes", "imageUrl"] as const);
+      entries.forEach((entry, index) => setFieldError(`items.${entry.index}.${entry.field}`, { type: "server", message: entry.message }, { shouldFocus: focus && index === 0 }));
+      return entries.length;
+    },
+  }), [trigger, getValues, setFieldError]);
   const { fields, append, remove, move } = useFieldArray({ control, name: "items" });
   const items = useWatch({ control, name: "items" });
   const [version, setVersion] = useState("");
