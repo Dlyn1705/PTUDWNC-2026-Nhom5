@@ -111,9 +111,11 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
 
 internal sealed class TestClock : TimeProvider
 {
-    private DateTimeOffset current = DateTimeOffset.UtcNow.AddSeconds(2);
-    public override DateTimeOffset GetUtcNow() => current;
-    public void Advance(int seconds) => current = current.AddSeconds(seconds);
+    // Delivery timestamps are created with DateTime.UtcNow. Keep elapsed real
+    // time as well as the test offset so slow startup never makes them future-due.
+    private long offsetTicks = TimeSpan.FromSeconds(2).Ticks;
+    public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow.AddTicks(Interlocked.Read(ref offsetTicks));
+    public void Advance(int seconds) => Interlocked.Add(ref offsetTicks, TimeSpan.FromSeconds(seconds).Ticks);
 }
 
 internal sealed class RecordingEmail : IEmailService
