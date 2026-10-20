@@ -186,6 +186,29 @@ npm run dev
 
 Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP production, kiểm thử và xử lý Failed: [Runbook Welcome Email](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-001-Welcome-Email.md). Mail capture local dùng file riêng `compose.mail.yml`, cổng 1025/8025 chỉ bind localhost. Hangfire Dashboard nằm ở `/hangfire` và chỉ cho phép Admin. Secret SMTP phải đặt qua environment/User Secrets, không commit.
 
+### Integration test local
+
+Các test tạo database riêng không dùng database development. Lưu sáu connection
+string test trong User Secrets/CI secret hoặc biến môi trường của process; mẫu tên
+biến nằm tại `Culinary_Blog_Nhom5/tests/integration-test.env.example`.
+
+```powershell
+$testPassword = Read-Host "Local PostgreSQL test password" -AsSecureString
+$testPasswordPlain = [System.Net.NetworkCredential]::new("", $testPassword).Password
+$testConnection = "Host=localhost;Port=5433;Database=postgres;Username=postgres;Password=$testPasswordPlain"
+foreach ($name in @(
+  "RECIPE_IMAGES_TEST_CONNECTION", "RECIPE_DELETION_TEST_CONNECTION",
+  "RECIPE_CREATE_TEST_CONNECTION", "RECIPE_UPDATE_TEST_CONNECTION",
+  "IMAGE_TEST_CONNECTION", "WELCOME_EMAIL_TEST_CONNECTION"
+)) { Set-Item "Env:$name" $testConnection }
+Remove-Variable testPasswordPlain, testConnection
+dotnet test Culinary_Blog_Nhom5.sln --no-build
+```
+
+Không ghi giá trị các biến vào log hoặc Git. PostgreSQL test phải có quyền tạo/xóa
+database cô lập; MinIO, Redis và MailHog dùng endpoint local tương ứng theo test
+fixture. Mỗi suite tự cleanup dữ liệu và không phụ thuộc thứ tự chạy.
+
 ## Kiểm tra trước khi gửi bài
 
 ```powershell

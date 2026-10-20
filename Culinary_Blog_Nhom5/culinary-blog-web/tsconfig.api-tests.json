@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "noEmit": false,
+    "incremental": false,
+    "outDir": "build/api-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "lib/api/problemDetails.ts",
+    "lib/api/responseMetadata.ts",
+    "lib/api/axiosClient.ts",
+    "lib/api/httpLogging.ts",
+    "lib/api/sessionAuth.ts",
+    "lib/api/recipePublicApi.ts",
+    "lib/api/recipeEditorApi.ts",
+    "lib/api/recipeLifecycleApi.ts",
+    "lib/api/recipeApi.ts",
+    "lib/api/recipeManagementApi.ts",
+    "lib/logger.ts",
+    "types/api.types.ts",
+    "types/recipe.types.ts",
+    "types/recipe-management.types.ts",
+    "tests/problemDetails.test.ts",
+    "tests/recipeApiContract.test.ts"
+  ],
+  "exclude": ["node_modules", ".next", "build"]
+}
+

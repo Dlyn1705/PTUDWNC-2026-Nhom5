@@ -23,14 +23,14 @@ git pull --ff-only origin main
 git switch -c <mssv>-<ho-ten>-<ten-cong-viec>
 ```
 
-Tên nhánh viết thường, không dấu, dùng dấu gạch ngang và mô tả đúng một công việc.
+Tên nhánh viết hoa, không dấu, dùng dấu gạch ngang và mô tả đúng một công việc.
 
 Ví dụ:
 
 ```text
-2312567-vothiminhan-dangnhapemail
-2300003-nguyenleanhtuan-xoaanhminio
-2312663-dodangdieulinh-suadanhmuc
+2312567-VoThiMinhAn-dangnhapemail
+2300003-NguyenLeAnhTuan-xoaanhminio
+2312663-DoDangDieuLinh-suadanhmuc
 ```
 
 Không dùng tên chung chung như `new`, `update`, `fix`, `test-branch`.

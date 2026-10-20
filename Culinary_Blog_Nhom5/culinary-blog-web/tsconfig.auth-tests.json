@@ -4,6 +4,6 @@
     "module": "CommonJS", "moduleResolution": "Node", "target": "ES2022",
     "noEmit": false, "incremental": false, "outDir": "build/auth-tests", "rootDir": "."
   },
-  "include": ["tests/auth.test.ts", "tests/redis-auth.test.ts", "lib/auth/*.ts", "lib/api/sessionAuth.ts", "types/auth.ts"],
+  "include": ["tests/auth.test.ts", "tests/auth-store.test.ts", "tests/redis-auth.test.ts", "lib/auth/*.ts", "lib/api/sessionAuth.ts", "types/auth.ts", "store/useAuthStore.ts"],
   "exclude": ["node_modules", ".next", "build"]
 }

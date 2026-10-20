@@ -32,7 +32,7 @@ export class SessionCoordinator {
     return id;
   }
 
-  async resolve(id: string): Promise<BackendTokens> {
+  async resolve(id: string, rejectedAccessToken?: string): Promise<BackendTokens> {
     return this.store.withLease(id, async (lease) => {
       const stored = await lease.read();
       if (!stored || stored.state === "closed") throw new RefreshRejected();
@@ -41,7 +41,13 @@ export class SessionCoordinator {
         await this.close(lease, stored);
         throw new RefreshRejected();
       }
-      if (Date.parse(stored.session.accessTokenExpiry) > this.now() + 60_000) return stored;
+      // A backend 401 is authoritative even when the local expiry says that the
+      // access token is still usable. Refresh only if the rejected token is
+      // still current; concurrent callers that arrive after a rotation reuse
+      // the newly stored tokens instead of rotating the refresh token again.
+      const forceRefresh = rejectedAccessToken !== undefined
+        && stored.session.accessToken === rejectedAccessToken;
+      if (!forceRefresh && Date.parse(stored.session.accessTokenExpiry) > this.now() + 60_000) return stored;
       if (stored.retryAt && stored.retryAt > this.now()) throw new RefreshUnavailable(stored.retryAt - this.now());
 
       await lease.write({ ...stored, state: "refreshing" });

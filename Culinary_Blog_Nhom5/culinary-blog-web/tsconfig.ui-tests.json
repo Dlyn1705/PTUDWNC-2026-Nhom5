@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "target": "ES2022",
+    "noEmit": false, "incremental": false, "outDir": "build/ui-tests", "rootDir": "."
+  },
+  "include": ["store/useUIStore.ts", "tests/ui-store.test.ts"],
+  "exclude": ["node_modules", ".next", "build"]
+}
+

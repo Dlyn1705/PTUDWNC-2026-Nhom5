@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useTransition } from "react";
 import { LayoutGrid, List, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
 import type { RecipeSummaryDto } from "@/types/recipe.types";
 import { CategoryDto } from "@/types/category.types";
@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { PaginationMeta } from "@/types/api.types";
 import { Pagination } from "@/components/common/Pagination";
 import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
+import { useUIHydration, useUIStore } from "@/store/useUIStore";
 
 interface RecipesCatalogViewProps {
   initialRecipes: RecipeSummaryDto[];
@@ -27,7 +28,10 @@ export function RecipesCatalogView({
   initialRecipes,
   categories, meta, totalPublished, selectedCategory, selectedDifficulty, sortBy, sortOrder,
 }: RecipesCatalogViewProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const hydrated = useUIHydration();
+  const persistedViewMode = useUIStore((state) => state.recipesViewMode);
+  const viewMode = hydrated ? persistedViewMode : "grid";
+  const setViewMode = useUIStore((state) => state.setRecipesViewMode);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();

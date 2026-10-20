@@ -75,7 +75,8 @@ async function main() {
       return res.end(JSON.stringify({ detail: "SECRET backend exception", correlationId: "body-id" }));
     }
     const page = Number(new URL(req.url, "http://fixture").searchParams.get("page") || 1);
-    res.end(JSON.stringify({ success: true, data: { data: [], meta: { page, pageSize: 12, totalCount: 30, totalPages: 3 } } }));
+    // The public search endpoint returns PagedResult directly, without an ApiResponse wrapper.
+    res.end(JSON.stringify({ data: [], meta: { page, pageSize: 12, totalCount: 30, totalPages: 3 } }));
   });
   const apiPort = await listen(backend);
   const env = { ...process.env, API_INTERNAL_URL: `http://127.0.0.1:${apiPort}`, NEXT_PUBLIC_API_URL: `http://127.0.0.1:${apiPort}`, NEXT_TELEMETRY_DISABLED: "1" };

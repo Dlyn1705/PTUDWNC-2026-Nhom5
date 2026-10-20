@@ -18,6 +18,40 @@ Copy-Item .env.example .env.local
 - `app/`: route public, auth, dashboard và layout.
 - `components/`: UI Radix, form, thành phần công thức, SessionProvider.
 - `hooks/`: hook React và quyền người dùng.
+
+## Quy ước frontend
+
+### Thêm primitive shadcn/ui
+
+Chạy CLI shadcn từ thư mục này và commit component sinh ra trong `components/ui`.
+`components.json` là nguồn chuẩn cho style và alias; giữ nguyên alias `@/components`
+và `@/lib/utils`, không sửa vendor primitive tùy tiện. Đặt hành vi đặc thù ứng dụng
+ở component wrapper.
+
+### Chọn loại state
+
+- State cục bộ: form, dialog và trạng thái tạm thời của một component.
+- URL search params: filter, sort và pagination có thể chia sẻ.
+- TanStack Query: server state và cache request.
+- Zustand: projection auth/UI nhỏ dùng chung. Store mới phải có selector, action và
+  `partialize` allowlist nếu persist; chỉ persist UI preference sau hydration client.
+  Không persist token, cookie, password, raw session hoặc API response.
+
+Component chỉ gọi backend qua `lib/api`, không tự tạo Axios client và không đọc
+`error.response`. Lỗi API dùng `ApiProblemError`, `isApiProblemError` và
+`getApiErrorMessage`.
+
+```powershell
+npm run lint
+npm run typecheck
+npm run test:api
+npm run test:auth
+npm run test:logging
+npm run build
+```
+
+Suite mới nên có `tsconfig.*-tests.json` riêng khi cần runtime/module boundary khác;
+test phải deterministic và không gọi backend thật.
 - `lib/api/`: Axios client, API và xử lý lỗi/log.
 - `lib/auth.ts`: NextAuth credentials, refresh token phía server.
 - `types/`: DTO, payload, role, session, phân trang, ảnh và enum.

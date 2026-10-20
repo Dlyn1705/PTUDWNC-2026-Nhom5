@@ -66,7 +66,7 @@ export const { handlers, auth, signIn, signOut, unstable_update: updateSession }
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       const issuedTokens = user?.backendTokens;
 
       if (issuedTokens) {
@@ -90,7 +90,11 @@ export const { handlers, auth, signIn, signOut, unstable_update: updateSession }
         return token;
       }
       try {
-        const { session: current } = await backendSessions.resolve(token.backendSessionId);
+        const update = session as { rejectedAccessToken?: unknown } | undefined;
+        const rejectedAccessToken = trigger === "update" && typeof update?.rejectedAccessToken === "string"
+          ? update.rejectedAccessToken
+          : undefined;
+        const { session: current } = await backendSessions.resolve(token.backendSessionId, rejectedAccessToken);
         token.id = current.user.id;
         token.sub = current.user.id;
         token.name = current.user.displayName;

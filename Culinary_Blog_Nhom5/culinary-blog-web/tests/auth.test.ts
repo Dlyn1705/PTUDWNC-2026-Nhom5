@@ -38,6 +38,24 @@ test("fresh access token needs no refresh", async () => {
   assert.equal((await coordinator.resolve(id)).refreshToken, "r0");
 });
 
+test("backend 401 forces one rotation even while the rejected access token appears unexpired", async () => {
+  const store = new MemoryStore();
+  let calls = 0;
+  const refresh = async (token: string) => {
+    calls++;
+    assert.equal(token, "r0");
+    return tokens("r1");
+  };
+  const workers = Array.from({ length: 3 }, () => new SessionCoordinator(store, refresh, async () => {}));
+  const id = await workers[0].create(tokens("r0"));
+  const results = await Promise.all(Array.from(
+    { length: 20 },
+    (_, index) => workers[index % workers.length].resolve(id, "access-r0"),
+  ));
+  assert.ok(results.every((result) => result.session.accessToken === "access-r1"));
+  assert.equal(calls, 1);
+});
+
 test("concurrent workers and late stale cookies all use a single rotation", async () => {
   const store = new MemoryStore();
   let calls = 0;
@@ -139,6 +157,58 @@ test("API 401 retries only once with a different token", async () => {
   installSessionAuth(client, async () => apiSession(reads++ === 0 ? "old" : "new"));
   assert.equal((await client.get("/api/v1/recipes/mine")).data, "ok");
   assert.equal(sends, 2);
+});
+
+test("twenty concurrent 401 responses share one refreshed session and token", async () => {
+  let reads = 0;
+  let sends = 0;
+  let releaseRefresh!: () => void;
+  const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+  const client = axios.create({ adapter: async (config) => {
+    sends++;
+    if (config.headers.Authorization === "Bearer old") {
+      throw new AxiosError("unauthorized", "401", config, null, {
+        config, status: 401, statusText: "", headers: {}, data: null,
+      });
+    }
+    assert.equal(config.headers.Authorization, "Bearer new");
+    return { config, status: 200, statusText: "", headers: {}, data: "ok" };
+  } });
+  installSessionAuth(client, async () => {
+    reads++;
+    if (reads === 2) await refreshGate;
+    return apiSession(reads === 1 ? "old" : "new");
+  });
+  const requests = Promise.all(Array.from({ length: 20 }, () => client.get("/api/v1/recipes")));
+  await new Promise((resolve) => setImmediate(resolve));
+  releaseRefresh();
+  const results = await requests;
+  assert.equal(results.length, 20);
+  assert.equal(reads, 2, "one initial session read plus one refresh read");
+  assert.equal(sends, 40, "each request is sent once and retried once");
+});
+
+test("concurrent forced refresh failure expires the client session only once", async () => {
+  let refreshes = 0;
+  let expirations = 0;
+  let sends = 0;
+  const client = axios.create({ adapter: async (config) => {
+    sends++;
+    throw new AxiosError("unauthorized", "401", config, null, {
+      config, status: 401, statusText: "", headers: {}, data: null,
+    });
+  } });
+  installSessionAuth(
+    client,
+    async () => apiSession("old"),
+    async () => { refreshes++; throw new Error("refresh rejected"); },
+    async () => { expirations++; },
+  );
+  const results = await Promise.allSettled(Array.from({ length: 20 }, () => client.get("/api/v1/recipes")));
+  assert.ok(results.every((result) => result.status === "rejected"));
+  assert.equal(sends, 20, "failed refresh must not replay the rejected token");
+  assert.equal(refreshes, 1);
+  assert.equal(expirations, 1);
 });
 
 for (const status of [401, 403, 500]) {

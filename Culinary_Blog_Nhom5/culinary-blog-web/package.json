@@ -14,6 +14,8 @@
     "test:security": "node --test tests/security.unit.cjs",
     "test:e2e:security": "npm run build && node tests/security.e2e.cjs",
     "test:logging": "tsc -p tsconfig.logging-tests.json && node --test build/logging-tests/tests/logging.test.js",
+    "test:api": "tsc -p tsconfig.api-tests.json && node --test build/api-tests/tests/problemDetails.test.js build/api-tests/tests/recipeApiContract.test.js",
+    "test:ui-store": "tsc -p tsconfig.ui-tests.json && node --test build/ui-tests/tests/ui-store.test.js",
     "test:common": "tsc -p tsconfig.common-tests.json && node --conditions=react-server --test build/common-tests/tests/common-components.test.js",
     "test:a11y": "node tests/accessibility.e2e.cjs",
     "test:e2e:states": "node tests/route-states.e2e.cjs",

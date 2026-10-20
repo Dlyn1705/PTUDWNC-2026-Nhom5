@@ -74,6 +74,11 @@ async function main() {
     let mineStatus = 200; let mineEmpty = false; let recipeStatus = 200;
     const stepRows = [];
     const ingredients = [];
+    await context.route("**/api/auth/refresh", async route => {
+      await route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ user: { accessToken: "deletion-refreshed-access",
+          accessTokenExpiry: new Date(Date.now() + 3600000).toISOString() } }) });
+    });
     const category = { id: recipe.categoryId, name: "Món chính" };
     await context.route("**/api/v1/**", async route => {
       const request = route.request(); const url = new URL(request.url());
