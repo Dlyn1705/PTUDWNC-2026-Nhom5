@@ -6,7 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { toApiProblemError } from "@/lib/api/problemDetails";
+import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { recipeEditorSchema, emptyRecipeEditor, nutritionFields, recipeErrorField, RecipeFormValidationError,
   type RecipeEditorValues, type RecipeEditorField } from "@/lib/validations/recipeEditor";
 import type { CategoryDto } from "@/types/category.types";
@@ -84,10 +84,10 @@ export default function RecipeForm(props: Props) {
       reset(data);
     } catch (reason) {
       if (reason instanceof RecipeFormValidationError) {
-        setProblem({ status: 422, message: reason.message });
+        setProblem({ status: 422, message: getApiErrorMessage(reason) });
         return;
       }
-      const error = toApiProblemError(reason);
+      const error = isApiProblemError(reason) ? reason : toApiProblemError(reason);
       const status = error.status;
       if (status === 400 || status === 422) {
         const mapped = new Set<RecipeEditorField>();

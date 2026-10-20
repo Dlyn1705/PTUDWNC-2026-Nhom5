@@ -12,7 +12,7 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import { RouteLoading } from "@/components/common/RouteLoading";
 import { ErrorState } from "@/components/common/ErrorState";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { toApiProblemError } from "@/lib/api/problemDetails";
 import { errorPresentation } from "@/lib/errorPresentation";
@@ -60,7 +60,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       if (!active) return;
       activeId.current = id;
       setLoading(true); setRecipe(null); setLoadError(null); setMutationError(null); setOutOfDate(false); setSuccess("");
-      const loaded = await recipeApi.getById(id);
+      const loaded = await recipeEditorApi.getById(id);
       if (active) { setRecipe(loaded); setInitial(editorValues(loaded)); }
     }).catch(reason => { if (active) setLoadError(errorPresentation(reason)); })
       .finally(() => { if (active) setLoading(false); });
@@ -75,7 +75,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       difficulty: Number(values.difficulty) as DifficultyValue, categoryId: values.categoryId, rowVersion: recipe.rowVersion });
     mutating.current = true; setSaving(true); setSuccess("");
     try {
-      const result = await recipeApi.update(recipe.id, payload);
+      const result = await recipeEditorApi.update(recipe.id, payload);
       if (activeId.current !== recipe.id) return;
       setRecipe(current => current ? { ...current, title: payload.title, description: payload.description ?? "",
         instructions: payload.instructions ?? "", prepTimeMinutes: payload.prepTime, cookTimeMinutes: payload.cookTime,
@@ -88,7 +88,7 @@ export default function EditRecipePage({ params }: RouteProps) {
   const refreshVersion = async () => {
     if (!recipe) return;
     try {
-      const fresh = await recipeApi.getById(recipe.id);
+      const fresh = await recipeEditorApi.getById(recipe.id);
       if (activeId.current !== fresh.id) return;
       if (basicKeys.some(key => fresh[key] !== recipe[key])) {
         setOutOfDate(true);
@@ -103,7 +103,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     if (!recipe || mutating.current) return;
     mutating.current = true; setDeleting(true); setMutationError(null);
     try {
-      await recipeApi.delete(recipe.id);
+      await recipeEditorApi.delete(recipe.id);
       queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       allowNavigation(); router.replace("/dashboard/recipes?deleted=1"); router.refresh();
     } catch (reason) {
