@@ -61,7 +61,7 @@ async function main() {
       const request = route.request(); const url = new URL(request.url()); const endpoint = url.pathname;
       const json = (value, status = 200) => route.fulfill({ status, contentType: "application/json", headers: {
         "Access-Control-Expose-Headers": "ETag", ETag: '"' + versionText() + '"', "Cache-Control": "no-store" }, body: JSON.stringify(value) });
-      if (endpoint.startsWith("/api/v1/categories")) return json([category]);
+      if (endpoint.startsWith("/api/v1/categories")) return json({ data: [category] });
       if (endpoint.endsWith("/ingredients") || endpoint.endsWith("/images")) return json({ success: true, data: [] });
       if ((endpoint === "/api/v1/recipes" || endpoint === "/api/v1/recipes/") && request.method() === "POST") {
         createdPayload = request.postDataJSON();
