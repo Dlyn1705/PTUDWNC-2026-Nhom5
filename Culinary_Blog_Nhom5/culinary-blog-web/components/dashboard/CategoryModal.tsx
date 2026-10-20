@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle } from "lucide-react";
@@ -58,6 +58,7 @@ export function CategoryModal({
   onSuccess,
   onError,
 }: CategoryModalProps) {
+  const [failure, setFailure] = useState("");
   const isEditing = Boolean(editingCategory);
   const {
     register,
@@ -91,6 +92,8 @@ export function CategoryModal({
   const slugPreview = editingCategory?.slug ?? slugifyVietnamese(name);
   const canPreviewImage = /^https?:\/\//i.test(imageUrl);
 
+  const reportError = (message: string) => { setFailure(message); onError(message); };
+
   const applyApiErrors = (error: ApiProblemError) => {
     const fields: Record<string, keyof CategoryFormValues> = {
       name: "name",
@@ -103,26 +106,27 @@ export function CategoryModal({
     for (const [serverField, messages] of Object.entries(error.errors)) {
       const field = fields[serverField.toLowerCase()];
       if (!field || messages.length === 0) continue;
-      setError(field, { type: "server", message: messages[0] });
+      setError(field, { type: "server", message: messages[0] }, { shouldFocus: !mappedFieldError });
       mappedFieldError = true;
     }
 
     if (error.status === 401) {
-      onError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      reportError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       return;
     }
 
     if (error.status === 403) {
-      onError("Bạn không có quyền Admin để thực hiện thao tác này.");
+      reportError("Bạn không có quyền Admin để thực hiện thao tác này.");
       return;
     }
 
     if (!mappedFieldError || error.status === 409) {
-      onError(error.message);
+      reportError(error.message);
     }
   };
 
   const submitForm = async (values: CategoryFormValues) => {
+    setFailure("");
     try {
       const payload = {
         name: values.name,
@@ -145,15 +149,17 @@ export function CategoryModal({
       if (error instanceof ApiProblemError) {
         applyApiErrors(error);
       } else {
-        onError(error instanceof Error ? error.message : "Thao tác thất bại.");
+        reportError(error instanceof Error ? error.message : "Thao tác thất bại.");
       }
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-lg">
-        <form onSubmit={handleSubmit(submitForm)} className="space-y-4" noValidate>
+      <DialogContent onOpenAutoFocus={() => setFailure("")} className="rounded-2xl sm:max-w-lg">
+          <p role="status" className="sr-only">{isSubmitting ? "Đang lưu danh mục…" : ""}</p>
+        <form aria-busy={isSubmitting} onSubmit={handleSubmit(submitForm)} className="space-y-4" noValidate>
+          {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-bold">
               {isEditing ? "Chỉnh sửa danh mục" : "Tạo danh mục món ăn mới"}

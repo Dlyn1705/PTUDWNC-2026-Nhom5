@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { focusMainContent } from "@/lib/focus";
 import { validCorrelationId } from "@/lib/logger";
 
 export interface ErrorStateProps {
@@ -16,6 +17,7 @@ export interface ErrorStateProps {
   className?: string;
   headingLevel?: "h1" | "h2" | "h3" | "h4";
   action?: React.ReactNode;
+  focusOnMount?: boolean;
 }
 
 export function ErrorState({
@@ -28,7 +30,16 @@ export function ErrorState({
   className,
   headingLevel = "h2",
   action,
+  focusOnMount = false,
 }: ErrorStateProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const startedRetry = useRef(false);
+  useEffect(() => { if (focusOnMount) headingRef.current?.focus(); }, [focusOnMount]);
+  useEffect(() => () => {
+    if (!startedRetry.current) return;
+    // Only restore focus if the user's recovery action removed the focused UI.
+    requestAnimationFrame(() => { if (document.activeElement === document.body) focusMainContent(); });
+  }, []);
   const HeadingTag = headingLevel;
   const safeId = validCorrelationId(correlationId);
   const retryInFlight = useRef(false);
@@ -39,12 +50,14 @@ export function ErrorState({
   async function retry() {
     if (!onRetry || pending || retryInFlight.current) return;
     retryInFlight.current = true;
+    startedRetry.current = true;
     setLocalPending(true);
     setRetryFailed(false);
     try {
       await onRetry();
     } catch {
       // Keep the recovery UI usable without displaying a raw exception.
+      startedRetry.current = false;
       setRetryFailed(true);
     } finally {
       retryInFlight.current = false;
@@ -54,7 +67,6 @@ export function ErrorState({
 
   return (
     <div
-      role="alert"
       className={cn(
         "mx-auto flex w-full max-w-xl flex-col items-center justify-center rounded-3xl border border-destructive/20 bg-card p-6 text-center shadow-soft sm:p-8",
         className,
@@ -64,7 +76,8 @@ export function ErrorState({
         <AlertCircle className="size-6" aria-hidden="true" />
       </div>
 
-      <HeadingTag className="mt-4 font-display text-xl font-bold text-foreground sm:text-2xl">
+      <div role="alert">
+      <HeadingTag ref={headingRef} tabIndex={-1} className="mt-4 font-display text-xl font-bold text-foreground sm:text-2xl">
         {title}
       </HeadingTag>
 
@@ -81,6 +94,8 @@ export function ErrorState({
       )}
 
       {retryFailed && <p className="mt-3 text-sm">Chưa thể tải lại. Vui lòng thử lại sau ít phút.</p>}
+      </div>
+      <p role="status" className="sr-only">{pending ? "Đang thử tải lại nội dung…" : ""}</p>
       {(onRetry || action) && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {onRetry && (
@@ -88,7 +103,7 @@ export function ErrorState({
               type="button"
               variant="default"
               onClick={() => void retry()}
-              disabled={pending}
+              aria-disabled={pending}
               className="gap-2 rounded-xl"
             >
               <RefreshCw

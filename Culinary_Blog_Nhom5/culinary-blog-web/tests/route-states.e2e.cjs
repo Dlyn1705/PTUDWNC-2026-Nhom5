@@ -113,7 +113,7 @@ async function main() {
     await page.getByRole("heading", { name: "Không thể tải trang", exact: true }).waitFor();
     assert.equal(await page.locator("html").getAttribute("lang"), "vi");
     assert.equal(await page.locator("main").count(), 1);
-    const radius = await page.locator('[role="alert"]:not(#__next-route-announcer__)').evaluate(el => getComputedStyle(el).borderRadius);
+    const radius = await page.locator('[role="alert"]:not(#__next-route-announcer__)').evaluate(el => getComputedStyle(el.parentElement).borderRadius);
     assert.notEqual(radius, "0px", "global fallback must load its own stylesheet");
     await page.screenshot({path:path.join(fixture,"global-error-mobile.png"),fullPage:true});
     await fault(""); await page.getByRole("button", { name: "Thử lại", exact: true }).click();

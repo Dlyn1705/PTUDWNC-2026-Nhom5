@@ -34,7 +34,7 @@ export default function LoggedError({
   const Container = standalone ? "main" : "div";
 
   return (
-    <Container className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center px-4 py-16">
+    <Container id={standalone ? "main-content" : undefined} tabIndex={standalone ? -1 : undefined} className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center px-4 py-16">
       <ErrorState
         title={title}
         description={description}
@@ -42,6 +42,7 @@ export default function LoggedError({
         onRetry={handleRetry ? () => startTransition(handleRetry) : undefined}
         isRetrying={isPending}
         headingLevel="h1"
+        focusOnMount
       />
     </Container>
   );

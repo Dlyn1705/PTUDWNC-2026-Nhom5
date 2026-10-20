@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="register-shell">
+    <main id="main-content" tabIndex={-1} className="register-shell">
       <section className="register-brand-panel" aria-label="Culinary Blog">
         <div className="brand-mark">CB</div>
         <p className="eyebrow">Culinary Blog</p>

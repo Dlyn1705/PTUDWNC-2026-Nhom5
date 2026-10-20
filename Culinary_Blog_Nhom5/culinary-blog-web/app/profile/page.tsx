@@ -10,7 +10,7 @@ export default async function ProfilePage() {
   if (!session?.user || session.error) redirect("/auth/login?callbackUrl=/profile");
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
       <Link href="/" className="text-sm text-primary hover:underline">← Trang chủ</Link>
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-10">
         <div className="mb-8 flex items-center gap-4">

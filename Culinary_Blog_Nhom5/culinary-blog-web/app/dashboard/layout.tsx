@@ -1,3 +1,4 @@
+import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -21,6 +22,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <SkipLink />
       {/* Dashboard Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -34,7 +36,7 @@ export default async function DashboardLayout({
               </span>
             </Link>
 
-            <nav className="hidden sm:flex items-center gap-2 text-sm">
+            <nav aria-label="Điều hướng quản lý" className="hidden sm:flex items-center gap-2 text-sm">
               <Link
                 href="/dashboard"
                 className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
@@ -90,7 +92,7 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
     </div>
   );
 }
