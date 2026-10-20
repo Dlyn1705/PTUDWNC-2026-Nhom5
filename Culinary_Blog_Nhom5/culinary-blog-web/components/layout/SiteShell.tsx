@@ -1,3 +1,4 @@
+import { SkipLink } from "@/components/common/SkipLink";
 import type { ReactNode } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -16,8 +17,9 @@ export function SiteShell({ children, className }: SiteShellProps) {
         className,
       )}
     >
+      <SkipLink />
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
       <Footer />
     </div>
   );
