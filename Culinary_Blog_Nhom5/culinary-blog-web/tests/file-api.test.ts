@@ -28,11 +28,11 @@ test("normalization preserves HTTP status, field errors, code, cause and correla
   const wire = response(cfg, { status: 400, code: "FILE_CONTENT", correlationId: "body-id", errors: { file: ["Ảnh không hợp lệ"] } }, 422);
   const cause = new AxiosError("raw transport", "ERR_BAD_REQUEST", cfg, {}, wire);
   const error = toApiProblemError(cause, { operation: "upload" });
-  assert.equal(error.status, 422); assert.equal(error.correlationId, "response-id");
+  assert.equal(error.status, 422); assert.equal(error.correlationId, "body-id");
   assert.equal(error.code, "FILE_CONTENT"); assert.equal(error.cause, cause);
   assert.deepEqual(error.errors, { file: ["Ảnh không hợp lệ"] }); assert.equal(error.kind, "file_validation");
   assert.equal(toApiProblemError(error, { imageId: "saved" }), error); assert.equal(error.imageId, "saved");
-  assert.equal(errorCorrelationId(error), "response-id");
+  assert.equal(errorCorrelationId(error), "body-id");
   wire.headers = {}; assert.equal(toApiProblemError(cause).correlationId, "body-id");
   wire.data.correlationId = "invalid id"; assert.equal(toApiProblemError(cause).correlationId, "request-id");
   delete (cfg as Partial<typeof cfg>).observability; assert.equal(toApiProblemError(cause).correlationId, undefined);

@@ -2,10 +2,17 @@
 
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, type ReactNode } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 function SessionStatus() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const syncFromSession = useAuthStore((state) => state.syncFromSession);
+  const clear = useAuthStore((state) => state.clear);
   const signingOut = useRef(false);
+  useEffect(() => {
+    if (status === "unauthenticated" || session?.error === "RefreshTokenError") clear();
+    else syncFromSession(session, status);
+  }, [clear, session, status, syncFromSession]);
   useEffect(() => {
     if (session?.error !== "RefreshTokenError" || signingOut.current) return;
     signingOut.current = true;

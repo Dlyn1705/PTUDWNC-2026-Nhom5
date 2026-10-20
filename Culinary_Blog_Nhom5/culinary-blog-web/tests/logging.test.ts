@@ -191,7 +191,7 @@ test("upload 422 emits exactly one ClientHttpError log preserving status, correl
     assert.ok(caught instanceof ApiProblemError, "Phải ném ApiProblemError");
     assert.equal(caught.kind, "file_validation");
     assert.equal(caught.status, 422);
-    assert.equal(caught.correlationId, "header-id", "Header ID được ưu tiên hơn body ID");
+    assert.equal(caught.correlationId, "body-id", "Problem Details body ID được ưu tiên hơn header ID");
     assert.deepEqual(caught.errors, { file: ["Ảnh không hợp lệ"] }, "Phải giữ nguyên field errors");
     assert.equal(warnLines.length, 1, "Đúng một warn log từ interceptor HTTP");
     const entry = JSON.parse(warnLines[0]);

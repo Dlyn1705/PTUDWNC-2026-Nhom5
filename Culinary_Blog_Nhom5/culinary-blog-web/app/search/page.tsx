@@ -79,14 +79,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         sortBy,
         sortOrder,
       });
-      if (!response.success || !response.data) {
-        searchError = "Không thể tìm công thức lúc này. Vui lòng thử lại.";
-      } else {
-        recipes = response.data.data;
-        totalCount = response.data.meta.totalCount;
-        totalPages = response.data.meta.totalPages;
-        page = response.data.meta.page;
-      }
+      recipes = response.data;
+      totalCount = response.meta.totalCount;
+      totalPages = response.meta.totalPages;
+      page = response.meta.page;
     } catch (error) {
       unstable_rethrow(error);
       const presentation = errorPresentation(error);

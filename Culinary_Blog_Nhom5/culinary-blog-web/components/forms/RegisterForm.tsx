@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import { register as registerAccount } from "@/lib/api/authApi";
+import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { PasswordField } from "@/components/forms/PasswordField";
 import {
   getPasswordStrength,
   registerSchema,
   type RegisterFormData,
 } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -45,32 +45,22 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/register",
-        data,
-      );
+      const response = await registerAccount(data);
       if (response.status === 201) {
         router.push("/auth/login?registered=true");
       }
     } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
-
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 409 && problem?.code === "AUTH_EMAIL_EXISTS") {
+      const problem = toApiProblemError(error);
+      if (isApiProblemError(problem) && problem.status === 409 && problem.code === "AUTH_EMAIL_EXISTS") {
         setError("email", {
           type: "server",
-          message: problem.detail ?? "Email này đã được sử dụng.",
+          message: getApiErrorMessage(problem, "Email này đã được sử dụng."),
         });
         return;
       }
 
-      if (response?.status === 422 && problem?.errors) {
+      if (problem.status === 422) {
+        let mapped = false;
         Object.entries(problem.errors).forEach(([field, messages]) => {
           const fieldMap: Record<string, keyof RegisterFormData> = {
             Email: "email",
@@ -82,15 +72,18 @@ export function RegisterForm() {
             fieldMap[field] ??
             fieldMap[field.charAt(0).toUpperCase() + field.slice(1)];
           if (target && messages[0]) {
+            mapped = true;
             setError(target, { type: "server", message: messages[0] });
           }
         });
-        return;
+        if (mapped) {
+          const unknown = Object.keys(problem.errors).some((field) => !["email", "displayName", "password", "confirmPassword"].includes(field.toLowerCase()));
+          if (unknown) setError("root.server", { type: "server", message: getApiErrorMessage(problem) });
+          return;
+        }
       }
 
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+      setServerError(getApiErrorMessage(problem, "Đã có lỗi xảy ra. Vui lòng thử lại sau."));
     }
   };
 

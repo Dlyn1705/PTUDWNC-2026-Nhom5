@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
@@ -60,7 +60,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       categoryApi.getAll().then(items => { if (active) setCategories(items); })
         .catch(() => { if (active) setCategoryError("Không tải được danh mục. Hãy tải lại trước khi lưu."); });
       setRecipeId(id);
-      return recipeApi.getById(id);
+      return recipeEditorApi.getById(id);
     }).then((loaded) => {
       if (!active || !loaded) return;
       setRecipe(loaded);
@@ -98,7 +98,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     setError("");
     setSuccess("");
     try {
-      const result = await recipeApi.update(recipeId, payload);
+      const result = await recipeEditorApi.update(recipeId, payload);
       if (activeRecipeId.current !== recipeId) return;
       setForm({ ...payload, rowVersion: result.rowVersion });
       setRecipe((current) => current ? { ...current, title: payload.title,
@@ -129,7 +129,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     setDeleting(true);
     setError("");
     try {
-      await recipeApi.delete(recipeId);
+      await recipeEditorApi.delete(recipeId);
       queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       router.replace("/dashboard/recipes?deleted=1");
       router.refresh();
@@ -174,7 +174,7 @@ export default function EditRecipePage({ params }: RouteProps) {
 
         <IngredientManager key={`ingredients-${recipeId}`} recipeId={recipeId} parentVersion={recipe.rowVersion} onMutation={async () => {
           try {
-            const fresh = await recipeApi.getById(recipeId);
+            const fresh = await recipeEditorApi.getById(recipeId);
             if (activeRecipeId.current !== fresh.id) return;
             const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
             if (keys.some(key => fresh[key] !== recipe[key])) {
@@ -228,7 +228,7 @@ export default function EditRecipePage({ params }: RouteProps) {
         <StepManager key={`steps-${recipeId}`} recipeId={recipeId} published={recipe.status === 1} parentVersion={recipe.rowVersion}
           disabled={saving || deleting} onMutation={async () => {
             try {
-              const fresh = await recipeApi.getById(recipeId);
+              const fresh = await recipeEditorApi.getById(recipeId);
               if (activeRecipeId.current !== fresh.id) return;
               const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
               if (keys.some(key => fresh[key] !== recipe[key])) {
@@ -242,7 +242,7 @@ export default function EditRecipePage({ params }: RouteProps) {
 
         <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.
-          void recipeApi.getById(recipeId).then(fresh => {
+          void recipeEditorApi.getById(recipeId).then(fresh => {
             if (activeRecipeId.current !== fresh.id) return;
             const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
             if (keys.some(key => fresh[key] !== recipe[key])) {

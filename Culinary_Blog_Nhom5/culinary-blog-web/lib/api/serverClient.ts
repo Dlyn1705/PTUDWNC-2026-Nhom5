@@ -22,6 +22,8 @@ export interface ServerProblemDetails {
   detail?: string;
   message?: string;
   code?: string;
+  status?: number;
+  instance?: string;
   correlationId?: string;
   errors?: Record<string, string[]>;
 }
@@ -31,8 +33,11 @@ function readServerProblem(value: unknown): ServerProblemDetails {
   const source = value as Record<string, unknown>;
   const problem: ServerProblemDetails = {};
 
-  for (const key of ["type", "title", "detail", "message", "code", "correlationId"] as const) {
+  for (const key of ["type", "title", "detail", "message", "code", "instance", "correlationId"] as const) {
     if (typeof source[key] === "string") problem[key] = source[key];
+  }
+  if (Number.isInteger(source.status) && Number(source.status) >= 100 && Number(source.status) <= 599) {
+    problem.status = Number(source.status);
   }
 
   if (source.errors && typeof source.errors === "object" && !Array.isArray(source.errors)) {
@@ -51,6 +56,7 @@ export class ServerApiError extends Error {
   public readonly type?: string;
   public readonly title?: string;
   public readonly detail?: string;
+  public readonly instance?: string;
   public readonly code?: string;
   public readonly errors: Record<string, string[]>;
 
@@ -65,6 +71,7 @@ export class ServerApiError extends Error {
     this.type = details.type;
     this.title = details.title;
     this.detail = details.detail ?? message;
+    this.instance = details.instance;
     this.code = details.code;
     this.errors = details.errors ?? {};
   }
@@ -167,11 +174,14 @@ export const publicApi = {
   async getRecipes(
     params: Record<string, string | number | undefined> = {},
   ): Promise<PagedResult<RecipeSummaryDto>> {
-    return serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
+    const result = await serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
       revalidate: 120,
       tags: ["recipes"],
       searchParams: params,
     });
+    // Defense in depth: a public page/sitemap must never expose a non-Published
+    // item even if a backend fixture or proxy returns an invalid mixed page.
+    return { ...result, data: result.data.filter((recipe) => recipe.status === 1) };
   },
 
   async getRecipe(slug: string): Promise<RecipeDetailDto | null> {
@@ -182,7 +192,7 @@ export const publicApi = {
         // Do not create a second Next.js cache that the API cannot invalidate.
         { cache: "no-store" },
       );
-      return response.data;
+      return response.data.status === 1 ? response.data : null;
     } catch (error) {
       if (error instanceof ServerApiError && error.status === 404) return null;
       throw error;
@@ -191,10 +201,10 @@ export const publicApi = {
 
   async searchRecipes(
     params: SearchRecipesParams,
-  ): Promise<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> {
-    return serverClient<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(
+  ): Promise<PagedResult<SearchRecipeSummaryDto>> {
+    return serverClient<PagedResult<SearchRecipeSummaryDto>>(
       "/api/v1/recipes/search",
       { revalidate: 60, tags: ["recipe-search"], searchParams: { ...params } },
-    );
+    ).then((result) => result);
   },
 };
