@@ -100,6 +100,8 @@ export interface RecipeSummaryDto {
   title: string;
   slug: string;
   createdAt: string;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   description: string;
   instructions?: string | null;
   prepTimeMinutes: number;
@@ -175,6 +177,7 @@ export interface CreateRecipeStepRequest {
   description: string;
   title?: string | null;
   timerMinutes?: number | null;
+  imageUrl?: string | null;
 }
 
 export interface CreateRecipeNutritionRequest {

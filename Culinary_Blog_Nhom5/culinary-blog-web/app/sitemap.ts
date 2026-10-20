@@ -1,16 +1,26 @@
 import { MetadataRoute } from "next";
-import { categoryApi } from "@/lib/api/categoryApi";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { publicApi } from "@/lib/api/serverClient";
+import type { RecipeSummaryDto } from "@/types/recipe.types";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
-  const [categories, recipes] = await Promise.all([
-    categoryApi.getAll(),
-    recipeApi.getAll(),
-  ]);
+  const categories = await publicApi.getCategories();
+  const recipes: RecipeSummaryDto[] = [];
+  let page = 1;
+  do {
+    const result = await publicApi.getRecipes({
+      page,
+      pageSize: 50,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+    recipes.push(...result.data);
+    if (!result.meta.hasNextPage) break;
+    page += 1;
+  } while (true);
 
   // Static core routes
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -43,10 +53,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Dynamic recipe routes (Published only)
-  const publishedRecipes = recipes.filter((r) => r.status === 1);
-  const recipeRoutes: MetadataRoute.Sitemap = publishedRecipes.map((recipe) => ({
+  const recipeRoutes: MetadataRoute.Sitemap = recipes.map((recipe) => ({
     url: `${baseUrl}/recipes/${recipe.slug}`,
-    lastModified: new Date(recipe.createdAt),
+    lastModified: new Date(recipe.updatedAt || recipe.publishedAt || recipe.createdAt),
     changeFrequency: "monthly",
     priority: 0.8,
   }));

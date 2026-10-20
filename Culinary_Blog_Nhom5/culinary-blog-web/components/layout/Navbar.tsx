@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,7 +15,12 @@ export default function Navbar() {
   const isAuthenticated = status === "authenticated" && !!session?.user && !session.error;
   const isAdmin = isAuthenticated &&
     (session?.user.role === "Admin" || session?.user.roles?.includes("Admin"));
+  const canManage = isAdmin || (isAuthenticated && (session?.user.role === "Author" || session?.user.roles?.includes("Author")));
   const accountName = session?.user.name || session?.user.email || "Tài khoản";
+  const mobileId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const brandRef = useRef<HTMLAnchorElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (prevPathname !== pathname) {
@@ -23,9 +28,23 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   }
 
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const resize = () => {
+      if (!desktop.matches) return;
+      if (panelRef.current?.contains(document.activeElement) || document.activeElement === triggerRef.current) brandRef.current?.focus();
+      setMobileMenuOpen(false);
+    };
+    desktop.addEventListener("change", resize);
+    return () => desktop.removeEventListener("change", resize);
+  }, []);
+
   // Handle Cmd+K / Ctrl+K keyboard shortcut to open search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.defaultPrevented || e.isComposing || target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')
+        || document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         router.push("/search");
@@ -35,45 +54,51 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
-  const isCategoriesActive = pathname === "/categories" || pathname?.startsWith("/categories/") === true;
-  const isRecipesActive = pathname === "/recipes" || pathname?.startsWith("/recipes/") === true;
+  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
+  const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header onKeyDown={event => {
+      if (event.key === "Escape" && mobileMenuOpen && !event.defaultPrevented) {
+        event.preventDefault(); setMobileMenuOpen(false); triggerRef.current?.focus();
+      }
+    }} className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
         {/* Brand Logo & Desktop Navigation */}
         <div className="flex items-center gap-6 md:gap-8">
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" className="flex items-center gap-2.5 group">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
-              <ChefHat className="size-5" />
+              <ChefHat aria-hidden="true" className="size-5" />
             </span>
-            <span className="font-display text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+            <span className="hidden min-[400px]:inline font-display text-base sm:text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
               Culinary Blog
             </span>
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 md:flex">
             <Link
               href="/recipes"
+              aria-current={isRecipesActive ? "page" : undefined}
               className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 isRecipesActive
                   ? "bg-accent text-accent-foreground font-semibold"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               }`}
             >
-              All Recipes
+              Công thức
             </Link>
 
             <Link
               href="/categories"
+              aria-current={isCategoriesActive ? "page" : undefined}
               className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 isCategoriesActive
                   ? "bg-accent text-accent-foreground font-semibold"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               }`}
             >
-              Categories
+              Danh mục
             </Link>
           </nav>
         </div>
@@ -86,75 +111,84 @@ export default function Navbar() {
             size="sm"
             className="h-9 gap-2 rounded-full px-3.5 text-muted-foreground hover:text-foreground shadow-2xs"
           >
-            <Link href="/search">
-              <Search className="size-4 text-primary" />
-              <span className="hidden sm:inline">Search</span>
-              <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums sm:inline">
-                ⌘K
-              </kbd>
+            <Link href="/search" aria-label="Tìm kiếm công thức">
+              <Search aria-hidden="true" className="size-4 text-primary" />
+              <span className="hidden sm:inline">Tìm kiếm</span>
+
             </Link>
           </Button>
 
           {status === "loading" ? (
-            <span className="size-10 animate-pulse rounded-full bg-muted" aria-label="Đang tải tài khoản" />
+            <span className="size-10 animate-pulse motion-reduce:animate-none rounded-full bg-muted" role="status" aria-label="Đang tải tài khoản" />
           ) : isAuthenticated ? <UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /> : <Button
             asChild
             size="sm"
             className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
           >
-            <Link href="/register">
-              <UserPlus className="size-3.5" />
+            <Link href="/auth/register">
+              <UserPlus aria-hidden="true" className="size-3.5" />
               <span>Đăng ký</span>
             </Link>
           </Button>}
 
           {/* Mobile Menu Hamburger Toggle */}
           <Button
+            ref={triggerRef}
+            type="button"
             size="icon"
             variant="ghost"
             className="size-9 rounded-xl md:hidden text-foreground"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle Navigation Menu"
+            aria-label={mobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls={mobileId}
           >
-            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            {mobileMenuOpen ? <X aria-hidden="true" className="size-5" /> : <Menu aria-hidden="true" className="size-5" />}
           </Button>
         </div>
       </div>
 
       {/* Mobile Menu Drawer */}
-      {mobileMenuOpen && (
-        <div className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift animate-in slide-in-from-top-2 duration-200">
+      <div id={mobileId} ref={panelRef} hidden={!mobileMenuOpen}
+        onClick={event => {
+          const link = (event.target as Element).closest("a");
+          if (!link) return;
+          setMobileMenuOpen(false);
+          if (new URL(link.href).pathname === pathname) triggerRef.current?.focus();
+        }} className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift motion-reduce:animate-none animate-in slide-in-from-top-2 duration-200">
           <div className="space-y-4">
             <Link
               href="/search"
               className="flex items-center justify-between rounded-xl bg-muted/60 p-3 text-sm font-medium text-foreground"
             >
               <span className="inline-flex items-center gap-2">
-                <Search className="size-4 text-primary" />
-                Quick recipe search...
+                <Search aria-hidden="true" className="size-4 text-primary" />
+                Tìm kiếm công thức…
               </span>
-              <ArrowRight className="size-4 text-muted-foreground" />
+              <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground" />
             </Link>
 
-            <nav className="flex flex-col space-y-1">
+            <nav aria-label="Điều hướng di động" className="flex flex-col space-y-1">
               <Link
                 href="/recipes"
+              aria-current={isRecipesActive ? "page" : undefined}
                 className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium ${
                   isRecipesActive ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
                 }`}
               >
-                <span>All Recipes</span>
-                <Utensils className="size-4" />
+                <span>Công thức</span>
+                <Utensils aria-hidden="true" className="size-4" />
               </Link>
 
               <Link
                 href="/categories"
+              aria-current={isCategoriesActive ? "page" : undefined}
                 className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium ${
                   isCategoriesActive ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
                 }`}
               >
-                <span>Categories</span>
-                <span className="text-xs text-muted-foreground">View all</span>
+                <span>Danh mục</span>
+                <span className="text-xs text-muted-foreground">Xem tất cả</span>
               </Link>
 
               <div className="pl-3 py-1 flex flex-wrap gap-1.5 border-l-2 border-primary/20 ml-3">
@@ -185,21 +219,19 @@ export default function Navbar() {
               </div>
 
               <div className="pt-3 border-t border-border flex flex-col gap-2">
-                {isAuthenticated && (
+                {canManage && (
                   <Link
-                    href={isAdmin ? "/dashboard/categories" : "/dashboard/recipes"}
+                    href="/dashboard"
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
                   >
-                    <LayoutDashboard className="size-4 text-primary" />
-                    <span>{isAdmin ? "Admin Dashboard" : "Quản lý công thức"}</span>
+                    <LayoutDashboard aria-hidden="true" className="size-4 text-primary" />
+                    <span>{isAdmin ? "Bảng điều khiển Admin" : "Bảng điều khiển tác giả"}</span>
                   </Link>
                 )}
 
-                {status === "loading" ? null : isAuthenticated ? (
-                  <div className="mt-1 flex items-center gap-3 px-3"><UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /><span className="truncate text-sm font-medium">{accountName}</span></div>
-                ) : <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
-                  <Link href="/register">
-                    <UserPlus className="size-4" />
+                {!isAuthenticated && status !== "loading" && <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
+                  <Link href="/auth/register">
+                    <UserPlus aria-hidden="true" className="size-4" />
                     <span>Đăng ký tài khoản</span>
                   </Link>
                 </Button>}
@@ -207,7 +239,6 @@ export default function Navbar() {
             </nav>
           </div>
         </div>
-      )}
     </header>
   );
 }

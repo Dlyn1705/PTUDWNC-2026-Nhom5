@@ -124,6 +124,8 @@ Quy tắc vòng đời:
 - **Đổi thứ tự bước (Reorder):** Tách riêng endpoint chuyên dụng `PUT /recipes/{id}/steps/reorder` nhận mảng `{ "stepIds": ["id1", "id2", ...] }` và cập nhật lại `StepNumber = 1, 2, 3...` trong một transaction an toàn, tránh lỗi xung đột `UNIQUE(RecipeId, StepNumber)`.
 - **Xóa bước:** Xóa bước qua `DELETE /recipes/{id}/steps/{stepId}` sẽ tự động renumber các bước còn lại theo thứ tự liên tục (1, 2, 3...). Nếu bài viết đang `Published` và chỉ còn đúng 1 bước, hệ thống chặn xóa và trả về lỗi `422 Unprocessable Entity`.
 
+**Chuẩn hóa triển khai FR-RCP-010:** Tối đa 100 bước active/công thức; Owner/Admin được quản lý bước trên Draft/Published/Archived chưa xóa. Xóa riêng một bước là soft-delete; unique index `(RecipeId, StepNumber)` áp dụng cho `WHERE "IsDeleted" = false`. Mọi mutation step đã lưu yêu cầu strong `If-Match` chứa ETag Recipe; API đọc quản lý và mutation thành công trả ETag mới, version cũ trả 409, thiếu/sai version hoặc dữ liệu không hợp lệ trả 422. Reorder giữ nguyên Title đã lưu, chỉ đổi StepNumber; title trắng khi thêm/sửa được đặt theo số bước lúc ghi. ImageUrl nullable, tối đa 500 ký tự, URL HTTP/HTTPS không chứa thông tin đăng nhập; backend không tải URL và không tự xóa object ảnh dùng chung khi xóa bước. Publish và mutation step dùng cùng khóa Recipe, ngăn Published còn 0 bước kể cả khi chạy đồng thời. DTO quản lý dùng stepNumber/description; public detail giữ order/text để tương thích. Instructions cũ không bị ghi đè bởi CRUD/reorder steps.
+
 ### 3.7 Xóa và tính toàn vẹn dữ liệu (Mô hình 2 giai đoạn)
 
 Hệ thống áp dụng mô hình **Xóa 2 giai đoạn (Two-Stage Deletion Lifecycle)** để giải quyết dứt điểm xung đột giữa Soft Delete và Hard Delete:
@@ -231,7 +233,9 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | **Images** | `POST /recipes/{id}/images` | Owner/Admin | Upload ảnh mới (multipart/form-data) |
 | | `PATCH /recipes/{id}/images/{imgId}/primary` | Owner/Admin | Đặt làm ảnh chính duy nhất |
 | | `DELETE /recipes/{id}/images/{imgId}` | Owner/Admin | Xóa ảnh khỏi recipe |
-| **Steps** | `POST /recipes/{id}/steps` | Owner/Admin | Thêm bước mới (Server tự động tính StepNumber) |
+| **Steps** | `GET /recipes/{id}/steps` | Owner/Admin | Danh sách bước active kèm ETag Recipe (no-store) |
+| | `GET /recipes/{id}/steps/{stepId}` | Owner/Admin | Chi tiết một bước thuộc công thức, kèm ETag Recipe |
+| | `POST /recipes/{id}/steps` | Owner/Admin | Thêm bước mới, yêu cầu If-Match; Server tự động tính StepNumber |
 | | `PUT /recipes/{id}/steps/{stepId}` | Owner/Admin | Cập nhật nội dung bước (title, desc, timer) |
 | | `PUT /recipes/{id}/steps/reorder` | Owner/Admin | Đổi thứ tự toàn bộ các bước an toàn |
 | | `DELETE /recipes/{id}/steps/{stepId}` | Owner/Admin | Xóa bước & tự động renumber (chặn xóa nếu bài Published còn 1 bước) |
@@ -396,7 +400,7 @@ Các trang recipe đã Published phải có metadata riêng, canonical URL, Open
 | `BaseEntity` | UUID v4 (`Id`), `CreatedAt`, `UpdatedAt`, `IsDeleted`, `RowVersion` (bytea timestamp concurrency token). |
 | `Recipe` | Aggregate Root. N:1 với Category, N:1 với Author. Thuộc tính: `Title` (varchar 200), `Slug` (varchar 220, Unique Filtered Index `WHERE "IsDeleted" = false`), `Description` (text), `Instructions` (text NULL - legacy field), `PrepTime`, `CookTime`, `Servings`, `Difficulty`, `Status`, `SearchVector` (tsvector FTS), `PublishedAt`. |
 | `RecipeNutrition` | Owned Entity 1:1, nhúng trực tiếp vào bảng Recipes (`Nutrition_*`). Gồm 6 chỉ số: `Calories`, `Protein`, `Carbohydrates`, `Fat`, `Fiber`, `Sodium` (đều là `decimal(8,2)?`). |
-| `RecipeStep` | 1:N với Recipe; cascade delete; thuộc tính: `Title` (varchar 200, bắt buộc), `Description` (text, bắt buộc), `TimerMinutes` (integer NULL), `ImageUrl` (varchar 500 NULL), `StepNumber` (integer, composite unique index trên `(RecipeId, StepNumber)`). |
+| `RecipeStep` | 1:N với Recipe; cascade delete; thuộc tính: `Title` (varchar 200, bắt buộc), `Description` (text, bắt buộc), `TimerMinutes` (integer NULL), `ImageUrl` (varchar 500 NULL), `StepNumber` (integer, partial unique index trên `(RecipeId, StepNumber)` với `IsDeleted = false`). |
 | `RecipeIngredient` | 1:N với Recipe; cascade delete; thuộc tính: `Name` (varchar 200, bắt buộc), `Quantity` (decimal(10,3) NULL), `Unit` (varchar 50 NULL), `Notes` (varchar 500 NULL), `OrderIndex` (integer DEFAULT 0). |
 | `RecipeImage` | 1:N với Recipe; cascade delete; thuộc tính: `OriginalUrl`, `MediumUrl`, `ThumbnailUrl`, `AltText`, `IsPrimary`, `OrderIndex` (integer DEFAULT 0). |
 | `Category` | N:1 với Recipe. Thuộc tính: `Name` (unique), `Slug` (unique filtered index `WHERE "IsDeleted" = false`), `Description`, `ImageUrl`, `OrderIndex`. Không xóa được nếu còn recipe. |

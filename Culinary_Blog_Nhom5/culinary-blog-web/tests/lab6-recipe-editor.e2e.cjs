@@ -51,7 +51,8 @@ async function main() {
   });
   server.stdout.on("data", value => { logs = (logs + value).slice(-10000); });
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
-  let browser; let context;
+  let browser; let context; let page;
+  const errors = [];
   try {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -69,6 +70,8 @@ async function main() {
       categoryId: "11111111-1111-4111-8111-111111111111", rowVersion: "AAAAAAAAAAAAAAAAAAAAAA==",
       category: { id: "11111111-1111-4111-8111-111111111111", name: "Món chính" }, author: { id: "owner", displayName: "Deletion Test" } };
     let putStatus = 200; let putCalls = 0; let createCalls = 0;
+    let mineStatus = 200; let mineEmpty = false; let recipeStatus = 200;
+    const stepRows = [];
     const ingredients = [];
     const category = { id: recipe.categoryId, name: "Món chính" };
     await context.route("**/api/v1/**", async route => {
@@ -97,21 +100,64 @@ async function main() {
         return json({ success: true, data: ingredients }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
       if (url.pathname.endsWith("/images")) return json({ success: true, data: [] });
-      if (url.pathname.endsWith("/categories")) return json([category]);
-      if (url.pathname === `/api/v1/recipes/${recipe.id}`) return json(recipe);
-      if (url.pathname.endsWith("/mine")) return json({ data: [recipe], meta: { page: 1, pageSize: 12, totalCount: 1, totalPages: 1 } });
+      if (url.pathname.endsWith("/steps")) {
+        if (request.method() === "POST") {
+          const input = request.postDataJSON();
+          const item = { ...input, id: randomUUID(), recipeId: recipe.id, stepNumber: stepRows.length + 1, title: input.title || `Bước ${stepRows.length + 1}` };
+          stepRows.push(item);
+          recipe.rowVersion = Buffer.from(`step-version-${stepRows.length}`).toString("base64");
+          return json({ success: true, data: item }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+        }
+        return json({ success: true, data: stepRows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+      }
+      if (url.pathname.endsWith("/categories")) return json({ success: true, data: [category] });
+      if (url.pathname === `/api/v1/recipes/${recipe.id}`) return recipeStatus === 200 ? json(recipe)
+        : json({ status: recipeStatus, correlationId: "lab6-editor-load-error" }, recipeStatus);
+      if (url.pathname.endsWith("/mine")) {
+        if (mineStatus !== 200) return json({ status: mineStatus, correlationId: "lab6-managed-list-error" }, mineStatus);
+        const page = Number(url.searchParams.get("page") || 1);
+        assert.equal(Number(url.searchParams.get("pageSize") || 12), 12);
+        return json({ data: mineEmpty ? [] : [{ ...recipe, title: page === 1 ? recipe.title : "Công thức trang 2" }],
+          meta: { page, pageSize: 12, totalCount: mineEmpty ? 0 : 13, totalPages: mineEmpty ? 0 : 2, hasNextPage: page === 1, hasPreviousPage: page > 1 } });
+      }
       return json([]);
     });
-    const page = await context.newPage(); const errors = [];
+    page = await context.newPage();
+    page.on("console", message => {
+      if (message.type() === "error" && /^(TypeError|ReferenceError|Error: Minified React)/.test(message.text())) errors.push(message.text());
+    });
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(origin + "/login?callbackUrl=/dashboard/recipes");
+    await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes");
     await page.locator("#login-email").fill("owner@test.invalid");
     await page.locator("#login-password").fill("E2e-only-password1!");
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL(url => url.pathname === "/dashboard/recipes");
+    const pagination = page.getByRole("navigation", { name: "Phân trang công thức quản lý" });
+    await pagination.getByRole("button", { name: "Trang sau", exact: true }).click();
+    await page.getByRole("cell", { name: "Công thức trang 2", exact: true }).waitFor();
+    assert.equal(await pagination.getByRole("button", { name: "Trang sau", exact: true }).isDisabled(), true);
+    await pagination.getByRole("button", { name: "Trang trước", exact: true }).click();
+    await page.getByRole("cell", { name: recipe.title, exact: true }).waitFor();
+    mineStatus = 500;
+    await page.reload();
+    await page.getByRole("heading", { name: "Không thể tải danh sách công thức", exact: true }).waitFor();
+    await page.getByText("lab6-managed-list-error", { exact: true }).waitFor();
+    mineStatus = 200;
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await page.getByRole("cell", { name: recipe.title, exact: true }).waitFor();
+    mineEmpty = true;
+    await page.reload();
+    await page.getByRole("heading", { name: "Chưa có công thức nào", exact: true }).waitFor();
+    assert.equal(await pagination.count(), 0);
+    mineEmpty = false;
     const editUrl = origin + `/dashboard/recipes/${recipe.id}/edit`;
+    recipeStatus = 503;
     await page.goto(editUrl);
-    await page.locator("#edit-title").waitFor();
+    await page.getByRole("heading", { name: "Không thể tải công thức", exact: true }).waitFor();
+    await page.getByText("lab6-editor-load-error", { exact: true }).waitFor();
+    recipeStatus = 200;
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await page.locator('[id$="-edit-title"]:visible').waitFor();
     assert.equal(await page.getByRole("main").count(), 1);
     for (const width of [320, 375, 640, 1024]) {
       await page.setViewportSize({ width, height: 900 });
@@ -130,13 +176,13 @@ async function main() {
     await page.keyboard.press("Escape");
     await dialog.waitFor({ state: "hidden" });
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Mở menu dashboard");
-    await page.locator("#edit-title").fill("");
+    await page.locator('[id$="-edit-title"]:visible').fill("");
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
-    assert.equal(await page.locator("#edit-title").getAttribute("aria-invalid"), "true");
-    assert.equal(await page.locator("#edit-title").evaluate(element => element === document.activeElement), true);
-    await page.locator("#edit-title-error").waitFor();
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').getAttribute("aria-invalid"), "true");
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').evaluate(element => element === document.activeElement), true);
+    await page.locator('[id$="-edit-title-error"]:visible').waitFor();
     assert.equal(putCalls, 0);
-    await page.locator("#edit-title").fill("Bản sửa chưa lưu");
+    await page.locator('[id$="-edit-title"]:visible').fill("Bản sửa chưa lưu");
     await menu.click();
     page.once("dialog", prompt => prompt.dismiss());
     await dialog.getByRole("link", { name: "Công thức", exact: true }).click();
@@ -145,17 +191,33 @@ async function main() {
     await page.keyboard.press("Escape");
     page.once("dialog", prompt => { assert.equal(prompt.type(), "beforeunload"); return prompt.dismiss(); });
     await page.reload({ timeout: 5000 }).catch(() => {});
-    assert.equal(await page.locator("#edit-title").inputValue(), "Bản sửa chưa lưu");
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Bản sửa chưa lưu");
     page.once("dialog", prompt => prompt.dismiss());
     await page.getByRole("button", { name: "Tải bản mới (bỏ thay đổi đang nhập)", exact: true }).click();
-    assert.equal(await page.locator("#edit-title").inputValue(), "Bản sửa chưa lưu");
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Bản sửa chưa lưu");
     page.once("dialog", prompt => prompt.accept());
     await page.getByRole("button", { name: "Tải bản mới (bỏ thay đổi đang nhập)", exact: true }).click();
-    await page.waitForFunction(title => document.getElementById("edit-title")?.value === title, recipe.title);
+    await page.waitForFunction(title => Array.from(document.querySelectorAll('input[id$="-edit-title"]')).find(element => element.checkVisibility())?.value === title, recipe.title);
+    await page.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();
+    await page.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
+    const stepDescription = page.getByLabel("Mô tả bước 1", { exact: true });
+    assert.equal(await stepDescription.getAttribute("aria-invalid"), "true");
+    assert.equal(await stepDescription.evaluate(element => element === document.activeElement), true);
+    assert.equal(await stepDescription.evaluate(element => Boolean(document.getElementById(element.getAttribute("aria-describedby")))), true);
+    await stepDescription.fill("Bản nháp bước thực hiện chưa lưu");
+    await menu.click();
+    page.once("dialog", prompt => prompt.dismiss());
+    await dialog.getByRole("link", { name: "Công thức", exact: true }).click();
+    assert.equal(page.url(), editUrl);
+    await page.keyboard.press("Escape");
+    page.once("dialog", prompt => prompt.accept());
+    await page.getByRole("button", { name: "Tải bản mới (bỏ thay đổi đang nhập)", exact: true }).click();
+    await page.locator('[id$="-edit-title"]:visible').waitFor();
+    assert.equal(await page.getByLabel("Mô tả bước 1", { exact: true }).count(), 0);
     await page.getByRole("button", { name: "Xóa công thức", exact: true }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Hủy", exact: true }).click();
     await page.waitForFunction(() => document.activeElement?.textContent === "Xóa công thức");
-    await page.locator("#edit-title").fill("Công thức đã lưu thử nghiệm");
+    await page.locator('[id$="-edit-title"]:visible').fill("Công thức đã lưu thử nghiệm");
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Đã lưu thay đổi thành công." }).waitFor();
     let unexpectedDialogs = 0;
@@ -167,7 +229,7 @@ async function main() {
     page.off("dialog", unexpected);
     assert.equal(unexpectedDialogs, 0, "Saved form should not block navigation");
     await page.goto(editUrl);
-    await page.locator("#edit-title").waitFor();
+    await page.locator('[id$="-edit-title"]:visible').waitFor();
     await page.getByRole("button", { name: "+ Thêm nguyên liệu", exact: true }).click();
     await page.getByRole("textbox", { name: "Tên nguyên liệu", exact: true }).fill("Nguyên liệu chưa lưu");
     await menu.click();
@@ -181,54 +243,59 @@ async function main() {
     await page.getByRole("button", { name: "Tải bản mới", exact: true }).click();
     await page.getByRole("textbox", { name: "Tên nguyên liệu", exact: true }).waitFor();
     await page.getByRole("button", { name: "Tải bản mới (bỏ thay đổi đang nhập)", exact: true }).click();
-    await page.locator("#edit-title").waitFor();
+    await page.locator('[id$="-edit-title"]:visible').waitFor();
     await page.getByRole("link", { name: "Tạo công thức", exact: true }).click();
     await page.waitForURL(url => url.pathname === "/dashboard/recipes/new");
     page.off("dialog", unexpected);
     assert.equal(unexpectedDialogs, 0, "Saved ingredient must not cause stale dirty prompts");
-    await page.locator("#new-title").fill("Bản nháp trước khi Back");
+    await page.locator('[id$="-new-title"]:visible').fill("Bản nháp trước khi Back");
     await page.getByRole("status").filter({ hasText: "Có thay đổi chưa lưu." }).waitFor();
     assert.equal(await page.evaluate(() => Boolean(window.navigation?.currentEntry)), true, "This browser test requires Navigation API history positions");
     page.once("dialog", prompt => prompt.dismiss());
     await page.goBack({ timeout: 5000 }).catch(() => {});
     await page.waitForURL(url => url.pathname === "/dashboard/recipes/new");
-    assert.equal(await page.locator("#new-title").inputValue(), "Bản nháp trước khi Back");
+    assert.equal(await page.locator('[id$="-new-title"]:visible').inputValue(), "Bản nháp trước khi Back");
     page.once("dialog", prompt => prompt.accept());
     await page.goBack();
-    await page.locator("#edit-title").waitFor();
-    await page.locator("#edit-title").fill("Giữ bản nháp khi xung đột");
+    await page.locator('[id$="-edit-title"]:visible').waitFor();
+    await page.locator('[id$="-edit-title"]:visible').fill("Giữ bản nháp khi xung đột");
     putStatus = 409;
     await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
     await page.getByRole("alert").filter({ hasText: "Công thức đã được người khác thay đổi" }).waitFor();
-    assert.equal(await page.locator("#edit-title").inputValue(), "Giữ bản nháp khi xung đột");
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Giữ bản nháp khi xung đột");
     assert.equal(await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).isDisabled(), true);
     page.once("dialog", prompt => prompt.accept());
     await page.goto(origin + "/dashboard/recipes/new");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).waitFor();
-    await page.locator("#new-category option").nth(1).waitFor({ state: "attached" });
+    await page.locator('select[id$="-new-category"]:visible option').nth(1).waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    assert.equal(await page.locator("#new-title").evaluate(element => element === document.activeElement), true);
+    assert.equal(await page.locator('[id$="-new-title"]:visible').evaluate(element => element === document.activeElement), true);
     assert.equal(createCalls, 0);
+    assert.equal(await page.locator('[id$="-new-title"]').evaluateAll(elements => new Set(elements.map(element => element.id)).size === elements.length), true, "Cached recipe forms must have distinct field IDs");
     assert.equal(await page.locator("input:not([type=hidden]), textarea, select").evaluateAll(elements => elements.every(element => element.labels?.length || element.getAttribute("aria-label"))), true);
-    await page.locator("#new-title").fill("Công thức mới có thể lưu");
-    await page.locator("#new-category").selectOption(recipe.categoryId);
-    await page.locator("#new-servings").fill("2");
-    await page.getByLabel("Chất xơ", { exact: true }).fill("-1");
+    await page.locator('[id$="-new-title"]:visible').fill("Công thức mới có thể lưu");
+    await page.locator('[id$="-new-category"]:visible').selectOption(recipe.categoryId);
+    await page.locator('[id$="-new-servings"]:visible').fill("2");
+    await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("-1");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    await page.locator("#new-nutrition-4-error").waitFor();
-    assert.equal(await page.getByLabel("Chất xơ", { exact: true }).getAttribute("aria-describedby"), "new-nutrition-4-error");
+    await page.locator('[id$="-new-nutrition-4-error"]:visible').waitFor();
+    assert.equal(await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby"), (await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error");
     assert.equal(createCalls, 0);
-    await page.getByLabel("Chất xơ", { exact: true }).fill("");
+    await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
     assert.equal(createCalls, 1);
-    assert.equal(await page.locator("#new-title").isDisabled(), true);
+    assert.equal(await page.locator('[id$="-new-title"]:visible').isDisabled(), true);
     const folder = path.join(root, "build", "lab6-recipe-editor-e2e"); fs.mkdirSync(folder, { recursive: true });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: path.join(folder, "mobile-recipe-created.png"), fullPage: true });
     assert.deepEqual(errors, []);
-    console.log("PASS: mobile 320/375/640/1024px, author navigation, dialog focus, validation, dirty link/Back/unload/reload cancellation, ingredient drafts, saved navigation, conflict draft preservation, draft creation and labels.");
-  } catch (error) { console.error(logs); throw error; }
+    console.log("PASS: common pagination/error/retry/empty states, editor error recovery, mobile 320/375/640/1024px, dialog focus, validation, dirty link/Back/unload/reload cancellation, ingredient and step drafts, saved navigation, conflict preservation and draft creation.");
+  } catch (error) {
+    console.error(logs);
+    if (page) console.error("Browser:", page.url(), "UI:", await page.locator("body").innerText().catch(() => "unavailable"), "Errors:", errors);
+    throw error;
+  }
   finally {
     if (context && server.exitCode === null) {
       try {

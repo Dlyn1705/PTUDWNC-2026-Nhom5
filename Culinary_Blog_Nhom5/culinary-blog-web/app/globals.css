@@ -345,3 +345,19 @@
   .register-form-panel { width: 100%; padding: 3.5rem 1.5rem 4rem; }
 }
 
+/* Keyboard access survives themed controls and Windows forced colors. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+#main-content, main h1 { scroll-margin-top: 5rem; }
+.skip-link {
+  position: fixed; top: 0.75rem; left: 0.75rem; z-index: 100;
+  transform: translateY(-200%); padding: 0.75rem 1rem;
+  border-radius: 0.5rem; background: var(--background); color: var(--foreground);
+  border: 2px solid currentColor;
+}
+.skip-link:focus { transform: translateY(0); }
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible { outline-color: Highlight; }
+}

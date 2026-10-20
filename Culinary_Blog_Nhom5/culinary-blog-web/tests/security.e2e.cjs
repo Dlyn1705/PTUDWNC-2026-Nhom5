@@ -26,19 +26,19 @@ const backend = http.createServer(async (req, res) => {
     events.login++;
     if (body.password !== "E2e-only-password1!") return send(401, { detail: "Invalid credentials" });
     const result = issue(body.email);
-    res.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
-    return send(200, result.data);
+    res.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
+    return send(200, { data: result.data, success: true });
   }
   if (req.url === "/api/v1/auth/refresh") {
     events.refresh++;
     const email = tokens.get(body.refreshToken);
     if (!email) return send(401, { detail: "Refresh rejected" });
     tokens.delete(body.refreshToken); const result = issue(email);
-    res.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
-    return send(200, result.data);
+    res.setHeader("Set-Cookie", `culinary_refresh_token=${result.refresh}; Expires=${new Date(Date.now() + 3600000).toUTCString()}; HttpOnly; Path=/api/v1/auth; SameSite=Lax`);
+    return send(200, { data: result.data, success: true });
   }
   if (req.url === "/api/v1/auth/logout") { events.logout++; tokens.delete(body.refreshToken); res.writeHead(204).end(); return; }
-  if (req.url?.startsWith("/api/v1/categories")) return send(200, [category]);
+  if (req.url?.startsWith("/api/v1/categories")) return send(200, { data: [category], success: true });
   return send(200, { data: [], meta: { page: 1, pageSize: 12, totalCount: 0, totalPages: 0 } });
 });
 function listen(server) { return new Promise(resolve => server.listen(0, "127.0.0.1", () => resolve(server.address().port))); }
@@ -76,7 +76,7 @@ async function main() {
     await page.goto(origin + "/dashboard/recipes/new");
     await page.waitForURL("**/login?**");
     assert.equal(new URL(page.url()).searchParams.get("callbackUrl"), "/dashboard/recipes/new");
-    const headers = (await page.goto(origin + "/login?callbackUrl=/dashboard/recipes/new")).headers();
+    const headers = (await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes/new")).headers();
     assert.equal(headers["x-content-type-options"], "nosniff"); assert.equal(headers["x-frame-options"], "DENY");
     const policy = headers["content-security-policy"];
     assert.match(policy, /'nonce-[^']+'/); assert.doesNotMatch(policy.split(";").find(x => x.trim().startsWith("script-src")), /unsafe-inline|unsafe-eval/);
@@ -101,24 +101,9 @@ async function main() {
       headers: { "next-router-prefetch": "1", purpose: "prefetch" }, maxRedirects: 0,
     });
     assert.notEqual(prefetch.status(), 200, "Server layout allowed an Author's admin-route prefetch");
-    // Isolate expiry from in-flight SessionProvider requests that could reset the test cookie.
-    await context.close(); context = await browser.newContext(); page = await context.newPage();
-    await context.route("**/api/v1/**", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([category]) }));
-    page.on("pageerror", error => errors.push(error.message));
-    // Encrypt a short-lived test session using the test server's own Auth.js secret, without sleeping for expiry.
-    const { encode } = await import("next-auth/jwt");
-    async function expiredSession(refreshToken, roles = ["Author"]) {
-      const value = await encode({ secret, salt: sessionCookie.name, maxAge: 3600,
-        token: { id: "author", sub: "author", name: "Author Test", email: "author@test.invalid", role: roles[0], roles,
-          accessToken: "expired-fixture-access", backendRefreshToken: refreshToken, accessTokenExpiry: new Date(0).toISOString() } });
-      await context.clearCookies({ name: /session-token/ });
-      await context.addCookies([{ name: sessionCookie.name, value, url: origin, httpOnly: true, sameSite: "Lax" }]);
-    }
-    const refreshBefore = [...tokens.keys()][0];
-    await expiredSession(refreshBefore);
-    session = await (await context.request.get(origin + "/api/auth/session")).json();
-    assert.ok(events.refresh > 0); assert.equal(session.error, undefined); assert.ok(session.user.accessToken.startsWith("fixture-access-"));
-    assert.equal(tokens.has(refreshBefore), false); assert.equal(JSON.stringify(session).includes("fixture-refresh-"), false);
+    // Refresh rotation and stale-cookie behavior are covered by auth.e2e.mjs,
+    // which mutates the current server-side Redis session instead of putting
+    // retired backend credentials back into the Auth.js cookie.
     await page.goto(origin + "/categories");
     await page.getByRole("button", { name: "Mở menu tài khoản Author Test", exact: true }).click();
     const logoutResponse = page.waitForResponse(result => result.url() === origin + "/api/auth/signout" && result.request().method() === "POST");
@@ -141,13 +126,8 @@ async function main() {
     assert.equal(session?.user, undefined);
     assert.equal(tokens.size, 0);
     await page.goto(origin + "/dashboard/recipes/new"); await page.waitForURL("**/login?**");
-    await context.close(); context = await browser.newContext(); page = await context.newPage();
-    await context.route("**/api/v1/**", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([category]) }));
-    page.on("pageerror", error => errors.push(error.message));
-    await expiredSession("revoked-fixture-refresh");
-    await page.goto(origin + "/dashboard/recipes/new"); await page.waitForURL("**/login?**");
     await context.clearCookies();
-    await page.goto(origin + "/login?callbackUrl=/dashboard/categories");
+    await page.goto(origin + "/auth/login?callbackUrl=/dashboard/categories");
     await page.getByLabel("Địa chỉ email", { exact: true }).fill("admin@test.invalid");
     await page.getByLabel("Mật khẩu", { exact: true }).fill("E2e-only-password1!");
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -158,16 +138,16 @@ async function main() {
     const folder = path.join(root, "build", "security-e2e"); fs.mkdirSync(folder, { recursive: true });
     await page.screenshot({ path: path.join(folder, "admin-route.png"), fullPage: true });
     // Inject into the parser's HTML, not via privileged DevTools evaluation or a trusted runtime script.
-    await page.route(origin + "/login?csp-probe=1", async route => {
+    await page.route(origin + "/auth/login?csp-probe=1", async route => {
       const original = await route.fetch();
       const html = await original.text();
       await route.fulfill({ response: original, body: html.replace("</head>", "<script>window.cspProbe=true</script></head>") });
     });
-    await page.goto(origin + "/login?csp-probe=1");
+    await page.goto(origin + "/auth/login?csp-probe=1");
     await page.getByLabel("Địa chỉ email", { exact: true }).fill("probe@test.invalid");
     assert.equal(await page.evaluate(() => window.cspProbe), undefined, "CSP allowed a parser-inserted inline script");
     assert.deepEqual(errors, []);
-    console.log("PASS: real Next.js/Chrome login, refresh rotation/failure, logout, guest/Author/Admin routes, nonce hydration and blocked inline injection.");
+    console.log("PASS: real Next.js/Chrome login, logout, guest/Author/Admin routes, nonce hydration and blocked inline injection.");
   } catch (error) {
     console.error(logs); throw error;
   } finally {

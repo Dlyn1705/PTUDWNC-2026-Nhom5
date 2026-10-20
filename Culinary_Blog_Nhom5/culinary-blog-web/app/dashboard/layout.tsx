@@ -1,10 +1,10 @@
+import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
+import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { hasRole } from "@/lib/permissions";
 import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
 
 export default async function DashboardLayout({
@@ -13,12 +13,17 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session || session.error) redirect("/login?callbackUrl=/dashboard");
-  if (!hasRole(session.user, "Author") && !hasRole(session.user, "Admin")) redirect("/forbidden");
+  if (!session || session.error === "RefreshTokenError") {
+    redirect("/auth/login?callbackUrl=/dashboard");
+  }
+
+  if (session.user.role !== "Admin" && session.user.role !== "Author") {
+    redirect("/forbidden");
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <a href="#dashboard-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-card focus:p-3">Đến nội dung chính</a>
+      <SkipLink />
       {/* Dashboard Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -27,13 +32,21 @@ export default async function DashboardLayout({
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
                 <ChefHat className="size-5" />
               </span>
-              <span className="font-display text-lg font-semibold tracking-tight hidden min-[400px]:inline">
+              <span className="hidden min-[400px]:inline font-display text-lg font-semibold tracking-tight">
                 Culinary Studio
               </span>
             </Link>
 
-            <nav aria-label="Điều hướng dashboard" className="hidden lg:flex items-center gap-2 text-sm">
-              {hasRole(session.user, "Admin") && (
+            <nav aria-label="Điều hướng quản lý" className="hidden xl:flex items-center gap-2 text-sm">
+              <Link
+                href="/dashboard"
+                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
+              >
+                <LayoutDashboard className="size-4" />
+                <span>Tổng quan</span>
+              </Link>
+
+              {session.user.role === "Admin" && (
                 <Link
                   href="/dashboard/categories"
                   className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
@@ -49,13 +62,6 @@ export default async function DashboardLayout({
               >
                 <BookOpen className="size-4" />
                 <span>Recipes</span>
-              </Link>
-              <Link
-                href="/dashboard/recipes/images"
-                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
-              >
-                <ImageIcon className="size-4" />
-                <span>Images</span>
               </Link>
             </nav>
           </div>
@@ -76,19 +82,19 @@ export default async function DashboardLayout({
               asChild
               variant="ghost"
               size="sm"
-              className="hidden lg:inline-flex rounded-full gap-1.5 text-xs"
+              className="hidden xl:inline-flex rounded-full gap-1.5 text-xs"
             >
               <Link href="/">
                 <ArrowLeft className="size-3.5" />
                 <span>Back to Site</span>
               </Link>
             </Button>
-            <DashboardMobileNav isAdmin={hasRole(session.user, "Admin")} />
+            <DashboardMobileNav isAdmin={session.user.role === "Admin"} />
           </div>
         </div>
       </header>
 
-      <main id="dashboard-content" tabIndex={-1} className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
     </div>
   );
 }

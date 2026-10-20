@@ -40,3 +40,6 @@ Desktop.ini
 
 # Personal working documents
 /Culinary_Blog_Nhom5/docx/Linh/
+!/Culinary_Blog_Nhom5/docx/Linh/
+/Culinary_Blog_Nhom5/docx/Linh/*
+!/Culinary_Blog_Nhom5/docx/Linh/Frontend_Backend_Contract_Matrix.md

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 /** Native constraints, with persistent descriptions and predictable first-error focus. */
 export function useRecipeValidation() {
+  const prefix = useId();
+  const id = (name: string) => `${prefix}-${name}`;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const validate = (form: HTMLFormElement) => {
     const next: Record<string, string> = {};
@@ -28,12 +30,12 @@ export function useRecipeValidation() {
       const next = { ...current }; delete next[id]; return next;
     });
   };
-  const field = (id: string, hint?: string) => ({
-    id,
-    "aria-invalid": Boolean(errors[id]),
-    "aria-describedby": [hint, errors[id] ? `${id}-error` : undefined].filter(Boolean).join(" ") || undefined,
+  const field = (name: string, hint?: string) => ({
+    id: id(name),
+    "aria-invalid": Boolean(errors[id(name)]),
+    "aria-describedby": [hint ? id(hint) : undefined, errors[id(name)] ? `${id(name)}-error` : undefined].filter(Boolean).join(" ") || undefined,
   });
-  const fieldError = (id: string) => errors[id]
-    ? <span id={`${id}-error`} role="alert" className="mt-1 block text-sm text-red-600">{errors[id]}</span> : null;
-  return { validate, clear, field, fieldError };
+  const fieldError = (name: string) => errors[id(name)]
+    ? <span id={`${id(name)}-error`} role="alert" className="mt-1 block text-sm text-red-600">{errors[id(name)]}</span> : null;
+  return { id, validate, clear, field, fieldError };
 }

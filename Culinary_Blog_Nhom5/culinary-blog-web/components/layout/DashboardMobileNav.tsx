@@ -11,8 +11,8 @@ export function DashboardMobileNav({ isAdmin }: { isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const links = [
+    { href: "/dashboard", label: "Tổng quan" },
     { href: "/dashboard/recipes", label: "Công thức" },
-    { href: "/dashboard/recipes/images", label: "Ảnh công thức" },
     ...(isAdmin ? [{ href: "/dashboard/categories", label: "Danh mục" }] : []),
     { href: "/", label: "Về trang chủ" },
   ];
@@ -20,7 +20,7 @@ export function DashboardMobileNav({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Mở menu dashboard">
+        <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Mở menu dashboard">
           <Menu aria-hidden="true" className="size-5" />
         </Button>
       </DialogTrigger>

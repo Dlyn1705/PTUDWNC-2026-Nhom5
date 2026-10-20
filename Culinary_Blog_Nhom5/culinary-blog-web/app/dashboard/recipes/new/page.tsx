@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import StepManager from "@/components/recipes/editor/StepManager";
 import { ingredientFormSchema, type IngredientDraft } from "@/lib/ingredient-form";
+import { stepFormSchema, type StepDraft } from "@/lib/step-form";
 import { recipeApi } from "@/lib/api/recipeApi";
 import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { categoryApi } from "@/lib/api/categoryApi";
@@ -10,10 +12,6 @@ import type { CategoryDto } from "@/types/category.types";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
 import { useRecipeValidation } from "@/hooks/useRecipeValidation";
-
-type Step = {
-  description: string;
-};
 
 export default function NewRecipePage() {
   const saving = useRef(false);
@@ -50,14 +48,14 @@ export default function NewRecipePage() {
 
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
 
-  const [steps, setSteps] = useState<Step[]>([
-    { description: "" },
-  ]);
+  const [steps, setSteps] = useState<StepDraft[]>([]);
   const [ingredientDirty, setIngredientDirty] = useState(false);
+  const [stepDirty, setStepDirty] = useState(false);
   const validation = useRecipeValidation();
   const hasDraft = Boolean(title || description || category || difficulty !== "1" || prepTime || cookTime || servings ||
-    calories || protein || carbs || fat || fiber || sodium || ingredients.length || steps.length > 1 || steps.some(step => step.description));
-  useUnsavedRecipe((!createdRecipeId && hasDraft) || ingredientDirty);
+    calories || protein || carbs || fat || fiber || sodium || ingredients.length || steps.length);
+  const dirty = (!createdRecipeId && hasDraft) || ingredientDirty || stepDirty;
+  useUnsavedRecipe(dirty);
 
   const slug = useMemo(() => {
     return title
@@ -68,22 +66,6 @@ export default function NewRecipePage() {
       .trim()
       .replace(/\s+/g, "-");
   }, [title]);
-
-  const addStep = () => {
-    setSteps([...steps, { description: "" }]);
-  };
-
-  const removeStep = (index: number) => {
-    if (steps.length === 1) return;
-
-    setSteps(steps.filter((_, i) => i !== index));
-  };
-
-  const updateStep = (index: number, value: string) => {
-    const updated = [...steps];
-    updated[index].description = value;
-    setSteps(updated);
-  };
 
   const handleSubmit = async () => {
     if (saving.current || createdRecipeId) return;
@@ -110,6 +92,12 @@ export default function NewRecipePage() {
       return;
     }
 
+    const checkedSteps = stepFormSchema.safeParse({ items: steps });
+    if (!checkedSteps.success) {
+      setFormError(checkedSteps.error.issues.map(issue => issue.message).join(" "));
+      return;
+    }
+
     if (Number(servings) <= 0 || !Number.isFinite(Number(servings))) {
       alert("Số khẩu phần phải lớn hơn 0.");
       return;
@@ -126,7 +114,7 @@ export default function NewRecipePage() {
         cookTime,
         servings,
         ingredients: checkedIngredients.data.items,
-        steps,
+        steps: checkedSteps.data.items,
         nutrition: { calories, protein, carbohydrates: carbs, fat, fiber, sodium },
       });
     } catch (error) {
@@ -160,7 +148,7 @@ export default function NewRecipePage() {
           <h1 className="text-3xl font-bold text-gray-900">
             Tạo công thức mới
           </h1>
-          {((!createdRecipeId && hasDraft) || ingredientDirty) && <p role="status" className="mt-2 text-sm text-amber-700">Có thay đổi chưa lưu.</p>}
+          {dirty && <p role="status" className="mt-2 text-sm text-amber-700">Có thay đổi chưa lưu.</p>}
 
           <p className="mt-2 text-gray-500">
             Chia sẻ công thức món ăn của bạn với mọi người.
@@ -184,7 +172,7 @@ export default function NewRecipePage() {
             <div className="space-y-5">
               {/* Title */}
               <div>
-                <label htmlFor="new-title" className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor={validation.id("new-title")} className="mb-2 block text-sm font-medium text-gray-700">
                   Tên món ăn *
                 </label>
 
@@ -200,7 +188,7 @@ export default function NewRecipePage() {
                 />
 
                 {validation.fieldError("new-title")}
-                <div id="new-title-hint" className="mt-2 flex justify-between text-xs text-gray-400">
+                <div id={validation.id("new-title-hint")} className="mt-2 flex justify-between text-xs text-gray-400">
                   <span>Từ 3 - 200 ký tự</span>
                   <span>{title.length}/200</span>
                 </div>
@@ -208,12 +196,12 @@ export default function NewRecipePage() {
 
               {/* Slug */}
               <div>
-                <label htmlFor="new-slug" className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor={validation.id("new-slug")} className="mb-2 block text-sm font-medium text-gray-700">
                   Slug SEO (xem trước; hệ thống tự cấp slug duy nhất)
                 </label>
 
                 <input
-                  id="new-slug"
+                  id={validation.id("new-slug")}
                   type="text"
                   value={createdSlug || slug}
                   readOnly
@@ -225,7 +213,7 @@ export default function NewRecipePage() {
               {/* Category + Difficulty */}
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label htmlFor="new-category" className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id("new-category")} className="mb-2 block text-sm font-medium text-gray-700">
                     Danh mục *
                   </label>
 
@@ -241,16 +229,16 @@ export default function NewRecipePage() {
                     ))}
                   </select>
                   {validation.fieldError("new-category")}
-                  {categoryError && <p id="new-category-load-error" role="alert" className="mt-2 text-sm text-red-600">{categoryError}</p>}
+                  {categoryError && <p id={validation.id("new-category-load-error")} role="alert" className="mt-2 text-sm text-red-600">{categoryError}</p>}
                 </div>
 
                 <div>
-                  <label htmlFor="new-difficulty" className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id("new-difficulty")} className="mb-2 block text-sm font-medium text-gray-700">
                     Độ khó
                   </label>
 
                   <select
-                    id="new-difficulty"
+                    id={validation.id("new-difficulty")}
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
@@ -265,7 +253,7 @@ export default function NewRecipePage() {
 
               {/* Description */}
               <div>
-                <label htmlFor="new-description" className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor={validation.id("new-description")} className="mb-2 block text-sm font-medium text-gray-700">
                   Mô tả ngắn
                 </label>
 
@@ -280,7 +268,7 @@ export default function NewRecipePage() {
                 />
 
                 {validation.fieldError("new-description")}
-                <p id="new-description-hint" className="mt-2 text-right text-xs text-gray-400">
+                <p id={validation.id("new-description-hint")} className="mt-2 text-right text-xs text-gray-400">
                   {description.length}/2000
                 </p>
               </div>
@@ -288,7 +276,7 @@ export default function NewRecipePage() {
               {/* Time */}
               <div className="grid gap-5 md:grid-cols-3">
                 <div>
-                  <label htmlFor="new-prepTime" className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id("new-prepTime")} className="mb-2 block text-sm font-medium text-gray-700">
                     Chuẩn bị (phút)
                   </label>
 
@@ -305,7 +293,7 @@ export default function NewRecipePage() {
                 </div>
 
                 <div>
-                  <label htmlFor="new-cookTime" className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id("new-cookTime")} className="mb-2 block text-sm font-medium text-gray-700">
                     Nấu (phút)
                   </label>
 
@@ -322,7 +310,7 @@ export default function NewRecipePage() {
                 </div>
 
                 <div>
-                  <label htmlFor="new-servings" className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id("new-servings")} className="mb-2 block text-sm font-medium text-gray-700">
                     Khẩu phần
                   </label>
 
@@ -373,7 +361,7 @@ export default function NewRecipePage() {
                 ["Natri", sodium, setSodium, "mg"],
               ].map(([label, value, setter, unit], index) => (
                 <div key={label as string}>
-                  <label htmlFor={`new-nutrition-${index}`} className="mb-2 block text-sm font-medium text-gray-700">
+                  <label htmlFor={validation.id(`new-nutrition-${index}`)} className="mb-2 block text-sm font-medium text-gray-700">
                     {label as string}
                   </label>
 
@@ -410,64 +398,8 @@ export default function NewRecipePage() {
             initialItems={ingredients} onChange={setIngredients} onDirtyChange={setIngredientDirty} />
           </fieldset>
 
-          <fieldset aria-label="Các bước thực hiện" disabled={isSaving || Boolean(createdRecipeId)} className="min-w-0">
-          {/* STEPS */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Các bước thực hiện
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Bản nháp có thể chưa có bước; cần ít nhất một bước để xuất bản.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={addStep}
-                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                + Thêm bước
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col gap-4 rounded-xl sm:flex-row border border-gray-200 p-4"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
-                    {index + 1}
-                  </div>
-
-                  <textarea
-                    {...validation.field(`new-step-${index}`)} aria-label={`Nội dung bước ${index + 1}`} maxLength={2000}
-                    value={step.description}
-                    onChange={(e) =>
-                      updateStep(index, e.target.value)
-                    }
-                    rows={3}
-                    placeholder={`Mô tả bước ${index + 1}...`}
-                    className="min-w-0 w-full flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-primary"
-                  />
-                  {validation.fieldError(`new-step-${index}`)}
-
-                  <button
-                    type="button"
-                    onClick={() => removeStep(index)}
-                    aria-label={`Xóa bước ${index + 1}`}
-                    className="h-fit rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-          </fieldset>
+          <StepManager key={`steps-${createdRecipeId ?? "new"}`} recipeId={createdRecipeId ?? undefined}
+            onChange={setSteps} onDirtyChange={setStepDirty} disabled={isSaving} />
 
           {/* ACTIONS */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

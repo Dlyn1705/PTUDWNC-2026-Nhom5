@@ -499,7 +499,9 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RecipeId", "StepNumber");
+                    b.HasIndex("RecipeId", "StepNumber")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("RecipeSteps", (string)null);
                 });

@@ -9,12 +9,18 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import type { DifficultyValue, RecipeDto, RecipeWritePayload } from "@/types/recipe.types";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
+import StepManager from "@/components/recipes/editor/StepManager";
 import { useSession } from "next-auth/react";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
 import type { CategoryDto } from "@/types/category.types";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
 import { useRecipeValidation } from "@/hooks/useRecipeValidation";
+import { recipeKeys } from "@/hooks/queries/recipeKeys";
+
+import { RouteLoading } from "@/components/common/RouteLoading";
+import { ErrorState } from "@/components/common/ErrorState";
+import { errorPresentation } from "@/lib/errorPresentation";
 
 type RouteProps = { params: Promise<{ id: string }> };
 const snapshot = (value: RecipeWritePayload | null) => value ? JSON.stringify({ ...value, rowVersion: undefined }) : "";
@@ -35,6 +41,7 @@ export default function EditRecipePage({ params }: RouteProps) {
   const activeRecipeId = useRef("");
   const [recipe, setRecipe] = useState<RecipeDto | null>(null);
   const [form, setForm] = useState<RecipeWritePayload | null>(null);
+  const [loadError, setLoadError] = useState<ReturnType<typeof errorPresentation> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -42,9 +49,10 @@ export default function EditRecipePage({ params }: RouteProps) {
   const [error, setError] = useState("");
   const [baseline, setBaseline] = useState("");
   const [ingredientDirty, setIngredientDirty] = useState(false);
+  const [stepDirty, setStepDirty] = useState(false);
   const validation = useRecipeValidation();
   // RowVersion changes when images/ingredients are saved; it is not an editable field.
-  const { confirmDiscard, allowNavigation } = useUnsavedRecipe(Boolean(form && baseline && snapshot(form) !== baseline) || ingredientDirty);
+  const { confirmDiscard, allowNavigation } = useUnsavedRecipe(Boolean(form && baseline && snapshot(form) !== baseline) || ingredientDirty || stepDirty);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +60,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       if (!active) return null;
       activeRecipeId.current = id;
       setLoading(true);
+      setLoadError(null);
       setError("");
       setSuccess("");
       setConflict(false);
@@ -78,8 +87,8 @@ export default function EditRecipePage({ params }: RouteProps) {
       };
       setForm(initial);
       setBaseline(snapshot(initial));
-    }).catch(() => {
-      if (active) setError("Không thể tải công thức hoặc bạn không có quyền truy cập.");
+    }).catch((reason) => {
+      if (active) setLoadError(errorPresentation(reason));
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -134,7 +143,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     setError("");
     try {
       await recipeApi.delete(recipeId);
-      await queryClient.invalidateQueries({ queryKey: ["managed-recipes"] });
+      queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       allowNavigation();
       router.replace("/dashboard/recipes?deleted=1");
       router.refresh();
@@ -153,9 +162,10 @@ export default function EditRecipePage({ params }: RouteProps) {
     }
   };
 
-  if (loading || sessionStatus === "loading") return <div className="p-8">Đang tải công thức...</div>;
-  if (!recipe || !form) return <div className="p-8"><p role="alert" className="text-red-600">{error || "Không tìm thấy công thức."}</p>
-    <button type="button" onClick={() => setReload(n => n + 1)} className="mt-4 underline">Thử tải lại</button></div>;
+  if (loading || sessionStatus === "loading") return <RouteLoading variant="form" label="Đang tải công thức…" />;
+  if (!recipe || !form) return <div className="p-8"><ErrorState headingLevel="h1" title="Không thể tải công thức"
+    description={loadError?.description ?? "Không tìm thấy công thức."} correlationId={loadError?.correlationId}
+    onRetry={loadError?.canRetry ? () => setReload(n => n + 1) : undefined} /></div>;
   const isAdmin = session?.user.roles?.includes("Admin") || session?.user.role === "Admin";
   if (!session?.user || (!isAdmin && (!session.user.roles?.includes("Author") || recipe.author.id !== session.user.id)))
     return <div role="alert" className="p-8 text-red-600">Bạn không có quyền cập nhật công thức này.</div>;
@@ -192,12 +202,12 @@ export default function EditRecipePage({ params }: RouteProps) {
 
         <form noValidate onChangeCapture={event => validation.clear(event.target)} onSubmit={event => { event.preventDefault(); if (validation.validate(event.currentTarget)) void save(); }}>
         <fieldset disabled={saving || deleting} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
-          <label className="block text-sm font-medium text-gray-700">
-            Tên món ăn
+          <div className="text-sm font-medium text-gray-700">
+            <label htmlFor={validation.id("edit-title")} className="block">Tên món ăn</label>
             <input {...validation.field("edit-title", "edit-title-hint")} required minLength={3} maxLength={200} value={form.title} onChange={(event) => update("title", event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
-            <span id="edit-title-hint" className="text-xs text-gray-500">Từ 3 đến 200 ký tự.</span>
+            <span id={validation.id("edit-title-hint")} className="text-xs text-gray-500">Từ 3 đến 200 ký tự.</span>
             {validation.fieldError("edit-title")}
-          </label>
+          </div>
           <label className="block text-sm font-medium text-gray-700">
             Mô tả
             <textarea {...validation.field("edit-description")} maxLength={2000} value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3" />
@@ -233,6 +243,21 @@ export default function EditRecipePage({ params }: RouteProps) {
             </label>
           </div>
         </fieldset>
+
+        <StepManager key={`steps-${recipeId}-${reload}`} recipeId={recipeId} onDirtyChange={setStepDirty} published={recipe.status === 1} parentVersion={recipe.rowVersion}
+          disabled={saving || deleting} onMutation={async () => {
+            try {
+              const fresh = await recipeApi.getById(recipeId);
+              if (activeRecipeId.current !== fresh.id) return;
+              const keys = ["title", "description", "instructions", "prepTimeMinutes", "cookTimeMinutes", "servings", "difficulty", "categoryId", "status"] as const;
+              if (keys.some(key => fresh[key] !== recipe[key])) {
+                setError("Nội dung công thức đã đổi ở nơi khác. Hãy tải lại trước khi lưu nội dung.");
+                return;
+              }
+              setForm(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+              setRecipe(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
+            } catch { setError("Các bước đã lưu; hãy tải lại công thức trước khi lưu nội dung."); }
+          }} />
 
         <ImageGalleryManager key={`images-${recipeId}`} recipeId={recipeId} archived={recipe.status === 2} onMutation={() => {
           // Gallery mutations rotate the aggregate version; preserve unsaved form fields.

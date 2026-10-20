@@ -5,6 +5,7 @@ export interface ApiResponse<T> {
 }
 
 export interface ApiError {
+  correlationId?: string;
   status?: number;
   title?: string;
   detail?: string;

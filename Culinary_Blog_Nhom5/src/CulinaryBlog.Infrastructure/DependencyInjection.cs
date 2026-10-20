@@ -97,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRecipeIngredientStore, RecipeIngredientStore>();
+        services.AddScoped<IRecipeStepStore, RecipeStepStore>();
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
@@ -114,6 +115,7 @@ public static class DependencyInjection
             .WithSSL(minio.UseSSL)
             .Build());
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IPublicContentCache, PublicContentCache>();
         services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
         services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();

@@ -96,6 +96,12 @@ jobs:
           WELCOME_EMAIL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
         run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release
 
+      - name: Test recipe steps integration
+        working-directory: Culinary_Blog_Nhom5
+        env:
+          STEPS_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: dotnet test tests/CulinaryBlog.Steps.Tests/CulinaryBlog.Steps.Tests.csproj --configuration Release
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -105,6 +111,10 @@ jobs:
       - name: Install frontend dependencies
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm ci
+
+      - name: Test file API client
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:file-api
 
       - name: Install Playwright Chromium
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
@@ -121,3 +131,32 @@ jobs:
       - name: Test image processing UI
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:image-ui
+
+      - name: Test accessibility keyboard and focus
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:a11y
+
+      - name: Test route boundaries and common states in production
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:e2e:states
+
+      - name: Test file API browser flows
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          AUTH_REDIS_URL: redis://localhost:6379
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:e2e:file-api
+
+      - name: Test recipe step forms and security
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: |
+          node --test tests/step-form.unit.cjs
+          npm run test:security
+          npm run test:logging
+          npm run test:common
+
+      - name: Test recipe steps UI
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: node tests/steps.e2e.cjs

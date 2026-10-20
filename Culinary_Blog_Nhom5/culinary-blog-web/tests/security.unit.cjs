@@ -164,7 +164,7 @@ for (const route of ["/dashboard/recipes/new", "/recipes/new", "/recipes/test/ed
   test(`guest is redirected from ${route} with local callback`, () => {
     const request = new NextRequest(`http://localhost${route}?page=1`); request.auth = null;
     const result = proxy(request); const redirect = new URL(result.headers.get("location"));
-    assert.equal(redirect.pathname, "/login"); assert.equal(redirect.searchParams.get("callbackUrl"), route + "?page=1");
+    assert.equal(redirect.pathname, "/auth/login"); assert.equal(redirect.searchParams.get("callbackUrl"), route + "?page=1");
   });
 }
 for (const [roles, route, allowed] of [[ ["Author"], "/dashboard/recipes/new", true ],
@@ -178,7 +178,7 @@ for (const [roles, route, allowed] of [[ ["Author"], "/dashboard/recipes/new", t
 }
 test("refresh error blocks a protected route even with an Author role", () => {
   const request = new NextRequest("http://localhost/dashboard"); request.auth = { user: { roles: ["Author"] }, error: "RefreshTokenError" };
-  assert.equal(new URL(proxy(request).headers.get("location")).pathname, "/login");
+  assert.equal(new URL(proxy(request).headers.get("location")).pathname, "/auth/login");
 });
 test("public prefetch does not invoke Auth.js or roll a session cookie", () => {
   let calls = 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { AlertTriangle, Trash2, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { focusMainContent } from "@/lib/focus";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { CategoryDto } from "@/types/category.types";
 
@@ -31,6 +32,9 @@ export function DeleteCategoryModal({
   onError,
 }: DeleteCategoryModalProps) {
   const [deleting, setDeleting] = useState(false);
+  const deleted = useRef(false);
+  const inFlight = useRef(false);
+  const [failure, setFailure] = useState("");
 
   if (!category) return null;
 
@@ -38,14 +42,16 @@ export function DeleteCategoryModal({
   const hasRecipes = totalRecipeCount > 0;
 
   const handleDelete = async () => {
+    if (inFlight.current) return;
     if (hasRecipes) {
       onError("Không thể xóa danh mục đang chứa công thức!");
       return;
     }
 
-    setDeleting(true);
+    inFlight.current = true; setDeleting(true); setFailure("");
     try {
       await categoryApi.delete(category.id);
+      deleted.current = true;
       onSuccess(`Đã xóa danh mục "${category.name}" thành công.`);
       onOpenChange(false);
     } catch (err: unknown) {
@@ -53,15 +59,18 @@ export function DeleteCategoryModal({
         err instanceof Error
           ? err.message
           : "Không thể xóa danh mục (Lỗi HTTP 409 Conflict: xung đột dữ liệu).";
+      setFailure(errorMsg);
       onError(errorMsg);
     } finally {
-      setDeleting(false);
+      inFlight.current = false; setDeleting(false);
     }
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="sm:max-w-md rounded-2xl">
+    <AlertDialog open={open} onOpenChange={next => { if (!deleting) onOpenChange(next); }}>
+      <AlertDialogContent
+        onOpenAutoFocus={() => { deleted.current = false; setFailure(""); }}
+        onCloseAutoFocus={event => { if (deleted.current) { event.preventDefault(); focusMainContent(); } }} className="sm:max-w-md rounded-2xl">
         <AlertDialogHeader className="space-y-3">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <Trash2 className="size-6" />
@@ -101,8 +110,10 @@ export function DeleteCategoryModal({
           </div>
         )}
 
-        <AlertDialogFooter className="gap-2 pt-2">
-          <AlertDialogCancel className="rounded-full px-5">
+        <p role="status" className="text-sm">{deleting ? "Đang xóa danh mục. Vui lòng chờ kết quả trước khi đóng." : ""}</p>
+        {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
+        <AlertDialogFooter aria-busy={deleting} className="gap-2 pt-2">
+          <AlertDialogCancel disabled={deleting} className="rounded-full px-5">
             Đóng
           </AlertDialogCancel>
 

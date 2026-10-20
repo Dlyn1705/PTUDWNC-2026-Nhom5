@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function ForbiddenPage() {
   return (
-    <main className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+    <main id="main-content" tabIndex={-1} className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
       <p className="font-semibold uppercase tracking-widest text-primary">
         403
       </p>

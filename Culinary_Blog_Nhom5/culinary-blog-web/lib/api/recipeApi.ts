@@ -3,12 +3,11 @@ import type { ManagedRecipesPage, RecipeDetailDto, RecipeSummaryDto, PagedResult
 import type { ApiResponse, SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import { mockRecipes } from "../mock-data";
+import { toApiProblemError } from "./problemDetails";
 
 const mockModeEnabled =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_ENABLE_MOCKS === "true";
-
-type LegacyPagedRecipes = { items: RecipeSummaryDto[] };
 
 export const recipeApi = {
   async getMine(params: {
@@ -48,25 +47,13 @@ export const recipeApi = {
     sortBy?: string;
   }): Promise<RecipeSummaryDto[]> {
     try {
-      const response = await axiosClient.get<PagedResult<RecipeSummaryDto> | LegacyPagedRecipes | RecipeSummaryDto[]>(
+      const response = await axiosClient.get<PagedResult<RecipeSummaryDto>>(
         "/api/v1/recipes",
         { params },
       );
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          return response.data;
-        }
-        if ("data" in response.data && Array.isArray(response.data.data)) {
-          return response.data.data;
-        }
-        if ("items" in response.data && Array.isArray(response.data.items)) {
-          return response.data.items;
-        }
-      }
-      if (mockModeEnabled) return mockRecipes.filter((r) => r.status === 1);
-      throw new Error("API returned an unexpected recipe list response.");
+      return response.data.data;
     } catch (error) {
-      if (!mockModeEnabled) throw error;
+      if (!mockModeEnabled) throw toApiProblemError(error);
       // Use sample data only when development mocks are explicitly enabled.
       let result = mockRecipes.filter((r) => r.status === 1);
       if (params?.categoryId) {
@@ -78,14 +65,12 @@ export const recipeApi = {
 
   async getBySlug(slug: string): Promise<RecipeDetailDto | null> {
     try {
-      const response = await axiosClient.get<RecipeDetailDto>(`/api/v1/recipes/${slug}`);
-      if (response.data) {
-        return response.data;
-      }
+      const response = await axiosClient.get<ApiResponse<RecipeDetailDto>>(`/api/v1/recipes/${encodeURIComponent(slug)}`);
+      return response.data.data;
     } catch (error) {
       const status = (error as { response?: { status?: number } })?.response?.status;
       if (status === 404) return null;
-      if (!mockModeEnabled) throw error;
+      if (!mockModeEnabled) throw toApiProblemError(error);
       // Use sample data only when development mocks are explicitly enabled.
     }
     const found = mockRecipes.find((r) => r.slug.toLowerCase() === slug.toLowerCase());
