@@ -200,7 +200,6 @@ export default function AdminCategoriesPage() {
         editingCategory={editingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />
@@ -212,7 +211,6 @@ export default function AdminCategoriesPage() {
         category={deletingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          void refetch();
         }}
         onError={(msg) => showNotification("error", msg)}
       />

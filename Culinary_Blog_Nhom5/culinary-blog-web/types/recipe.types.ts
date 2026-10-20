@@ -100,6 +100,8 @@ export interface RecipeSummaryDto {
   title: string;
   slug: string;
   createdAt: string;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   description: string;
   instructions?: string | null;
   prepTimeMinutes: number;

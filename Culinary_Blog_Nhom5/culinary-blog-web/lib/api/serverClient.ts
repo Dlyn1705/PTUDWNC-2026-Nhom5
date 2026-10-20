@@ -15,7 +15,6 @@ const backendBaseUrl =
   process.env.API_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:5156";
-const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 export interface ServerProblemDetails {
   type?: string;
@@ -137,16 +136,11 @@ export async function serverClient<T>(
 
 export const publicApi = {
   async getCategories(): Promise<CategoryDto[]> {
-    try {
-      const response = await serverClient<ApiResponse<CategoryDto[]>>(
-        "/api/v1/categories",
-        { revalidate: 300, tags: ["categories"] },
-      );
-      return response.data;
-    } catch (error) {
-      if (isProductionBuild) return [];
-      throw error;
-    }
+    const response = await serverClient<ApiResponse<CategoryDto[]>>(
+      "/api/v1/categories",
+      { revalidate: 300, tags: ["categories"] },
+    );
+    return response.data;
   },
 
   async getCategory(
@@ -173,38 +167,22 @@ export const publicApi = {
   async getRecipes(
     params: Record<string, string | number | undefined> = {},
   ): Promise<PagedResult<RecipeSummaryDto>> {
-    try {
-      return await serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
-        revalidate: 120,
-        tags: ["recipes"],
-        searchParams: params,
-      });
-    } catch (error) {
-      if (isProductionBuild) {
-        const page = Number(params.page ?? 1);
-        const pageSize = Number(params.pageSize ?? 12);
-        return {
-          data: [],
-          meta: {
-            page,
-            pageSize,
-            totalCount: 0,
-            totalPages: 0,
-            hasNextPage: false,
-            hasPreviousPage: false,
-          },
-        };
-      }
-      throw error;
-    }
+    return serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
+      revalidate: 120,
+      tags: ["recipes"],
+      searchParams: params,
+    });
   },
 
   async getRecipe(slug: string): Promise<RecipeDetailDto | null> {
     try {
-      return await serverClient<RecipeDetailDto>(
+      const response = await serverClient<ApiResponse<RecipeDetailDto>>(
         `/api/v1/recipes/${encodeURIComponent(slug)}`,
+        // The API owns the 60-minute Redis cache and invalidates it on every mutation.
+        // Do not create a second Next.js cache that the API cannot invalidate.
         { cache: "no-store" },
       );
+      return response.data;
     } catch (error) {
       if (error instanceof ServerApiError && error.status === 404) return null;
       throw error;
