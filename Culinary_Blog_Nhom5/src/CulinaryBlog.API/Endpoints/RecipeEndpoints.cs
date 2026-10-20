@@ -428,7 +428,7 @@ public static class RecipeEndpoints
         {
             var recipe = await sender.Send(new GetRecipeBySlugQuery(slug), ct);
             context.Response.Headers.CacheControl = recipe.Status == (int)RecipeStatus.Published
-                ? "public, max-age=3600"
+                ? "public, max-age=0, must-revalidate"
                 : "no-store";
             context.Response.Headers.ETag = $"\"{recipe.RowVersion}\"";
             return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(recipe));

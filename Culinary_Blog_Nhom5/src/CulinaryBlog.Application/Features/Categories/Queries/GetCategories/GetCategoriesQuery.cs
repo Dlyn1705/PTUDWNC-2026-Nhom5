@@ -14,22 +14,35 @@ public record GetCategoriesQuery : IRequest<IReadOnlyList<CategoryDto>>;
 public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, IReadOnlyList<CategoryDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUser;
     private readonly IPublicContentCache _cache;
 
     public GetCategoriesQueryHandler(
         IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser,
         IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
         _cache = cache;
     }
 
     public async Task<IReadOnlyList<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
-        return await _cache.GetCategoriesAsync(LoadAsync, cancellationToken);
+        // Admin-only counts must never enter the shared public cache.
+        if (_currentUser.IsAdmin)
+        {
+            return await LoadAsync(cancellationToken, includeTotalRecipeCount: true);
+        }
+
+        return await _cache.GetCategoriesAsync(
+            ct => LoadAsync(ct, includeTotalRecipeCount: false),
+            cancellationToken);
     }
 
-    private async Task<IReadOnlyList<CategoryDto>> LoadAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<CategoryDto>> LoadAsync(
+        CancellationToken cancellationToken,
+        bool includeTotalRecipeCount)
     {
         var results = await _unitOfWork.Categories.GetAllWithRecipeCountAsync(cancellationToken);
 
@@ -42,8 +55,9 @@ public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, IRe
             ImageUrl = item.Category.ImageUrl,
             OrderIndex = item.Category.OrderIndex,
             RecipeCount = item.RecipeCount,
-            // This is a public, shared-cache response. Never mix admin-only counts into it.
-            TotalRecipeCount = item.RecipeCount
+            TotalRecipeCount = includeTotalRecipeCount
+                ? item.TotalRecipeCount
+                : item.RecipeCount
         }).OrderBy(x => x.OrderIndex).ThenBy(x => x.Name).ToList();
     }
 }

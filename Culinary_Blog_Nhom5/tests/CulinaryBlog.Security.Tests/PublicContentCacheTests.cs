@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +53,33 @@ public sealed class PublicContentCacheTests
 
         Assert.Single(result);
         await cache.InvalidateCategoriesAsync();
+    }
+
+    [Fact]
+    public async Task Cached_paged_recipe_result_round_trips_data_and_metadata()
+    {
+        var services = new ServiceCollection().AddDistributedMemoryCache().BuildServiceProvider();
+        var cache = new PublicContentCache(
+            services.GetRequiredService<IDistributedCache>(),
+            NullLogger<PublicContentCache>.Instance);
+        var calls = 0;
+        var item = new RecipeSummaryDto { Title = "Cached recipe", Slug = "cached-recipe" };
+
+        Task<PagedResult<RecipeSummaryDto>> Factory(CancellationToken _)
+        {
+            calls++;
+            return Task.FromResult(new PagedResult<RecipeSummaryDto>([item], 1, 1, 12));
+        }
+
+        var first = await cache.GetRecipesAsync("1:12::::createdAt:desc", Factory);
+        var second = await cache.GetRecipesAsync("1:12::::createdAt:desc", Factory);
+
+        Assert.Equal(1, calls);
+        Assert.Single(second.Data);
+        Assert.Equal("Cached recipe", second.Data[0].Title);
+        Assert.Equal(1, second.Meta.TotalCount);
+        Assert.Equal(1, second.Meta.TotalPages);
+        Assert.Equal(first.Meta.PageSize, second.Meta.PageSize);
     }
 
     private sealed class ThrowingDistributedCache : IDistributedCache

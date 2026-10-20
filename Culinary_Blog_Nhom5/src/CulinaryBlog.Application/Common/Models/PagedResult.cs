@@ -41,6 +41,18 @@ public class PagedResult<T>
 
     public PagedResult() { }
 
+    // The public JSON contract exposes only data/meta. Keep a matching
+    // constructor so cached responses can be deserialized without losing the
+    // backing pagination state (Items, Page, PageSize and TotalCount).
+    [JsonConstructor]
+    public PagedResult(IReadOnlyList<T> data, PaginationMeta meta)
+    {
+        Items = data ?? Array.Empty<T>();
+        TotalCount = meta?.TotalCount ?? 0;
+        Page = meta?.Page ?? 1;
+        PageSize = meta?.PageSize ?? 0;
+    }
+
     public PagedResult(IReadOnlyList<T> items, int totalCount, int page, int pageSize)
     {
         Items = items;

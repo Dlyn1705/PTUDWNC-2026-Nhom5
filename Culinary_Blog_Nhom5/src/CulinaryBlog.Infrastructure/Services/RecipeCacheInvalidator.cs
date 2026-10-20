@@ -58,5 +58,8 @@ public sealed class RecipeCacheInvalidator(
         }
 
         await publicContentCache.InvalidateRecipesAsync(recipeId, slug, CancellationToken.None);
+        // Category list DTOs contain published recipe counts, so every recipe
+        // lifecycle/child mutation must also invalidate that public projection.
+        await publicContentCache.InvalidateCategoriesAsync(cancellationToken: CancellationToken.None);
     }
 }
