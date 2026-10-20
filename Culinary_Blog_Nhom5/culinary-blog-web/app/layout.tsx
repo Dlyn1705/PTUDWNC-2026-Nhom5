@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { RecipeNavigationGuard } from "@/hooks/useUnsavedRecipe";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default async function RootLayout({
   return (
     <html lang="vi" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
+        <RecipeNavigationGuard />
         <QueryProvider>
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </QueryProvider>

@@ -1,4 +1,5 @@
 "use client";
+import type { RefObject } from "react";
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -10,6 +11,7 @@ interface DeleteRecipeModalProps {
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  returnFocusRef?: RefObject<HTMLButtonElement | null>;
 }
 
 export function DeleteRecipeModal({
@@ -17,10 +19,13 @@ export function DeleteRecipeModal({
   busy = false,
   onCancel,
   onConfirm,
+  returnFocusRef,
 }: DeleteRecipeModalProps) {
   return (
     <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !busy) onCancel(); }}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={event => {
+        if (returnFocusRef?.current) { event.preventDefault(); returnFocusRef.current.focus(); }
+      }}>
         <AlertDialogHeader>
           <AlertDialogTitle>Xóa công thức?</AlertDialogTitle>
           <AlertDialogDescription>

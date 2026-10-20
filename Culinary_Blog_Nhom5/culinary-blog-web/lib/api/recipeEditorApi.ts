@@ -8,7 +8,6 @@ import type {
   RecipeNutritionDto,
   RecipeWritePayload,
 } from "../../types/recipe.types";
-import { recipePublicApi } from "./recipePublicApi";
 
 const recipesPath = "/api/v1/recipes";
 
@@ -50,20 +49,12 @@ export async function getMine(params: { page?: number; pageSize?: number; status
   return response.data;
 }
 
-/**
- * @deprecated Resolve an owner record to its slug, then use the canonical
- * public-by-slug detail route. Never send an ID to the {slug} route.
- */
+/** Load an editable recipe directly by its ID. The backend authorizes owner/admin access. */
 export async function getById(id: string): Promise<RecipeDetailDto> {
-  let page = 1;
-  while (true) {
-    const result = await getMine({ page, pageSize: 50 });
-    const match = result.data.find((recipe) => recipe.id === id);
-    if (match) return recipePublicApi.getBySlug(match.slug);
-    if (!result.meta.hasNextPage) break;
-    page += 1;
-  }
-  throw new Error("Không tìm thấy công thức yêu cầu.");
+  const response = await axiosClient.get<RecipeDetailDto>(
+    `${recipesPath}/${encodeURIComponent(id)}`,
+  );
+  return response.data;
 }
 
 export const recipeEditorApi = { create, update, updateNutrition, delete: remove, getMine, getById };

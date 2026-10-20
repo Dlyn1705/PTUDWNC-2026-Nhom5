@@ -141,7 +141,9 @@ async function main() {
     await manager.getByRole("button", { name: "Xóa bước 1", exact: true }).click();
     await manager.locator("[data-step-row]").nth(1).waitFor({ state: "hidden" });
     assert.equal(steps.length, 1); assert.equal(steps[0].stepNumber, 1);
-    recipe.status = 1; await page.reload();
+    recipe.status = 1;
+    page.once("dialog", dialog => { assert.equal(dialog.type(), "beforeunload"); return dialog.accept(); });
+    await page.reload();
     await page.getByText("Hãy hủy xuất bản trước khi xóa bước cuối cùng.", { exact: true }).waitFor();
     assert.equal(await manager.getByRole("button", { name: "Xóa bước 1", exact: true }).isDisabled(), true);
     const folder = path.join(root, "build", "steps-e2e"); fs.mkdirSync(folder, { recursive: true });

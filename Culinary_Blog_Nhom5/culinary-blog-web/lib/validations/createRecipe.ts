@@ -4,7 +4,7 @@ import type { StepDraft } from "@/lib/step-form";
 export type RecipeDraftForm = {
   title: string; description: string; category: string; difficulty: string;
   prepTime: string; cookTime: string; servings: string;
-  ingredients: { name: string; quantity: string; unit: string }[];
+  ingredients: { name: string; quantity: string; unit: string; notes?: string }[];
   steps: StepDraft[];
   nutrition: Record<"calories" | "protein" | "carbohydrates" | "fat" | "fiber" | "sodium", string>;
 };
@@ -33,11 +33,12 @@ export function buildCreateRecipePayload(form: RecipeDraftForm) {
   if (form.ingredients.length > 100 || form.steps.length > 100)
     throw new Error("Tối đa 100 nguyên liệu và 100 bước.");
   const ingredients = form.ingredients
-    .filter(x => x.name.trim() || x.quantity.trim() || x.unit.trim())
+    .filter(x => x.name.trim() || x.quantity.trim() || x.unit.trim() || x.notes?.trim())
     .map(x => ({
       name: text(x.name, "Tên nguyên liệu", 1, 200),
-      quantity: x.quantity.trim() ? number(x.quantity, "Số lượng", 0.001, 9999999.999, 3) : null,
+      quantity: x.quantity.trim() ? number(x.quantity.replace(",", "."), "Số lượng", 0.001, 9999999.999, 3) : null,
       unit: text(x.unit, "Đơn vị", 0, 50) || null,
+      notes: text(x.notes ?? "", "Ghi chú nguyên liệu", 0, 500) || null,
     }));
   const steps = form.steps
     .filter(x => x.description.trim() || x.title?.trim() || x.timerMinutes?.trim() || x.imageUrl?.trim())

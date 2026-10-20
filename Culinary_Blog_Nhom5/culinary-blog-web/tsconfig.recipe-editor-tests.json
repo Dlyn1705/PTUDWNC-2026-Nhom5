@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "target": "ES2022",
+    "noEmit": false, "incremental": false, "outDir": "build/recipe-editor-tests", "rootDir": "."
+  },
+  "include": ["lib/validations/recipeEditor.ts", "tests/recipe-editor.test.ts"],
+  "exclude": ["node_modules", ".next", "build"]
+}
