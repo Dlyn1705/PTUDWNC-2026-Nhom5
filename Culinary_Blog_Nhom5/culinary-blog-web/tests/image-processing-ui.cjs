@@ -13,9 +13,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   fs.mkdirSync(directory, { recursive: true });
   const source = fs.readFileSync("components/dashboard/RecipeImageProcessingPreview.tsx", "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText
-    .replaceAll('require("@/lib/api/fileApi")', 'require("./api.cjs")').replaceAll('require("next/image")', 'require("./image.cjs")');
+    .replaceAll('require("@/lib/api/fileApi")', 'require("./api.cjs")')
+    .replaceAll('require("@/lib/api/problemDetails")', 'require("./problemDetails.cjs")')
+    .replaceAll('require("next/image")', 'require("./image.cjs")');
   fs.writeFileSync(path.join(directory, "preview.cjs"), compiled);
   fs.writeFileSync(path.join(directory, "image.cjs"), 'module.exports=({unoptimized,...props})=>require("react").createElement("img",props);');
+  fs.writeFileSync(path.join(directory, "problemDetails.cjs"), 'exports.toApiProblemError=error=>error;');
   fs.writeFileSync(path.join(directory, "api.cjs"), `exports.getRecipeImageStatus=async()=>{
     window.pollCalls++;const next=window.responses.shift()||{processingStatus:"Processing"};
     if(next.error)throw {status:next.error,correlationId:"preview-test-id"};return {...window.initial,...next};
