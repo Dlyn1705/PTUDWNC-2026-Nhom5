@@ -12,12 +12,12 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import { RouteLoading } from "@/components/common/RouteLoading";
 import { ErrorState } from "@/components/common/ErrorState";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { toApiProblemError } from "@/lib/api/problemDetails";
 import { errorPresentation } from "@/lib/errorPresentation";
 import { validateRecipeUpdate } from "@/lib/validations/updateRecipe";
-import { RecipeFormValidationError, type RecipeEditorValues } from "@/lib/validations/recipeEditor";
+import { nutritionFields, RecipeFormValidationError, type RecipeEditorValues } from "@/lib/validations/recipeEditor";
 import { recipeKeys } from "@/hooks/queries/recipeKeys";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
 import type { DifficultyValue, RecipeDto } from "@/types/recipe.types";
@@ -28,7 +28,26 @@ const basicKeys = ["title", "description", "instructions", "prepTimeMinutes", "c
 const editorValues = (recipe: RecipeDto): Partial<RecipeEditorValues> => ({ title: recipe.title,
   description: recipe.description ?? "", instructions: recipe.instructions ?? "", prepTime: String(recipe.prepTimeMinutes),
   cookTime: String(recipe.cookTimeMinutes), servings: String(recipe.servings),
-  difficulty: String(recipe.difficulty) as RecipeEditorValues["difficulty"], categoryId: recipe.categoryId });
+  difficulty: String(recipe.difficulty) as RecipeEditorValues["difficulty"], categoryId: recipe.categoryId,
+  calories: recipe.nutrition?.calories == null ? "" : String(recipe.nutrition.calories),
+  protein: recipe.nutrition?.protein == null ? "" : String(recipe.nutrition.protein),
+  carbohydrates: (recipe.nutrition?.carbohydrates ?? recipe.nutrition?.carbs) == null ? "" : String(recipe.nutrition.carbohydrates ?? recipe.nutrition?.carbs),
+  fat: recipe.nutrition?.fat == null ? "" : String(recipe.nutrition.fat),
+  fiber: recipe.nutrition?.fiber == null ? "" : String(recipe.nutrition.fiber),
+  sodium: recipe.nutrition?.sodium == null ? "" : String(recipe.nutrition.sodium) });
+
+const nutritionPayload = (values: RecipeEditorValues) => Object.fromEntries(
+  nutritionFields.map(field => [field, values[field].trim() ? Number(values[field]) : null]),
+) as { calories: number | null; protein: number | null; carbohydrates: number | null; fat: number | null; fiber: number | null; sodium: number | null };
+
+const nutritionFromRecipe = (recipe: RecipeDto) => ({
+  calories: recipe.nutrition?.calories ?? null,
+  protein: recipe.nutrition?.protein ?? null,
+  carbohydrates: recipe.nutrition?.carbohydrates ?? recipe.nutrition?.carbs ?? null,
+  fat: recipe.nutrition?.fat ?? null,
+  fiber: recipe.nutrition?.fiber ?? null,
+  sodium: recipe.nutrition?.sodium ?? null,
+});
 
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
@@ -60,7 +79,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       if (!active) return;
       activeId.current = id;
       setLoading(true); setRecipe(null); setLoadError(null); setMutationError(null); setOutOfDate(false); setSuccess("");
-      const loaded = await recipeApi.getById(id);
+      const loaded = await recipeEditorApi.getById(id);
       if (active) { setRecipe(loaded); setInitial(editorValues(loaded)); }
     }).catch(reason => { if (active) setLoadError(errorPresentation(reason)); })
       .finally(() => { if (active) setLoading(false); });
@@ -75,11 +94,34 @@ export default function EditRecipePage({ params }: RouteProps) {
       difficulty: Number(values.difficulty) as DifficultyValue, categoryId: values.categoryId, rowVersion: recipe.rowVersion });
     mutating.current = true; setSaving(true); setSuccess("");
     try {
-      const result = await recipeApi.update(recipe.id, payload);
+      const result = await recipeEditorApi.update(recipe.id, payload);
       if (activeId.current !== recipe.id) return;
+      const nutrition = nutritionPayload(values);
       setRecipe(current => current ? { ...current, title: payload.title, description: payload.description ?? "",
         instructions: payload.instructions ?? "", prepTimeMinutes: payload.prepTime, cookTimeMinutes: payload.cookTime,
-        servings: payload.servings, difficulty: payload.difficulty, categoryId: payload.categoryId, rowVersion: result.rowVersion } : current);
+        servings: payload.servings, difficulty: payload.difficulty, categoryId: payload.categoryId,
+        rowVersion: result.rowVersion } : current);
+      const currentNutrition = nutritionFromRecipe(recipe);
+      const nutritionChanged = nutritionFields.some(field => nutrition[field] !== currentNutrition[field]);
+      if (nutritionChanged) {
+        const nutritionResult = await recipeEditorApi.updateNutrition(recipe.id, {
+          ...nutrition,
+          rowVersion: result.rowVersion,
+        });
+        if (activeId.current !== recipe.id) return;
+        setRecipe(current => current ? {
+          ...current,
+          nutrition: {
+            calories: nutrition.calories ?? 0,
+            protein: nutrition.protein ?? 0,
+            carbohydrates: nutrition.carbohydrates ?? 0,
+            fat: nutrition.fat ?? 0,
+            fiber: nutrition.fiber ?? 0,
+            sodium: nutrition.sodium ?? 0,
+          },
+          rowVersion: nutritionResult.rowVersion,
+        } : current);
+      }
       setSuccess("Đã lưu thay đổi thành công.");
       void queryClient.invalidateQueries({ queryKey: recipeKeys.managed() });
     } finally { mutating.current = false; setSaving(false); }
@@ -88,9 +130,14 @@ export default function EditRecipePage({ params }: RouteProps) {
   const refreshVersion = async () => {
     if (!recipe) return;
     try {
-      const fresh = await recipeApi.getById(recipe.id);
+      const fresh = await recipeEditorApi.getById(recipe.id);
       if (activeId.current !== fresh.id) return;
-      if (basicKeys.some(key => fresh[key] !== recipe[key])) {
+      const nutritionChanged = nutritionFields.some(field => {
+        const current = nutritionFromRecipe(recipe)[field];
+        const next = nutritionFromRecipe(fresh)[field];
+        return current !== next;
+      });
+      if (basicKeys.some(key => fresh[key] !== recipe[key]) || nutritionChanged) {
         setOutOfDate(true);
         setMutationError({ description: "Nội dung công thức đã đổi ở nơi khác. Bản đang nhập được giữ; hãy tải bản mới trước khi lưu.", canRetry: true });
       } else setRecipe(current => current ? { ...current, rowVersion: fresh.rowVersion } : current);
@@ -103,7 +150,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     if (!recipe || mutating.current) return;
     mutating.current = true; setDeleting(true); setMutationError(null);
     try {
-      await recipeApi.delete(recipe.id);
+      await recipeEditorApi.delete(recipe.id);
       queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       allowNavigation(); router.replace("/dashboard/recipes?deleted=1"); router.refresh();
     } catch (reason) {

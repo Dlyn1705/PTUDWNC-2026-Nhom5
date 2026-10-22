@@ -10,6 +10,7 @@ using CulinaryBlog.Application;
 using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
+using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipeNutrition;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -82,6 +83,24 @@ public sealed class RecipeUpdateTests
         Assert.Null(store.Recipe.Instructions);
     }
 
+    [Fact]
+    public async Task Nutrition_update_validates_ownership_and_uses_recipe_version()
+    {
+        var recipe = Recipe.Create("Original", "original", "", null, 0, 0, 1,
+            RecipeDifficulty.Easy, Guid.NewGuid(), "owner");
+        recipe.RowVersion = [1];
+        var store = new MemoryStore { Recipe = recipe };
+        var command = new UpdateRecipeNutritionCommand(recipe.Id, 450.25m, 20m, 30m, 12m, 5m, 600m,
+            Convert.ToBase64String(recipe.RowVersion));
+
+        await new UpdateRecipeNutritionCommandHandler(new User(true, "owner", ["Author"]), store)
+            .Handle(command, default);
+
+        Assert.True(store.Saved);
+        Assert.Equal(450.25m, store.Recipe.Nutrition.Calories);
+        Assert.False(new UpdateRecipeNutritionCommandValidator().Validate(command with { Sodium = 1.234m }).IsValid);
+    }
+
     private sealed class User(bool authenticated, string id, IReadOnlyList<string> roles) : ICurrentUserService
     {
         public string? UserId => id;
@@ -96,6 +115,8 @@ public sealed class RecipeUpdateTests
         public bool Saved { get; private set; }
         public Task<Recipe?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult<Recipe?>(Recipe);
         public Task<UpdatedRecipe> SaveAsync(Recipe recipe, byte[] version, string actorId, CancellationToken ct)
+        { Saved = true; return Task.FromResult(new UpdatedRecipe("OK", recipe.Id, recipe.Slug, "Ag==")); }
+        public Task<UpdatedRecipe> SaveNutritionAsync(Recipe recipe, byte[] version, string actorId, CancellationToken ct)
         { Saved = true; return Task.FromResult(new UpdatedRecipe("OK", recipe.Id, recipe.Slug, "Ag==")); }
     }
 
@@ -180,7 +201,8 @@ public sealed class RecipeUpdateTests
             var refreshed = await client.GetAsync(url);
             Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
             Assert.True(refreshed.Headers.CacheControl!.NoStore);
-            Assert.Equal("Updated title", (await refreshed.Content.ReadFromJsonAsync<JsonObject>())!["title"]!.GetValue<string>());
+            var refreshedBody = (await refreshed.Content.ReadFromJsonAsync<ApiResponse<JsonObject>>())!.Data!;
+            Assert.Equal("Updated title", refreshedBody["title"]!.GetValue<string>());
             Assert.Equal(HttpStatusCode.Conflict, (await Put(Payload(originalVersion))).StatusCode);
             foreach (var invalid in new[] { Payload(saved.RowVersion), Payload(saved.RowVersion), Payload(saved.RowVersion) }.Select((x, i) =>
             { if (i == 0) x["difficulty"] = 99; if (i == 1) x["servings"] = 0; if (i == 2) x["title"] = new string('a', 201); return x; }))

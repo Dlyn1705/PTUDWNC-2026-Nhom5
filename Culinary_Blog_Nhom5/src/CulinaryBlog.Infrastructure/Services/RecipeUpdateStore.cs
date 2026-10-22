@@ -58,6 +58,43 @@ public sealed class RecipeUpdateStore(
         return result;
     }
 
+    public async Task<UpdatedRecipe> SaveNutritionAsync(Recipe desired, byte[] expectedVersion, string actorId, CancellationToken ct)
+    {
+        var strategy = readContext.Database.CreateExecutionStrategy();
+        byte[]? writtenVersion = null;
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var recipe = await db.Recipes.SingleOrDefaultAsync(x => x.Id == desired.Id, ct)
+                ?? throw new NotFoundException("Recipe", desired.Id);
+            if (writtenVersion is not null && recipe.RowVersion.SequenceEqual(writtenVersion))
+                return Result(recipe);
+            if (!recipe.RowVersion.SequenceEqual(expectedVersion) || recipe.AuthorId != desired.AuthorId)
+                throw Conflict();
+            var actor = await db.Users.FromSqlInterpolated(
+                $"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {actorId} FOR SHARE")
+                .AsNoTracking().SingleOrDefaultAsync(ct);
+            if (actor is null || !actor.IsActive) throw new ForbiddenException("Tài khoản không còn hoạt động.");
+
+            recipe.SetNutrition(desired.Nutrition.Calories, desired.Nutrition.Protein,
+                desired.Nutrition.Carbohydrates, desired.Nutrition.Fat,
+                desired.Nutrition.Fiber, desired.Nutrition.Sodium);
+            db.Entry(recipe).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                writtenVersion = recipe.RowVersion.ToArray();
+                await transaction.CommitAsync(ct);
+                return Result(recipe);
+            }
+            catch (DbUpdateConcurrencyException) { throw Conflict(); }
+        });
+        await cache.InvalidateRecipeAsync(result.Id, result.Slug, CancellationToken.None);
+        return result;
+    }
+
     private static ConflictException Conflict() => new("Công thức đã thay đổi. Vui lòng tải lại trước khi lưu.", "RECIPE_VERSION_CONFLICT");
     private static UpdatedRecipe Result(Recipe recipe) => new("Cập nhật công thức thành công.",
         recipe.Id, recipe.Slug, Convert.ToBase64String(recipe.RowVersion));

@@ -112,7 +112,7 @@ public sealed class IngredientApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, added.StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(added.Headers.Location)).StatusCode);
         var first = Assert.Single((await Read()).Items); Assert.Null(first.Quantity); Assert.Null(first.Unit); Assert.Equal("Vừa đủ", first.Notes);
-        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/recipes/{recipeId}");
+        var detail = (await client.GetFromJsonAsync<ApiResponse<JsonElement>>($"/api/v1/recipes/{recipeId}"))!.Data!;
         Assert.Equal(JsonValueKind.Null, detail.GetProperty("ingredients")[0].GetProperty("quantity").ValueKind);
         Assert.Equal(0, detail.GetProperty("ingredients")[0].GetProperty("orderIndex").GetInt32());
         var secondAdded = await Write(HttpMethod.Post, Route, new IngredientInput("Muối", 0.001m, "g"), added.Headers.ETag!.ToString());

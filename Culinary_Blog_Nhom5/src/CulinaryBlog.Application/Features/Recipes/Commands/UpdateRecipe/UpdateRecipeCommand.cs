@@ -17,6 +17,7 @@ public interface IRecipeUpdateStore
 {
     Task<Recipe?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<UpdatedRecipe> SaveAsync(Recipe recipe, byte[] expectedVersion, string actorId, CancellationToken cancellationToken);
+    Task<UpdatedRecipe> SaveNutritionAsync(Recipe recipe, byte[] expectedVersion, string actorId, CancellationToken cancellationToken);
 }
 
 public sealed class UpdateRecipeCommandValidator : AbstractValidator<UpdateRecipeCommand>

@@ -9,7 +9,7 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import RecipeForm from "@/components/recipes/editor/RecipeForm";
 import { type IngredientDraft } from "@/lib/ingredient-form";
 import { type StepDraft } from "@/lib/step-form";
-import { recipeApi } from "@/lib/api/recipeApi";
+import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { RecipeFormValidationError, type RecipeEditorValues, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
@@ -40,7 +40,7 @@ export default function NewRecipePage() {
         fat: values.fat, fiber: values.fiber, sodium: values.sodium } });
     setSaving(true);
     try {
-      const result = await recipeApi.create(payload);
+      const result = await recipeEditorApi.create(payload);
       setCreated({ id: result.id, slug: result.slug });
       void queryClient.invalidateQueries({ queryKey: recipeKeys.managed() });
     } finally { setSaving(false); }

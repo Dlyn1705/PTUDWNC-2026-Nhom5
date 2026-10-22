@@ -3,11 +3,23 @@
 Ngày thực hiện: 18/10/2026; cập nhật tích hợp: 20/10/2026. Thành viên: Phan Thị Bảo Trâm — 2312778.
 
 Nguồn phân công: `C:\Users\baotr\Downloads\PHÂN VIỆC LAB 6.docx`.
-Nhánh bàn giao: `2312778-phanthibaotram-lab6-giaodienquanlycongthuc`, bắt đầu từ `origin/main` tại `5f0fa1e`.
+Nhánh bàn giao: `2312778-phanthibaotram-formcongthuc` (đã đổi tên nhánh cũ), bắt đầu từ `origin/main` tại `5f0fa1e`.
+
+## Đối chiếu ba mục giao diện độc lập của Trâm
+
+Rà soát lại ngày 20/10/2026 trên code tại commit `ff5aee5`. Ba mục này đã triển khai, không cần chờ bàn giao API của Ân:
+
+| Yêu cầu | Kết quả và nơi triển khai |
+|---|---|
+| Menu dashboard trên mobile | `components/layout/DashboardMobileNav.tsx`, nối vào layout dashboard; menu có tên, trạng thái mở, Tab giữ trong Dialog, Escape đóng và trả focus; chỉ Admin có liên kết danh mục. E2E kiểm tra tràn ngang ở 320/375/640/1024 px. |
+| Xác nhận rời trang khi chưa lưu | `hooks/useUnsavedRecipe.ts`, nối vào cả trang tạo/sửa và trạng thái bẩn của nguyên liệu/bước; xác nhận liên kết, tải bản mới, reload/đóng trang và Back/Forward theo phạm vi trình duyệt ghi dưới đây; hủy rời trang giữ nội dung, lưu thành công cập nhật mốc dữ liệu. |
+| Accessibility form/modal | RecipeForm và manager có label, mô tả/lỗi, aria-invalid, ID riêng và focus ô sai sau khi mở khóa; modal dùng Radix giữ focus, Escape và trả focus khi đóng; menu và modal có tên truy cập. |
+
+Chạy lại `npm run test:lab6-editor` và `BROWSER_CHANNEL=chrome npm run test:a11y`: cả hai đạt. Đây là kiểm tra tự động trên Chrome với API fixture, không thay thế kiểm thử backend thật hoặc nghiệm thu trên trình duyệt khác. Bản sửa `ff5aee5` bổ sung focus sau validation và khôi phục focus navbar khi CSS ẩn menu lúc resize.
 
 ## Phạm vi được thống nhất
 
-Thực hiện các mục thuộc phần Trâm. Ngày 20/10, component dùng chung của Tuấn đã có trên main và được tích hợp vào nhánh này. Theo yêu cầu làm nốt phần Trâm, form được hoàn thiện bằng `recipeApi` và `toApiProblemError` hiện có; nền tảng API/auth của Ân được giữ nguyên, chờ merge để xác nhận tương thích và chuyển import module.
+Thực hiện các mục thuộc phần Trâm. Component dùng chung của Tuấn và nền tảng API/auth đã được tích hợp vào main. Sau khi cập nhật main `9c02839`, trang tạo/sửa và query dashboard chuyển sang `recipeEditorApi`; mutation trạng thái dùng `recipeLifecycleApi`. RecipeForm sử dụng contract lỗi và helper chung, giữ nguyên bảo vệ dữ liệu chưa lưu.
 
 ## Phần đã triển khai
 
@@ -26,7 +38,7 @@ Thực hiện các mục thuộc phần Trâm. Ngày 20/10, component dùng chun
 
 - Đồng bộ main `8661b94`; kết hợp bốn file xung đột gồm layout dashboard, trang tạo, trang sửa và hộp thoại xóa. Giữ cache key mới, SkipLink/main-content, các trạng thái route, trang tổng quan và bản sửa focus/trạng thái chờ của main.
 - Giữ LoadingState, Skeleton, ErrorState, EmptyState đã tích hợp trong RecipeStatusTable trên main. Dùng Pagination chung để chuyển trang theo metadata backend; query key chứa page/pageSize để tránh lấy nhầm cache. Giữ bảng khi tải trang tiếp theo, khóa nút phân trang/thao tác trạng thái trong lúc đang tải. Trang trống sau thay đổi dữ liệu có nút về trang đầu.
-- Giữ RouteLoading/ErrorState và correlationId cho lỗi tải trang sửa; hỗ trợ thử lại theo errorPresentation chung. Phần lỗi mutation/422 vẫn chờ contract Ân.
+- Giữ RouteLoading/ErrorState và correlationId cho lỗi tải trang sửa; hỗ trợ thử lại theo errorPresentation chung. Phần lỗi mutation/422 và contract cuối đã tích hợp như mục RecipeForm và API bên dưới.
 - Menu dashboard trên điện thoại có Tổng quan/Công thức/Danh mục (Admin)/Trang chủ; giữ nhãn truy cập và focus Dialog của component chung. Dùng breakpoint xl để header không tràn khi có đủ menu desktop.
 - Nối cảnh báo chưa lưu vào StepManager ở cả trang tạo và sửa. Tải bản mới của toàn form sau xác nhận sẽ tải lại cả nguyên liệu và bước; bước đã lưu không tạo cảnh báo thừa. Thêm mô tả lỗi, aria-invalid và focus vào ô sai khi lưu bước.
 - Tạo ID ô nhập/mô tả/lỗi theo `useId` của từng form để các trang được Next.js giữ trong Activity không trùng ID hay gắn nhầm nhãn. Giữ tên truy cập của ô tên món ăn riêng với nội dung hướng dẫn/lỗi.
@@ -43,15 +55,16 @@ Thực hiện các mục thuộc phần Trâm. Ngày 20/10, component dùng chun
 - Danh mục tải qua query chung; lỗi tải cho thử lại mà không xóa dữ liệu form. Giữ các component loading/error chung, xác nhận rời trang, kiểm tra chủ sở hữu/Admin và hộp thoại xóa đã có.
 - Bỏ hook validation DOM cũ đã hết nơi sử dụng. Bổ sung test schema/mapping và mở rộng Chrome E2E; đưa hai bộ test form vào CI.
 
-## Các mục chờ bàn giao
+## Hoàn tất tích hợp API sau bàn giao
 
-| Mục | Chờ ai | Điều kiện tiếp tục |
+| Mục | Trạng thái | Thực hiện |
 |---|---|---|
-| Tích hợp contract lỗi đầy đủ và helper `isApiProblemError` / `getApiErrorMessage` | Ân | Contract giữ đủ RFC 7807, code, errors, correlationId và interceptor chuẩn hóa lỗi được bàn giao |
-| Tách việc gọi API tạo/sửa/xóa/editor và publish/archive/restore theo module | Ân | Module API đã tách, kèm re-export tương thích ở module cũ |
-| Kiểm thử tích hợp toàn bộ luồng sau khi thay contract API | Ân | Tích hợp xong contract lỗi/module API và chạy lại kiểm thử với backend thật |
+| Contract lỗi và helper chung | Đã tích hợp | Giữ nguyên ApiProblemError từ interceptor bằng isApiProblemError; chuẩn hóa lỗi chưa có contract bằng toApiProblemError. Chỉ dùng getApiErrorMessage cho thông báo validation do ứng dụng tạo, không đưa detail nội bộ lên UI. |
+| API tạo/sửa/xóa/nutrition và query editor | Đã chuyển | Hai trang tạo/sửa cùng hooks/queries/useRecipes.ts import trực tiếp recipeEditorApi; trang sửa gọi thêm endpoint nutrition khi 6 chỉ số thay đổi. Không còn facade recipeApi trong app/components/hooks. |
+| API trạng thái | Đã tích hợp từ main | useRecipeMutations dùng recipeLifecycleApi cho publish/archive/unarchive; khôi phục dùng unarchive, không gọi endpoint restore không tồn tại. |
+| Loại bỏ cast error.response | Đã rà soát | Các component dùng toApiProblemError; chỉ lớp nền HTTP chịu trách nhiệm chuẩn hóa lỗi và component không đọc trực tiếp response của Axios. |
 
-Phần UI/RHF/xử lý lỗi của Trâm đã được hoàn thiện bằng contract hiện có. Hai trang tạm dùng facade `recipeApi`; sau khi Ân merge sẽ chuyển sang `recipeEditorApi` và kiểm tra lại với interceptor mới. Không đánh dấu phần merge/bàn giao nền tảng của Ân là hoàn thành.
+Phần phụ thuộc API của Trâm đã được nối với nền tảng vừa bàn giao. Facade recipeApi vẫn tồn tại trong lib/api để tương thích và được test riêng; không còn được editor/dashboard sử dụng. Công việc này không thay đổi interceptor, refresh token hay store do thành viên khác bàn giao.
 
 ## Kiểm tra
 
@@ -64,6 +77,10 @@ npm run typecheck
 npm run build
 npm run test:common
 npm run test:recipe-editor
+npm run test:api
+npm run test:auth
+npm run test:logging
+npm run test:ui-store
 npm run test:lab6-editor
 node tests/steps.e2e.cjs
 ```
@@ -98,7 +115,7 @@ Phạm vi trình duyệt: kiểm thử tự động hiện chạy trên Chrome. 
 
 E2E Lab 6 bổ sung chuyển trang 1–2 và quay lại, trạng thái lỗi danh sách kèm correlationId và thử lại, danh sách rỗng, lỗi tải trang sửa và phục hồi, lưu/kiểm tra lỗi bước, bảo vệ bản nháp bước khi rời trang và khi tải lại, nhãn/ID không trùng giữa các form được cache. Fixture danh mục được cập nhật sang envelope `success/data` theo contract mới đã có trên main.
 
-E2E bước thực hiện xác nhận CRUD/reorder, timer 0 phút, chặn gửi trùng, giữ bản nháp thông tin cơ bản, xử lý 409 và bảo vệ bước cuối của công thức Published. Kịch bản reload có chủ ý xác nhận cảnh báo beforeunload mới. Các kiểm thử tiếp tục sử dụng API fixture; chưa thay thế kiểm thử phân quyền/backend thật trong đợt bàn giao API sau.
+E2E bước thực hiện xác nhận CRUD/reorder, timer 0 phút, chặn gửi trùng, giữ bản nháp thông tin cơ bản, xử lý 409 và bảo vệ bước cuối của công thức Published. Kịch bản reload có chủ ý xác nhận cảnh báo beforeunload mới. Các kiểm thử trình duyệt sử dụng API fixture; bộ integration backend với PostgreSQL/MinIO thật được chạy riêng trong đợt hoàn tất bàn giao.
 
 ### Kiểm tra RecipeForm
 
@@ -109,6 +126,25 @@ E2E bước thực hiện xác nhận CRUD/reorder, timer 0 phút, chặn gửi 
 
 ## Lưu ý khi tích hợp
 
-- Không thay đổi `axiosClient`, `problemDetails`, session/auth hoặc chia API trước bàn giao để hạn chế chồng lấn với Ân.
+### Kết quả hoàn tất sau bàn giao API ngày 20/10/2026
+
+| Kiểm tra chạy lại | Kết quả |
+|---|---|
+| ESLint và Next.js production build (gồm TypeScript) | Đạt |
+| Contract API / schema RecipeForm | 7/7 và 6/6 đạt |
+| Auth, có AUTH_TEST_REDIS=1 và Redis thật | 20/20 đạt, không bỏ qua test |
+| Logging / component chung / UI store | 16/16, 12/12 và 2/2 đạt |
+| dotnet test solution Release | 185/185 đạt |
+| Integration bước thực hiện ngoài solution | 25/25 đạt |
+| Chrome E2E form quản lý công thức | Đạt |
+| Chrome E2E quản lý bước thực hiện | Đạt |
+| Chrome accessibility form/modal/menu | Đạt |
+| Auth E2E hai tiến trình Next.js và Redis | Đạt |
+| Production route boundaries, retry, empty/error, pagination/history | Đạt |
+| Rà soát error.response và import facade trong app/components/hooks | Không còn |
+
+Backend integration dùng PostgreSQL/MinIO/MailHog local và dữ liệu test cô lập. Browser E2E dùng production Next.js với API fixture; Auth E2E dùng Redis thật và token server kiểm thử. Chưa tuyên bố đã chạy toàn bộ trình duyệt xuyên suốt backend thật hay thay thế nghiệm thu thủ công của cả nhóm. Phạm vi code và tích hợp được phân công cho Trâm đã hoàn tất; nghiệm thu cuối toàn nhóm vẫn theo quy trình review.
+
+- Giữ nguyên `axiosClient`, `problemDetails`, session/auth đã bàn giao để hạn chế chồng lấn. Ca test Redis dùng khóa mã hóa ngẫu nhiên tự sinh khi môi trường không có AUTH_SECRET; CI bật AUTH_TEST_REDIS để không bỏ qua ca này.
 - Không tự tạo bộ component trạng thái/phân trang thay Tuấn.
-- Đã fetch lại remote và tích hợp main `8661b94` trong đợt ngày 20/10. Các lần push bổ sung cần cập nhật lại main và kiểm tra theo CONTRIBUTING.md.
+- Đã tích hợp main `9c02839` trong đợt hoàn tất ngày 20/10. Các lần push bổ sung cần cập nhật lại main và kiểm tra theo CONTRIBUTING.md.
