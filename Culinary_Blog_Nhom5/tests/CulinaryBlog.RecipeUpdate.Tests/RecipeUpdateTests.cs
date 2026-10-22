@@ -201,7 +201,8 @@ public sealed class RecipeUpdateTests
             var refreshed = await client.GetAsync(url);
             Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
             Assert.True(refreshed.Headers.CacheControl!.NoStore);
-            Assert.Equal("Updated title", (await refreshed.Content.ReadFromJsonAsync<JsonObject>())!["title"]!.GetValue<string>());
+            var refreshedBody = (await refreshed.Content.ReadFromJsonAsync<ApiResponse<JsonObject>>())!.Data!;
+            Assert.Equal("Updated title", refreshedBody["title"]!.GetValue<string>());
             Assert.Equal(HttpStatusCode.Conflict, (await Put(Payload(originalVersion))).StatusCode);
             foreach (var invalid in new[] { Payload(saved.RowVersion), Payload(saved.RowVersion), Payload(saved.RowVersion) }.Select((x, i) =>
             { if (i == 0) x["difficulty"] = 99; if (i == 1) x["servings"] = 0; if (i == 2) x["title"] = new string('a', 201); return x; }))

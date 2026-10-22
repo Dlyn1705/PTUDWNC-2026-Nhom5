@@ -137,7 +137,7 @@ public sealed class StepApiTests : IAsyncLifetime
         using var scope = app.Services.CreateScope(); var db = Db(scope);
         Assert.True((await db.RecipeSteps.IgnoreQueryFilters().SingleAsync(s => s.Id == second.Id)).IsDeleted);
         Assert.Equal("legacy instructions", (await db.Recipes.SingleAsync()).Instructions);
-        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/recipes/{recipeId}");
+        var detail = (await client.GetFromJsonAsync<ApiResponse<JsonElement>>($"/api/v1/recipes/{recipeId}"))!.Data!;
         var publicSteps = detail.GetProperty("steps").EnumerateArray().ToArray();
         Assert.Equal(2, publicSteps.Length); Assert.Equal(1, publicSteps[0].GetProperty("order").GetInt32());
         Assert.Equal("Dọn", publicSteps[0].GetProperty("text").GetString());
