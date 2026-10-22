@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -9,6 +10,7 @@ using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Infrastructure.Services.Images;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -33,6 +35,8 @@ public sealed class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IFileStorageService _fileStorageService;
+    private readonly IImageVariantRenderer _imageVariantRenderer;
 
     public AuthService(
         ApplicationDbContext dbContext,
@@ -44,7 +48,9 @@ public sealed class AuthService : IAuthService
         IHttpContextAccessor httpContextAccessor,
         ILogger<AuthService> logger,
         TimeProvider timeProvider,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IFileStorageService fileStorageService,
+        IImageVariantRenderer imageVariantRenderer)
     {
         _dbContext = dbContext;
         _userManager = userManager;
@@ -56,6 +62,8 @@ public sealed class AuthService : IAuthService
         _logger = logger;
         _timeProvider = timeProvider;
         _scopeFactory = scopeFactory;
+        _fileStorageService = fileStorageService;
+        _imageVariantRenderer = imageVariantRenderer;
     }
 
     public Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
@@ -66,6 +74,186 @@ public sealed class AuthService : IAuthService
             service => service.RegisterCoreAsync(email, displayName, password, userId, refreshToken, cancellationToken),
             cancellationToken);
     }
+
+    public async Task<UserDto> GetProfileAsync(string userId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+
+        return ToUserDto(user);
+    }
+
+    public async Task<UserDto> UpdateProfileAsync(
+        string userId,
+        string? displayName,
+        string? bio,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var normalizedName = displayName?.Trim();
+        if (displayName is not null
+            && (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length is < 2 or > 100))
+            throw new ValidationException("displayName", "Tên hiển thị phải có từ 2 đến 100 ký tự.");
+        if (bio?.Length > 500)
+            throw new ValidationException("bio", "Giới thiệu không được vượt quá 500 ký tự.");
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+
+        if (normalizedName is not null)
+            user.DisplayName = normalizedName;
+        if (bio is not null)
+            user.Bio = string.IsNullOrWhiteSpace(bio) ? null : bio.Trim();
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new ValidationException(result.Errors
+                .GroupBy(_ => "profile")
+                .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
+        }
+
+        return ToUserDto(user);
+    }
+
+    public async Task<UserDto> UpdateAvatarAsync(
+        string userId,
+        Stream image,
+        long length,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        if (length is <= 0 or > IsolatedImageRenderer.MaximumBytes)
+            throw new ValidationException("file", "Ảnh đại diện phải có dung lượng từ 1 byte đến 5 MiB.");
+        ValidateAvatarContent(image, contentType);
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+
+        (byte[] Medium, byte[] Thumbnail) rendered;
+        try
+        {
+            rendered = await _imageVariantRenderer.RenderAsync(image, cancellationToken);
+        }
+        catch (InvalidDataException)
+        {
+            throw new ValidationException("file", "Ảnh đại diện không hợp lệ hoặc không được hỗ trợ.");
+        }
+
+        var objectKey = $"users/{userId}/avatar/{Guid.NewGuid():N}.jpg";
+        await using var thumbnailStream = new MemoryStream(rendered.Thumbnail, writable: false);
+        var avatarUrl = await _fileStorageService.UploadAsync(
+            thumbnailStream, objectKey, "image/jpeg", cancellationToken);
+
+        var previousAvatarUrl = user.AvatarUrl;
+        user.AvatarUrl = avatarUrl;
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            try { await _fileStorageService.DeleteAsync(avatarUrl, CancellationToken.None); }
+            catch (Exception cleanupError)
+            {
+                _logger.LogWarning(cleanupError, "Could not remove an unused avatar object for user {UserId}", userId);
+            }
+
+            throw new ValidationException(updateResult.Errors
+                .GroupBy(_ => "avatar")
+                .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
+        }
+
+        if (IsOwnedAvatar(previousAvatarUrl, userId))
+        {
+            try { await _fileStorageService.DeleteAsync(previousAvatarUrl!, cancellationToken); }
+            catch (Exception cleanupError)
+            {
+                _logger.LogWarning(cleanupError, "Could not remove a replaced avatar object for user {UserId}", userId);
+            }
+        }
+
+        return ToUserDto(user);
+    }
+
+    public async Task ChangePasswordAsync(
+        string userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(currentPassword))
+            throw new ValidationException("currentPassword", "Mật khẩu hiện tại là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(newPassword))
+            throw new ValidationException("newPassword", "Mật khẩu mới là bắt buộc.");
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null || !user.IsActive)
+            throw new UnauthorizedAccessException("Tài khoản không khả dụng.");
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(error => error.Code == "PasswordMismatch"))
+                throw new ValidationException("currentPassword", "Mật khẩu hiện tại không chính xác.");
+
+            throw new ValidationException(result.Errors
+                .GroupBy(error => error.Code.StartsWith("Password", StringComparison.OrdinalIgnoreCase)
+                    ? "newPassword"
+                    : "currentPassword")
+                .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
+        }
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        await _dbContext.RefreshTokens
+            .Where(token => token.UserId == userId && token.RevokedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.RevokedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static UserDto ToUserDto(ApplicationUser user) =>
+        new(user.Id, user.Email ?? string.Empty, user.DisplayName, user.AvatarUrl, user.Bio);
+
+    private static void ValidateAvatarContent(Stream image, string contentType)
+    {
+        if (!image.CanSeek)
+            throw new ValidationException("file", "Không thể đọc file ảnh được gửi lên.");
+
+        image.Position = 0;
+        var header = new byte[Math.Min(32, (int)Math.Min(image.Length, 32))];
+        var read = image.Read(header, 0, header.Length);
+        image.Position = 0;
+        var bytes = header.AsSpan(0, read);
+        var hasAvifBrand = false;
+        for (var offset = 8; offset + 4 <= read; offset += 4)
+        {
+            if (bytes.Slice(offset, 4).SequenceEqual("avif"u8)
+                || bytes.Slice(offset, 4).SequenceEqual("avis"u8))
+            {
+                hasAvifBrand = true;
+                break;
+            }
+        }
+
+        var detected = bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
+            ? "image/jpeg"
+            : bytes.Length >= 8 && bytes[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
+                ? "image/png"
+                : bytes.Length >= 12 && bytes[..4].SequenceEqual("RIFF"u8) && bytes.Slice(8, 4).SequenceEqual("WEBP"u8)
+                    ? "image/webp"
+                    : bytes.Length >= 12 && bytes.Slice(4, 4).SequenceEqual("ftyp"u8) && hasAvifBrand
+                        ? "image/avif"
+                        : null;
+
+        if (detected is null || !string.Equals(contentType, detected, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("file", "Nội dung không phải ảnh JPEG, PNG, WebP hoặc AVIF hợp lệ.");
+    }
+
+    private static bool IsOwnedAvatar(string? url, string userId) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.AbsolutePath.Contains($"/users/{Uri.EscapeDataString(userId)}/avatar/", StringComparison.Ordinal);
 
     private async Task<AuthResponseDto> RegisterLegacyAsync(string email, string displayName, string password, CancellationToken cancellationToken)
     {
@@ -570,7 +758,7 @@ public sealed class AuthService : IAuthService
             refreshToken,
             accessTokenExpiry,
             refreshTokenExpiry,
-            new UserDto(user.Id, user.Email!, user.DisplayName),
+            new UserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl, user.Bio),
             roles.ToArray());
     }
 
@@ -586,7 +774,7 @@ public sealed class AuthService : IAuthService
             refreshToken,
             accessTokenExpiry,
             refreshTokenExpiry,
-            new UserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl),
+            ToUserDto(user),
             roles.ToArray());
     }
 

@@ -16,6 +16,7 @@ using CulinaryBlog.Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
@@ -42,6 +43,74 @@ public static class AuthEndpoints
             .WithName("AuthPing")
             .WithSummary("Kiểm tra trạng thái Auth group");
 
+        group.MapGet("/me", async (
+                IAuthService authService,
+                ICurrentUserService currentUser,
+                CancellationToken cancellationToken) =>
+                Results.Ok(ApiResponse<UserDto>.Ok(
+                    await authService.GetProfileAsync(currentUser.UserId!, cancellationToken))))
+            .WithName("GetCurrentUserProfile")
+            .WithSummary("Xem hồ sơ tài khoản hiện tại")
+            .Produces<ApiResponse<UserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .RequireAuthorization("AuthorPolicy");
+
+        group.MapPatch("/me", async (
+                UpdateProfileRequest request,
+                IAuthService authService,
+                ICurrentUserService currentUser,
+                CancellationToken cancellationToken) =>
+                Results.Ok(ApiResponse<UserDto>.Ok(await authService.UpdateProfileAsync(
+                    currentUser.UserId!, request.DisplayName, request.Bio, cancellationToken))))
+            .WithName("UpdateCurrentUserProfile")
+            .WithSummary("Cập nhật tên hiển thị và phần giới thiệu")
+            .Produces<ApiResponse<UserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .RequireAuthorization("AuthorPolicy");
+
+        group.MapPatch("/me/password", async (
+                ChangePasswordRequest request,
+                IAuthService authService,
+                ICurrentUserService currentUser,
+                CancellationToken cancellationToken) =>
+            {
+                await authService.ChangePasswordAsync(
+                    currentUser.UserId!, request.CurrentPassword, request.NewPassword, cancellationToken);
+                return Results.NoContent();
+            })
+            .WithName("ChangeCurrentUserPassword")
+            .WithSummary("Đổi mật khẩu và thu hồi các refresh token hiện có")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .RequireAuthorization("AuthorPolicy");
+
+        group.MapPost("/me/avatar", async (
+                IFormFile? file,
+                IAuthService authService,
+                ICurrentUserService currentUser,
+                CancellationToken cancellationToken) =>
+            {
+                if (file is null)
+                    throw new ValidationException("file", "Vui lòng chọn ảnh đại diện cần tải lên.");
+
+                await using var stream = file.OpenReadStream();
+                var profile = await authService.UpdateAvatarAsync(
+                    currentUser.UserId!, stream, file.Length, file.ContentType, cancellationToken);
+                return Results.Ok(ApiResponse<UserDto>.Ok(profile));
+            })
+            .WithName("UploadCurrentUserAvatar")
+            .WithSummary("Tải ảnh đại diện lên MinIO")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<ApiResponse<UserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .RequireAuthorization("AuthorPolicy")
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(6 * 1024 * 1024));
+
         group.MapPost("/google", async (
                 GoogleIdTokenLoginRequest request,
                 ISender sender,
@@ -64,16 +133,33 @@ public static class AuthEndpoints
         group.MapPost("/register", async (
                 RegisterCommand command,
                 ISender sender,
+                IAuthService authService,
                 HttpContext context,
                 CancellationToken cancellationToken) =>
             {
                 var response = await sender.Send(command, cancellationToken);
-                SetRefreshCookie(context, response);
-                return Results.Created("/api/v1/auth/me", ApiResponse<AuthSessionResponseDto>.Ok(ToSessionResponse(response)));
+
+                // Registration is followed by an explicit login in the web application.
+                // Do not leave a browser refresh session behind before that login. The
+                // service has already created the token atomically with the account, so
+                // revoke that unused token before returning the registration result.
+                var revocation = await authService.RevokeRefreshTokenAsync(
+                    response.RefreshToken,
+                    cancellationToken);
+                if (revocation != RefreshTokenRevocationResult.Revoked)
+                {
+                    ClearRefreshCookie(context);
+                    throw new InvalidOperationException("The registration session could not be closed safely.");
+                }
+
+                ClearRefreshCookie(context);
+                return Results.Created(
+                    "/api/v1/auth/me",
+                    ApiResponse<UserDto>.Ok(response.User));
             })
             .WithName("Register")
-            .WithSummary("Đăng ký tài khoản mới")
-            .Produces<ApiResponse<AuthSessionResponseDto>>(StatusCodes.Status201Created)
+            .WithSummary("Đăng ký tài khoản mới; cần đăng nhập sau khi đăng ký")
+            .Produces<ApiResponse<UserDto>>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -135,6 +221,7 @@ public static class AuthEndpoints
         group.MapPost("/logout", async (
                 HttpContext context,
                 IAuthService authService,
+                ICurrentUserService currentUser,
                 CancellationToken cancellationToken) =>
             {
                 var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
@@ -144,7 +231,10 @@ public static class AuthEndpoints
                     throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
                 }
 
-                var revocation = await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+                var revocation = await authService.RevokeRefreshTokenAsync(
+                    refreshToken,
+                    currentUser.UserId,
+                    cancellationToken);
                 if (revocation == RefreshTokenRevocationResult.Forbidden)
                 {
                     ClearRefreshCookie(context);
@@ -165,7 +255,8 @@ public static class AuthEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .RequireAuthorization("AuthorPolicy");
 
         return app;
     }
@@ -240,6 +331,10 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 /// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
+
+public sealed record UpdateProfileRequest(string? DisplayName, string? Bio);
+
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
 public sealed record AuthSessionResponseDto(

@@ -4,6 +4,7 @@ using Asp.Versioning;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Documentation;
+using CulinaryBlog.API.HealthChecks;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -51,6 +52,8 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+builder.Services.AddApplicationHealthChecks();
 
 builder.Services.AddObservability(builder.Configuration);
 
@@ -169,6 +172,40 @@ var authenticationBuilder = builder.Services
 
                 ClockSkew = TimeSpan.Zero
             };
+
+        // Authentication and authorization short-circuits do not pass through
+        // GlobalExceptionMiddleware. Emit the same RFC 7807 media type for
+        // these boundary failures as the rest of the API.
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                if (context.Response.HasStarted) return;
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/problem+json";
+                await context.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    Title = "Yêu cầu xác thực.",
+                    Status = StatusCodes.Status401Unauthorized,
+                    Detail = "Cần đăng nhập để truy cập tài nguyên này."
+                });
+            },
+            OnForbidden = async context =>
+            {
+                if (context.Response.HasStarted) return;
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/problem+json";
+                await context.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Type = "https://tools.ietf.org/html/rfc7231#section-6.5.3",
+                    Title = "Không có quyền truy cập.",
+                    Status = StatusCodes.Status403Forbidden,
+                    Detail = "Tài khoản không có quyền thực hiện thao tác này."
+                });
+            }
+        };
     });
 
 if (!string.IsNullOrWhiteSpace(googleClientId)
@@ -234,8 +271,19 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Author", "Admin"));
 
     options.AddPolicy(
+        "AdminPolicy",
+        policy => policy.RequireRole("Admin"));
+
+    options.AddPolicy(
         "AdminOnly",
         policy => policy.RequireRole("Admin"));
+
+    options.AddPolicy(
+        "VerifiedAuthorPolicy",
+        policy => policy.RequireAssertion(context =>
+            context.User.IsInRole("Admin")
+            || (context.User.IsInRole("Author")
+                && context.User.HasClaim("email_verified", "true"))));
 });
 
 builder.Services.AddApiSecurity();

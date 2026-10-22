@@ -5,15 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LogOut, UserRound } from "lucide-react";
+import { LayoutDashboard, LogOut, UserRound } from "lucide-react";
 
-export function UserMenu({ name, image, email }: {
-  name: string; image?: string | null; email?: string | null;
+export function UserMenu({ name, image, email, dashboardHref }: {
+  name: string; image?: string | null; email?: string | null; dashboardHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const [profileOverride, setProfileOverride] = useState<{ name: string; image?: string | null } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const initialItem = useRef(0);
@@ -23,9 +24,23 @@ export function UserMenu({ name, image, email }: {
   const pathname = usePathname();
   const [previousPath, setPreviousPath] = useState(pathname);
   if (previousPath !== pathname) { setPreviousPath(pathname); setOpen(false); }
-  const initials = name.trim().split(/\s+/).slice(0, 2)
+  const displayName = profileOverride?.name || name;
+  const displayImage = profileOverride ? profileOverride.image : image;
+  const initials = displayName.trim().split(/\s+/).slice(0, 2)
     .map(part => Array.from(part)[0]).join("").toLocaleUpperCase("vi") || "A";
   const items = () => Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+
+  useEffect(() => {
+    function onProfileUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ name?: string; image?: string | null }>).detail;
+      if (detail) {
+        setProfileOverride({ name: detail.name || name, image: detail.image });
+        setFailedImage(null);
+      }
+    }
+    window.addEventListener("profile-updated", onProfileUpdated);
+    return () => window.removeEventListener("profile-updated", onProfileUpdated);
+  }, [name]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,7 +92,7 @@ export function UserMenu({ name, image, email }: {
   return <div ref={rootRef} className="relative shrink-0" onKeyDown={keyboard}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <button ref={triggerRef} id={id + "-trigger"} type="button"
-      aria-label={`Menu tài khoản ${name}`} aria-haspopup="menu" aria-expanded={open} aria-controls={id}
+      aria-label={`Menu tài khoản ${displayName}`} aria-haspopup="menu" aria-expanded={open} aria-controls={id}
       onClick={() => { initialItem.current = 0; setOpen(value => !value); }}
       onKeyDown={event => {
         if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) {
@@ -85,11 +100,14 @@ export function UserMenu({ name, image, email }: {
         }
       }}
       className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-border bg-primary/10 text-sm font-semibold text-primary shadow-soft hover:border-primary">
-      {image && image !== failedImage ? <Image src={image} alt="" width={40} height={40} unoptimized className="size-full object-cover" onError={() => setFailedImage(image)} /> : <span aria-hidden="true">{initials}</span>}
+      {displayImage && displayImage !== failedImage ? <Image src={displayImage} alt="" width={40} height={40} unoptimized className="size-full object-cover" onError={() => setFailedImage(displayImage)} /> : <span aria-hidden="true">{initials}</span>}
     </button>
     <div hidden={!open} className="absolute right-0 top-full z-60 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-2 text-foreground shadow-lift">
-      <div className="border-b border-border px-3 py-2"><p className="truncate text-sm font-semibold">{name}</p>{email && <p className="truncate text-xs text-muted-foreground">{email}</p>}</div>
+      <div className="border-b border-border px-3 py-2"><p className="truncate text-sm font-semibold">{displayName}</p>{email && <p className="truncate text-xs text-muted-foreground">{email}</p>}</div>
       <div id={id} role="menu" aria-labelledby={id + "-trigger"}>
+        {dashboardHref && <Link tabIndex={-1} role="menuitem" href={dashboardHref} onClick={() => setOpen(false)} className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-accent focus:bg-accent">
+          <LayoutDashboard className="size-4" aria-hidden="true" /> Bảng điều khiển
+        </Link>}
         <Link tabIndex={-1} role="menuitem" href="/profile" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-accent focus:bg-accent">
           <UserRound className="size-4" aria-hidden="true" /> Hồ sơ
         </Link>

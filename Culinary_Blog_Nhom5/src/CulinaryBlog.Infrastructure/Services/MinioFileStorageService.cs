@@ -86,7 +86,7 @@ public sealed class MinioFileStorageService : IFileStorageService
             }
         }
         var readOnlyPolicy = $$"""
-        {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{{_options.Bucket}}/recipes/*"]}]}
+        {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{{_options.Bucket}}/recipes/*","arn:aws:s3:::{{_options.Bucket}}/users/*/avatar/*"]}]}
         """;
         await _client.SetPolicyAsync(new SetPolicyArgs().WithBucket(_options.Bucket).WithPolicy(readOnlyPolicy), ct);
     }

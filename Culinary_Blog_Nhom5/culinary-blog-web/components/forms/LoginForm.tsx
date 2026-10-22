@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
@@ -11,6 +10,7 @@ import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
+import { login } from "@/lib/api/authApi";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -50,11 +50,7 @@ export function LoginForm() {
     setMascotMood("password");
 
     try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      const result = await login(data);
 
       if (result?.error) {
         setMascotMood("error");

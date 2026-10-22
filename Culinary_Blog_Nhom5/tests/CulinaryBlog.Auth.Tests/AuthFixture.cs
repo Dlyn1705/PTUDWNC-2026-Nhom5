@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Security.Claims;
 using System.Text;
+using CulinaryBlog.API.HealthChecks;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -60,6 +61,7 @@ public sealed class AuthFixture : IAsyncLifetime
         });
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddApplicationHealthChecks();
         builder.Services.AddSingleton<TimeProvider>(Clock);
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.AddInterceptors(Failures, CommitFailures));
         builder.Services.AddScoped<IJwtService, ControlledJwtService>();
@@ -83,6 +85,8 @@ public sealed class AuthFixture : IAsyncLifetime
         app.UseRateLimiter();
         // Production maps the auth endpoints inside the versioned /api/v1 group.
         app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapAdminEndpoints();
+        app.MapHealthEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())

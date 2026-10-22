@@ -2,8 +2,8 @@
 
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useCallback, useState } from "react";
+import { googleLogin } from "@/lib/api/authApi";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -17,6 +17,9 @@ declare global {
           initialize(options: {
             client_id: string;
             callback: (response: GoogleCredentialResponse) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+            use_fedcm_for_prompt?: boolean;
           }): void;
           renderButton(
             parent: HTMLElement,
@@ -28,6 +31,7 @@ declare global {
               width: number;
             },
           ): void;
+          prompt(): void;
         };
       };
     };
@@ -56,10 +60,7 @@ export function GoogleLoginButton({
       setIsPending(true);
       setError(null);
       try {
-        const result = await signIn("google-id-token", {
-          idToken: response.credential,
-          redirect: false,
-        });
+        const result = await googleLogin({ idToken: response.credential });
         if (result?.error) {
           setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
           return;
@@ -83,6 +84,9 @@ export function GoogleLoginButton({
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: handleCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      use_fedcm_for_prompt: true,
     });
     container.replaceChildren();
     window.google.accounts.id.renderButton(container, {
@@ -92,6 +96,9 @@ export function GoogleLoginButton({
       text: "continue_with",
       width: Math.min(container.clientWidth || 360, 400),
     });
+    // Keep the explicit button and enable GIS One Tap when permitted by the
+    // browser and the configured Google client.
+    window.google.accounts.id.prompt();
   }, [clientId, handleCredential]);
 
   if (!clientId) {

@@ -32,7 +32,6 @@ export function installSessionAuth(
     }
     return pending;
   }
-
   function sessionAfter401(rejectedAccessToken: string) {
     if (!refreshFlight) {
       const promise = refreshSession(rejectedAccessToken).then(async (session) => {

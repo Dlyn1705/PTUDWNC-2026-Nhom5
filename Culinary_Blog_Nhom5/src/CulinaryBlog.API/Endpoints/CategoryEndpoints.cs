@@ -76,7 +76,7 @@ public static class CategoryEndpoints
         })
         .WithName("CreateCategory")
         .WithSummary("Tạo danh mục mới (Admin)")
-        .RequireAuthorization("AdminOnly")
+        .RequireAuthorization("AdminPolicy")
         .Produces<ApiResponse<CategoryDto>>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -102,7 +102,7 @@ public static class CategoryEndpoints
         })
         .WithName("UpdateCategory")
         .WithSummary("Cập nhật thông tin danh mục, giữ nguyên slug (Admin)")
-        .RequireAuthorization("AdminOnly")
+        .RequireAuthorization("AdminPolicy")
         .Produces<ApiResponse<CategoryDto>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -118,7 +118,7 @@ public static class CategoryEndpoints
         })
         .WithName("DeleteCategory")
         .WithSummary("Xóa danh mục (không được xóa nếu còn công thức)")
-        .RequireAuthorization("AdminOnly");
+        .RequireAuthorization("AdminPolicy");
 
         return app;
     }

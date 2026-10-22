@@ -13,7 +13,7 @@ async function readBackendUser(response: Response): Promise<User | null> {
   if (!response.ok) return null;
   const backendTokens = await readBackendTokens(response);
   if (!backendTokens.session.roles.some((role) => role === "Admin" || role === "Author")) {
-    await revokeBackendTokens(backendTokens.refreshToken).catch(() => {});
+    await revokeBackendTokens(backendTokens.refreshToken, backendTokens.session.accessToken).catch(() => {});
     return null;
   }
   return {
@@ -73,7 +73,7 @@ export const { handlers, auth, signIn, signOut, unstable_update: updateSession }
         try {
           token.backendSessionId = await backendSessions.create(issuedTokens);
         } catch {
-          await revokeBackendTokens(issuedTokens.refreshToken).catch(() => {});
+          await revokeBackendTokens(issuedTokens.refreshToken, issuedTokens.session.accessToken).catch(() => {});
           throw new Error("Authentication session storage is unavailable.");
         }
       }

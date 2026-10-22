@@ -73,6 +73,11 @@ export default function Footer() {
                 Author/Admin Dashboard
               </Link>
             </li>
+            <li>
+              <Link href="/status" className="transition-colors hover:text-primary">
+                System Status
+              </Link>
+            </li>
           </ul>
         </div>
 

@@ -55,10 +55,12 @@ export async function refreshBackendTokens(refreshToken: string): Promise<Backen
   return readBackendTokens(response);
 }
 
-export async function revokeBackendTokens(refreshToken: string): Promise<void> {
+export async function revokeBackendTokens(refreshToken: string, accessToken?: string): Promise<void> {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const response = await fetch(backendUrl("/api/v1/auth/logout"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ refreshToken }),
     cache: "no-store",
     signal: AbortSignal.timeout(8_000),

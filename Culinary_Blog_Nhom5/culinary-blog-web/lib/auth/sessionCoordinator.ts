@@ -22,7 +22,7 @@ export class SessionCoordinator {
   constructor(
     private readonly store: SessionStore,
     private readonly refresh: (token: string) => Promise<BackendTokens>,
-    private readonly revoke: (token: string) => Promise<void>,
+    private readonly revoke: (token: string, accessToken?: string) => Promise<void>,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -73,7 +73,22 @@ export class SessionCoordinator {
   async logout(id: string): Promise<void> {
     await this.store.withLease(id, async (lease) => {
       const stored = await lease.read();
-      if (stored) await this.close(lease, stored);
+      if (!stored) return;
+
+      // Sign-out can happen after the short-lived access token has expired.
+      // Close the Redis session first, then use one refresh rotation only when
+      // the backend requires a fresh bearer token for the protected logout API.
+      await lease.write({ ...stored, state: "closed" });
+      try {
+        await this.revoke(stored.refreshToken, stored.session.accessToken);
+      } catch {
+        try {
+          const rotated = await this.refresh(stored.refreshToken);
+          await this.revoke(rotated.refreshToken, rotated.session.accessToken);
+        } catch {
+          console.warn("Backend logout is temporarily unavailable.");
+        }
+      }
     });
   }
 
@@ -81,7 +96,7 @@ export class SessionCoordinator {
     // Retain a tombstone until expiry so a response carrying an old session ID cannot resurrect it.
     await lease.write({ ...stored, state: "closed" });
     try {
-      await this.revoke(stored.refreshToken);
+      await this.revoke(stored.refreshToken, stored.session.accessToken);
     } catch {
       // The closed session will not issue another access token; a subsequent logout can retry revocation.
       console.warn("Backend session revocation is temporarily unavailable.");

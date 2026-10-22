@@ -22,6 +22,11 @@ public static class ApiSecurityExtensions
                 var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
                     ? Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds)) : 60;
                 context.HttpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+                if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.HttpContext.Response.Headers.CacheControl = "no-store";
+                    context.HttpContext.Response.Headers.Pragma = "no-cache";
+                }
                 await Results.Problem(statusCode: StatusCodes.Status429TooManyRequests,
                     title: "Quá nhiều yêu cầu.", detail: "Vui lòng chờ trước khi thử lại.")
                     .ExecuteAsync(context.HttpContext);

@@ -262,11 +262,16 @@ public sealed class RefreshTokenTests(AuthFixture fixture) : IClassFixture<AuthF
     }
 
     [Fact]
-    public async Task LogoutWithOldTokenRevokesSuccessorWithoutValidAccessToken()
+    public async Task LogoutWithOldTokenRevokesSuccessorWithCurrentAccessToken()
     {
         var login = await NewSession();
         var next = Cookie(await Refresh(login.RefreshToken));
-        var response = await fixture.Client.PostAsJsonAsync("/api/v1/auth/logout", new { refreshToken = login.RefreshToken });
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/logout")
+        {
+            Content = JsonContent.Create(new { refreshToken = login.RefreshToken })
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var response = await fixture.Client.SendAsync(request);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.All(await Tokens(login.User.Id), token => Assert.True(token.IsRevoked));
         Assert.False((await Tokens(login.User.Id)).Single(t => !t.IsUsed).IsUsed);

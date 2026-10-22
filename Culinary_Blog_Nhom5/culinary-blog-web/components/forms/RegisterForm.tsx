@@ -45,10 +45,8 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
-      const response = await registerAccount(data);
-      if (response.status === 201) {
-        router.push("/auth/login?registered=true");
-      }
+      await registerAccount(data);
+      router.push("/auth/login?registered=true");
     } catch (error: unknown) {
       const problem = toApiProblemError(error);
       if (isApiProblemError(problem) && problem.status === 409 && problem.code === "AUTH_EMAIL_EXISTS") {
