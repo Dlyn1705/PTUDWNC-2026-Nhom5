@@ -221,6 +221,8 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | | `DELETE /categories/{id}` | Admin | Xóa mềm danh mục (chặn nếu còn chứa recipes) |
 | **Recipes** | `GET /recipes` | Public | Danh sách recipes (lọc, phân trang, `sortBy`, `sortOrder`) |
 | | `GET /recipes/{slug}` | Public / Owner | Chi tiết recipe theo slug (kèm đầy đủ nested data) |
+| | `GET /recipes/{id}` | Owner/Admin | Chi tiết recipe theo ID để quản lý Draft/Published/Archived |
+| | `GET /recipes/mine` | Author/Admin | Danh sách recipe quản lý, gồm Draft/Published/Archived, có phân trang |
 | | `GET /recipes/search` | Public | Tìm kiếm FTS không dấu (`?q=...`) |
 | | `POST /recipes` | Author/Admin | Tạo recipe mới (trạng thái Draft) |
 | | `PUT /recipes/{id}` | Owner/Admin | Cập nhật thông tin cơ bản của recipe |

@@ -158,14 +158,14 @@ export default function RecipeForm(props: Props) {
         <input {...field(name)} type="number" min={name === "servings" ? 1 : 0} max={2147483647} step={1} placeholder={name === "servings" ? "4" : name === "prepTime" ? "15" : "30"} className={inputClass} />{fieldError(name)}
       </div>)}</div>
     </fieldset>
-    {mode === "create" && <fieldset disabled={locked || props.disabled} aria-label="Thông tin dinh dưỡng" className="min-w-0 rounded-2xl bg-white p-6 shadow-sm">
+    <fieldset disabled={locked || props.disabled} aria-label="Thông tin dinh dưỡng" className="min-w-0 rounded-2xl bg-white p-6 shadow-sm">
       <h2 className="text-xl font-semibold">Thông tin dinh dưỡng</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {nutritionFields.map(name => <div key={name}><label htmlFor={inputId(name)} className="block text-sm font-medium">{labels[name]}</label>
           <div className="relative"><input {...field(name)} type="number" min={0} max={999999.99} step="0.01" className={`${inputClass} pr-14`} />
             <span aria-hidden="true" className="absolute right-4 top-1/2 text-sm text-gray-500">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
           </div>{fieldError(name)}</div>)}
       </div>
-    </fieldset>}
+    </fieldset>
     {props.children}
     <div className="flex flex-wrap justify-between gap-3">
       {props.actions && <fieldset disabled={locked} aria-label="Thao tác công thức" className="contents">{props.actions}</fieldset>}

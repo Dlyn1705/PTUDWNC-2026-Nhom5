@@ -15,7 +15,9 @@ test.beforeEach(() => {
   requests.length = 0;
   axiosClient.defaults.adapter = async (config) => {
     requests.push({ method: config.method, url: config.url, data: config.data, params: config.params });
-    const body = config.url?.endsWith("/publish") || config.url?.endsWith("/unpublish") || config.url?.endsWith("/archive") || config.url?.endsWith("/unarchive")
+    const body = config.method === "get" && config.url?.endsWith("/r1")
+      ? { data: { id: "r1", title: "Pho", slug: "pho", status: 0 } }
+      : config.url?.endsWith("/publish") || config.url?.endsWith("/unpublish") || config.url?.endsWith("/archive") || config.url?.endsWith("/unarchive")
       ? { data: { id: "r1", status: 1, publishedAt: null } }
       : config.url?.endsWith("/nutrition") || config.method === "put" || config.method === "post"
         ? { data: { id: "r1", slug: "pho", rowVersion: "v2", message: "ok" } }
@@ -50,5 +52,15 @@ test("editor and lifecycle APIs use documented methods and paths", async () => {
   ]);
   assert.equal(requests.some((request) => request.url?.includes("restore")), false);
   assert.equal(recipeApi.restore, recipeLifecycleApi.restore);
+});
+
+test("management reads unwrap the standard data envelope", async () => {
+  const managed = await recipeEditorApi.getMine({ page: 1, pageSize: 12 });
+  const detail = await recipeEditorApi.getById("r1");
+  assert.equal(managed.data.length, 1);
+  assert.equal(detail.id, "r1");
+  assert.deepEqual(requests.map(request => [request.method, request.url]), [
+    ["get", "/api/v1/recipes/mine"], ["get", "/api/v1/recipes/r1"],
+  ]);
 });
 

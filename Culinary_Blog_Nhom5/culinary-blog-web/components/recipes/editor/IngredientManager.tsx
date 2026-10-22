@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "reac
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ingredientApi, type IngredientDto } from "@/lib/api/ingredientApi";
+import { toApiProblemError } from "@/lib/api/problemDetails";
 import { emptyIngredient, ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
 import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
 
@@ -95,11 +96,19 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
     try { await action(); if (mounted.current) await onMutation?.(); }
     catch (cause) {
       if (!mounted.current) return;
-      const response = (cause as { response?: { status?: number; data?: { detail?: string } } }).response;
-      if (response?.status === 409) {
+      const problem = toApiProblemError(cause);
+      if (problem.status === 409) {
         setConflict(true);
         setError("Công thức đã thay đổi ở nơi khác. Nội dung đang nhập vẫn được giữ; hãy sao chép nếu cần rồi tải bản mới.");
-      } else setError(response?.data?.detail ?? "Không thể hoàn tất thao tác. Hãy tải lại để kiểm tra trạng thái trên máy chủ.");
+      } else if (problem.status === 401) {
+        setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      } else if (problem.status === 403) {
+        setError("Bạn không có quyền quản lý nguyên liệu này.");
+      } else if (problem.status === 422 || problem.status === 400) {
+        setError("Dữ liệu nguyên liệu chưa hợp lệ. Hãy kiểm tra các ô được đánh dấu.");
+      } else {
+        setError("Không thể hoàn tất thao tác. Hãy tải lại để kiểm tra trạng thái trên máy chủ.");
+      }
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
 

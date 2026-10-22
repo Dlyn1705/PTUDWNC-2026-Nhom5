@@ -5,13 +5,20 @@ import type {
   ManagedRecipesPage,
   RecipeDetailDto,
   RecipeMutationResponse,
-  RecipeNutritionDto,
   RecipeWritePayload,
 } from "../../types/recipe.types";
 
 const recipesPath = "/api/v1/recipes";
 
-export type RecipeNutritionPayload = Pick<RecipeNutritionDto, "calories" | "protein" | "carbohydrates" | "fat" | "fiber" | "sodium">;
+export type RecipeNutritionPayload = {
+  calories: number | null;
+  protein: number | null;
+  carbohydrates: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  rowVersion?: string;
+};
 
 export async function create(payload: CreateRecipeRequest): Promise<RecipeMutationResponse> {
   const response = await axiosClient.post<ApiResponse<RecipeMutationResponse>>(recipesPath, payload);
@@ -38,23 +45,22 @@ export async function remove(id: string): Promise<void> {
   await axiosClient.delete(`${recipesPath}/${encodeURIComponent(id)}`);
 }
 
-/**
- * @deprecated Temporary owner/dashboard adapter. The endpoint is private and
- * must be removed when the documented owner-list contract replaces it.
- */
+/** Owner/Admin dashboard list. The API returns the standard data/meta envelope. */
 export async function getMine(params: { page?: number; pageSize?: number; status?: number; sortBy?: string } = {}): Promise<ManagedRecipesPage> {
-  const response = await axiosClient.get<ManagedRecipesPage>(`${recipesPath}/mine`, {
-    params: { page: Math.max(1, params.page ?? 1), pageSize: Math.min(50, Math.max(1, params.pageSize ?? 50)), ...params },
+  const response = await axiosClient.get<ManagedRecipesPage | ApiResponse<ManagedRecipesPage>>(`${recipesPath}/mine`, {
+    params: { page: Math.max(1, params.page ?? 1), pageSize: Math.min(50, Math.max(1, params.pageSize ?? 12)), ...params },
   });
-  return response.data;
+  const value = response.data;
+  return "meta" in value ? value : value.data;
 }
 
 /** Load an editable recipe directly by its ID. The backend authorizes owner/admin access. */
 export async function getById(id: string): Promise<RecipeDetailDto> {
-  const response = await axiosClient.get<RecipeDetailDto>(
+  const response = await axiosClient.get<RecipeDetailDto | ApiResponse<RecipeDetailDto>>(
     `${recipesPath}/${encodeURIComponent(id)}`,
   );
-  return response.data;
+  const value = response.data;
+  return "id" in value ? value : value.data;
 }
 
 export const recipeEditorApi = { create, update, updateNutrition, delete: remove, getMine, getById };

@@ -13,6 +13,7 @@ using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
+using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipeNutrition;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage;
 using CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipe;
@@ -196,13 +197,13 @@ public static class RecipeEndpoints
             var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
-            return Results.Ok(detail);
+            return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(detail));
         })
         .WithName("GetRecipeById")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y chi tiáº¿t cÃ´ng thá»©c theo ID; Owner/Admin xem Ä‘Æ°á»£c Draft vÃ  Archived")
-        .Produces<RecipeDetailDto>(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeDetailDto>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/mine", async (
@@ -246,7 +247,7 @@ public static class RecipeEndpoints
             }).ToArray();
             var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)ps);
 
-            return Results.Ok(new
+            return Results.Ok(ApiResponse<object>.Ok(new
             {
                 data,
                 meta = new
@@ -258,14 +259,14 @@ public static class RecipeEndpoints
                     hasNextPage = p < totalPages,
                     hasPreviousPage = p > 1
                 }
-            });
+            }));
         })
         .WithName("GetManagedRecipes")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y danh sÃ¡ch cÃ´ng thá»©c cá»§a tÃ¡c giáº£ hoáº·c toÃ n bá»™ cÃ´ng thá»©c cho Admin")
         .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<object>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
@@ -500,6 +501,31 @@ public static class RecipeEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
+        group.MapPut("/{id:guid}/nutrition", async (
+            Guid id,
+            UpdateRecipeNutritionRequest request,
+            HttpContext httpContext,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            var result = await sender.Send(new UpdateRecipeNutritionCommand(
+                id, request.Calories, request.Protein, request.Carbohydrates,
+                request.Fat, request.Fiber, request.Sodium, request.RowVersion,
+                httpContext.Request.Headers.IfMatch.ToString()), ct);
+            httpContext.Response.Headers.ETag = $"\"{result.RowVersion}\"";
+            httpContext.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(ApiResponse<UpdatedRecipe>.Ok(result));
+        })
+        .RequireAuthorization("AuthorPolicy")
+        .WithName("UpdateRecipeNutrition")
+        .WithSummary("Cập nhật riêng sáu chỉ số dinh dưỡng của công thức")
+        .Produces<ApiResponse<UpdatedRecipe>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
         return app;
     }
 
@@ -598,3 +624,12 @@ public sealed record UpdateRecipeRequest(
     Guid CategoryId,
     string? RowVersion = null
 );
+
+public sealed record UpdateRecipeNutritionRequest(
+    decimal? Calories = null,
+    decimal? Protein = null,
+    decimal? Carbohydrates = null,
+    decimal? Fat = null,
+    decimal? Fiber = null,
+    decimal? Sodium = null,
+    string? RowVersion = null);

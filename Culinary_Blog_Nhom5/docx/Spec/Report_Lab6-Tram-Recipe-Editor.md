@@ -60,9 +60,9 @@ Thực hiện các mục thuộc phần Trâm. Component dùng chung của Tuấ
 | Mục | Trạng thái | Thực hiện |
 |---|---|---|
 | Contract lỗi và helper chung | Đã tích hợp | Giữ nguyên ApiProblemError từ interceptor bằng isApiProblemError; chuẩn hóa lỗi chưa có contract bằng toApiProblemError. Chỉ dùng getApiErrorMessage cho thông báo validation do ứng dụng tạo, không đưa detail nội bộ lên UI. |
-| API tạo/sửa/xóa và query editor | Đã chuyển | Hai trang tạo/sửa cùng hooks/queries/useRecipes.ts import trực tiếp recipeEditorApi. Không còn facade recipeApi trong app/components/hooks. |
+| API tạo/sửa/xóa/nutrition và query editor | Đã chuyển | Hai trang tạo/sửa cùng hooks/queries/useRecipes.ts import trực tiếp recipeEditorApi; trang sửa gọi thêm endpoint nutrition khi 6 chỉ số thay đổi. Không còn facade recipeApi trong app/components/hooks. |
 | API trạng thái | Đã tích hợp từ main | useRecipeMutations dùng recipeLifecycleApi cho publish/archive/unarchive; khôi phục dùng unarchive, không gọi endpoint restore không tồn tại. |
-| Loại bỏ cast error.response | Đã rà soát | Không còn đọc error.response trong app/components hoặc facade recipeApi; chỉ lớp nền HTTP chịu trách nhiệm chuẩn hóa. |
+| Loại bỏ cast error.response | Đã rà soát | Các component dùng toApiProblemError; chỉ lớp nền HTTP chịu trách nhiệm chuẩn hóa lỗi và component không đọc trực tiếp response của Axios. |
 
 Phần phụ thuộc API của Trâm đã được nối với nền tảng vừa bàn giao. Facade recipeApi vẫn tồn tại trong lib/api để tương thích và được test riêng; không còn được editor/dashboard sử dụng. Công việc này không thay đổi interceptor, refresh token hay store do thành viên khác bàn giao.
 
