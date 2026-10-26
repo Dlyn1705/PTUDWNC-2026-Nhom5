@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   difficultyLabel,
   type RecipeCardDto,
@@ -22,10 +23,10 @@ export function DifficultyBadge({
   difficulty: DifficultyValue;
 }) {
   const styles: Record<DifficultyValue, string> = {
-    1: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800",
-    2: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800",
-    3: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-800",
-    4: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-400 dark:border-purple-800",
+    1: "bg-herb/15 text-herb border-herb/30",
+    2: "bg-secondary text-secondary-foreground border-border",
+    3: "bg-destructive/10 text-destructive border-destructive/30",
+    4: "bg-primary/10 text-primary border-primary/30",
   };
 
   return (
@@ -58,7 +59,8 @@ export function RecipeCard({
   const isList = viewMode === "list";
 
   return (
-    <article
+    <Card
+      role="article"
       className={cn(
         "group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5",
         isList && "flex flex-col sm:flex-row items-stretch"
@@ -101,7 +103,7 @@ export function RecipeCard({
         </div>
 
         {/* Card Body */}
-        <div
+        <CardContent
           className={cn(
             "flex flex-1 flex-col justify-between p-5 sm:p-6",
             isList && "p-6"
@@ -162,9 +164,9 @@ export function RecipeCard({
               </span>
             </div>
           </div>
-        </div>
+        </CardContent>
       </Link>
-    </article>
+    </Card>
   );
 }
 

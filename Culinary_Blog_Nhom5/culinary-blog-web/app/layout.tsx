@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { RecipeNavigationGuard } from "@/hooks/useUnsavedRecipe";
+import { Toaster } from "@/components/ui/sonner";
+import { geist, playfair } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,12 +24,13 @@ export default async function RootLayout({
 }>) {
   await connection();
   return (
-    <html lang="vi" className="h-full antialiased">
+    <html lang="vi" className={`${geist.variable} ${playfair.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <RecipeNavigationGuard />
         <QueryProvider>
           <AuthSessionProvider>{children}</AuthSessionProvider>
         </QueryProvider>
+        <Toaster position="bottom-right" closeButton richColors />
       </body>
     </html>
   );
