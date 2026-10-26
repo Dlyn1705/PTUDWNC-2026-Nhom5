@@ -1,7 +1,17 @@
-import Link from "next/link";
-import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
+import { RecipeCard } from "@/components/recipes/RecipeCard";
+import type { DifficultyValue, SearchRecipeSummaryDto } from "@/types/recipe.types";
+
+const difficulty: Record<string, DifficultyValue> = { Easy: 1, Medium: 2, Hard: 3, Expert: 4 };
 
 export function SearchResults({ recipes }: { recipes: SearchRecipeSummaryDto[] }) {
-  if (recipes.length === 0) return <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Chưa tìm thấy công thức phù hợp.</p>;
-  return <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{recipes.map((recipe) => <Link key={recipe.id} href={`/recipes/${recipe.slug}`} className="rounded-2xl border border-border bg-card p-5 shadow-soft"><p className="text-xs font-semibold text-primary">{recipe.category.name}</p><h3 className="mt-2 font-display text-xl font-bold">{recipe.title}</h3><p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{recipe.description}</p></Link>)}</div>;
+  return <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{recipes.map(recipe =>
+    <RecipeCard key={recipe.id} recipe={{
+      id: recipe.id, title: recipe.title, slug: recipe.slug, description: recipe.description,
+      createdAt: recipe.createdAt, prepTimeMinutes: recipe.prepTime, cookTimeMinutes: recipe.cookTime,
+      servings: recipe.servings, difficulty: difficulty[recipe.difficulty] ?? 1, status: 1,
+      categoryId: recipe.category.id, categoryName: recipe.category.name, categorySlug: recipe.category.slug,
+      author: recipe.author,
+      images: recipe.primaryImageUrl ? [{ id: recipe.id, url: recipe.primaryImageUrl, isPrimary: true, alt: recipe.title }] : [],
+    }} />
+  )}</div>;
 }

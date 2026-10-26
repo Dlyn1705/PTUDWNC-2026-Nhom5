@@ -1,4 +1,5 @@
 import React from "react";
+import { DiscoverySidebar } from "@/components/search/DiscoverySidebar";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -35,7 +36,7 @@ export const metadata = {
 export default async function HomePage() {
   const [categories, recipeResult] = await Promise.all([
     publicApi.getCategories(),
-    publicApi.getRecipes({ page: 1, pageSize: 7 }),
+    publicApi.getRecipes({ page: 1, pageSize: 7, sortBy: "createdAt", sortOrder: "desc" }),
   ]);
   const recipes = recipeResult.data;
 
@@ -48,7 +49,9 @@ export default async function HomePage() {
 
   return (
     <SiteShell className="selection:bg-primary/20 selection:text-primary">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-20">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <DiscoverySidebar categories={categories} />
+        <div className="min-w-0 space-y-20">
         {/* Featured recipe banner */}
         <section aria-labelledby="featured-recipe-title" className="relative isolate overflow-hidden rounded-3xl bg-[#211b1c] text-white shadow-soft">
             <Image
@@ -204,6 +207,7 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+        </div>
       </div>
     </SiteShell>
   );
