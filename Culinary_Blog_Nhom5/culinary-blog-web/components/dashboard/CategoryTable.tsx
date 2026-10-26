@@ -3,8 +3,16 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Trash2, ExternalLink, ChefHat } from "lucide-react";
+import { Pencil, Trash2, ExternalLink, ChefHat, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -124,47 +132,37 @@ export function CategoryTable({
 
                 {/* Action Buttons */}
                 <TableCell className="py-3 text-right pr-6">
-                  <div className="inline-flex items-center gap-1.5">
-                    <Button
-                      asChild
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                      title="View public category page"
-                    >
-                      <Link href={`/categories/${cat.slug}`} target="_blank">
-                        <ExternalLink className="size-3.5" />
-                      </Link>
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                      onClick={() => onEdit(cat)}
-                      title="Edit category"
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={`size-8 rounded-lg transition-colors ${
-                        hasRecipes
-                          ? "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
-                          : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      }`}
-                      onClick={() => onDelete(cat)}
-                      title={
-                        hasRecipes
-                          ? "Cannot delete category containing recipes"
-                          : "Delete category"
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                        aria-label={`Thao tác danh mục ${cat.name}`}
+                      >
+                        <MoreHorizontal className="size-4" aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel>{cat.name}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={`/categories/${cat.slug}`} target="_blank">
+                          <ExternalLink aria-hidden="true" />
+                          Xem trang công khai
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onEdit(cat)}>
+                        <Pencil aria-hidden="true" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onDelete(cat)}>
+                        <Trash2 aria-hidden="true" />
+                        {hasRecipes ? "Xem lý do không thể xóa" : "Xóa danh mục"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );

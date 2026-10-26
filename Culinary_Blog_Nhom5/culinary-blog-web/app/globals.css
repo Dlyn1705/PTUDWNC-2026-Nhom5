@@ -14,6 +14,8 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -47,8 +49,11 @@
   --color-published-foreground: var(--published-foreground);
   --color-archived: var(--archived);
   --color-archived-foreground: var(--archived-foreground);
-  --font-serif: Georgia, "Times New Roman", serif;
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --spacing-page: var(--spacing-page-x);
+  --spacing-section: var(--spacing-section-y);
+  --container-content: 80rem;
   --shadow-soft: 0 1px 3px rgba(11, 13, 19, 0.05), 0 12px 28px -12px rgba(102, 26, 6, 0.12);
   --shadow-lift: 0 4px 12px rgba(11, 13, 19, 0.08), 0 24px 48px -16px rgba(102, 26, 6, 0.2);
 }
@@ -59,6 +64,8 @@
   --surface: #f2ecec;
   --card: #ffffff;
   --card-foreground: #0b0d13;
+  --popover: #ffffff;
+  --popover-foreground: #0b0d13;
   --primary: #661a06;
   --primary-foreground: #ffffff;
   --ember: #82220b;
@@ -91,12 +98,14 @@
   --published-foreground: #ffffff;
   --archived: #eedcd6;
   --archived-foreground: #661a06;
-  --ink: #211b1c;
-  --orange: #661a06;
-  --orange-dark: #471204;
-  --line: #dfd5d6;
+  --ink: var(--maroon);
+  --orange: var(--primary);
+  --orange-dark: color-mix(in srgb, var(--primary) 82%, black);
+  --line: var(--border);
   --font-body: var(--font-sans);
   --font-display: var(--font-serif);
+  --spacing-page-x: clamp(1rem, 3vw, 2rem);
+  --spacing-section-y: clamp(2rem, 5vw, 5rem);
 }
 
 .dark {
@@ -105,6 +114,8 @@
   --surface: #161926;
   --card: #161926;
   --card-foreground: #f4f0f1;
+  --popover: #161926;
+  --popover-foreground: #f4f0f1;
   --primary: #942b10;
   --primary-foreground: #ffffff;
   --secondary: #211b1c;

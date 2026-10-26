@@ -24,7 +24,7 @@ export const categoryFormSchema = z.object({
   description: z.string().trim(),
   imageUrl: optionalHttpUrl,
   orderIndex: z
-    .number({ invalid_type_error: "Thứ tự hiển thị phải là một số." })
+    .number({ error: "Thứ tự hiển thị phải là một số." })
     .int("Thứ tự hiển thị phải là số nguyên.")
     .min(0, "Thứ tự hiển thị phải lớn hơn hoặc bằng 0."),
 });

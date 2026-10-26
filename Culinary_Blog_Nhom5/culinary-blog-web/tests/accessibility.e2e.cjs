@@ -30,14 +30,14 @@ async function main() {
   write("api.ts", `export const categoryApi={create:async()=>{await new Promise(r=>setTimeout(r,100));throw new Error('Không thể lưu danh mục. Vui lòng thử lại.')},update:async()=>{},delete:async()=>{await new Promise(r=>setTimeout(r,100));if((window as any).deleteFails)throw new Error('Không thể xóa danh mục. Vui lòng thử lại.')}};`);
   write("entry.tsx", `import React,{useState} from 'react';import {createRoot} from 'react-dom/client';
     import {Auth} from './auth';import {navigate} from './navigation';
-    import SiteShell from '@/components/layout/SiteShell';import {CategoryModal} from '@/components/dashboard/CategoryModal';
+    import SiteShell from '@/components/layout/SiteShell';import {CategoryModal} from '@/components/dashboard/CategoryModal';import {SortDropdown} from '@/components/search/SortDropdown';
     import {DeleteCategoryModal} from '@/components/dashboard/DeleteCategoryModal';import {DeleteRecipeModal} from '@/components/recipes/editor/DeleteRecipeModal';
     import {ErrorState} from '@/components/common/ErrorState';
     import {Dialog,DialogContent,DialogTitle,DialogDescription,DialogTrigger} from '@/components/ui/dialog';
     function App(){const [form,setForm]=useState(false),[remove,setRemove]=useState(false),[row,setRow]=useState(true),[recipe,setRecipe]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(false);
       Object.assign(window,{navigate,logoutCalls:(window as any).logoutCalls||0,showError:()=>setError(true),finishBusy:()=>setBusy(false)});
       return <Auth><SiteShell><h1 tabIndex={-1}>Nội dung công thức</h1>
-        <label>Nhập thử<input aria-label="Nhập thử" /></label><button onClick={()=>setForm(true)}>Tạo danh mục thử</button>
+        <label>Nhập thử<input aria-label="Nhập thử" /></label><form aria-label="Bộ lọc sắp xếp thử"><SortDropdown sortBy="title" sortOrder="asc" /></form><button onClick={()=>setForm(true)}>Tạo danh mục thử</button>
         {row&&<button onClick={()=>setRemove(true)}>Xóa hàng thử</button>}
         <button onClick={()=>setRecipe(true)}>Xóa công thức thử</button><button onClick={()=>setError(true)}>Hiện lỗi</button>
         {error&&<ErrorState title="Lỗi tải nội dung thử" correlationId="test-id" onRetry={async()=>{await new Promise(r=>setTimeout(r,150));if((window as any).retryFails)throw new Error("fixture retry");setError(false)}}/>}
@@ -111,6 +111,12 @@ async function main() {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), role + " overflows 320px"); await toggle.click();
     }
     process.stdout.write("PASS account menu arrows/typeahead/tab/logout recovery, topmost Escape, shortcuts and role variants\n");
+
+    const sortBy = page.getByRole("combobox", { name: "Sắp xếp theo" });
+    await sortBy.focus(); await page.keyboard.press("Enter");
+    await page.getByRole("option", { name: "Ngày đăng" }).waitFor();
+    await page.keyboard.press("Escape"); assert.ok(await focused(sortBy));
+    process.stdout.write("PASS Select trigger, option portal and Escape focus recovery\n");
 
     const formButton = page.getByRole("button", { name: "Tạo danh mục thử" }); await formButton.click();
     const dialog = page.getByRole("dialog"); await dialog.waitFor();
