@@ -33,7 +33,7 @@ async function main() {
     esModuleInterop: true, module: "esnext", moduleResolution: "bundler", jsx: "react-jsx",
     skipLibCheck: true, resolveJsonModule: true, paths: { "@/*": [root.replaceAll("\\", "/") + "/*"] },
   }, include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", path.join(root, "types/**/*.d.ts")], exclude: ["node_modules"] }));
-  write("next.config.mjs", `export default {experimental:{externalDir:true},webpack(config){config.resolve.alias['@']=${JSON.stringify(root)};return config;}};`);
+  write("next.config.mjs", `export default {images:{unoptimized:true},experimental:{externalDir:true},webpack(config){config.resolve.alias['@']=${JSON.stringify(root)};return config;}};`);
   copy("postcss.config.mjs"); copy("app/globals.css"); copy("types/next-auth.d.ts");
   for (const file of ["error", "global-error", "not-found", "loading"]) copy(`app/${file}.tsx`);
   for (const segment of ["search", "recipes", "dashboard"]) {
@@ -66,6 +66,7 @@ async function main() {
     export default function Page(){return <main><ErrorState correlationId="retry-id" onRetry={async()=>{await new Promise(r=>setTimeout(r,100));throw new Error('SECRET retry')}} /></main>}`);
 
   let mode = "failure";
+  const searchRequests = [];
   const backend = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
     if (req.url.startsWith("/api/v1/categories")) return res.end(JSON.stringify({ success: true, data: [] }));
@@ -74,7 +75,14 @@ async function main() {
       res.setHeader("X-Correlation-ID", "search-request-id");
       return res.end(JSON.stringify({ detail: "SECRET backend exception", correlationId: "body-id" }));
     }
+    searchRequests.push(req.url);
     const page = Number(new URL(req.url, "http://fixture").searchParams.get("page") || 1);
+    if (mode === "cards") return res.end(JSON.stringify({ data: [{
+      id: "11111111-1111-1111-1111-111111111111", title: "Phở bò kiểm thử", slug: "pho-bo-kiem-thu",
+      description: "Món ăn thử", prepTime: 5, cookTime: 20, servings: 2, difficulty: "Easy", createdAt: "2026-10-25T00:00:00Z",
+      category: { id: "22222222-2222-2222-2222-222222222222", name: "Món nước", slug: "mon-nuoc" },
+      author: { id: "owner", displayName: "Tác giả" }, relevanceScore: 0.8,
+    }], meta: { page: 1, pageSize: 12, totalCount: 1, totalPages: 1 } }));
     // The public search endpoint returns PagedResult directly, without an ApiResponse wrapper.
     res.end(JSON.stringify({ data: [], meta: { page, pageSize: 12, totalCount: 30, totalPages: 3 } }));
   });
@@ -136,6 +144,31 @@ async function main() {
     for (const part of ["q=pho", "sortBy=title", "sortOrder=asc", "categoryId=category-1", "page=2"]) assert.ok(href.includes(part), href);
     await page.getByRole("link", { name: "Trang 2", exact: true }).click();
     await page.waitForURL(/page=2/); await page.goBack(); await page.waitForURL(url => !url.searchParams.has("page"));
+    await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc");
+    const searchInput = page.getByRole("textbox", { name: "Từ khóa tìm kiếm" });
+    searchRequests.length = 0;
+    await searchInput.fill("ban"); await searchInput.fill("banh"); await searchInput.fill("banh xeo");
+    await page.waitForURL(url => url.searchParams.get("q") === "banh xeo");
+    await page.getByRole("heading", { name: "Chưa tìm thấy công thức phù hợp" }).waitFor();
+    assert.equal(searchRequests.length, 1, "rapid typing must debounce into one request");
+    assert.equal(new URL(page.url()).searchParams.get("sortBy"), "title");
+    searchRequests.length = 0;
+    await searchInput.fill("bun bo"); await searchInput.press("Enter");
+    await page.waitForURL(url => url.searchParams.get("q") === "bun bo");
+    await delay(600);
+    assert.equal(searchRequests.length, 1, "Enter must cancel the pending debounce");
+    await page.goBack(); await page.waitForURL(url => url.searchParams.get("q") === "banh xeo");
+    assert.equal(await searchInput.inputValue(), "banh xeo");
+    await page.setViewportSize({ width: 320, height: 812 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "search must fit a 320px viewport");
+    await page.screenshot({path:path.join(fixture,"search-mobile.png"),fullPage:true});
+    process.stdout.write("PASS: search debounce, Enter cancellation, filter preservation, history and 320px layout.\n");
+    mode = "cards"; await page.goto(origin + "/search?q=pho");
+    await page.getByRole("heading", { name: "Phở bò kiểm thử" }).waitFor();
+    assert.ok(await page.locator('a[href="/recipes/pho-bo-kiem-thu"]').count());
+    assert.ok(!(await page.textContent("body")).includes("Độ phù hợp"));
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({path:path.join(fixture,"search-results-desktop.png"),fullPage:true});
     mode = "forbidden"; await page.goto(origin + "/search?q=forbidden");
     await page.locator('[role="alert"]:not(#__next-route-announcer__)').waitFor(); assert.equal(await page.getByRole("button", { name: "Thử lại", exact: true }).count(), 0);
     process.stdout.write("PASS: search metadata, safe error text, refresh, permission state, pagination and history.\n");

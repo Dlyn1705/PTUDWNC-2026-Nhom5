@@ -97,9 +97,13 @@ export async function serverClient<T>(
     }
   }
 
+  const requestHeaders = new Headers(init.headers);
+  if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", "application/json");
+  requestHeaders.set("X-Correlation-ID",
+    validCorrelationId(requestHeaders.get("X-Correlation-ID") ?? undefined) ?? crypto.randomUUID());
   const response = await fetch(url, {
     ...init,
-    headers: { Accept: "application/json", ...init.headers },
+    headers: requestHeaders,
     next:
       revalidate === undefined && !tags
         ? undefined
@@ -145,7 +149,7 @@ export const publicApi = {
   async getCategories(): Promise<CategoryDto[]> {
     const response = await serverClient<ApiResponse<CategoryDto[]>>(
       "/api/v1/categories",
-      { revalidate: 300, tags: ["categories"] },
+      { cache: "no-store" },
     );
     return response.data;
   },
@@ -160,8 +164,7 @@ export const publicApi = {
         data: Omit<CategoryDetailResult, "meta">;
         meta: CategoryDetailResult["meta"];
       }>(`/api/v1/categories/${encodeURIComponent(slug)}`, {
-        revalidate: 300,
-        tags: ["categories", `category:${slug}`],
+        cache: "no-store",
         searchParams: { page, pageSize },
       });
       return { ...response.data, meta: response.meta };
@@ -175,8 +178,7 @@ export const publicApi = {
     params: Record<string, string | number | undefined> = {},
   ): Promise<PagedResult<RecipeSummaryDto>> {
     const result = await serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
-      revalidate: 120,
-      tags: ["recipes"],
+      cache: "no-store",
       searchParams: params,
     });
     // Defense in depth: a public page/sitemap must never expose a non-Published
@@ -204,7 +206,7 @@ export const publicApi = {
   ): Promise<PagedResult<SearchRecipeSummaryDto>> {
     return serverClient<PagedResult<SearchRecipeSummaryDto>>(
       "/api/v1/recipes/search",
-      { revalidate: 60, tags: ["recipe-search"], searchParams: { ...params } },
+      { cache: "no-store", searchParams: { ...params } },
     ).then((result) => result);
   },
 };

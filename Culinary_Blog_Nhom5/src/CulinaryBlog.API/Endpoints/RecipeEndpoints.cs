@@ -278,16 +278,16 @@ public static class RecipeEndpoints
             CancellationToken ct) =>
         {
             var response = await sender.Send(query, ct);
-            // Search includes URLs changed asynchronously by image processing. Until a shared tag
-            // invalidation pipeline exists, do not cache these metadata responses in intermediaries.
+            // Application cache is invalidated by recipe/image/category writes.
+            // Intermediaries must not retain a second, independently stale copy.
             context.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(response);
+            return Results.Ok(response.Data);
         })
         .WithName("SearchRecipes")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("TÃ¬m kiáº¿m toÃ n vÄƒn báº£n cÃ´ng thá»©c náº¥u Äƒn (FR-SRCH-001)")
-        .Produces<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>(StatusCodes.Status200OK)
+        .Produces<PagedResult<SearchRecipeSummaryDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         // FR-RCP-006: LÆ°u trá»¯ cÃ´ng thá»©c

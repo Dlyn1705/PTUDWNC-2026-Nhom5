@@ -5,6 +5,11 @@ namespace CulinaryBlog.Application.Contracts;
 
 public interface IPublicContentCache
 {
+    Task<PagedResult<SearchRecipeSummaryDto>> GetSearchAsync(
+        string queryKey,
+        Func<CancellationToken, Task<PagedResult<SearchRecipeSummaryDto>>> factory,
+        CancellationToken cancellationToken = default) => factory(cancellationToken);
+
     Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(
         Func<CancellationToken, Task<IReadOnlyList<CategoryDto>>> factory,
         CancellationToken cancellationToken = default);

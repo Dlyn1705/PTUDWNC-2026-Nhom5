@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { SearchForm } from "@/components/search/SearchForm";
+import { SearchInput } from "@/components/search/SearchInput";
+import { SearchResults } from "@/components/search/SearchResults";
+import { FilterSidebar } from "@/components/search/FilterSidebar";
+import { SortDropdown } from "@/components/search/SortDropdown";
 import Link from "next/link";
-import { Search, SlidersHorizontal, Clock3, Sparkles } from "lucide-react";
+import { Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { publicApi } from "@/lib/api/serverClient";
@@ -32,8 +36,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const difficulty = ["1", "2", "3", "4"].includes(rawDifficulty) ? rawDifficulty : "";
   const minCookTime = positiveOrZeroInt(first(params.minCookTime));
   const maxCookTime = positiveOrZeroInt(first(params.maxCookTime));
-  const minServings = positiveOrZeroInt(first(params.minServings));
-  const maxServings = positiveOrZeroInt(first(params.maxServings));
+  const minServings = positiveOrZeroInt(first(params.minServings) || first(params.servings));
+  const maxServings = positiveOrZeroInt(first(params.maxServings) || first(params.servings));
 
   // Canonical parameters take precedence. Old `sort` links remain readable during migration.
   const legacySort = first(params.sort);
@@ -43,10 +47,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     relevance: "relevance", createdat: "createdAt", cooktime: "cookTime", title: "title",
   };
   const rawSortBy = first(params.sortBy).toLowerCase();
-  const sortBy = legacyMapping[rawSortBy] || legacyMapping[legacyField] || "relevance";
+  const canonicalSort = Boolean(first(params.sortBy) || first(params.sortOrder));
+  const sortBy = legacyMapping[rawSortBy] || (!canonicalSort ? legacyMapping[legacyField] : undefined) || "relevance";
   const sortOrder = first(params.sortOrder) === "asc" || first(params.sortOrder) === "desc"
     ? first(params.sortOrder) as "asc" | "desc"
-    : legacySort ? (legacyDescending ? "desc" : "asc") : "desc";
+    : !canonicalSort && legacySort ? (legacyDescending ? "desc" : "asc") : "desc";
 
   let recipes: SearchRecipeSummaryDto[] = [];
   let totalCount = 0;
@@ -55,13 +60,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   let searchCorrelationId: string | undefined;
   let canRetry = true;
   let categories: CategoryDto[] = [];
+  let categoryError = false;
   let page = requestedPage;
 
   try {
     categories = await publicApi.getCategories();
   } catch (error) {
     unstable_rethrow(error);
-    // Category filtering remains optional when the category service is unavailable.
+    categoryError = true;
   }
 
   if (q.length >= 2) {
@@ -120,30 +126,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </p>
       </div>
 
-      <form action="/search" method="get" className="space-y-4 rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
+      <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside aria-label="Bộ lọc tìm kiếm">
+      <SearchForm key={JSON.stringify(params)} className="space-y-4 rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
         <input type="hidden" name="page" value="1" />
         <input type="hidden" name="pageSize" value={pageSize} />
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input name="q" defaultValue={q} minLength={2} maxLength={100} required placeholder="Ví dụ: phở bò, banh xeo..." className="h-12 rounded-2xl pl-11" aria-label="Từ khóa tìm kiếm" />
-          </div>
-          <Button type="submit" className="h-12 rounded-2xl px-6"><Search className="mr-2 size-4" />Tìm kiếm</Button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Danh mục
-            <select name="categoryId" defaultValue={categoryId} className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground">
-              <option value="">Tất cả danh mục</option>
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Độ khó
-            <select name="difficulty" defaultValue={difficulty} className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground">
-              <option value="">Mọi độ khó</option><option value="1">Dễ</option><option value="2">Trung bình</option><option value="3">Khó</option><option value="4">Chuyên gia</option>
-            </select>
-          </label>
+        <SearchInput defaultValue={q} />
+        {categoryError && <p role="alert" className="text-sm text-destructive">Không tải được danh mục. <Link href={pageUrl(page)} className="underline">Thử lại</Link></p>}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <FilterSidebar categories={categories} categoryId={categoryId} difficulty={difficulty} />
           <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
             Thời gian nấu tối thiểu (phút)
             <Input type="number" name="minCookTime" min="0" defaultValue={minCookTime} className="h-10 rounded-xl" />
@@ -160,25 +151,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             Khẩu phần tối đa
             <Input type="number" name="maxServings" min="1" defaultValue={maxServings} className="h-10 rounded-xl" />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Sắp xếp theo
-            <select name="sortBy" defaultValue={sortBy} className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground">
-              <option value="relevance">Liên quan nhất</option><option value="createdAt">Ngày đăng</option><option value="cookTime">Thời gian nấu</option><option value="title">Tên món</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-            Thứ tự
-            <select name="sortOrder" defaultValue={sortOrder} className="h-10 rounded-xl border border-input bg-background px-3 text-sm text-foreground" disabled={sortBy === "relevance"}>
-              <option value="desc">Giảm dần</option><option value="asc">Tăng dần</option>
-            </select>
-          </label>
+          <SortDropdown sortBy={sortBy} sortOrder={sortOrder} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" variant="outline" className="h-10 rounded-xl"><SlidersHorizontal className="mr-2 size-4" />Áp dụng tìm kiếm và bộ lọc</Button>
           <Link href={resetHref} className="text-sm font-medium text-primary underline-offset-4 hover:underline">Đặt lại bộ lọc</Link>
         </div>
-      </form>
+      </SearchForm>
 
+      </aside>
+      <div>
       {q.length < 2 ? (
         <EmptyState headingLevel="h2" title="Bắt đầu với một món ăn"
           description="Nhập ít nhất 2 ký tự để xem các công thức phù hợp." icon={<Search className="size-7" />} />
@@ -217,24 +199,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
               }
             />
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {recipes.map((recipe) => (
-                <article key={recipe.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
-                  <Link href={`/recipes/${recipe.slug}`} className="block">
-                    <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                      {recipe.primaryImageUrl ? <Image src={recipe.primaryImageUrl} alt={recipe.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-3xl">🍲</div>}
-                      <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-xs font-semibold text-primary">{recipe.category.name}</span>
-                    </div>
-                    <div className="space-y-3 p-5">
-                      <div className="flex justify-between text-xs text-muted-foreground"><span>{recipe.difficulty}</span><span className="inline-flex items-center gap-1"><Clock3 className="size-3.5" />{recipe.prepTime + recipe.cookTime} phút</span></div>
-                      <h3 className="line-clamp-2 font-display text-xl font-bold group-hover:text-primary">{recipe.title}</h3>
-                      <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-muted-foreground">{recipe.description}</p>
-                      <div className="flex justify-between border-t border-border pt-3 text-xs text-muted-foreground"><span>{recipe.author.displayName}</span><span className="font-semibold text-primary">Độ phù hợp {recipe.relevanceScore.toFixed(2)}</span></div>
-                    </div>
-                  </Link>
-                </article>
-              ))}
-            </div>
+            <SearchResults recipes={recipes} />
           )}
 
           <Pagination
@@ -246,6 +211,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           />
         </section>
       )}
+      </div>
+      </div>
     </div>
   );
 }
