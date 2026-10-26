@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Interfaces;
@@ -15,7 +16,7 @@ using MediatR;
 namespace CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 
 public record SearchRecipesQuery(
-    string Q,
+    string Q = "",
     int Page = 1,
     int PageSize = 12,
     Guid? CategoryId = null,
@@ -26,7 +27,8 @@ public record SearchRecipesQuery(
     int? MaxServings = null,
     string? SortBy = null,
     string? SortOrder = null,
-    string? Sort = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
+    string? Sort = null,
+    int? Servings = null) : IRequest<ApiResponse<PagedResult<SearchRecipeSummaryDto>>>;
 
 
 public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
@@ -35,9 +37,7 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
     {
         RuleFor(x => x.Q)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Từ khóa tìm kiếm không được để trống.")
-            .Must(q => !string.IsNullOrWhiteSpace(q)).WithMessage("Từ khóa tìm kiếm không được để trống.")
-            .Must(q => q.Trim().Length >= 2).WithMessage("Từ khóa tìm kiếm phải có ít nhất 2 ký tự.")
+            .Must(q => string.IsNullOrWhiteSpace(q) || q.Trim().Length >= 2).WithMessage("Từ khóa tìm kiếm phải có ít nhất 2 ký tự.")
             .MaximumLength(100).WithMessage("Từ khóa tìm kiếm tối đa 100 ký tự.");
 
         RuleFor(x => x.Page)
@@ -60,6 +60,12 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
         RuleFor(x => x.MaxCookTime).GreaterThanOrEqualTo(0).When(x => x.MaxCookTime.HasValue);
         RuleFor(x => x.MinServings).GreaterThan(0).When(x => x.MinServings.HasValue);
         RuleFor(x => x.MaxServings).GreaterThan(0).When(x => x.MaxServings.HasValue);
+        RuleFor(x => x.Servings).GreaterThan(0).When(x => x.Servings.HasValue);
+        RuleFor(x => x.Servings)
+            .Must((query, value) => !value.HasValue ||
+                ((!query.MinServings.HasValue || query.MinServings == value) &&
+                 (!query.MaxServings.HasValue || query.MaxServings == value)))
+            .WithMessage("Servings không được mâu thuẫn với khoảng khẩu phần.");
         RuleFor(x => x.MaxCookTime)
             .GreaterThanOrEqualTo(x => x.MinCookTime!.Value)
             .When(x => x.MinCookTime.HasValue && x.MaxCookTime.HasValue)
@@ -87,20 +93,38 @@ public class SearchRecipesQueryValidator : AbstractValidator<SearchRecipesQuery>
 public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, ApiResponse<PagedResult<SearchRecipeSummaryDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublicContentCache _cache;
 
-    public SearchRecipesQueryHandler(IUnitOfWork unitOfWork)
+    public SearchRecipesQueryHandler(IUnitOfWork unitOfWork, IPublicContentCache cache)
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task<ApiResponse<PagedResult<SearchRecipeSummaryDto>>> Handle(SearchRecipesQuery request, CancellationToken cancellationToken)
     {
-        var keyword = request.Q.Trim();
+        var keyword = request.Q?.Trim() ?? string.Empty;
         var normalized = NormalizeKeyword(keyword);
+        if (normalized.Length == 0)
+        {
+            return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(
+                new PagedResult<SearchRecipeSummaryDto>(Array.Empty<SearchRecipeSummaryDto>(), 0, request.Page, request.PageSize));
+        }
         var tsQuery = BuildTsQuery(normalized);
 
         var (sortBy, sortOrder) = ResolveSort(request);
+        request = request with { MinServings = request.MinServings ?? request.Servings, MaxServings = request.MaxServings ?? request.Servings };
+        var key = string.Join(':', normalized, request.Page, request.PageSize, request.CategoryId,
+            request.Difficulty, request.MinCookTime, request.MaxCookTime, request.MinServings,
+            request.MaxServings, sortBy, sortOrder);
+        var result = await _cache.GetSearchAsync(key,
+            ct => LoadAsync(request, tsQuery, sortBy, sortOrder, ct), cancellationToken);
+        return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(result);
+    }
 
+    private async Task<PagedResult<SearchRecipeSummaryDto>> LoadAsync(
+        SearchRecipesQuery request, string tsQuery, string sortBy, string sortOrder, CancellationToken cancellationToken)
+    {
         var (items, totalCount, scores) = await _unitOfWork.Recipes.SearchRecipesAsync(
             tsQuery,
             request.Page,
@@ -145,7 +169,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         }).ToList();
 
         var paged = new PagedResult<SearchRecipeSummaryDto>(mapped, totalCount, request.Page, request.PageSize);
-        return ApiResponse<PagedResult<SearchRecipeSummaryDto>>.Ok(paged, $"Tìm thấy {totalCount} kết quả cho '{keyword}'.");
+        return paged;
     }
 
     private static (string SortBy, string SortOrder) ResolveSort(SearchRecipesQuery request)

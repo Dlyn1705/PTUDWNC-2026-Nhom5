@@ -102,6 +102,12 @@ jobs:
           STEPS_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
         run: dotnet test tests/CulinaryBlog.Steps.Tests/CulinaryBlog.Steps.Tests.csproj --configuration Release
 
+      - name: Test Vietnamese recipe search integration
+        working-directory: Culinary_Blog_Nhom5
+        env:
+          SEARCH_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: dotnet test tests/CulinaryBlog.Search.Tests/CulinaryBlog.Search.Tests.csproj --configuration Release
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -19,6 +19,16 @@ public sealed class PublicContentCache(
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<PagedResult<SearchRecipeSummaryDto>> GetSearchAsync(
+        string queryKey,
+        Func<CancellationToken, Task<PagedResult<SearchRecipeSummaryDto>>> factory,
+        CancellationToken cancellationToken = default) =>
+        await GetOrCreateAsync(
+            $"public:recipes:search:{queryKey}:rv:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}:cv:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}",
+            RecipeListTtl,
+            factory,
+            cancellationToken);
+
     public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(
         Func<CancellationToken, Task<IReadOnlyList<CategoryDto>>> factory,
         CancellationToken cancellationToken = default) =>
