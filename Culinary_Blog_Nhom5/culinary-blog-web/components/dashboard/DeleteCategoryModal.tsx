@@ -104,8 +104,8 @@ export function DeleteCategoryModal({
             </div>
           </div>
         ) : (
-          <div className="my-2 rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300 flex items-center gap-2">
-            <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+          <div className="my-2 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+            <AlertTriangle className="size-4 shrink-0 text-warning" />
             <span>Thao tác này sẽ áp dụng xóa mềm (Soft Delete) danh mục.</span>
           </div>
         )}

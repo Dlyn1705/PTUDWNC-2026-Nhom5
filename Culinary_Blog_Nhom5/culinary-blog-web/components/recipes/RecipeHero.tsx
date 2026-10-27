@@ -94,13 +94,13 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
             variant="outline"
             className={cn(
               "rounded-full gap-1.5 text-xs h-9 px-3.5 shadow-2xs transition-all",
-              copied && "border-emerald-500 text-emerald-600 bg-emerald-50/50"
+              copied && "border-success text-success bg-success/10"
             )}
             onClick={handleShare}
           >
             {copied ? (
               <>
-                <Check className="size-3.5 text-emerald-600" />
+                <Check className="size-3.5 text-success" />
                 <span>Link Copied!</span>
               </>
             ) : (
@@ -172,7 +172,7 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Flame className="size-4 text-amber-500" />
+            <Flame className="size-4 text-warning" />
             <span className="text-xs uppercase tracking-wider font-semibold">Cook Time</span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
@@ -182,7 +182,7 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Timer className="size-4 text-emerald-500" />
+            <Timer className="size-4 text-success" />
             <span className="text-xs uppercase tracking-wider font-semibold">Total Time</span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
@@ -224,6 +224,8 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
                   key={img.id || idx}
                   type="button"
                   onClick={() => setActiveImageIndex(idx)}
+                  aria-label={`Show image ${idx + 1} of ${images.length}`}
+                  aria-pressed={activeImageIndex === idx}
                   className={cn(
                     "size-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer shadow-2xs",
                     activeImageIndex === idx

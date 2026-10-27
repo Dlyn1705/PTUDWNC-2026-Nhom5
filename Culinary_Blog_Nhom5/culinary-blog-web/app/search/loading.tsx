@@ -5,7 +5,7 @@ export default function SearchLoading() {
   return (
     <LoadingState
       label="Đang tải trang tìm kiếm…"
-      className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8"
+      className="page-container space-y-8 py-8"
     >
       <div className="space-y-3">
         <Skeleton className="h-5 w-40" />

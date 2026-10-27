@@ -26,6 +26,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -49,6 +53,8 @@
   --color-published-foreground: var(--published-foreground);
   --color-archived: var(--archived);
   --color-archived-foreground: var(--archived-foreground);
+  --color-brand-contrast: var(--brand-contrast);
+  --color-brand-contrast-muted: var(--brand-contrast-muted);
   --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --spacing-page: var(--spacing-page-x);
@@ -89,6 +95,10 @@
   --accent-foreground: #661a06;
   --destructive: #661a06;
   --destructive-foreground: #ffffff;
+  --success: #496c2e;
+  --success-foreground: #ffffff;
+  --warning: #9a5a00;
+  --warning-foreground: #ffffff;
   --border: #dfd5d6;
   --input: #dfd5d6;
   --ring: #661a06;
@@ -98,6 +108,8 @@
   --published-foreground: #ffffff;
   --archived: #eedcd6;
   --archived-foreground: #661a06;
+  --brand-contrast: #f7f3f4;
+  --brand-contrast-muted: #bcaaac;
   --ink: var(--maroon);
   --orange: var(--primary);
   --orange-dark: color-mix(in srgb, var(--primary) 82%, black);
@@ -126,6 +138,10 @@
   --accent-foreground: #bcaaac;
   --destructive: #942b10;
   --destructive-foreground: #ffffff;
+  --success: #2d501c;
+  --success-foreground: #d2f0bc;
+  --warning: #f0b35b;
+  --warning-foreground: #211b1c;
   --border: #282736;
   --input: #282736;
   --ring: #942b10;
@@ -135,6 +151,8 @@
   --published-foreground: #d2f0bc;
   --archived: #3e1b14;
   --archived-foreground: #f0a38e;
+  --brand-contrast: #f4f0f1;
+  --brand-contrast-muted: #bcaaac;
 }
 
 @layer base {
@@ -157,6 +175,17 @@
   letter-spacing: -0.015em;
 }
 
+@utility page-container {
+  width: 100%;
+  max-width: var(--container-content);
+  margin-inline: auto;
+  padding-inline: var(--spacing-page-x);
+}
+
+@utility section-spacing {
+  padding-block: var(--spacing-section-y);
+}
+
 .register-shell {
   min-height: 100vh;
   display: grid;
@@ -171,8 +200,8 @@
   flex-direction: column;
   justify-content: center;
   padding: clamp(2.5rem, 8vw, 7rem);
-  color: #f7f3f4;
-  background: #211b1c;
+  color: var(--brand-contrast);
+  background: var(--maroon);
   isolation: isolate;
 }
 
@@ -180,7 +209,7 @@
 .register-brand-panel::after {
   content: "";
   position: absolute;
-  border: 1px solid rgba(188, 170, 172, 0.2);
+  border: 1px solid color-mix(in srgb, var(--brand-contrast-muted) 20%, transparent);
   border-radius: 50%;
   z-index: -1;
 }
@@ -193,10 +222,10 @@
   width: 3.5rem;
   height: 3.5rem;
   margin-bottom: 3.5rem;
-  border: 1.5px solid #bcaaac;
+  border: 1.5px solid var(--brand-contrast-muted);
   border-radius: 50%;
-  color: #bcaaac;
-  background: rgba(102, 26, 6, 0.22);
+  color: var(--brand-contrast-muted);
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.13em;
@@ -210,7 +239,7 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
-.register-brand-panel .eyebrow { color: #bcaaac; }
+.register-brand-panel .eyebrow { color: var(--brand-contrast-muted); }
 
 .register-brand-panel h1,
 .form-heading h2 {
@@ -227,7 +256,7 @@
 .brand-copy {
   max-width: 28rem;
   margin: 2rem 0 0;
-  color: #bcaaac;
+  color: var(--brand-contrast-muted);
   font-size: 1.05rem;
   line-height: 1.75;
 }
@@ -237,12 +266,12 @@
   gap: 0.25rem;
   width: fit-content;
   margin-top: 4rem;
-  color: #bcaaac;
+  color: var(--brand-contrast-muted);
   font-size: 0.6rem;
   letter-spacing: 0.22em;
 }
 .recipe-stamp strong {
-  color: #fff;
+  color: var(--brand-contrast);
   font-family: var(--font-display), Georgia, serif;
   font-size: 1.5rem;
   letter-spacing: 0;
@@ -280,15 +309,15 @@
   min-height: 3.1rem;
   border: 1px solid var(--line);
   border-radius: 0.7rem;
-  background: #fff;
+  background: var(--card);
   padding: 0.8rem 0.95rem;
   color: var(--foreground);
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.field-input::placeholder { color: #8e8486; }
-.field-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(102, 26, 6, 0.15); }
-.field-input-error { border-color: var(--orange); background: #fff8f7; }
+.field-input::placeholder { color: var(--muted-foreground); }
+.field-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 15%, transparent); }
+.field-input-error { border-color: var(--destructive); background: color-mix(in srgb, var(--destructive) 6%, var(--card)); }
 
 .login-mascot {
   display: flex;
@@ -327,7 +356,7 @@
   border: 0;
   border-radius: 0.7rem;
   background: var(--orange);
-  color: #fff;
+  color: var(--primary-foreground);
   cursor: pointer;
   font-weight: 800;
   transition: background 160ms ease, transform 160ms ease;
@@ -337,7 +366,7 @@
 
 .form-footnote {
   margin: 2rem 0 0;
-  color: #7d7274;
+  color: var(--muted-foreground);
   font-size: 0.7rem;
   line-height: 1.6;
   text-align: center;

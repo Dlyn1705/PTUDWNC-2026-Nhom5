@@ -81,18 +81,18 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="space-y-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="page-container space-y-8 py-8">
       {/* Toast Feedback Notification Banner */}
       {notification && (
         <div
           className={`flex items-center gap-2.5 rounded-2xl border p-4 text-xs font-medium shadow-soft animate-in slide-in-from-top-2 duration-200 ${
             notification.type === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+              ? "border-success/30 bg-success/10 text-success"
               : "border-destructive/30 bg-destructive/10 text-destructive"
           }`}
         >
           {notification.type === "success" ? (
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            <CheckCircle2 className="size-4 shrink-0 text-success" />
           ) : (
             <AlertCircle className="size-4 shrink-0 text-destructive" />
           )}
@@ -146,7 +146,7 @@ export default function AdminCategoriesPage() {
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-2xs space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <UtensilsCrossed className="size-4 text-emerald-500" />
+            <UtensilsCrossed className="size-4 text-success" />
             <span>Tổng công thức liên kết</span>
           </div>
           <p className="font-display text-2xl font-bold tabular-nums text-foreground">
@@ -156,7 +156,7 @@ export default function AdminCategoriesPage() {
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-2xs space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <Sparkles className="size-4 text-amber-500" />
+            <Sparkles className="size-4 text-warning" />
             <span>Trung bình / Danh mục</span>
           </div>
           <p className="font-display text-2xl font-bold tabular-nums text-foreground">

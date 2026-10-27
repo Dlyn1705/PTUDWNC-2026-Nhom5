@@ -90,7 +90,7 @@ export default async function RecipesPage({ searchParams }: {
   const totalPublished = categories.reduce((total, category) => total + category.recipeCount, 0);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div className="page-container space-y-8 py-8">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Link href="/" className="transition-colors hover:text-primary">

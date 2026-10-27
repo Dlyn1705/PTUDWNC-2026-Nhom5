@@ -112,7 +112,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
   };
 
   return (
-    <article className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-12">
+    <article className="page-container space-y-12 py-8">
       {/* Schema.org Structured Data */}
       <script
         type="application/ld+json"
@@ -177,9 +177,9 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
                   </div>
                 )}
                 <div>
-                  <h4 className="font-display font-semibold text-base text-foreground">
+                  <h2 className="font-display font-semibold text-base text-foreground">
                     Recipe by {recipe.author.displayName}
-                  </h4>
+                  </h2>
                   <p className="text-xs text-muted-foreground">Culinary Blog Resident Author</p>
                 </div>
               </div>
@@ -206,9 +206,9 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 More in {recipe.categoryName || "this collection"}
               </p>
-              <h3 className="mt-1 font-display text-2xl sm:text-3xl font-bold text-foreground">
+              <h2 className="mt-1 font-display text-2xl sm:text-3xl font-bold text-foreground">
                 You might also enjoy cooking
-              </h3>
+              </h2>
             </div>
 
             <Link

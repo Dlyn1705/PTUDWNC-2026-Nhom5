@@ -15,9 +15,11 @@ import { SiteShell } from "@/components/layout/SiteShell";
 import { Button } from "@/components/ui/button";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { difficultyLabel } from "@/types/recipe.types";
-import { RecipeBookmark } from "@/components/recipes/RecipeBookmark";
 import { CategoryCard } from "@/components/categories/CategoryCard";
 import { publicApi } from "@/lib/api/serverClient";
+import { SearchForm } from "@/components/search/SearchForm";
+import { SearchInput } from "@/components/search/SearchInput";
+import { EmptyState } from "@/components/common/EmptyState";
 
 export const revalidate = 120;
 
@@ -49,11 +51,11 @@ export default async function HomePage() {
 
   return (
     <SiteShell className="selection:bg-primary/20 selection:text-primary">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="page-container grid gap-8 py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
         <DiscoverySidebar categories={categories} />
         <div className="min-w-0 space-y-20">
         {/* Featured recipe banner */}
-        <section aria-labelledby="featured-recipe-title" className="relative isolate overflow-hidden rounded-3xl bg-[#211b1c] text-white shadow-soft">
+        <section aria-labelledby="featured-recipe-title" className="relative isolate overflow-hidden rounded-3xl bg-maroon text-brand-contrast shadow-soft">
             <Image
               src={featuredImage?.url || "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1600&auto=format&fit=crop"}
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
@@ -62,42 +64,39 @@ export default async function HomePage() {
               loading="eager"
               className="-z-20 object-cover object-center"
             />
-          <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/75 via-black/40 to-black/5" />
-          <div className="absolute inset-0 -z-10 bg-linear-to-t from-black/35 via-transparent to-transparent" />
-
-          {featured && (
-            <div className="absolute right-5 top-5 sm:right-6 sm:top-6">
-              <RecipeBookmark slug={featured.slug} />
-            </div>
-          )}
+          <div className="absolute inset-0 -z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />
+          <div className="absolute inset-0 -z-10 bg-linear-to-t from-foreground/35 via-transparent to-transparent" />
 
           <div className="flex min-h-[530px] flex-col items-start px-6 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
-            <p className="mb-7 flex items-center gap-3 pr-12 text-xs font-semibold uppercase text-white/85">
-              <span className="h-px w-9 bg-white/65" aria-hidden="true" />
+            <p className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase text-brand-contrast/85">
+              <span className="h-px w-9 bg-brand-contrast/65" aria-hidden="true" />
               Recipe of the week
             </p>
             <h1 id="featured-recipe-title" className="max-w-[540px] text-3xl font-semibold leading-[1.18] tracking-tight sm:text-5xl lg:text-[52px]">
               {featured?.title || "Slow recipes written for real home kitchens."}
             </h1>
-            <p className="mt-6 max-w-[440px] text-sm leading-relaxed text-white/85 sm:text-base line-clamp-3">
+            <p className="mt-6 max-w-[440px] text-sm leading-relaxed text-brand-contrast/85 sm:text-base line-clamp-3">
               {featured?.description || "Reliable, twice-tested recipes with smart step timers and precise ingredient measures."}
             </p>
             {featured && (
-              <div className="mt-6 flex flex-wrap items-center gap-6 text-sm font-medium text-white/85 sm:text-base">
+              <div className="mt-6 flex flex-wrap items-center gap-6 text-sm font-medium text-brand-contrast/85 sm:text-base">
                 <span className="inline-flex items-center gap-2"><Clock className="size-[18px]" />{featuredTotalMinutes} min</span>
                 <span className="inline-flex items-center gap-2"><Users className="size-[18px]" />Serves {featured.servings}</span>
               </div>
             )}
-            <Button asChild className="mt-6 h-12 rounded-full bg-[#3f5b48] px-7 font-semibold text-white hover:bg-[#304737]">
+            <SearchForm className="mt-6 w-full max-w-xl">
+              <SearchInput defaultValue="" />
+            </SearchForm>
+            <Button asChild className="mt-6 h-12 rounded-full bg-herb px-7 font-semibold text-herb-foreground hover:bg-herb/80">
               <Link href={featured ? `/recipes/${featured.slug}` : "/recipes"}>
                 {featured ? "Read the recipe" : "Explore recipes"}<ArrowRight className="ml-3 size-4" />
               </Link>
             </Button>
             {featured && (
-              <div className="mt-auto flex flex-wrap gap-2 pt-12 text-xs text-[#302c29] sm:text-sm">
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Clock className="size-4" />{featuredTotalMinutes} minutes</span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Flame className="size-4" />{difficultyLabel[featured.difficulty]}</span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#f5f0e9]/95 px-3.5 py-2.5"><Users className="size-4" />Serves {featured.servings}</span>
+              <div className="mt-auto flex flex-wrap gap-2 pt-12 text-xs text-cream-foreground sm:text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Clock className="size-4" />{featuredTotalMinutes} minutes</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Flame className="size-4" />{difficultyLabel[featured.difficulty]}</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Users className="size-4" />Serves {featured.servings}</span>
               </div>
             )}
           </div>
@@ -124,11 +123,20 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.slice(0, 4).map((category) => (
-              <CategoryCard key={category.id || category.slug} category={category} />
-            ))}
-          </div>
+          {categories.length === 0 ? (
+            <EmptyState
+              headingLevel="h3"
+              title="Chưa có danh mục nào"
+              description="Các bộ sưu tập món ăn sẽ xuất hiện ở đây khi được xuất bản."
+              className="my-0"
+            />
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {categories.slice(0, 4).map((category) => (
+                <CategoryCard key={category.id || category.slug} category={category} />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Latest Recipes Section (FR-RCP-001) */}

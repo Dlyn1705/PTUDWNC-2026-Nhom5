@@ -83,6 +83,7 @@ export function CategoryGrid({
           <Input
             value={search}
             onChange={(e) => updateQuery("q", e.target.value)}
+            aria-label="Tìm danh mục"
             placeholder="Tìm danh mục theo tên hoặc từ khóa..."
             className="pl-9.5 pr-8 h-10 rounded-xl bg-background border-border text-sm"
           />
@@ -100,8 +101,10 @@ export function CategoryGrid({
         {/* Sort Select */}
         <div className="flex items-center gap-2 self-end sm:self-auto text-xs text-muted-foreground shrink-0">
           <ArrowUpDown className="size-3.5 text-primary" />
-          <span className="font-medium hidden md:inline">Sắp xếp:</span>
+          <label htmlFor="category-sort" className="font-medium hidden md:inline">Sắp xếp:</label>
           <select
+            id="category-sort"
+            aria-label="Sắp xếp danh mục"
             value={sortBy}
             onChange={(e) => updateQuery("sortBy", e.target.value)}
             className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"

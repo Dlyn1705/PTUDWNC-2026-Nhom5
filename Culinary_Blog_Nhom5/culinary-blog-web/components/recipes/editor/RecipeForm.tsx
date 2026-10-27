@@ -72,8 +72,8 @@ export default function RecipeForm(props: Props) {
     "aria-describedby": [hint ? `${inputId(name)}-hint` : "", errors[name] ? `${inputId(name)}-error` : ""].filter(Boolean).join(" ") || undefined,
   });
   const fieldError = (name: RecipeEditorField) => errors[name]?.message
-    ? <p role="alert" id={`${inputId(name)}-error`} className="mt-1 text-sm text-red-600">{errors[name]?.message}</p> : null;
-  const inputClass = "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus-visible:outline-2 focus-visible:outline-primary disabled:bg-gray-100";
+    ? <p role="alert" id={`${inputId(name)}-error`} className="mt-1 text-sm text-destructive">{errors[name]?.message}</p> : null;
+  const inputClass = "mt-2 w-full rounded-xl border border-input bg-card px-4 py-3 text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:bg-muted";
 
   const submit = async (data: RecipeEditorValues) => {
     if (saving.current || props.disabled || props.busy || props.blockSubmit || conflict || props.categoriesLoading || props.categoryError || props.categories.length === 0) return;
@@ -130,7 +130,7 @@ export default function RecipeForm(props: Props) {
       <div>
         <label htmlFor={inputId("title")} className="block text-sm font-medium">{mode === "create" ? "Tên món ăn *" : labels.title}</label>
         <input {...field("title", true)} required maxLength={200} className={inputClass} placeholder="Ví dụ: Phở bò truyền thống" />
-        <p id={`${inputId("title")}-hint`} className="mt-1 text-xs text-gray-500">Từ 3 đến 200 ký tự. {title.length}/200</p>
+        <p id={`${inputId("title")}-hint`} className="mt-1 text-xs text-muted-foreground">Từ 3 đến 200 ký tự. {title.length}/200</p>
         {fieldError("title")}
       </div>
       {mode === "create" && <div><label htmlFor={`${prefix}-slug`} className="block text-sm font-medium">Slug SEO (xem trước)</label>
@@ -162,7 +162,7 @@ export default function RecipeForm(props: Props) {
       <h2 className="text-xl font-semibold">Thông tin dinh dưỡng</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {nutritionFields.map(name => <div key={name}><label htmlFor={inputId(name)} className="block text-sm font-medium">{labels[name]}</label>
           <div className="relative"><input {...field(name)} type="number" min={0} max={999999.99} step="0.01" className={`${inputClass} pr-14`} />
-            <span aria-hidden="true" className="absolute right-4 top-1/2 text-sm text-gray-500">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
+            <span aria-hidden="true" className="absolute right-4 top-1/2 text-sm text-muted-foreground">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
           </div>{fieldError(name)}</div>)}
       </div>
     </fieldset>

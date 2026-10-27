@@ -36,9 +36,9 @@ export function IngredientList({
       {/* Header with Servings Scaler */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <h3 className="font-display text-xl font-semibold text-foreground">
+          <h2 className="font-display text-xl font-semibold text-foreground">
             Ingredients
-          </h3>
+          </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             {checkedCount > 0 ? (
               <span className="text-primary font-medium">

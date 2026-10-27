@@ -110,6 +110,10 @@ async function main() {
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     const fault = value => context.addCookies([{ name: "fault", value, url: origin }]);
     const noNestedMain = async () => assert.equal(await page.locator("main main").count(), 0);
+    const assertViewportFits = async (width, label) => {
+      await page.setViewportSize({ width, height: width >= 768 ? 900 : 812 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${label} must fit ${width}px viewport`);
+    };
     await fault("page"); await page.goto(origin + "/recipes");
     await page.getByRole("heading", { name: "Không thể tải công thức", exact: true }).waitFor();
     assert.ok((await page.textContent("body")).includes("Recipe shell")); await noNestedMain();
@@ -159,9 +163,10 @@ async function main() {
     assert.equal(searchRequests.length, 1, "Enter must cancel the pending debounce");
     await page.goBack(); await page.waitForURL(url => url.searchParams.get("q") === "banh xeo");
     assert.equal(await searchInput.inputValue(), "banh xeo");
-    await page.setViewportSize({ width: 320, height: 812 });
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "search must fit a 320px viewport");
+    await assertViewportFits(320, "search");
     await page.screenshot({path:path.join(fixture,"search-mobile.png"),fullPage:true});
+    await assertViewportFits(768, "search");
+    await assertViewportFits(1280, "search");
     process.stdout.write("PASS: search debounce, Enter cancellation, filter preservation, history and 320px layout.\n");
     mode = "cards"; await page.goto(origin + "/search?q=pho");
     await page.getByRole("heading", { name: "Phở bò kiểm thử" }).waitFor();
@@ -190,6 +195,8 @@ async function main() {
     await page.getByRole("heading", { name: "Chưa có danh mục nào" }).waitFor();
     assert.equal(categoryRequests, 2); await noNestedMain();
     await page.screenshot({path:path.join(fixture,"dashboard-empty-mobile.png"),fullPage:true});
+    await assertViewportFits(768, "dashboard categories");
+    await assertViewportFits(1280, "dashboard categories");
     process.stdout.write("PASS: query failure is not empty/zero statistics; retry GET restores empty success.\n");
 
     await page.goto(origin + "/retry"); await page.getByRole("button", { name: "Thử lại", exact: true }).click();

@@ -33,12 +33,13 @@ Token được khai báo một lần trong `app/globals.css`, có light/dark val
 | Bề mặt | `card`, `card-foreground`, `popover`, `popover-foreground` | `bg-card`, `bg-popover` |
 | Hành động | `primary`, `secondary`, `accent`, `muted` | `bg-primary text-primary-foreground` |
 | Lỗi | `destructive` | `text-destructive`, `border-destructive/30` |
+| Thành công/cảnh báo | `success`, `warning` | `text-success`, `bg-warning/10`, `border-success/30` |
 | Trạng thái recipe | `draft`, `published`, `archived` và foreground tương ứng | Badge trạng thái |
 | Control | `border`, `input`, `ring` | `border-input focus:ring-ring` |
 | Layout | `spacing-page`, `spacing-section`, Tailwind spacing scale | `px-page`, `py-section` |
 | Elevation | `shadow-soft`, `shadow-lift` | Card, Dialog, popover |
 
-Không thêm mã màu hex hoặc palette shade vào feature component. Nếu cần trạng thái mới, bổ sung semantic token ở `globals.css` trước rồi tạo variant.
+Không thêm mã màu hex hoặc palette shade vào feature component. Mã hex chỉ được khai báo trong `app/globals.css` để tạo semantic token; SVG minh họa có thể giữ màu nội bộ khi đó là artwork, không phải UI state. Nếu cần trạng thái mới, bổ sung semantic token ở `globals.css` trước rồi tạo variant.
 
 Các alias cũ `ink`, `orange`, `orange-dark`, `line` chỉ tồn tại để tương thích; code mới dùng token chuẩn.
 
@@ -83,8 +84,10 @@ Layout và page là Server Component mặc định. Các primitive thuần trìn
 npm run typecheck
 npm run lint
 npm run build
+npm run test:ui-contract
 npm run test:common
 npm run test:a11y
+npm run test:e2e:states
 ```
 
-PR thêm component phải ghi rõ token/variant mới, bằng chứng keyboard flow và thay đổi ở 320 px; PR hoàn thành Issue #66 dùng `Closes #66`.
+PR thêm component phải ghi rõ token/variant mới, bằng chứng keyboard flow và thay đổi ở 320 px; PR hoàn thành issue phải dùng `Closes #<issue-number>`.

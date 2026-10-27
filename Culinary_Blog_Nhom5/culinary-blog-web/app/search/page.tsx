@@ -115,7 +115,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const paginationLinks = buildPaginationLinks(paginationItems, page, totalPages, pageUrl);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="page-container space-y-8 py-8">
       <div className="space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
           <Sparkles className="size-3.5" /> Khám phá món ngon

@@ -31,9 +31,9 @@ export function StepByStepList({ steps }: StepByStepListProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
         <div>
-          <h3 className="font-display text-2xl font-semibold text-foreground">
+          <h2 className="font-display text-2xl font-semibold text-foreground">
             Instructions & Steps
-          </h3>
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Follow along carefully, step by step. Use timers where provided.
           </p>
@@ -100,14 +100,14 @@ export function StepByStepList({ steps }: StepByStepListProps) {
 
                 <div className="flex-1 space-y-2">
                   {step.title && (
-                    <h4
+                    <h3
                       className={cn(
                         "font-display text-lg font-semibold",
                         isDone ? "line-through text-muted-foreground" : "text-foreground"
                       )}
                     >
                       {step.title}
-                    </h4>
+                    </h3>
                   )}
 
                   <p

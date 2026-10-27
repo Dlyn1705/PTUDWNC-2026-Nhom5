@@ -20,7 +20,7 @@ function SessionStatus() {
     void signOut({ redirectTo: `/auth/login?reason=session-expired&callbackUrl=${encodeURIComponent(callbackUrl)}` });
   }, [session?.error]);
   if (session?.error === "SessionUnavailableError") {
-    return <p role="status" className="bg-amber-50 p-3 text-center text-sm text-amber-900">Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại sau.</p>;
+    return <p role="status" className="border-b border-warning/30 bg-warning/10 p-3 text-center text-sm text-warning">Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại sau.</p>;
   }
   return null;
 }

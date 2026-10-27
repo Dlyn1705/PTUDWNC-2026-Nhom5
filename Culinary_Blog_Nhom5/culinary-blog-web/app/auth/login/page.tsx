@@ -29,7 +29,7 @@ export default function LoginPage() {
 
       <section className="register-form-panel">
         <div className="form-heading">
-          <p className="eyebrow text-orange-700">Mừng trở lại</p>
+          <p className="eyebrow text-primary">Mừng trở lại</p>
           <h2>Đăng nhập tài khoản</h2>
           <p>Nhập thông tin để tiếp tục hành trình cùng Culinary Blog.</p>
         </div>

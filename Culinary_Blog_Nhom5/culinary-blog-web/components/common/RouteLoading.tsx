@@ -6,7 +6,7 @@ export function RouteLoading({ label = "Đang tải nội dung…", variant = "c
   label?: string;
   variant?: "cards" | "table" | "form" | "images";
 }) {
-  return <LoadingState label={label} className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+  return <LoadingState label={label} className="page-container space-y-6 py-8">
     <div className="space-y-3"><Skeleton className="h-8 w-72 max-w-full" /><Skeleton className="h-4 w-96 max-w-full" /></div>
     {variant === "table" ? <div className="space-y-3 rounded-2xl border p-4">
       {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
