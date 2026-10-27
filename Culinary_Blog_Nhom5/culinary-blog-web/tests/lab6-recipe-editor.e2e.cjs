@@ -72,6 +72,8 @@ async function main() {
     let putStatus = 200; let putCalls = 0; let createCalls = 0;
     let createStatus = 200; let mutationErrors = {}; let pendingPut;
     let mineStatus = 200; let mineEmpty = false; let recipeStatus = 200;
+    let registrationStatus = 409; let registrationCalls = 0;
+    const onboardingMutations = [];
     const stepRows = [];
     const ingredients = [];
     await context.route("**/api/auth/refresh", async route => {
@@ -84,6 +86,12 @@ async function main() {
       const request = route.request(); const url = new URL(request.url());
       const json = (value, status = 200, headers = {}) => route.fulfill({ status, contentType: "application/json",
         headers: { "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
+      if (request.method() !== "GET") onboardingMutations.push(url.pathname);
+      if (request.method() === "POST" && url.pathname === "/api/v1/auth/register") {
+        registrationCalls++;
+        return registrationStatus === 201 ? json({ success: true, data: {} }, 201)
+          : json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
+      }
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
         if (pendingPut) await pendingPut;
@@ -138,6 +146,38 @@ async function main() {
       if (message.type() === "error" && /^(TypeError|ReferenceError|Error: Minified React)/.test(message.text())) errors.push(message.text());
     });
     page.on("pageerror", error => errors.push(error.message));
+    const welcome = page.getByRole("status").filter({ hasText: "Chào mừng bạn đến với Culinary Blog!" });
+    await page.goto(origin + "/auth/login");
+    assert.equal(await welcome.count(), 0);
+    await page.goto(origin + "/auth/register");
+    await page.locator("#displayName").fill("Tác giả mới");
+    await page.locator("#email").fill("onboarding-only@test.invalid");
+    await page.locator("#password").fill("E2e-only-password1!");
+    await page.locator("#confirmPassword").fill("E2e-only-password1!");
+    await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
+    await page.getByText("Email này đã được sử dụng.", { exact: true }).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/auth/register", "Registration failure must not open onboarding");
+    registrationStatus = 201;
+    await page.locator("#email").fill("new-author@test.invalid");
+    await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
+    await page.waitForURL(url => url.pathname === "/auth/login" && url.searchParams.get("registered") === "true");
+    await welcome.waitFor();
+    assert.equal(registrationCalls, 2);
+    assert.ok((await welcome.innerText()).includes("bạn có thể đăng nhập ngay"));
+    assert.ok((await welcome.innerText()).includes("không phải bước xác minh hay kích hoạt"));
+    assert.equal(await page.locator("#login-email").inputValue(), "");
+    await page.goto(origin + "/auth/login?registered=true&email=PRIVATE_QUERY_EMAIL%40test.invalid");
+    await welcome.waitFor();
+    assert.ok(!(await page.locator("body").innerText()).includes("PRIVATE_QUERY_EMAIL"));
+    await page.setViewportSize({ width: 320, height: 900 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await welcome.getByRole("link", { name: "Khám phá công thức", exact: true }).click();
+    await page.waitForURL(url => url.pathname === "/recipes");
+    assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
+    await page.goto(origin + "/dashboard/recipes/new");
+    await page.waitForURL(url => url.pathname === "/auth/login");
+    await page.goto(origin + "/auth/login?registered=false");
+    assert.equal(await welcome.count(), 0);
     await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes");
     await page.locator("#login-email").fill("owner@test.invalid");
     await page.locator("#login-password").fill("E2e-only-password1!");
@@ -381,7 +421,7 @@ async function main() {
     await adminPage.getByRole("button", { name: "Mở menu dashboard", exact: true }).click();
     await adminPage.getByRole("dialog").getByRole("link", { name: "Danh mục", exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS: RHF validation and 422 mapping (basic/nutrition/ingredients/steps), 401/403/409/500 recovery, duplicate submit, ownership/Admin, ingredient notes/decimal comma, common states/pagination, mobile focus and unsaved drafts.");
+    console.log("PASS: registration onboarding/privacy/discovery/guest guard; RHF validation and 422 mapping (basic/nutrition/ingredients/steps), 401/403/409/500 recovery, duplicate submit, ownership/Admin, ingredient notes/decimal comma, common states/pagination, mobile focus and unsaved drafts.");
   } catch (error) {
     console.error(logs);
     if (page) console.error("Browser:", page.url(), "UI:", await page.locator("body").innerText().catch(() => "unavailable"), "Errors:", errors);
