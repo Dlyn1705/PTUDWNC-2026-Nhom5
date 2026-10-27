@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   const displayName = session?.user.name ?? session?.user.email ?? "thành viên";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+    <div className="page-container max-w-6xl space-y-8 py-10">
       <header className="rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9">
         <div className="flex items-center gap-3 text-sm font-semibold text-primary">
           <UserRound className="size-4" />

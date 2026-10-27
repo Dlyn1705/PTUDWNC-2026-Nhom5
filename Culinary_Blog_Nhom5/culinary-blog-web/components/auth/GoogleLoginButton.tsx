@@ -96,7 +96,7 @@ export function GoogleLoginButton({
 
   if (!clientId) {
     return (
-      <p role="alert" className="text-center text-xs text-red-700">
+      <p role="alert" className="text-center text-xs text-destructive">
         Đăng nhập Google chưa được cấu hình.
       </p>
     );
@@ -116,7 +116,7 @@ export function GoogleLoginButton({
         aria-busy={isPending}
       />
       {error && (
-        <p role="alert" className="text-center text-xs text-red-700">
+        <p role="alert" className="text-center text-xs text-destructive">
           {error}
         </p>
       )}

@@ -144,7 +144,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
             });
           }} />
       )}
-      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {mustReload && <p role="status">Tải lại ảnh để xác nhận trạng thái trước khi thực hiện thao tác tiếp theo.</p>}
       {loading ? <p role="status">Đang tải ảnh…</p> : images.length === 0 ? <p>Chưa có ảnh cho công thức này.</p> : (
         <ul className="grid gap-4 sm:grid-cols-2">
@@ -154,12 +154,12 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
                 width={300} height={300} unoptimized className="h-48 w-full rounded-lg object-cover" />
               {image.isPrimary && <p className="font-semibold text-primary">Ảnh chính</p>}
               {image.altText && <p className="break-words text-sm">{image.altText}</p>}
-              <p className="text-sm text-gray-600">{statusText[image.processingStatus]}</p>
+              <p className="text-sm text-muted-foreground">{statusText[image.processingStatus]}</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={busy || uploadBusy || mustReload || retryAfterMs > 0 || image.isPrimary} onClick={() => void mutate(image, "primary")}
                   className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">Đặt làm ảnh chính</button>
                 <button type="button" disabled={busy || uploadBusy || mustReload || retryAfterMs > 0} onClick={() => void mutate(image, "delete")}
-                  aria-label={`Xóa ${image.altText || "ảnh công thức"}`} className="rounded-lg border px-3 py-2 text-sm text-red-600 disabled:opacity-50">Xóa ảnh</button>
+                  aria-label={`Xóa ${image.altText || "ảnh công thức"}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive disabled:opacity-50">Xóa ảnh</button>
               </div>
             </li>
           ))}

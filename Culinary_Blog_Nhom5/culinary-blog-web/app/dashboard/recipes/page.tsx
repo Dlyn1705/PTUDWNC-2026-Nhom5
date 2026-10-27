@@ -14,7 +14,7 @@ export default async function DashboardRecipesPage({
   const isAdmin = session?.user.role === "Admin";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="page-container space-y-6 py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Dashboard / Recipes</p>
@@ -28,7 +28,7 @@ export default async function DashboardRecipesPage({
         <Button asChild><Link href="/dashboard/recipes/new"><Plus className="size-4" /> Tạo công thức</Link></Button>
       </div>
       {params.deleted === "1" && (
-        <p role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
+        <p role="status" className="rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
           Đã xóa công thức.
         </p>
       )}

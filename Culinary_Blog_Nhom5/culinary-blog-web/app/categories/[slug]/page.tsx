@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
 import { publicApi } from "@/lib/api/serverClient";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
@@ -45,7 +45,8 @@ export default async function CategoryDetailPage({
 }: CategoryDetailPageProps) {
   const { slug } = await params;
   const sp = searchParams ? await searchParams : {};
-  const currentPage = Math.max(1, Number(sp.page || 1));
+  const rawPage = Number(sp.page || 1);
+  const currentPage = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 100_000 ? rawPage : 1;
   const PAGE_SIZE = 12;
 
   const [result, allCategories] = await Promise.all([
@@ -58,6 +59,9 @@ export default async function CategoryDetailPage({
   }
 
   const { category, recipes: paginatedRecipes, meta } = result;
+  if (meta.totalPages > 0 && currentPage > meta.totalPages) {
+    redirect(`/categories/${encodeURIComponent(slug)}?page=${meta.totalPages}`);
+  }
 
   const categoryImages: Record<string, string> = {
   appetizers:
@@ -134,7 +138,7 @@ const cover =
   const totalPages = meta.totalPages;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-12">
+    <div className="page-container space-y-12 py-8">
       {/* Breadcrumbs */}
       <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
         <Link href="/" className="transition-colors hover:text-primary">
@@ -248,9 +252,9 @@ const cover =
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 More Culinary Adventures
               </p>
-              <h3 className="mt-1 font-display text-2xl font-bold text-foreground">
+              <h2 className="mt-1 font-display text-2xl font-bold text-foreground">
                 Explore more collections
-              </h3>
+              </h2>
             </div>
 
             <Link
@@ -269,9 +273,9 @@ const cover =
                 href={`/categories/${other.slug}`}
                 className="group rounded-2xl border border-border bg-card p-5 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-1"
               >
-                <h4 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                   {other.name}
-                </h4>
+                </h3>
                 <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
                   {other.description}
                 </p>

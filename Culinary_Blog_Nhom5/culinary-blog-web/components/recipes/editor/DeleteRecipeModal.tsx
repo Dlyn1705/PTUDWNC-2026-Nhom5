@@ -37,7 +37,7 @@ export function DeleteRecipeModal({
           <AlertDialogCancel disabled={busy}>
             Hủy
           </AlertDialogCancel>
-          <AlertDialogAction onClick={(event) => { event.preventDefault(); if (!busy) onConfirm(); }} disabled={busy} className="bg-red-600 text-white hover:bg-red-700">
+          <AlertDialogAction onClick={(event) => { event.preventDefault(); if (!busy) onConfirm(); }} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             {busy ? "Đang xóa..." : "Xóa công thức"}
           </AlertDialogAction>
         </AlertDialogFooter>

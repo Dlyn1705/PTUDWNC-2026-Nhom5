@@ -66,7 +66,7 @@ export default function Navbar() {
         event.preventDefault(); setMobileMenuOpen(false); triggerRef.current?.focus();
       }
     }} className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md transition-all">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
+      <div className="page-container flex h-16 items-center justify-between gap-2">
         {/* Brand Logo & Desktop Navigation */}
         <div className="flex items-center gap-6 md:gap-8">
           <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" className="flex items-center gap-2.5 group">

@@ -16,7 +16,7 @@ import {
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-red-700">{message}</p>
+    <p className="mt-2 text-xs font-medium text-destructive">{message}</p>
   ) : null;
 }
 
@@ -92,7 +92,7 @@ export function RegisterForm() {
       {serverError && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {serverError}
         </div>
@@ -141,10 +141,10 @@ export function RegisterForm() {
           />
           <div className="mt-2 space-y-2">
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span id="password-strength-label" className="font-medium text-stone-600">
+              <span id="password-strength-label" className="font-medium text-muted-foreground">
                 Độ mạnh mật khẩu: {passwordStrength.label}
               </span>
-              <span className="text-stone-500">Tối thiểu 8 ký tự</span>
+              <span className="text-muted-foreground">Tối thiểu 8 ký tự</span>
             </div>
             <div
               role="meter"
@@ -161,13 +161,13 @@ export function RegisterForm() {
                   className={`h-full flex-1 rounded-full ${
                     index < passwordStrength.score
                       ? passwordStrength.score <= 2
-                        ? "bg-red-500"
+                        ? "bg-destructive"
                         : passwordStrength.score <= 4
-                          ? "bg-amber-500"
+                          ? "bg-warning"
                           : passwordStrength.score === 5
-                            ? "bg-lime-600"
-                            : "bg-green-600"
-                      : "bg-stone-200"
+                            ? "bg-success"
+                            : "bg-success"
+                      : "bg-muted"
                   }`}
                   aria-hidden="true"
                 />
@@ -175,17 +175,17 @@ export function RegisterForm() {
             </div>
             <ul
               aria-label="Tiêu chí độ mạnh mật khẩu"
-              className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-stone-500"
+              className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground"
             >
               {passwordStrength.criteria.map((criterion) => (
                 <li key={criterion.label} className="flex items-center gap-1.5">
                   <span
                     aria-hidden="true"
-                    className={criterion.met ? "text-green-700" : "text-stone-400"}
+                    className={criterion.met ? "text-success" : "text-muted-foreground"}
                   >
                     {criterion.met ? "✓" : "○"}
                   </span>
-                  <span className={criterion.met ? "text-stone-700" : ""}>
+                  <span className={criterion.met ? "text-foreground" : ""}>
                     {criterion.label}
                   </span>
                 </li>
@@ -213,7 +213,7 @@ export function RegisterForm() {
         {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
       </button>
 
-      <p className="text-center text-sm text-stone-600">
+      <p className="text-center text-sm text-muted-foreground">
         Đã có tài khoản?{" "}
         <Link
           href="/auth/login"

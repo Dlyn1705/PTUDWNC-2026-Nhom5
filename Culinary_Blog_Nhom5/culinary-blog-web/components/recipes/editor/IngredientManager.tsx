@@ -162,10 +162,10 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
         <h2 className="text-xl font-semibold">Nguyên liệu</h2>
         {recipeId && <button type="button" disabled={busy} onClick={() => void reload()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải bản mới</button>}
       </div>
-      <p className="text-sm text-gray-600">Để trống số lượng hoặc đơn vị khi nêm nếm vừa đủ. Tối đa 100 nguyên liệu.</p>
+      <p className="text-sm text-muted-foreground">Để trống số lượng hoặc đơn vị khi nêm nếm vừa đủ. Tối đa 100 nguyên liệu.</p>
       {loading && <p role="status">Đang tải nguyên liệu…</p>}
-      {parentChanged && <p role="status" className="text-sm text-amber-700">Công thức vừa được cập nhật. Tải bản mới trước khi tiếp tục quản lý nguyên liệu.</p>}
-      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {parentChanged && <p role="status" className="text-sm text-warning">Công thức vừa được cập nhật. Tải bản mới trước khi tiếp tục quản lý nguyên liệu.</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <fieldset disabled={busy || loading || Boolean(recipeId && !etag)} className="space-y-4 disabled:opacity-60">
         {fields.length === 0 && !loading && <p>Chưa có nguyên liệu.</p>}
         {fields.map((field, index) => (
@@ -181,7 +181,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
                     aria-describedby={form.formState.errors.items?.[index]?.[key] ? `ingredient-${field.id}-${key}-error` : undefined}
                     maxLength={key === "name" ? 200 : key === "unit" ? 50 : key === "notes" ? 500 : undefined}
                     className="mt-1 w-full rounded-lg border px-3 py-2" />
-                  {form.formState.errors.items?.[index]?.[key]?.message && <span id={`ingredient-${field.id}-${key}-error`} role="alert" className="text-red-600">{form.formState.errors.items[index]?.[key]?.message}</span>}
+                  {form.formState.errors.items?.[index]?.[key]?.message && <span id={`ingredient-${field.id}-${key}-error`} role="alert" className="text-destructive">{form.formState.errors.items[index]?.[key]?.message}</span>}
                 </div>
               ))}
             </div>
@@ -189,7 +189,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
               <button type="button" disabled={disabled || index === 0} onClick={() => void reorder(index, index - 1)} aria-label={`Di chuyển nguyên liệu ${index + 1} lên`} className="rounded-lg border px-3 py-2 disabled:opacity-50">Lên</button>
               <button type="button" disabled={disabled || index === fields.length - 1} onClick={() => void reorder(index, index + 1)} aria-label={`Di chuyển nguyên liệu ${index + 1} xuống`} className="rounded-lg border px-3 py-2 disabled:opacity-50">Xuống</button>
               {recipeId && <button type="button" disabled={disabled} onClick={() => void save(index)} className="rounded-lg border px-3 py-2 disabled:opacity-50">Lưu hàng {index + 1}</button>}
-              <button type="button" disabled={disabled} onClick={() => void erase(index)} aria-label={`Xóa nguyên liệu ${index + 1}`} className="rounded-lg border px-3 py-2 text-red-600 disabled:opacity-50">Xóa</button>
+              <button type="button" disabled={disabled} onClick={() => void erase(index)} aria-label={`Xóa nguyên liệu ${index + 1}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-destructive disabled:opacity-50">Xóa</button>
             </div>
           </div>
         ))}

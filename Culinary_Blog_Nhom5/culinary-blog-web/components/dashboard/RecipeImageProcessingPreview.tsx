@@ -52,7 +52,7 @@ export default function RecipeImageProcessingPreview({ initial }: { initial: Rec
       <Image src={image.thumbnailUrl ?? image.originalUrl} alt={image.altText ?? "Ảnh công thức"}
         width={96} height={96} unoptimized className="h-24 w-24 rounded-lg object-cover" />
       <p role="status" className="text-xs text-muted-foreground">{labels[image.processingStatus]}</p>
-      {notice && <p role="alert" className="text-xs text-amber-800">{notice}</p>}
+      {notice && <p role="alert" className="text-xs text-warning">{notice}</p>}
       {notice && <button type="button" className="text-xs underline" onClick={() => { setNotice(""); setPollVersion(value => value + 1); }}>Kiểm tra lại trạng thái</button>}
       {image.processingStatus === "Completed" && (
         <div className="flex flex-wrap gap-3 text-xs underline">

@@ -20,7 +20,7 @@ export default function Footer() {
 
   return (
     <footer className="mt-28 border-t border-border bg-card/70 backdrop-blur-sm">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
+      <div className="page-container grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-4">
         {/* Brand & Slogan */}
         <div className="space-y-4 md:col-span-2 lg:col-span-1">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
@@ -120,8 +120,8 @@ export default function Footer() {
           </p>
 
           {subscribed ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50/70 p-3.5 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            <div className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/10 p-3.5 text-xs font-medium text-success">
+              <CheckCircle2 className="size-4 shrink-0 text-success" />
               <span>Thank you! We have added you to our Friday dispatch.</span>
             </div>
           ) : (
@@ -152,8 +152,8 @@ export default function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-border/80 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+      <div className="border-t border-border/80 py-6">
+        <div className="page-container flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
           <p>
             © {new Date().getFullYear()} Culinary Blog. Designed with care for passionate cooks.
           </p>

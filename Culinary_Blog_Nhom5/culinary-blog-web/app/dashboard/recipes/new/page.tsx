@@ -46,12 +46,12 @@ export default function NewRecipePage() {
     } finally { setSaving(false); }
   };
 
-  return <div className="min-h-screen bg-gray-50 py-10"><div className="mx-auto max-w-5xl space-y-6 px-4">
+  return <div className="min-h-screen bg-background py-10"><div className="page-container max-w-5xl space-y-6">
     <header><p className="text-sm font-medium text-primary">Dashboard / Recipes / New</p>
-      <h1 className="mt-2 text-3xl font-bold text-gray-900">Tạo công thức mới</h1>
-      <p className="mt-2 text-gray-500">Chia sẻ công thức món ăn của bạn với mọi người.</p>
-      {dirty && <p role="status" className="mt-2 text-sm text-amber-700">Có thay đổi chưa lưu.</p>}</header>
-    {created && <p role="status" className="text-green-700">Đã lưu bản nháp. <Link className="underline" href={`/dashboard/recipes/${created.id}/edit`}>Tiếp tục chỉnh sửa</Link></p>}
+      <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Tạo công thức mới</h1>
+      <p className="mt-2 text-muted-foreground">Chia sẻ công thức món ăn của bạn với mọi người.</p>
+      {dirty && <p role="status" className="mt-2 text-sm text-warning">Có thay đổi chưa lưu.</p>}</header>
+    {created && <p role="status" className="text-success">Đã lưu bản nháp. <Link className="underline" href={`/dashboard/recipes/${created.id}/edit`}>Tiếp tục chỉnh sửa</Link></p>}
     <RecipeForm mode="create" categories={categories.data ?? []} categoriesLoading={categories.isPending}
       categoryError={categories.isError ? categories.error : undefined} onRetryCategories={() => { void categories.refetch(); }}
       onSave={save} onDirtyChange={setBasicDirty} busy={saving} disabled={Boolean(created)} createdSlug={created?.slug}
@@ -59,8 +59,8 @@ export default function NewRecipePage() {
         const ingredientCount = ingredientValidation.current?.setServerErrors(errors, focus) ?? 0;
         stepValidation.current?.setServerErrors(errors, focus && !ingredientCount);
       }}>
-      <section aria-label="Ảnh món ăn" className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-semibold">Ảnh món ăn</h2>
-        <p className="mt-2 text-sm text-gray-500">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
+      <section aria-label="Ảnh món ăn" className="rounded-2xl border border-border bg-card p-6 shadow-soft"><h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
         {created && <ImageGalleryManager key={created.id} recipeId={created.id} />}</section>
       <fieldset disabled={saving} aria-label="Nguyên liệu công thức" className="min-w-0">
         <IngredientManager key={created?.id ?? "new"} recipeId={created?.id} initialItems={ingredients} onChange={setIngredients}

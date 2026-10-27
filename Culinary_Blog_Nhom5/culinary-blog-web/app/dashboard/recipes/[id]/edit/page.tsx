@@ -174,11 +174,11 @@ export default function EditRecipePage({ params }: RouteProps) {
     return <div className="p-8"><ErrorState headingLevel="h1" title="Bạn không có quyền cập nhật công thức này."
       description="Chỉ tác giả sở hữu công thức hoặc quản trị viên được chỉnh sửa." /></div>;
 
-  return <div className="min-h-screen bg-gray-50 py-10"><div className="mx-auto max-w-3xl space-y-6 px-4">
+  return <div className="min-h-screen bg-background py-10"><div className="page-container max-w-3xl space-y-6">
     <header><p className="text-sm font-medium text-primary">Dashboard / Recipes / Edit</p>
-      <h1 className="mt-2 text-3xl font-bold">Chỉnh sửa công thức</h1>
-      <p className="mt-2 text-sm text-gray-500">Chỉnh sửa nội dung; đường dẫn và trạng thái công thức được giữ nguyên.</p></header>
-    {success && <p role="status" className="text-green-700">{success}</p>}
+      <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Chỉnh sửa công thức</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Chỉnh sửa nội dung; đường dẫn và trạng thái công thức được giữ nguyên.</p></header>
+    {success && <p role="status" className="text-success">{success}</p>}
     {mutationError && <ErrorState title={outOfDate ? "Cần tải lại phiên bản công thức" : "Không thể xóa công thức"}
       description={mutationError.description} correlationId={mutationError.correlationId}
       onRetry={outOfDate ? reloadRecipe : undefined} retryLabel="Tải bản mới"
@@ -189,7 +189,7 @@ export default function EditRecipePage({ params }: RouteProps) {
       onRetryCategories={() => { void categories.refetch(); }} onSave={save} onDirtyChange={setBasicDirty}
       onReload={reloadRecipe} onEdited={() => setSuccess("")} busy={saving || deleting} blockSubmit={outOfDate}
       actions={<button ref={deleteButton} type="button" disabled={saving || deleting} onClick={() => setShowDelete(true)}
-        className="rounded-xl border border-red-200 px-5 py-3 text-red-600">Xóa công thức</button>}>
+        className="rounded-xl border border-destructive/30 px-5 py-3 text-destructive">Xóa công thức</button>}>
       <fieldset disabled={saving || deleting} aria-label="Nguyên liệu công thức" className="min-w-0">
         <IngredientManager key={`ingredients-${recipe.id}-${reload}`} recipeId={recipe.id} onDirtyChange={setIngredientDirty}
           parentVersion={recipe.rowVersion} onMutation={refreshVersion} />

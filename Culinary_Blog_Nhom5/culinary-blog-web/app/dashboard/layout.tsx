@@ -26,7 +26,7 @@ export default async function DashboardLayout({
       <SkipLink />
       {/* Dashboard Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="page-container flex h-16 items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/" aria-label="Culinary Studio — Trang chủ" className="flex items-center gap-2.5">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">

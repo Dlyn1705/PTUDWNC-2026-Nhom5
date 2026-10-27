@@ -14,7 +14,7 @@ import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-red-700">{message}</p>
+    <p className="mt-2 text-xs font-medium text-destructive">{message}</p>
   ) : null;
 }
 
@@ -82,7 +82,7 @@ export function LoginForm() {
       {sessionExpired && (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning"
         >
           Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.
         </div>
@@ -90,7 +90,7 @@ export function LoginForm() {
       {serverError && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {serverError}
         </div>
@@ -149,15 +149,15 @@ export function LoginForm() {
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
 
-      <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-stone-400">
-        <span className="h-px flex-1 bg-stone-200" />
+      <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
         <span>Hoặc tiếp tục với</span>
-        <span className="h-px flex-1 bg-stone-200" />
+        <span className="h-px flex-1 bg-border" />
       </div>
 
       <GoogleLoginButton callbackUrl={callbackUrl} />
 
-      <p className="text-center text-sm text-stone-600">
+      <p className="text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{" "}
         <Link
           href="/auth/register"

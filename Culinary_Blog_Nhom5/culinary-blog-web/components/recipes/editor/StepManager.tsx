@@ -138,31 +138,31 @@ export default function StepManager({ recipeId, published = false, parentVersion
       <h2 className="text-xl font-semibold">Các bước thực hiện</h2>
       {recipeId && <button type="button" onClick={() => void reload()} disabled={busy || disabled} className="rounded-lg border px-3 py-2">Tải các bước mới</button>}
     </div>
-    <p className="text-sm text-gray-600">Tối đa 100 bước. Số thứ tự được hệ thống quản lý; tiêu đề để trống sẽ được đặt tự động.</p>
-    {published && persistedCount === 1 && <p className="text-sm text-amber-700">Hãy hủy xuất bản trước khi xóa bước cuối cùng.</p>}
-    {parentChanged && <p role="status" className="text-sm text-amber-700">Công thức vừa được cập nhật. Tải các bước mới trước khi tiếp tục.</p>}
+    <p className="text-sm text-muted-foreground">Tối đa 100 bước. Số thứ tự được hệ thống quản lý; tiêu đề để trống sẽ được đặt tự động.</p>
+    {published && persistedCount === 1 && <p className="text-sm text-warning">Hãy hủy xuất bản trước khi xóa bước cuối cùng.</p>}
+    {parentChanged && <p role="status" className="text-sm text-warning">Công thức vừa được cập nhật. Tải các bước mới trước khi tiếp tục.</p>}
     {loading && <p role="status">Đang tải các bước…</p>}
-    {message && <p role="status" className="text-sm text-green-700">{message}</p>}
-    {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+    {message && <p role="status" className="text-sm text-success">{message}</p>}
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <fieldset disabled={blocked} className="space-y-4 disabled:opacity-60">
       {fields.length === 0 && !loading && <p>Chưa có bước thực hiện. Bạn vẫn có thể lưu bản nháp.</p>}
       {fields.map((field, index) => <div key={field.id} className="space-y-3 rounded-xl border p-4" data-step-row>
         <h3 className="font-semibold">Bước {index + 1}{recipeId && !field.stepId ? " — chưa lưu" : ""}</h3>
         <label className="block text-sm">Tiêu đề bước {index + 1}<input {...register(`items.${index}.title`)} {...fieldAccessibility(index, "title")} maxLength={200} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
         <label className="block text-sm">Mô tả bước {index + 1}<textarea {...register(`items.${index}.description`)} {...fieldAccessibility(index, "description")} maxLength={2000} rows={4} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-        <p className="text-xs text-gray-500">{items[index]?.description?.length ?? 0}/2.000 ký tự</p>
+        <p className="text-xs text-muted-foreground">{items[index]?.description?.length ?? 0}/2.000 ký tự</p>
         <label className="block text-sm">Hẹn giờ bước {index + 1} (phút, tùy chọn)<input {...register(`items.${index}.timerMinutes`)} {...fieldAccessibility(index, "timerMinutes")} inputMode="numeric" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
         <label className="block text-sm">URL ảnh bước {index + 1} (tùy chọn)<input {...register(`items.${index}.imageUrl`)} {...fieldAccessibility(index, "imageUrl")} maxLength={500} placeholder="https://…" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-        <p className="text-xs text-gray-500">Dùng URL ảnh được phép hiển thị trên website. Có thể tải ảnh ở thư viện ảnh sau khi lưu bản nháp rồi sao chép URL.</p>
+        <p className="text-xs text-muted-foreground">Dùng URL ảnh được phép hiển thị trên website. Có thể tải ảnh ở thư viện ảnh sau khi lưu bản nháp rồi sao chép URL.</p>
         {items[index]?.imageUrl && imagePreview(items[index].imageUrl) && <Image src={items[index].imageUrl} alt={`Ảnh xem trước bước ${index + 1}`} width={480} height={270} unoptimized className="max-h-48 w-auto rounded-lg object-contain"
           onError={() => setFailedImage(current => ({ ...current, [field.id]: items[index]?.imageUrl ?? "" }))} />}
-        {items[index]?.imageUrl && failedImage[field.id] === items[index].imageUrl && <p className="text-sm text-amber-700">Không thể hiển thị ảnh. Kiểm tra URL và nguồn ảnh được website cho phép.</p>}
-        {(["title", "description", "timerMinutes", "imageUrl"] as const).map(key => errors.items?.[index]?.[key]?.message && <p id={`step-${field.id}-${key}-error`} role="alert" className="text-sm text-red-600" key={key}>{errors.items[index]?.[key]?.message}</p>)}
+        {items[index]?.imageUrl && failedImage[field.id] === items[index].imageUrl && <p className="text-sm text-warning">Không thể hiển thị ảnh. Kiểm tra URL và nguồn ảnh được website cho phép.</p>}
+        {(["title", "description", "timerMinutes", "imageUrl"] as const).map(key => errors.items?.[index]?.[key]?.message && <p id={`step-${field.id}-${key}-error`} role="alert" className="text-sm text-destructive" key={key}>{errors.items[index]?.[key]?.message}</p>)}
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={index === 0} onClick={() => void reorder(index, index - 1)} aria-label={`Di chuyển bước ${index + 1} lên`} className="rounded-lg border px-3 py-2">Lên</button>
           <button type="button" disabled={index === fields.length - 1} onClick={() => void reorder(index, index + 1)} aria-label={`Di chuyển bước ${index + 1} xuống`} className="rounded-lg border px-3 py-2">Xuống</button>
           {recipeId && <button type="button" onClick={() => void save(index)} className="rounded-lg border px-3 py-2">Lưu bước {index + 1}</button>}
-          <button type="button" disabled={published && persistedCount === 1 && Boolean(field.stepId)} onClick={() => void erase(index)} aria-label={`Xóa bước ${index + 1}`} className="rounded-lg border px-3 py-2 text-red-600">Xóa bước</button>
+          <button type="button" disabled={published && persistedCount === 1 && Boolean(field.stepId)} onClick={() => void erase(index)} aria-label={`Xóa bước ${index + 1}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-destructive">Xóa bước</button>
         </div>
       </div>)}
       <button type="button" disabled={fields.length >= 100} onClick={() => append(emptyStep())} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>

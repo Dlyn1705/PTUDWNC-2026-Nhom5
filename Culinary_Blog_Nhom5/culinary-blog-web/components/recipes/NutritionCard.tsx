@@ -20,9 +20,9 @@ export function NutritionCard({ nutrition }: NutritionCardProps) {
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div>
-          <h3 className="font-display text-lg font-semibold text-foreground">
+          <h2 className="font-display text-lg font-semibold text-foreground">
             Nutrition per serving
-          </h3>
+          </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Estimates based on recipe ingredients (6 core indicators).
           </p>
