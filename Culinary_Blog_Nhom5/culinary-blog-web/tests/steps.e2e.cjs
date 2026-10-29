@@ -62,15 +62,15 @@ async function main() {
       const json = (value, status = 200) => route.fulfill({ status, contentType: "application/json", headers: {
         "Access-Control-Expose-Headers": "ETag", ETag: '"' + versionText() + '"', "Cache-Control": "no-store" }, body: JSON.stringify(value) });
       if (endpoint.startsWith("/api/v1/categories")) return json({ data: [category] });
-      if (endpoint.endsWith("/ingredients") || endpoint.endsWith("/images")) return json({ success: true, data: [] });
+      if (endpoint.endsWith("/ingredients") || endpoint.endsWith("/images")) return json({ data: [] });
       if ((endpoint === "/api/v1/recipes" || endpoint === "/api/v1/recipes/") && request.method() === "POST") {
         createdPayload = request.postDataJSON();
         recipe.status = 0; steps = createdPayload.steps.map((step, index) => ({ ...step, id: randomUUID(), recipeId, stepNumber: index + 1, title: step.title || `Bước ${index + 1}` }));
         version++; return json({ data: { id: recipeId, slug: recipe.slug, rowVersion: versionText() } }, 201);
       }
-      if (endpoint === `/api/v1/recipes/${recipeId}`) return json({ ...recipe, rowVersion: versionText() });
+      if (endpoint === `/api/v1/recipes/${recipeId}`) return json({ data: { ...recipe, rowVersion: versionText() } });
       if (endpoint.includes("/steps")) {
-        if (request.method() === "GET") return json({ success: true, data: steps });
+        if (request.method() === "GET") return json({ data: steps });
         writes++;
         if (holdWrite) await holdWrite;
         assert.equal(request.headers().authorization, "Bearer test-steps-access");
@@ -79,7 +79,7 @@ async function main() {
         if (request.headers()["if-match"] !== '"' + versionText() + '"') return json({ status: 409, detail: "Version cũ" }, 409);
         if (endpoint.endsWith("/reorder")) {
           steps = input.stepIds.map((id, i) => ({ ...steps.find(s => s.id === id), stepNumber: i + 1 })); version++;
-          return json({ success: true, data: steps });
+          return json({ data: steps });
         }
         if (request.method() === "DELETE") {
           steps = steps.filter(s => s.id !== endpoint.split("/").at(-1)).map((s, i) => ({ ...s, stepNumber: i + 1 })); version++;
@@ -94,7 +94,7 @@ async function main() {
           item = { ...steps.find(s => s.id === endpoint.split("/").at(-1)), ...input };
           steps = steps.map(s => s.id === item.id ? item : s);
         }
-        version++; return json({ success: true, data: item }, request.method() === "POST" ? 201 : 200);
+        version++; return json({ data: item }, request.method() === "POST" ? 201 : 200);
       }
       return json({ data: [], meta: { page: 1, pageSize: 12, totalCount: 0, totalPages: 0 } });
     });
