@@ -144,7 +144,7 @@ function fakeImage(processingStatus: StoredRecipeImage["processingStatus"] = "Co
   return { id: "img-1", recipeId: "recipe-1", originalUrl: "https://img.test/orig.jpg",
     mediumUrl: null, thumbnailUrl: null, altText: null, isPrimary: true, orderIndex: 0, processingStatus };
 }
-const envelope = (v: unknown) => ({ success: true, data: v });
+const envelope = (v: unknown) => ({ data: v });
 const fakeFile = () => new File(["img"], "photo.jpg", { type: "image/jpeg" });
 
 test("file validation error does not dispatch HTTP and emits no log", async () => {

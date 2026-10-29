@@ -22,11 +22,15 @@ public sealed class ApiSecurityTests
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
+        // Windows' default EventLog provider requires machine-level write
+        // permission. These transport tests do not exercise logging.
+        builder.Logging.ClearProviders();
         builder.Services.AddApiSecurity();
         builder.Services.AddAuthentication("Tests").AddScheme<AuthenticationSchemeOptions, AnonymousAuthentication>("Tests", _ => { });
         builder.Services.AddAuthorization();
         var app = builder.Build();
         app.UseMiddleware<ApiSecurityHeadersMiddleware>();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         // Test-only trusted transport address. Production never reads this header.
         app.Use(async (context, next) =>
         {
@@ -60,7 +64,10 @@ public sealed class ApiSecurityTests
         Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
         Assert.Equal("application/problem+json", blocked.Content.Headers.ContentType!.MediaType);
         Assert.InRange(blocked.Headers.RetryAfter!.Delta!.Value.TotalSeconds, 1, 60);
-        Assert.Equal(429, (await blocked.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetInt32());
+        var problem = await blocked.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(429, problem.GetProperty("status").GetInt32());
+        Assert.Equal(blocked.Headers.GetValues("X-Correlation-ID").Single(), problem.GetProperty("correlationId").GetString());
+        Assert.Equal("/api/test", problem.GetProperty("instance").GetString());
         Assert.Equal("nosniff", blocked.Headers.GetValues("X-Content-Type-Options").Single());
         client.DefaultRequestHeaders.Add("Test-IP", "192.0.2.2");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/test")).StatusCode);

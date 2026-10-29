@@ -16,7 +16,7 @@ const file = () => new File(["test-image"], "dish.jpg", { type: "image/jpeg" });
 const response = (config: InternalAxiosRequestConfig, data: unknown, status = 200, id = "response-id"): AxiosResponse => ({
   config, status, statusText: "test", headers: new AxiosHeaders({ "X-Correlation-ID": id }), data,
 });
-const envelope = (value: unknown) => ({ success: true, data: value });
+const envelope = (value: unknown) => ({ data: value });
 const config = () => ({ headers: new AxiosHeaders(), observability: { correlationId: "request-id" } });
 async function rejectsKind(promise: Promise<unknown>, kind: string): Promise<ApiProblemError> {
   try { await promise; assert.fail("Expected rejection"); }

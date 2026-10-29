@@ -6,6 +6,7 @@ using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
+using CulinaryBlog.API.Responses;
 using CulinaryBlog.Application;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure;
@@ -170,6 +171,31 @@ var authenticationBuilder = builder.Services
 
                 ClockSkew = TimeSpan.Zero
             };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                if (context.Response.HasStarted) return Task.CompletedTask;
+                context.Response.Headers["WWW-Authenticate"] = "Bearer";
+                return ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status401Unauthorized,
+                    "Yêu cầu xác thực.",
+                    "Cần đăng nhập hợp lệ để truy cập tài nguyên này.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.2");
+            },
+            OnForbidden = context =>
+            {
+                if (context.Response.HasStarted) return Task.CompletedTask;
+                return ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status403Forbidden,
+                    "Không có quyền truy cập.",
+                    "Tài khoản hiện tại không có quyền thực hiện thao tác này.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.4");
+            }
+        };
     });
 
 if (!string.IsNullOrWhiteSpace(googleClientId)
@@ -208,22 +234,19 @@ if (!string.IsNullOrWhiteSpace(googleClientId)
                     ? StatusCodes.Status502BadGateway
                     : StatusCodes.Status401Unauthorized;
 
-            context.Response.StatusCode = status;
-            context.Response.ContentType = "application/problem+json";
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = status,
-                Title = status switch
+            context.HandleResponse();
+            await ApiProblemResponses.WriteAsync(
+                context.HttpContext,
+                status,
+                status switch
                 {
                     StatusCodes.Status400BadRequest => "Google authorization was denied.",
                     StatusCodes.Status502BadGateway => "Google authentication service is unavailable.",
                     _ => "Google authorization code is invalid or expired."
                 },
-                Detail = status == StatusCodes.Status502BadGateway
+                status == StatusCodes.Status502BadGateway
                     ? "The server could not reach Google's token service. Please retry."
-                    : "Google sign-in could not be completed. Please start again."
-            });
-            context.HandleResponse();
+                    : "Google sign-in could not be completed. Please start again.");
         };
     });
 }
@@ -323,6 +346,11 @@ app.UseStructuredRequestLogging();
 app.UseMiddleware<RequestAuditMiddleware>();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseStatusCodePages(async statusContext =>
+{
+    if (statusContext.HttpContext.Request.Path.StartsWithSegments("/api"))
+        await ApiProblemResponses.WriteStatusAsync(statusContext.HttpContext);
+});
 
 app.UseCors("AllowFrontend");
 

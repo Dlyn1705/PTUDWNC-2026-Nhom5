@@ -14,7 +14,10 @@ export function errorPresentation(error: unknown) {
     : status === 403 ? "Bạn không có quyền truy cập nội dung này."
     : status === 404 ? "Nội dung không còn tồn tại hoặc đã được di chuyển."
     : status === 400 || status === 422 ? "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra các trường và bộ lọc."
+    : status === 409 ? "Dữ liệu đã thay đổi. Vui lòng tải lại rồi thử thao tác này."
     : status === 429 ? "Có quá nhiều yêu cầu. Vui lòng đợi một lát rồi thử lại."
+    : status === 503 ? "Dịch vụ đang tạm thời không khả dụng. Vui lòng thử lại sau."
+    : status === 500 ? "Máy chủ đang gặp sự cố. Vui lòng thử lại sau."
     : "Không thể tải dữ liệu lúc này. Vui lòng thử lại sau ít phút.";
   return { status, correlationId, description, canRetry: ![400, 401, 403, 404, 422].includes(status ?? 0) };
 }

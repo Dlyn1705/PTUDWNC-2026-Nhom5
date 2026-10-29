@@ -90,6 +90,20 @@ test("keeps important backend status and field errors", () => {
   }
 });
 
+test("preserves retry guidance for rate-limited requests", () => {
+  const config = { headers: new AxiosHeaders() } as never;
+  const error = toApiProblemError(new AxiosError("limited", "ERR_BAD_REQUEST", config, undefined, {
+    config,
+    data: { status: 429, title: "Too many requests", correlationId: "rate-limit-id" },
+    status: 429,
+    statusText: "Too Many Requests",
+    headers: new AxiosHeaders({ "Retry-After": "4", "X-Correlation-ID": "header-id" }),
+  }));
+  assert.equal(error.status, 429);
+  assert.equal(error.retryAfterMs, 4_000);
+  assert.equal(error.correlationId, "rate-limit-id");
+});
+
 test("message helpers use detail, title, then fallback", () => {
   assert.equal(getApiErrorMessage(new ApiProblemError({ detail: "detail", title: "title" })), "detail");
   assert.equal(getApiErrorMessage(new ApiProblemError({ title: "title" })), "title");

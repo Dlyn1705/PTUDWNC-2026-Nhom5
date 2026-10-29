@@ -89,7 +89,7 @@ async function main() {
       if (request.method() !== "GET") onboardingMutations.push(url.pathname);
       if (request.method() === "POST" && url.pathname === "/api/v1/auth/register") {
         registrationCalls++;
-        return registrationStatus === 201 ? json({ success: true, data: {} }, 201)
+        return registrationStatus === 201 ? json({ data: {} }, 201)
           : json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
       }
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
@@ -114,23 +114,23 @@ async function main() {
           const ingredient = { ...request.postDataJSON(), id: randomUUID(), recipeId: recipe.id, orderIndex: ingredients.length };
           ingredients.push(ingredient);
           recipe.rowVersion = Buffer.from(`ingredient-version-${ingredients.length}`).toString("base64");
-          return json({ success: true, data: ingredient }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+          return json({ data: ingredient }, 200, { ETag: '"' + recipe.rowVersion + '"' });
         }
-        return json({ success: true, data: ingredients }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+        return json({ data: ingredients }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
-      if (url.pathname.endsWith("/images")) return json({ success: true, data: [] });
+      if (url.pathname.endsWith("/images")) return json({ data: [] });
       if (url.pathname.endsWith("/steps")) {
         if (request.method() === "POST") {
           const input = request.postDataJSON();
           const item = { ...input, id: randomUUID(), recipeId: recipe.id, stepNumber: stepRows.length + 1, title: input.title || `Bước ${stepRows.length + 1}` };
           stepRows.push(item);
           recipe.rowVersion = Buffer.from(`step-version-${stepRows.length}`).toString("base64");
-          return json({ success: true, data: item }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+          return json({ data: item }, 200, { ETag: '"' + recipe.rowVersion + '"' });
         }
-        return json({ success: true, data: stepRows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+        return json({ data: stepRows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
-      if (url.pathname.endsWith("/categories")) return json({ success: true, data: [category] });
-      if (url.pathname === `/api/v1/recipes/${recipe.id}`) return recipeStatus === 200 ? json(recipe)
+      if (url.pathname.endsWith("/categories")) return json({ data: [category] });
+      if (url.pathname === `/api/v1/recipes/${recipe.id}`) return recipeStatus === 200 ? json({ data: recipe })
         : json({ status: recipeStatus, correlationId: "lab6-editor-load-error" }, recipeStatus);
       if (url.pathname.endsWith("/mine")) {
         if (mineStatus !== 200) return json({ status: mineStatus, correlationId: "lab6-managed-list-error" }, mineStatus);
@@ -408,8 +408,8 @@ async function main() {
     // Reuse the deterministic API fixtures, while the Admin session is issued by Auth.js itself.
     await adminContext.route("**/api/v1/**", route => {
       const suffix = new URL(route.request().url()).pathname;
-      const data = suffix.endsWith("/categories") ? { success: true, data: [category] }
-        : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { success: true, data: [] } : recipe;
+      const data = suffix.endsWith("/categories") ? { data: [category] }
+        : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { data: [] } : { data: recipe };
       return route.fulfill({ contentType: "application/json", headers: { "Access-Control-Expose-Headers": "ETag", ETag: '"' + recipe.rowVersion + '"' }, body: JSON.stringify(data) });
     });
     const adminPage = await adminContext.newPage();

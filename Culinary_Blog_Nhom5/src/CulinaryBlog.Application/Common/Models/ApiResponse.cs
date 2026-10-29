@@ -1,28 +1,22 @@
+using System.Text.Json.Serialization;
+
 namespace CulinaryBlog.Application.Common.Models;
 
-public class ApiResponse<T>
+/// <summary>
+/// Standard response envelope for a single successful resource.
+/// Paginated endpoints return <see cref="PagedResult{T}"/> directly so their
+/// wire shape remains <c>{ data, meta }</c>.
+/// </summary>
+public sealed class ApiResponse<T>
 {
-    public bool Success { get; set; } = true;
-    public string? Message { get; set; }
-    public T? Data { get; set; }
+    [JsonPropertyName("data")]
+    public T? Data { get; init; }
 
-    public static ApiResponse<T> Ok(T data, string? message = null)
+    public static ApiResponse<T> Ok(T data)
     {
         return new ApiResponse<T>
         {
-            Success = true,
-            Message = message,
             Data = data
-        };
-    }
-
-    public static ApiResponse<T> Fail(string message)
-    {
-        return new ApiResponse<T>
-        {
-            Success = false,
-            Message = message,
-            Data = default
         };
     }
 }

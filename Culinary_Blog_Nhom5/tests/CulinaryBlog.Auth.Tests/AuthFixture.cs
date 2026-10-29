@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
+using CulinaryBlog.API.Responses;
 using CulinaryBlog.Application;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
@@ -51,6 +52,7 @@ public sealed class AuthFixture : IAsyncLifetime
         var connection = new NpgsqlConnectionStringBuilder(adminConnection) { Database = databaseName }.ToString();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
+        // Integration tests run without machine-level Windows EventLog permissions.
         builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -81,6 +83,11 @@ public sealed class AuthFixture : IAsyncLifetime
         app = builder.Build();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
+        app.UseStatusCodePages(async statusContext =>
+        {
+            if (statusContext.HttpContext.Request.Path.StartsWithSegments("/api"))
+                await ApiProblemResponses.WriteStatusAsync(statusContext.HttpContext);
+        });
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
