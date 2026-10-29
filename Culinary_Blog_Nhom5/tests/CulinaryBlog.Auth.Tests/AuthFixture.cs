@@ -150,16 +150,34 @@ public sealed class FailureInjection : DbCommandInterceptor
 {
     public bool FailNextInsert { get; set; }
     public bool FailNextSigning { get; set; }
+    public bool FailNextRoleRemoval { get; set; }
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
         DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
+        RejectRoleRemoval(command);
         if (FailNextInsert && command.CommandText.Contains("INSERT INTO \"RefreshTokens\"", StringComparison.Ordinal))
         {
             FailNextInsert = false;
             throw new InvalidOperationException("Injected token insert failure.");
         }
         return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+        DbCommand command, CommandEventData eventData, InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        RejectRoleRemoval(command);
+        return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    private void RejectRoleRemoval(DbCommand command)
+    {
+        if (!FailNextRoleRemoval || !command.CommandText.Contains("DELETE FROM \"AspNetUserRoles\"", StringComparison.Ordinal))
+            return;
+        FailNextRoleRemoval = false;
+        throw new InvalidOperationException("Injected role removal failure.");
     }
 }
 

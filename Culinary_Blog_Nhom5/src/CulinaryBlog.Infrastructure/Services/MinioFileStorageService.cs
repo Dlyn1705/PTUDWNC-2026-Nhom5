@@ -31,9 +31,12 @@ public sealed class MinioFileStorageService : IFileStorageService
     {
         try
         {
-            await EnsureBucketAsync(ct);
+            // A successful request proves MinIO is reachable. Upload creates a
+            // missing bucket, so its absence does not make MinIO unavailable.
+            await _client.BucketExistsAsync(new BucketExistsArgs().WithBucket(_options.Bucket), ct);
             return true;
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch { return false; }
     }
 

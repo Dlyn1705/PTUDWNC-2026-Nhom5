@@ -1,91 +1,99 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using CulinaryBlog.Application.Contracts;
-using CulinaryBlog.Infrastructure.Persistence;
-using Microsoft.Extensions.Logging;
 
 namespace CulinaryBlog.API.Endpoints;
 
+public sealed record LivenessResponse(string Status, string Probe, DateTime Timestamp);
+public sealed record ReadinessDependencies(string Database, string Cache);
+public sealed record ReadinessResponse(string Status, string Probe, ReadinessDependencies Dependencies, DateTime Timestamp);
+public sealed record HealthDependencies(string Database, string Cache, string Storage);
+public sealed record HealthResponse(string Status, HealthDependencies Dependencies, DateTime Timestamp);
+
 public static class HealthEndpoints
 {
+    private static readonly TimeSpan DependencyTimeout = TimeSpan.FromSeconds(2);
+
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/health")
-            .WithTags("Health Checks");
+        var group = app.MapGroup("/health").WithTags("Health Checks");
 
-        // FR-OBS-001: Liveness probe (kiểm tra process còn sống)
-        group.MapGet("/live", () => Results.Ok(new { status = "Healthy", probe = "liveness", timestamp = System.DateTime.UtcNow }))
-            .WithName("LivenessCheck")
-            .WithSummary("Liveness probe");
-
-        // FR-OBS-001: Readiness probe
-        group.MapGet("/ready", async (
-            ApplicationDbContext db,
-            IFileStorageService storage,
-            ILoggerFactory loggerFactory,
-            CancellationToken ct) =>
+        group.MapGet("/live", (HttpContext context) =>
         {
-            var logger = loggerFactory.CreateLogger("HealthEndpoints");
-            var databaseReady = await CheckDatabaseAsync(db, logger, ct);
-            var storageReady = await storage.IsReadyAsync(ct);
-            var healthy = databaseReady && storageReady;
-            return Results.Json(new
-            {
-                status = healthy ? "Healthy" : "Unhealthy",
-                probe = "readiness",
-                dependencies = new
-                {
-                    database = databaseReady ? "Ready" : "Unavailable",
-                    storage = storageReady ? "Ready" : "Unavailable"
-                },
-                timestamp = System.DateTime.UtcNow
-            }, statusCode: healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(new LivenessResponse("Healthy", "liveness", DateTime.UtcNow));
         })
-            .WithName("ReadinessCheck")
-            .WithSummary("Readiness probe");
+        .WithName("LivenessCheck")
+        .WithSummary("Liveness probe: chỉ kiểm tra process HTTP còn hoạt động")
+        .Produces<LivenessResponse>(StatusCodes.Status200OK);
 
-        // FR-OBS-001: Tổng hợp health check
-        group.MapGet("/", async (
-            ApplicationDbContext db,
-            IFileStorageService storage,
-            ILoggerFactory loggerFactory,
-            CancellationToken ct) =>
+        group.MapGet("/ready", async Task<IResult> (
+            IHealthDependencyProbe dependencies, HttpContext context, CancellationToken ct) =>
         {
-            var logger = loggerFactory.CreateLogger("HealthEndpoints");
-            var databaseReady = await CheckDatabaseAsync(db, logger, ct);
-            var storageReady = await storage.IsReadyAsync(ct);
-            var healthy = databaseReady && storageReady;
-            return Results.Json(new
-            {
-                status = healthy ? "Healthy" : "Unhealthy",
-                timestamp = System.DateTime.UtcNow,
-                dependencies = new
-                {
-                    database = databaseReady ? "Ready" : "Unavailable",
-                    cache = "NotConfigured",
-                    storage = storageReady ? "Ready" : "Unavailable"
-                }
-            }, statusCode: healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+            context.Response.Headers.CacheControl = "no-store";
+            var database = ProbeAsync(dependencies.DatabaseAsync, ct);
+            var cache = ProbeAsync(dependencies.RedisAsync, ct);
+            await Task.WhenAll(database, cache);
+            var ready = database.Result && cache.Result;
+            return Results.Json(new ReadinessResponse(
+                ready ? "Healthy" : "Unhealthy",
+                "readiness",
+                new ReadinessDependencies(State(database.Result), State(cache.Result)),
+                DateTime.UtcNow),
+                statusCode: ready ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+        })
+        .WithName("ReadinessCheck")
+        .WithSummary("Readiness probe: PostgreSQL và Redis phải sẵn sàng; không phụ thuộc MinIO")
+        .Produces<ReadinessResponse>(StatusCodes.Status200OK)
+        .Produces<ReadinessResponse>(StatusCodes.Status503ServiceUnavailable);
+
+        group.MapGet("/", async Task<IResult> (
+            IHealthDependencyProbe dependencies, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var database = ProbeAsync(dependencies.DatabaseAsync, ct);
+            var cache = ProbeAsync(dependencies.RedisAsync, ct);
+            var storage = ProbeAsync(dependencies.StorageAsync, ct);
+            await Task.WhenAll(database, cache, storage);
+            var healthy = database.Result && cache.Result && storage.Result;
+            return Results.Json(new HealthResponse(
+                healthy ? "Healthy" : "Unhealthy",
+                new HealthDependencies(State(database.Result), State(cache.Result), State(storage.Result)),
+                DateTime.UtcNow),
+                statusCode: healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
         })
         .WithName("HealthCheck")
-        .WithSummary("Tổng hợp trạng thái hệ thống");
+        .WithSummary("Tổng hợp trạng thái PostgreSQL, Redis và MinIO")
+        .Produces<HealthResponse>(StatusCodes.Status200OK)
+        .Produces<HealthResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return app;
     }
 
-    private static async Task<bool> CheckDatabaseAsync(
-        ApplicationDbContext db,
-        ILogger logger,
-        CancellationToken cancellationToken)
+    private static string State(bool ready) => ready ? "Ready" : "Unavailable";
+
+    private static async Task<bool> ProbeAsync(
+        Func<CancellationToken, Task<bool>> probe,
+        CancellationToken requestAborted)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(requestAborted);
+        timeout.CancelAfter(DependencyTimeout);
         try
         {
-            return await db.Database.CanConnectAsync(cancellationToken);
+            return await probe(timeout.Token).WaitAsync(DependencyTimeout, requestAborted);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException) when (!requestAborted.IsCancellationRequested)
         {
-            logger.LogWarning(exception, "Database health probe failed.");
+            return false;
+        }
+        catch (TimeoutException)
+        {
+            timeout.Cancel();
+            return false;
+        }
+        catch (Exception) when (!requestAborted.IsCancellationRequested)
+        {
+            // Health responses never include dependency exceptions or endpoints.
             return false;
         }
     }
