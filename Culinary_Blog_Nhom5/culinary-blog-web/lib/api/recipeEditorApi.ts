@@ -47,20 +47,18 @@ export async function remove(id: string): Promise<void> {
 
 /** Owner/Admin dashboard list. The API returns the standard data/meta envelope. */
 export async function getMine(params: { page?: number; pageSize?: number; status?: number; sortBy?: string } = {}): Promise<ManagedRecipesPage> {
-  const response = await axiosClient.get<ManagedRecipesPage | ApiResponse<ManagedRecipesPage>>(`${recipesPath}/mine`, {
+  const response = await axiosClient.get<ManagedRecipesPage>(`${recipesPath}/mine`, {
     params: { page: Math.max(1, params.page ?? 1), pageSize: Math.min(50, Math.max(1, params.pageSize ?? 12)), ...params },
   });
-  const value = response.data;
-  return "meta" in value ? value : value.data;
+  return response.data;
 }
 
 /** Load an editable recipe directly by its ID. The backend authorizes owner/admin access. */
 export async function getById(id: string): Promise<RecipeDetailDto> {
-  const response = await axiosClient.get<RecipeDetailDto | ApiResponse<RecipeDetailDto>>(
+  const response = await axiosClient.get<ApiResponse<RecipeDetailDto>>(
     `${recipesPath}/${encodeURIComponent(id)}`,
   );
-  const value = response.data;
-  return "id" in value ? value : value.data;
+  return response.data.data;
 }
 
 export const recipeEditorApi = { create, update, updateNutrition, delete: remove, getMine, getById };

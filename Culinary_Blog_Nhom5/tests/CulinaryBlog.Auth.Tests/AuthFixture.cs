@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
+using CulinaryBlog.API.Responses;
 using CulinaryBlog.Application;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
@@ -19,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -50,6 +52,8 @@ public sealed class AuthFixture : IAsyncLifetime
         var connection = new NpgsqlConnectionStringBuilder(adminConnection) { Database = databaseName }.ToString();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
+        // Integration tests run without machine-level Windows EventLog permissions.
+        builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
@@ -77,12 +81,18 @@ public sealed class AuthFixture : IAsyncLifetime
         builder.Services.AddRateLimiter(options => options.AddPolicy("auth", _ =>
             System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("auth-tests")));
         app = builder.Build();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
+        app.UseStatusCodePages(async statusContext =>
+        {
+            if (statusContext.HttpContext.Request.Path.StartsWithSegments("/api"))
+                await ApiProblemResponses.WriteStatusAsync(statusContext.HttpContext);
+        });
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
         // Production maps the auth endpoints inside the versioned /api/v1 group.
-        app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapAuthEndpoints().MapAdminEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())

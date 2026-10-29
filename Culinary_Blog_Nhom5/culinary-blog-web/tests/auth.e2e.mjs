@@ -49,7 +49,7 @@ const backend = createServer(async (request, response) => {
     const refreshToken = randomBytes(32).toString("base64url");
     backendTokens.add(refreshToken);
     response.setHeader("Set-Cookie", `culinary_refresh_token=${refreshToken}; expires=${new Date(Date.now() + 604_800_000).toUTCString()}; path=/api/v1/auth; httponly; secure; samesite=lax`);
-    response.end(JSON.stringify({ data: authBody(refreshToken), success: true }));
+    response.end(JSON.stringify({ data: authBody(refreshToken) }));
   } else if (request.url === "/api/v1/auth/logout") {
     revokedToken = body.refreshToken;
     backendTokens.delete(body.refreshToken);

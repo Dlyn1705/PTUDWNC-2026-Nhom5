@@ -43,8 +43,6 @@ export interface AuthSessionResponse {
 // tokens are delivered only through the HttpOnly cookie and are absent here.
 export interface AuthResponse {
   data: AuthSessionResponse;
-  success?: boolean;
-  message?: string | null;
 }
 
 export interface ProblemDetails {

@@ -134,7 +134,7 @@ test("logout racing refresh revokes latest token and stale responses cannot resu
 
 test("backend refresh requires a new HttpOnly cookie and reads its expiry", async () => {
   const result = tokens("r1");
-  const response = new Response(JSON.stringify({ data: result.session, success: true }), { headers: {
+  const response = new Response(JSON.stringify({ data: result.session }), { headers: {
     "Set-Cookie": `culinary_refresh_token=r1; expires=${new Date(result.refreshTokenExpiry).toUTCString()}; path=/api/v1/auth; secure; httponly; samesite=lax`,
   } });
   assert.equal((await readBackendTokens(response)).refreshToken, "r1");
@@ -186,6 +186,45 @@ test("twenty concurrent 401 responses share one refreshed session and token", as
   assert.equal(results.length, 20);
   assert.equal(reads, 2, "one initial session read plus one refresh read");
   assert.equal(sends, 40, "each request is sent once and retried once");
+});
+
+test("requests started during refresh wait for the new bearer token", async () => {
+  let sends = 0;
+  let refreshes = 0;
+  let releaseRefresh!: () => void;
+  let refreshStarted!: () => void;
+  const started = new Promise<void>((resolve) => { refreshStarted = resolve; });
+  const gate = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+  const client = axios.create({ adapter: async (config) => {
+    sends++;
+    if (config.headers.Authorization === "Bearer old") {
+      throw new AxiosError("unauthorized", "401", config, null, {
+        config, status: 401, statusText: "", headers: {}, data: null,
+      });
+    }
+    assert.equal(config.headers.Authorization, "Bearer new");
+    return { config, status: 200, statusText: "", headers: {}, data: "ok" };
+  } });
+  installSessionAuth(
+    client,
+    async () => apiSession("old"),
+    async () => {
+      refreshes++;
+      refreshStarted();
+      await gate;
+      return apiSession("new");
+    },
+  );
+  const first = client.get("/api/v1/recipes/mine");
+  await started;
+  const duringRefresh = client.get("/api/v1/recipes/mine");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sends, 1);
+  releaseRefresh();
+  assert.equal((await first).data, "ok");
+  assert.equal((await duringRefresh).data, "ok");
+  assert.equal(sends, 3);
+  assert.equal(refreshes, 1);
 });
 
 test("concurrent forced refresh failure expires the client session only once", async () => {

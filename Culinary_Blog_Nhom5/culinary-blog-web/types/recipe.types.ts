@@ -12,7 +12,7 @@ export interface ManagedRecipeDto {
   slug: string;
   description: string;
   status: RecipeStatusValue;
-  updatedAt: string;
+  updatedAt: string | null;
   category: { id: string; name: string } | null;
   author: { id: string; displayName: string } | null;
   primaryImageUrl?: string | null;
