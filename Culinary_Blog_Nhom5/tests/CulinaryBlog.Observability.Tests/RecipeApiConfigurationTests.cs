@@ -34,6 +34,10 @@ public class RecipeApiConfigurationTests
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
         Assert.NotNull(rejected.Headers.RetryAfter);
         Assert.Equal("application/problem+json", rejected.Content.Headers.ContentType?.MediaType);
+        var correlationId = Assert.Single(rejected.Headers.GetValues("X-Correlation-ID"));
+        using var problem = JsonDocument.Parse(await rejected.Content.ReadAsStringAsync());
+        Assert.Equal(correlationId, problem.RootElement.GetProperty("correlationId").GetString());
+        Assert.Equal(429, problem.RootElement.GetProperty("status").GetInt32());
     }
 
     [Fact]

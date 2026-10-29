@@ -37,6 +37,7 @@ function fallbackMessage(kind: ApiErrorKind, status?: number): string {
   if (kind === "request_timeout" || kind === "processing_timeout") return "Máy chủ phản hồi quá lâu. Vui lòng thử lại.";
   if (kind === "network") return "Không thể kết nối đến máy chủ. Vui lòng thử lại.";
   if (kind === "invalid_response") return "Máy chủ trả về phản hồi không hợp lệ.";
+  if (status === 400) return "Yêu cầu chưa hợp lệ. Vui lòng kiểm tra dữ liệu và thử lại.";
   if (status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
   if (status === 404) return "Không tìm thấy tài nguyên yêu cầu.";

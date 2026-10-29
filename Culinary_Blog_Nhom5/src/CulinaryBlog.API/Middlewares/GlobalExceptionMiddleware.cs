@@ -1,7 +1,6 @@
 using System;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.Application.Common.Behaviors;
-using System.Text.Json;
 using System.Threading.Tasks;
 using CulinaryBlog.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
@@ -55,19 +54,15 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/problem+json";
 
-        string correlationId = context.Items.TryGetValue(RequestLogContext.CorrelationHeader, out var cid)
-            ? cid?.ToString() ?? string.Empty
-            : string.Empty;
+        var correlationId = CorrelationIdMiddleware.EnsureCorrelationId(context);
 
         var problemDetails = new ProblemDetails
         {
             Instance = context.Request.Path
         };
 
-        if (!string.IsNullOrEmpty(correlationId))
-        {
-            problemDetails.Extensions["correlationId"] = correlationId;
-        }
+        problemDetails.Extensions["correlationId"] = correlationId;
+        problemDetails.Extensions["errors"] = new Dictionary<string, string[]>();
 
         switch (exception)
         {
@@ -109,6 +104,7 @@ public class GlobalExceptionMiddleware
                 context.Response.StatusCode = StatusCodes.Status502BadGateway;
                 problemDetails.Status = StatusCodes.Status502BadGateway;
                 problemDetails.Title = "Dịch vụ xác thực bên ngoài không khả dụng.";
+                problemDetails.Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.6.3";
                 problemDetails.Detail = externalServiceEx.Message;
                 break;
 
@@ -153,12 +149,9 @@ public class GlobalExceptionMiddleware
                 break;
             }
 
-        var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
-
-        await context.Response.WriteAsync(json);
+        await Results.Json(
+            problemDetails,
+            contentType: "application/problem+json",
+            statusCode: context.Response.StatusCode).ExecuteAsync(context);
     }
 }

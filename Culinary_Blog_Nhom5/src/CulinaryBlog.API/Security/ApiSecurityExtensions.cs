@@ -1,3 +1,4 @@
+using CulinaryBlog.API.Responses;
 using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
@@ -22,9 +23,12 @@ public static class ApiSecurityExtensions
                 var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
                     ? Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds)) : 60;
                 context.HttpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
-                await Results.Problem(statusCode: StatusCodes.Status429TooManyRequests,
-                    title: "Quá nhiều yêu cầu.", detail: "Vui lòng chờ trước khi thử lại.")
-                    .ExecuteAsync(context.HttpContext);
+                await ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status429TooManyRequests,
+                    "Quá nhiều yêu cầu.",
+                    "Vui lòng chờ trước khi thử lại.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.9");
             };
         });
         return services;

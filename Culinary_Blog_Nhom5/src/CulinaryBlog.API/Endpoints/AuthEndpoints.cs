@@ -38,8 +38,9 @@ public static class AuthEndpoints
             return await next(context);
         });
 
-        group.MapGet("/ping", () => Results.Ok(new { message = "Auth module endpoint group is active." }))
+        group.MapGet("/ping", () => Results.Ok(ApiResponse<object>.Ok(new { message = "Auth module endpoint group is active." })))
             .WithName("AuthPing")
+            .Produces<ApiResponse<object>>(StatusCodes.Status200OK)
             .WithSummary("Kiểm tra trạng thái Auth group");
 
         group.MapPost("/google", async (

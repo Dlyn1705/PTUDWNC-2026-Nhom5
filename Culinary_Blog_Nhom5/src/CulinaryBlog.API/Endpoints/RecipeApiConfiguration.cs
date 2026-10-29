@@ -1,3 +1,4 @@
+using CulinaryBlog.API.Responses;
 using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -27,11 +28,12 @@ public static class RecipeApiConfiguration
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                     context.HttpContext.Response.Headers.RetryAfter =
                         Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
-                await Results.Problem(statusCode: 429, title: "Too many requests",
-                    extensions: new Dictionary<string, object?>
-                    {
-                        ["correlationId"] = context.HttpContext.Response.Headers["X-Correlation-ID"].ToString()
-                    }).ExecuteAsync(context.HttpContext);
+                await ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status429TooManyRequests,
+                    "Too many requests.",
+                    "Please wait before trying again.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.9");
             };
         });
         services.Configure<OpenApiOptions>("v1", options =>

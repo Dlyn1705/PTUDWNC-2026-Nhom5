@@ -33,6 +33,20 @@ using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
 
+public sealed record ManagedRecipeCategoryDto(Guid Id, string Name);
+public sealed record ManagedRecipeAuthorDto(string Id, string DisplayName);
+public sealed record RecipeStateDto(Guid Id, RecipeStatus Status, DateTime? PublishedAt, DateTime? UpdatedAt = null);
+public sealed record ManagedRecipeSummaryDto(
+    Guid Id,
+    string Title,
+    string Slug,
+    string? Description,
+    RecipeStatus Status,
+    DateTime? UpdatedAt,
+    ManagedRecipeCategoryDto? Category,
+    ManagedRecipeAuthorDto? Author,
+    string? PrimaryImageUrl);
+
 public static class RecipeEndpoints
 {
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder app)
@@ -75,7 +89,7 @@ public static class RecipeEndpoints
             var image = await sender.Send(new UploadRecipeImageCommand(
                 recipeId, stream, file.FileName, file.ContentType, file.Length, altText), ct);
             return Results.Created($"/api/v1/recipes/{recipeId}/images/{image.Id}",
-                ApiResponse<RecipeImageDto>.Ok(image, "Táº£i áº£nh thÃ nh cÃ´ng; cÃ¡c kÃ­ch thÆ°á»›c khÃ¡c Ä‘ang Ä‘Æ°á»£c xá»­ lÃ½."));
+                ApiResponse<RecipeImageDto>.Ok(image));
         })
         .WithName("UploadRecipeImage")
         .WithSummary("Táº£i áº£nh cÃ´ng thá»©c lÃªn MinIO")
@@ -226,47 +240,32 @@ public static class RecipeEndpoints
                 status: status,
                 ct: ct);
 
-            var data = items.Select(recipe => new
-            {
+            var data = items.Select(recipe => new ManagedRecipeSummaryDto(
                 recipe.Id,
                 recipe.Title,
                 recipe.Slug,
                 recipe.Description,
                 recipe.Status,
                 recipe.UpdatedAt,
-                Category = recipe.Category is null
+                recipe.Category is null
                     ? null
-                    : new { recipe.Category.Id, recipe.Category.Name },
-                Author = recipe.Author is null
+                    : new ManagedRecipeCategoryDto(recipe.Category.Id, recipe.Category.Name),
+                recipe.Author is null
                     ? null
-                    : new { recipe.Author.Id, recipe.Author.DisplayName },
-                PrimaryImageUrl = recipe.Images
+                    : new ManagedRecipeAuthorDto(recipe.Author.Id, recipe.Author.DisplayName),
+                recipe.Images
                     .Where(image => image.IsPrimary && !image.IsDeleted)
                     .Select(image => image.ThumbnailUrl ?? image.MediumUrl ?? image.OriginalUrl)
-                    .FirstOrDefault()
-            }).ToArray();
-            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)ps);
+                    .FirstOrDefault())).ToArray();
 
-            return Results.Ok(ApiResponse<object>.Ok(new
-            {
-                data,
-                meta = new
-                {
-                    page = p,
-                    pageSize = ps,
-                    totalCount,
-                    totalPages,
-                    hasNextPage = p < totalPages,
-                    hasPreviousPage = p > 1
-                }
-            }));
+            return Results.Ok(new PagedResult<ManagedRecipeSummaryDto>(data, totalCount, p, ps));
         })
         .WithName("GetManagedRecipes")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Láº¥y danh sÃ¡ch cÃ´ng thá»©c cá»§a tÃ¡c giáº£ hoáº·c toÃ n bá»™ cÃ´ng thá»©c cho Admin")
         .RequireAuthorization("AuthorPolicy")
-        .Produces<ApiResponse<object>>(StatusCodes.Status200OK)
+        .Produces<PagedResult<ManagedRecipeSummaryDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
@@ -309,14 +308,15 @@ public static class RecipeEndpoints
             recipe.Archive();
             await unitOfWork.SaveChangesAsync(ct);
             await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+            return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
+                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
         })
         .WithName("ArchiveRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("LÆ°u trá»¯ cÃ´ng thá»©c, giá»¯ nguyÃªn dá»¯ liá»‡u vÃ  áº©n khá»i danh sÃ¡ch cÃ´ng khai")
         .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeStateDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -348,14 +348,15 @@ public static class RecipeEndpoints
 
             await unitOfWork.SaveChangesAsync(ct);
             await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt });
+            return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
+                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
         })
         .WithName("UnarchiveRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("KhÃ´i phá»¥c cÃ´ng thá»©c Ä‘Ã£ lÆ°u trá»¯ vá» báº£n nhÃ¡p")
         .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeStateDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -369,14 +370,15 @@ public static class RecipeEndpoints
         {
             var result = await sender.Send(new PublishRecipeWithStepsCommand(id), ct);
             if (result.WasPublished) DiagnosticsConfig.RecipePublishedCounter.Add(1);
-            return Results.Ok(result);
+            return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
+                new RecipeStateDto(result.Id, result.Status, result.PublishedAt)));
         })
         .WithName("PublishRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Xuáº¥t báº£n cÃ´ng thá»©c (yÃªu cáº§u Ã­t nháº¥t má»™t bÆ°á»›c thá»±c hiá»‡n)")
         .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeStateDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -399,7 +401,8 @@ public static class RecipeEndpoints
                 throw new ForbiddenException();
 
             if (recipe.Status == RecipeStatus.Draft)
-                return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+                return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
+                    new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
 
             if (recipe.Status == RecipeStatus.Archived)
                 throw new ConflictException("KhÃ´ng thá»ƒ há»§y xuáº¥t báº£n cÃ´ng thá»©c Ä‘ang lÆ°u trá»¯.");
@@ -407,14 +410,15 @@ public static class RecipeEndpoints
             recipe.Unpublish();
             await db.SaveChangesAsync(ct);
             await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
-            return Results.Ok(new { recipe.Id, recipe.Status, recipe.PublishedAt });
+            return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
+                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
         })
         .WithName("UnpublishRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .WithSummary("Há»§y xuáº¥t báº£n cÃ´ng thá»©c vÃ  chuyá»ƒn vá» báº£n nhÃ¡p")
         .RequireAuthorization("AuthorPolicy")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<RecipeStateDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -494,7 +498,7 @@ public static class RecipeEndpoints
         .RequireAuthorization("AuthorPolicy")
         .WithName("UpdateRecipe")
         .WithSummary("Cáº­p nháº­t cÃ´ng thá»©c - Author/Admin")
-        .Produces(StatusCodes.Status200OK)
+        .Produces<ApiResponse<UpdatedRecipe>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)

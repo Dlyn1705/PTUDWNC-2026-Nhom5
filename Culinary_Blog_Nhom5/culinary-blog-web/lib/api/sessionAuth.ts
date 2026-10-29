@@ -66,7 +66,10 @@ export function installSessionAuth(
       config.headers.set("Authorization", `Bearer ${config.authAccessToken}`);
       return config;
     }
-    const session = await currentSession();
+    // Hold requests that arrive during a forced refresh so they never send
+    // the rejected bearer token while the refreshed session is pending.
+    let session = await (refreshFlight?.promise ?? currentSession());
+    if (refreshFlight) session = await refreshFlight.promise;
     if (session?.error) throw new Error(session.error === "RefreshTokenError"
       ? "Phiên đăng nhập đã hết hạn." : "Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại.");
     const token = usableToken(session);

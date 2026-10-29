@@ -1,5 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Reflection;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using Asp.Versioning;
 using Hangfire;
@@ -11,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace CulinaryBlog.Observability.Tests;
@@ -110,6 +115,35 @@ public class ProgramSecurityTests
                 .GetProperty("content").TryGetProperty("application/problem+json", out _), path.Name);
     }
 
+    [Fact]
+    public async Task Jwt_challenge_and_forbidden_responses_use_problem_details_with_correlation()
+    {
+        await using var factory = new SecurityFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+
+        using var unauthenticated = await client.GetAsync("/api/v1/admin/users");
+        await AssertProblemWithCorrelationAsync(unauthenticated, HttpStatusCode.Unauthorized);
+        Assert.Equal("Bearer", Assert.Single(unauthenticated.Headers.GetValues("WWW-Authenticate")));
+
+        var token = new JwtSecurityToken(
+            issuer: "CulinaryBlog",
+            audience: "CulinaryBlogWeb",
+            claims:
+            [
+                new Claim(ClaimTypes.NameIdentifier, "author-1"),
+                new Claim(ClaimTypes.Role, "Author")
+            ],
+            expires: DateTime.UtcNow.AddMinutes(5),
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes("integration-test-key-at-least-32-bytes-long")),
+                SecurityAlgorithms.HmacSha256));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", new JwtSecurityTokenHandler().WriteToken(token));
+
+        using var forbidden = await client.GetAsync("/api/v1/admin/users");
+        await AssertProblemWithCorrelationAsync(forbidden, HttpStatusCode.Forbidden);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -136,6 +170,20 @@ public class ProgramSecurityTests
             Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
         }
         finally { Environment.ExitCode = previousExitCode; }
+    }
+
+    private static async Task AssertProblemWithCorrelationAsync(HttpResponseMessage response, HttpStatusCode status)
+    {
+        Assert.Equal(status, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var correlationId = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var problem = document.RootElement;
+        Assert.Equal((int)status, problem.GetProperty("status").GetInt32());
+        Assert.Equal(correlationId, problem.GetProperty("correlationId").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("type").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("detail").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("instance").GetString()));
     }
 
     private sealed class SecurityFactory(string? origin = "https://frontend.example.test", string key = "integration-test-key-at-least-32-bytes-long")

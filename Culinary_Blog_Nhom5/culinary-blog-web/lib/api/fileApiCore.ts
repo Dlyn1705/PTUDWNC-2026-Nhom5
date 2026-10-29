@@ -31,10 +31,19 @@ export function isRecipeImage(value: unknown): value is RecipeImageDto {
 function invalidResponse(response: AxiosResponse, context: ApiErrorContext): ApiProblemError {
   return responseProblem(response, { ...context, kind: "invalid_response", clientCode: "INVALID_API_RESPONSE" });
 }
+
+type DataEnvelope = { data: unknown; success?: true };
+function isDataEnvelope(value: unknown): value is DataEnvelope {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const body = value as Record<string, unknown>;
+  // Current API responses use { data }. Accept the previous success marker
+  // only when true so rolling deployments do not reject a valid old response.
+  return "data" in body && (!("success" in body) || body.success === true);
+}
+
 function imageResponse(response: AxiosResponse, context: ApiErrorContext): RecipeImageDto {
   const body: unknown = response.data;
-  if (!body || typeof body !== "object" || !("success" in body) || body.success !== true
-    || !("data" in body) || !isRecipeImage(body.data)
+  if (!isDataEnvelope(body) || !isRecipeImage(body.data)
     || body.data.recipeId.toLowerCase() !== context.recipeId?.toLowerCase()
     || (context.imageId && body.data.id.toLowerCase() !== context.imageId.toLowerCase())) {
     throw invalidResponse(response, context);
@@ -159,7 +168,7 @@ export function createFileApi(client: Pick<AxiosInstance, "post" | "get" | "dele
         const response = await client.get(path(recipeId), { signal });
         checkAbort(signal);
         const body = response.data;
-        if (!body || body.success !== true || !Array.isArray(body.data)
+        if (!isDataEnvelope(body) || !Array.isArray(body.data)
           || !body.data.every((item: unknown) => isRecipeImage(item) && item.recipeId.toLowerCase() === recipeId.toLowerCase())) {
           throw invalidResponse(response, context);
         }

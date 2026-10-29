@@ -86,9 +86,9 @@ async function main() {
         return json({ data: deleted ? [] : [recipe], meta: { page: 1, pageSize: 12, totalCount: deleted ? 0 : 1,
           totalPages: deleted ? 0 : 1, hasNextPage: false, hasPreviousPage: false } });
       }
-      if (suffix.endsWith("/ingredients")) return json({ success: true, data: [] }, 200, { ETag: '"' + recipe.rowVersion + '"' });
-      if (suffix.endsWith("/images")) return json({ success: true, data: [] });
-      if (suffix === "/api/v1/recipes/" + recipe.id) return json(deleted ? { status: 404 } : recipe, deleted ? 404 : 200);
+      if (suffix.endsWith("/ingredients")) return json({ data: [] }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+      if (suffix.endsWith("/images")) return json({ data: [] });
+      if (suffix === "/api/v1/recipes/" + recipe.id) return json(deleted ? { status: 404 } : { data: recipe }, deleted ? 404 : 200);
       return json([]);
     });
     const page = await context.newPage(); const errors = [];
