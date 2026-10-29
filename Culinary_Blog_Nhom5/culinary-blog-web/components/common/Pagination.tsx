@@ -18,6 +18,7 @@ interface PaginationBaseProps {
   ariaLabel?: string;
   className?: string;
   disabled?: boolean;
+  scrollToTop?: boolean;
 }
 
 export interface PaginationLinkModeProps extends PaginationBaseProps {
@@ -45,6 +46,7 @@ export function Pagination(props: PaginationProps) {
     ariaLabel = "Phân trang",
     className,
     disabled = false,
+    scrollToTop = true,
   } = props;
 
   const totalPages = sanitizeTotalPages(rawTotalPages);
@@ -75,6 +77,12 @@ export function Pagination(props: PaginationProps) {
     nextHref = props.nextHref ?? linkMap.get(page + 1);
   }
 
+  const changePage = (targetPage: number) => {
+    if (props.mode !== "button" || disabled) return;
+    props.onPageChange(targetPage);
+    if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <nav
       aria-label={ariaLabel}
@@ -104,7 +112,7 @@ export function Pagination(props: PaginationProps) {
           aria-disabled={disabled || !hasPrevious}
           onClick={() => {
             if (!disabled && hasPrevious) {
-              props.onPageChange(page - 1);
+              changePage(page - 1);
             }
           }}
         >
@@ -182,7 +190,7 @@ export function Pagination(props: PaginationProps) {
               aria-label={`Trang ${item}`}
               onClick={() => {
                 if (!disabled && item !== page) {
-                  props.onPageChange(item);
+                  changePage(item);
                 }
               }}
             >
@@ -216,7 +224,7 @@ export function Pagination(props: PaginationProps) {
           aria-disabled={disabled || !hasNext}
           onClick={() => {
             if (!disabled && hasNext) {
-              props.onPageChange(page + 1);
+              changePage(page + 1);
             }
           }}
         >

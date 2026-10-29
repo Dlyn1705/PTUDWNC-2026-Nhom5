@@ -12,9 +12,10 @@ import { publicApi } from "@/lib/api/serverClient";
 import type { SearchRecipesParams } from "@/types/api.types";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import type { CategoryDto } from "@/types/category.types";
-import { Pagination, EmptyState } from "@/components/common";
+import { PaginationControl, EmptyState } from "@/components/common";
 import { errorPresentation } from "@/lib/errorPresentation";
 import { RouteRequestError } from "@/components/common/RouteRequestError";
+import { UnauthorizedState } from "@/components/common/UnauthorizedState";
 import { unstable_rethrow } from "next/navigation";
 import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 
@@ -58,6 +59,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   let totalPages = 0;
   let searchError = "";
   let searchCorrelationId: string | undefined;
+  let searchStatus: number | undefined;
   let canRetry = true;
   let categories: CategoryDto[] = [];
   let categoryError = false;
@@ -94,6 +96,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       const presentation = errorPresentation(error);
       searchError = presentation.description;
       searchCorrelationId = presentation.correlationId;
+      searchStatus = presentation.status;
       canRetry = presentation.canRetry;
     }
   }
@@ -164,6 +167,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       {q.length < 2 ? (
         <EmptyState headingLevel="h2" title="Bắt đầu với một món ăn"
           description="Nhập ít nhất 2 ký tự để xem các công thức phù hợp." icon={<Search className="size-7" />} />
+      ) : searchError && (searchStatus === 401 || searchStatus === 403) ? (
+        <UnauthorizedState
+          mode={searchStatus === 401 ? "unauthenticated" : "forbidden"}
+          description={searchError}
+          loginHref={`/auth/login?callbackUrl=${encodeURIComponent(pageUrl(page))}`}
+          headingLevel="h2"
+          focusOnMount
+        />
       ) : searchError ? (
         <RouteRequestError
           title="Không thể tìm kiếm công thức"
@@ -202,7 +213,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             <SearchResults recipes={recipes} />
           )}
 
-          <Pagination
+          <PaginationControl
             mode="link"
             page={page}
             totalPages={totalPages}

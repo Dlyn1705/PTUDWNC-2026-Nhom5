@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Clock, Flame, Users } from "lucide-react";
+import { ChefHat, Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
 
-interface RecipeCardProps {
+export interface RecipeCardProps {
   recipe: RecipeCardDto;
   viewMode?: "grid" | "list";
   showStatusBadge?: boolean;
@@ -36,8 +36,8 @@ export function DifficultyBadge({
         styles[difficulty] || styles[1]
       )}
     >
-      <Flame className="size-3" />
-      {difficultyLabel[difficulty] || "Easy"}
+      <Flame aria-hidden="true" className="size-3" />
+      {difficultyLabel[difficulty] || "Dễ"}
     </span>
   );
 }
@@ -49,9 +49,6 @@ export function RecipeCard({
 }: RecipeCardProps) {
   const image =
     recipe.images?.find((i) => i.isPrimary) ?? recipe.images?.[0];
-
-  const fallbackImage =
-    "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1200&auto=format&fit=crop";
 
   const totalMinutes =
     (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
@@ -82,15 +79,18 @@ export function RecipeCard({
               : "aspect-[16/9] w-full"
           )}
         >
-          <Image
-            src={image?.url || fallbackImage}
-            alt={image?.alt || recipe.title}
+          {image?.url ? <Image
+            src={image.url}
+            alt={image.alt || recipe.title}
             width={800}
             height={450}
             unoptimized
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
-          />
+            className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
+          /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <ChefHat aria-hidden="true" className="size-10 opacity-50" />
+            <span className="sr-only">Công thức chưa có ảnh đại diện</span>
+          </div>}
 
           {/* Difficulty Badge */}
           <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
@@ -153,14 +153,14 @@ export function RecipeCard({
 
             {/* Quick Metrics */}
             <div className="flex items-center gap-3.5 tabular-nums">
-              <span className="inline-flex items-center gap-1">
-                <Clock className="size-3.5 text-primary" />
-                {totalMinutes}m
+              <span className="inline-flex items-center gap-1" aria-label={`${totalMinutes} phút`}>
+                <Clock aria-hidden="true" className="size-3.5 text-primary" />
+                {totalMinutes} phút
               </span>
 
-              <span className="inline-flex items-center gap-1">
-                <Users className="size-3.5 text-primary" />
-                {recipe.servings}
+              <span className="inline-flex items-center gap-1" aria-label={`${recipe.servings} khẩu phần`}>
+                <Users aria-hidden="true" className="size-3.5 text-primary" />
+                {recipe.servings} phần
               </span>
             </div>
           </div>

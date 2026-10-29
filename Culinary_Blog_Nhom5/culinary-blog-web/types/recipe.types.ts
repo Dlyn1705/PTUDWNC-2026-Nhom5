@@ -38,10 +38,10 @@ export const RecipeStatus = {
 export type RecipeStatusValue = (typeof RecipeStatus)[keyof typeof RecipeStatus];
 
 export const difficultyLabel: Record<DifficultyValue, string> = {
-  1: "Easy",
-  2: "Medium",
-  3: "Hard",
-  4: "Expert",
+  1: "Dễ",
+  2: "Trung bình",
+  3: "Khó",
+  4: "Chuyên gia",
 };
 
 export const statusLabel: Record<RecipeStatusValue, string> = {

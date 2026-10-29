@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils, UserPlus } from "lucide-react";
+import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserMenu } from "@/components/layout/UserMenu";
+import { UserNav } from "@/components/layout/UserNav";
+import { navigationItemIsActive, primaryNavigation } from "@/components/layout/navigation";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -57,9 +58,6 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
-  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories/");
-  const isRecipesActive = pathname === "/recipes" || pathname.startsWith("/recipes/");
-
   return (
     <header onKeyDown={event => {
       if (event.key === "Escape" && mobileMenuOpen && !event.defaultPrevented) {
@@ -80,29 +78,15 @@ export default function Navbar() {
 
           {/* Desktop Nav Links */}
           <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 md:flex">
-            <Link
-              href="/recipes"
-              aria-current={isRecipesActive ? "page" : undefined}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                isRecipesActive
+            {primaryNavigation.map(item => {
+              const active = navigationItemIsActive(pathname, item.href);
+              return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${active
                   ? "bg-accent text-accent-foreground font-semibold"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              }`}
-            >
-              Công thức
-            </Link>
-
-            <Link
-              href="/categories"
-              aria-current={isCategoriesActive ? "page" : undefined}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                isCategoriesActive
-                  ? "bg-accent text-accent-foreground font-semibold"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              }`}
-            >
-              Danh mục
-            </Link>
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
+                {item.label}
+              </Link>;
+            })}
           </nav>
         </div>
 
@@ -123,7 +107,7 @@ export default function Navbar() {
 
           {status === "loading" ? (
             <span className="size-10 animate-pulse motion-reduce:animate-none rounded-full bg-muted" role="status" aria-label="Đang tải tài khoản" />
-          ) : isAuthenticated ? <UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /> : <Button
+          ) : isAuthenticated ? <UserNav name={accountName} image={session?.user.image} email={session?.user.email} /> : <Button
             asChild
             size="sm"
             className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
@@ -172,54 +156,15 @@ export default function Navbar() {
             </Link>
 
             <nav aria-label="Điều hướng di động" className="flex flex-col space-y-1">
-              <Link
-                href="/recipes"
-              aria-current={isRecipesActive ? "page" : undefined}
-                className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium ${
-                  isRecipesActive ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
-                }`}
-              >
-                <span>Công thức</span>
-                <Utensils aria-hidden="true" className="size-4" />
-              </Link>
-
-              <Link
-                href="/categories"
-              aria-current={isCategoriesActive ? "page" : undefined}
-                className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium ${
-                  isCategoriesActive ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
-                }`}
-              >
-                <span>Danh mục</span>
-                <span className="text-xs text-muted-foreground">Xem tất cả</span>
-              </Link>
-
-              <div className="pl-3 py-1 flex flex-wrap gap-1.5 border-l-2 border-primary/20 ml-3">
-                <Link
-                  href="/categories/pasta"
-                  className="rounded-lg bg-background px-3 py-1 text-xs font-medium text-muted-foreground"
-                >
-                  Pasta
-                </Link>
-                <Link
-                  href="/categories/mains"
-                  className="rounded-lg bg-background px-3 py-1 text-xs font-medium text-muted-foreground"
-                >
-                  Mains
-                </Link>
-                <Link
-                  href="/categories/baking"
-                  className="rounded-lg bg-background px-3 py-1 text-xs font-medium text-muted-foreground"
-                >
-                  Baking
-                </Link>
-                <Link
-                  href="/categories/salads"
-                  className="rounded-lg bg-background px-3 py-1 text-xs font-medium text-muted-foreground"
-                >
-                  Salads
-                </Link>
-              </div>
+              {primaryNavigation.map(item => {
+                const active = navigationItemIsActive(pathname, item.href);
+                return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium ${active
+                    ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"}`}>
+                  <span>{item.label}</span>
+                  <ArrowRight aria-hidden="true" className="size-4" />
+                </Link>;
+              })}
 
               <div className="pt-3 border-t border-border flex flex-col gap-2">
                 {canManage && (
