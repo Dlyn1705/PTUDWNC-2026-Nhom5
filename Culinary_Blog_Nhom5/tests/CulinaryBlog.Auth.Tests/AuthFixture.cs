@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -50,6 +51,7 @@ public sealed class AuthFixture : IAsyncLifetime
         var connection = new NpgsqlConnectionStringBuilder(adminConnection) { Database = databaseName }.ToString();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
@@ -77,12 +79,13 @@ public sealed class AuthFixture : IAsyncLifetime
         builder.Services.AddRateLimiter(options => options.AddPolicy("auth", _ =>
             System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("auth-tests")));
         app = builder.Build();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
         // Production maps the auth endpoints inside the versioned /api/v1 group.
-        app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapAuthEndpoints().MapAdminEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())
@@ -140,16 +143,34 @@ public sealed class FailureInjection : DbCommandInterceptor
 {
     public bool FailNextInsert { get; set; }
     public bool FailNextSigning { get; set; }
+    public bool FailNextRoleRemoval { get; set; }
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
         DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
+        RejectRoleRemoval(command);
         if (FailNextInsert && command.CommandText.Contains("INSERT INTO \"RefreshTokens\"", StringComparison.Ordinal))
         {
             FailNextInsert = false;
             throw new InvalidOperationException("Injected token insert failure.");
         }
         return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+        DbCommand command, CommandEventData eventData, InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        RejectRoleRemoval(command);
+        return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    private void RejectRoleRemoval(DbCommand command)
+    {
+        if (!FailNextRoleRemoval || !command.CommandText.Contains("DELETE FROM \"AspNetUserRoles\"", StringComparison.Ordinal))
+            return;
+        FailNextRoleRemoval = false;
+        throw new InvalidOperationException("Injected role removal failure.");
     }
 }
 

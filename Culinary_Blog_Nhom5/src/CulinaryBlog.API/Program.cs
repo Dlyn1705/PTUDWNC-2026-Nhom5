@@ -51,6 +51,7 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+builder.Services.AddScoped<IHealthDependencyProbe, HealthDependencyProbe>();
 
 builder.Services.AddObservability(builder.Configuration);
 
