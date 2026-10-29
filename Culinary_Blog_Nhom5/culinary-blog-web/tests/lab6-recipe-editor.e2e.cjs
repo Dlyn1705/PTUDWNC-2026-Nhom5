@@ -408,8 +408,8 @@ async function main() {
     // Reuse the deterministic API fixtures, while the Admin session is issued by Auth.js itself.
     await adminContext.route("**/api/v1/**", route => {
       const suffix = new URL(route.request().url()).pathname;
-      const data = suffix.endsWith("/categories") ? { success: true, data: [category] }
-        : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { success: true, data: [] } : recipe;
+      const data = suffix.endsWith("/categories") ? { data: [category] }
+        : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { data: [] } : { data: recipe };
       return route.fulfill({ contentType: "application/json", headers: { "Access-Control-Expose-Headers": "ETag", ETag: '"' + recipe.rowVersion + '"' }, body: JSON.stringify(data) });
     });
     const adminPage = await adminContext.newPage();
