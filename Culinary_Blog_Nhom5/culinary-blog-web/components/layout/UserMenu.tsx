@@ -7,9 +7,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { LogOut, UserRound } from "lucide-react";
 
-export function UserMenu({ name, image, email }: {
-  name: string; image?: string | null; email?: string | null;
-}) {
+export interface UserMenuProps {
+  name: string;
+  image?: string | null;
+  email?: string | null;
+}
+
+export function UserMenu({ name, image, email }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState(false);

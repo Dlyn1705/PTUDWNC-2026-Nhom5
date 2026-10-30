@@ -12,6 +12,7 @@ import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
 import { RouteLoading } from "@/components/common/RouteLoading";
 import { ErrorState } from "@/components/common/ErrorState";
+import { UnauthorizedState } from "@/components/common/UnauthorizedState";
 import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { toApiProblemError } from "@/lib/api/problemDetails";
@@ -165,12 +166,19 @@ export default function EditRecipePage({ params }: RouteProps) {
   };
 
   if (loading || isInitializing) return <RouteLoading variant="form" label="Đang tải công thức…" />;
+  if (!recipe && (loadError?.status === 401 || loadError?.status === 403)) return <div className="p-8">
+    <UnauthorizedState mode={loadError.status === 401 ? "unauthenticated" : "forbidden"}
+      loginHref={`/auth/login?callbackUrl=${encodeURIComponent("/dashboard/recipes")}`}
+      description={loadError.description} focusOnMount />
+  </div>;
   if (!recipe) return <div className="p-8"><ErrorState headingLevel="h1" title="Không thể tải công thức"
     description={loadError?.description ?? "Không tìm thấy công thức."} correlationId={loadError?.correlationId}
     onRetry={loadError?.canRetry ? reloadRecipe : undefined} /></div>;
   if (!user || (!isAdmin && (!isAuthor || recipe.author.id !== user.id)))
-    return <div className="p-8"><ErrorState headingLevel="h1" title="Bạn không có quyền cập nhật công thức này."
-      description="Chỉ tác giả sở hữu công thức hoặc quản trị viên được chỉnh sửa." /></div>;
+    return <div className="p-8"><UnauthorizedState mode={user ? "forbidden" : "unauthenticated"}
+      loginHref={`/auth/login?callbackUrl=${encodeURIComponent(`/dashboard/recipes/${recipe.id}/edit`)}`}
+      title="Bạn không có quyền cập nhật công thức này."
+      description="Chỉ tác giả sở hữu công thức hoặc quản trị viên được chỉnh sửa." focusOnMount /></div>;
 
   return <div className="min-h-screen bg-background py-10"><div className="page-container max-w-3xl space-y-6">
     <header><p className="text-sm font-medium text-primary">Dashboard / Recipes / Edit</p>

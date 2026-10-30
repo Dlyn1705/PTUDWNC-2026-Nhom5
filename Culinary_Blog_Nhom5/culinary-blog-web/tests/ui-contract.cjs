@@ -29,4 +29,26 @@ for (const file of files) {
 
 assert.deepEqual(paletteViolations, [], `Feature UI must use semantic tokens: ${paletteViolations.join(", ")}`);
 assert.deepEqual(httpViolations, [], `UI must call API modules/hooks instead of raw HTTP: ${httpViolations.join(", ")}`);
+
+const requiredSharedUi = [
+  "components/common/UnauthorizedState.tsx",
+  "components/common/ErrorBoundary.tsx",
+  "components/common/PaginationControl.tsx",
+  "components/layout/UserNav.tsx",
+].map(file => path.join(root, file));
+for (const file of requiredSharedUi) assert.ok(fs.existsSync(file), `Missing shared UI contract: ${path.relative(root, file)}`);
+
+const categoryCard = fs.readFileSync(path.join(root, "components/categories/CategoryCard.tsx"), "utf8");
+const recipeCard = fs.readFileSync(path.join(root, "components/recipes/RecipeCard.tsx"), "utf8");
+const navbar = fs.readFileSync(path.join(root, "components/layout/Navbar.tsx"), "utf8");
+const footer = fs.readFileSync(path.join(root, "components/layout/Footer.tsx"), "utf8");
+const errorBoundary = fs.readFileSync(path.join(root, "components/common/ErrorBoundary.tsx"), "utf8");
+
+assert.doesNotMatch(categoryCard, /images\.unsplash\.com/, "CategoryCard must not infer production images from mock slugs");
+assert.doesNotMatch(recipeCard, /images\.unsplash\.com/, "RecipeCard must not inject a remote mock image");
+assert.doesNotMatch(navbar, /categories\/(?:pasta|mains|baking|salads)/, "Navbar must not contain mock category links");
+assert.doesNotMatch(footer, /[\"']use client[\"']|newsletter|subscribed/i, "Footer should remain static until a real subscription contract exists");
+assert.doesNotMatch(errorBoundary, /\.stack\b/, "ErrorBoundary fallback must never render an exception stack");
+assert.match(categoryCard, /export interface CategoryCardProps/, "CategoryCard props must be public");
+assert.match(recipeCard, /export interface RecipeCardProps/, "RecipeCard props must be public");
 process.stdout.write(`PASS semantic token/API boundary audit (${files.length} source files)\n`);

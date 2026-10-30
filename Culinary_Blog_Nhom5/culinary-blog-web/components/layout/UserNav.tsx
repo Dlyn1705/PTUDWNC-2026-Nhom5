@@ -1,1 +1,1 @@
-export { UserMenu as UserNav } from "./UserMenu";
+export { UserMenu as UserNav, type UserMenuProps as UserNavProps } from "./UserMenu";

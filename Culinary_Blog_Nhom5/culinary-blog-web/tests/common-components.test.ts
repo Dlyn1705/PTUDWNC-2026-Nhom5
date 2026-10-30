@@ -9,6 +9,14 @@ import {
 import { validCorrelationId } from "../lib/logger";
 import { ServerApiError } from "../lib/api/serverClient";
 import { errorPresentation } from "../lib/errorPresentation";
+import { navigationItemIsActive, primaryNavigation } from "../components/layout/navigation";
+
+test("shared navigation marks only the matching route branch as active", () => {
+  assert.equal(navigationItemIsActive("/recipes", "/recipes"), true);
+  assert.equal(navigationItemIsActive("/recipes/pho-bo", "/recipes"), true);
+  assert.equal(navigationItemIsActive("/search", "/recipes"), false);
+  assert.deepEqual(primaryNavigation.map(item => item.href), ["/recipes", "/categories"]);
+});
 
 test("error presentation keeps correlation without exposing backend text and separates permission failures", () => {
   for (const status of [400, 401, 403, 404, 422, 429, 500, 503]) {

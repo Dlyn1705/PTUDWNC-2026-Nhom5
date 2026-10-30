@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PaginationMeta } from "@/types/api.types";
-import { Pagination } from "@/components/common/Pagination";
+import { PaginationControl } from "@/components/common/PaginationControl";
 import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
 import { useUIHydration, useUIStore } from "@/store/useUIStore";
 
@@ -66,7 +66,7 @@ export function RecipesCatalogView({
                 : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
-            All Categories ({totalPublished})
+            Tất cả danh mục ({totalPublished})
           </button>
 
           {categories.map((c) => (
@@ -195,10 +195,10 @@ export function RecipesCatalogView({
         recipes={initialRecipes}
         isLoading={isPending}
         viewMode={viewMode}
-        emptyMessage="No recipes found matching your selected filters. Try choosing 'All Categories' or resetting difficulty."
+        emptyMessage="Không có công thức phù hợp với bộ lọc. Hãy thử chọn tất cả danh mục hoặc đặt lại độ khó."
       />
       {meta.totalPages > 1 && (
-        <Pagination
+        <PaginationControl
           mode="link"
           page={meta.page}
           totalPages={meta.totalPages}
@@ -217,7 +217,7 @@ export function RecipesCatalogView({
           ariaLabel="Phân trang công thức"
         />
       )}
-      <p role="status" className="sr-only">{isPending ? "Đang tải công thức" : `${meta.totalCount} recipes, page ${meta.page} of ${Math.max(1, meta.totalPages)}`}</p>
+      <p role="status" className="sr-only">{isPending ? "Đang tải công thức" : `${meta.totalCount} công thức, trang ${meta.page} trên ${Math.max(1, meta.totalPages)}`}</p>
     </div>
   );
 }
