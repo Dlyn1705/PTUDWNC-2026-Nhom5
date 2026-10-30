@@ -14,6 +14,8 @@ using CulinaryBlog.Application.Features.Auth.Commands.Login;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Domain.Exceptions;
+using FluentValidation;
+using ValidationException = CulinaryBlog.Domain.Exceptions.ValidationException;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -201,14 +203,17 @@ public static class AuthEndpoints
 
         group.MapPost("/change-password", async (
                 ChangePasswordRequest request, HttpContext context, IAuthService authService,
+                IValidator<ChangePasswordDto> validator,
                 CancellationToken cancellationToken) =>
             {
                 var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? throw new UnauthorizedAccessException("Authentication required.");
-                if (string.IsNullOrWhiteSpace(request.CurrentPassword))
-                    throw new ValidationException("CurrentPassword", "Current password is required.");
-                if (string.IsNullOrWhiteSpace(request.NewPassword))
-                    throw new ValidationException("NewPassword", "New password is required.");
+                var validation = await validator.ValidateAsync(
+                    new ChangePasswordDto(request.CurrentPassword, request.NewPassword), cancellationToken);
+                if (!validation.IsValid)
+                    throw new ValidationException(validation.Errors
+                        .GroupBy(error => error.PropertyName)
+                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
                 await authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, cancellationToken);
                 ClearRefreshCookie(context);
                 return Results.NoContent();
@@ -218,6 +223,45 @@ public static class AuthEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapGet("/me", async (
+                ClaimsPrincipal principal, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var profile = await authService.GetCurrentUserAsync(userId, cancellationToken);
+                return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
+            })
+            .RequireAuthorization()
+            .WithName("GetCurrentUser")
+            .WithSummary("Get the safe profile of the authenticated user")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPatch("/me", async (
+                UpdateProfileRequest request, ClaimsPrincipal principal, IAuthService authService,
+                IValidator<UpdateProfileDto> validator, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var update = new UpdateProfileDto(request.DisplayName, request.Bio, request.AvatarUrl);
+                var validation = await validator.ValidateAsync(update, cancellationToken);
+                if (!validation.IsValid)
+                    throw new ValidationException(validation.Errors
+                        .GroupBy(error => error.PropertyName)
+                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
+                var profile = await authService.UpdateCurrentUserAsync(userId, update, cancellationToken);
+                return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
+            })
+            .RequireAuthorization()
+            .WithName("UpdateCurrentUser")
+            .WithSummary("Update the authenticated user's display name, bio, or avatar")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         return app;
@@ -304,6 +348,7 @@ public sealed record GoogleIdTokenLoginRequest(string IdToken);
 public sealed record ForgotPasswordRequest(string Email);
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record UpdateProfileRequest(string? DisplayName, string? Bio, string? AvatarUrl);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
 public sealed record AuthSessionResponseDto(
