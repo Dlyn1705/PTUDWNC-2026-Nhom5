@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import axios, { AxiosError, AxiosHeaders, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { installSessionAuth } from "../lib/api/sessionAuth";
+import { safeCallbackUrl } from "../lib/auth/callbackUrl";
+
+test("callback URL accepts local paths and rejects external or slash variants", () => {
+  assert.equal(safeCallbackUrl("/dashboard/recipes?tab=drafts"), "/dashboard/recipes?tab=drafts");
+  for (const unsafe of ["https://evil.test", "//evil.test", "/\\evil.test", "/\nevil.test", "javascript:alert(1)"])
+    assert.equal(safeCallbackUrl(unsafe), "/");
+});
 
 const reply = (config: InternalAxiosRequestConfig, status: number): AxiosResponse => ({
   config, status, statusText: status === 401 ? "Unauthorized" : "OK", data: {}, headers: new AxiosHeaders(),

@@ -39,6 +39,7 @@ public sealed class AuthFixture : IAsyncLifetime
     public TestClock Clock { get; } = new();
     public FailureInjection Failures { get; } = new();
     public CommitFailureInjection CommitFailures { get; } = new();
+    public CapturedPasswordResetEmail ResetEmail { get; } = new();
     public IServiceProvider Services => app.Services;
 
     public async Task InitializeAsync()
@@ -64,6 +65,7 @@ public sealed class AuthFixture : IAsyncLifetime
         });
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddSingleton<IPasswordResetEmailSender>(ResetEmail);
         builder.Services.AddSingleton<TimeProvider>(Clock);
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.AddInterceptors(Failures, CommitFailures));
         builder.Services.AddScoped<IJwtService, ControlledJwtService>();
@@ -208,5 +210,17 @@ public sealed class ControlledJwtService(IOptions<JwtSettings> options, TimeProv
             throw new InvalidOperationException("Injected signing failure.");
         }
         return GenerateAccessToken(user, roles);
+    }
+}
+
+public sealed class CapturedPasswordResetEmail : IPasswordResetEmailSender
+{
+    public string? LastEmail { get; private set; }
+    public string? LastToken { get; private set; }
+    public Task SendAsync(string email, string token, CancellationToken cancellationToken)
+    {
+        LastEmail = email;
+        LastToken = token;
+        return Task.CompletedTask;
     }
 }

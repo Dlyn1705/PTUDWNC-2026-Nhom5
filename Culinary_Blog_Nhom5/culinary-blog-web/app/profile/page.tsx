@@ -5,6 +5,7 @@ import { UserRound } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SiteShell } from "@/components/layout/SiteShell";
 import { useAuth } from "@/hooks/useAuth";
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 
 export default function ProfilePage() {
   const { user, isAdmin, isAuthor } = useAuth();
@@ -45,7 +46,7 @@ export default function ProfilePage() {
             </section>
             <aside aria-labelledby="profile-actions-title" className="h-fit rounded-3xl border border-border bg-surface p-6">
               <h2 id="profile-actions-title" className="font-display text-lg font-semibold">Tài khoản</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Các biểu mẫu cập nhật hồ sơ và đổi mật khẩu sẽ dùng cùng visual system này khi API profile được bàn giao.</p>
+              <ChangePasswordForm />
               <Link href="/dashboard" className="mt-5 inline-flex text-sm font-semibold text-primary hover:underline">Mở bảng điều khiển →</Link>
             </aside>
           </div>

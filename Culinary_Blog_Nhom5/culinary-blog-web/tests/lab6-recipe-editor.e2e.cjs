@@ -99,8 +99,12 @@ async function main() {
       if (request.method() === "POST" && url.pathname === "/api/v1/auth/register") {
         onboardingMutations.push(url.pathname);
         registrationCalls++;
-        return registrationStatus === 201 ? json({ data: {} }, 201)
-          : json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
+        if (registrationStatus === 201) {
+          const body = request.postDataJSON();
+          activeSession = authSession(body.email);
+          return json({ data: activeSession }, 201);
+        }
+        return json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
       }
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
@@ -170,22 +174,36 @@ async function main() {
     registrationStatus = 201;
     await page.locator("#email").fill("new-author@test.invalid");
     await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
-    await page.waitForURL(url => url.pathname === "/auth/login" && url.searchParams.get("registered") === "true");
-    await welcome.waitFor();
-    assert.equal(registrationCalls, 2);
-    assert.ok((await welcome.innerText()).includes("bạn có thể đăng nhập ngay"));
-    assert.ok((await welcome.innerText()).includes("không phải bước xác minh hay kích hoạt"));
-    assert.equal(await page.locator("#login-email").inputValue(), "");
-    await page.goto(origin + "/auth/login?registered=true&email=PRIVATE_QUERY_EMAIL%40test.invalid");
-    await welcome.waitFor();
-    assert.ok(!(await page.locator("body").innerText()).includes("PRIVATE_QUERY_EMAIL"));
-    await page.setViewportSize({ width: 320, height: 900 });
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    await welcome.getByRole("link", { name: "Khám phá công thức", exact: true }).click();
-    await page.waitForURL(url => url.pathname === "/recipes");
-    assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
-    await page.goto(origin + "/dashboard/recipes/new");
-    await page.waitForURL(url => url.pathname === "/auth/login");
+    await page.waitForURL(url => url.pathname === "/auth/welcome"
+      || (url.pathname === "/auth/login" && url.searchParams.get("registered") === "true"));
+    if (new URL(page.url()).pathname === "/auth/welcome") {
+      await page.getByRole("heading").filter({ hasText: "Culinary Blog" }).waitFor();
+      assert.equal(registrationCalls, 2);
+      assert.ok(await page.locator('a[href="/dashboard/recipes/new"]').count() > 0);
+      await page.locator('a[href="/dashboard/recipes/new"]').click();
+      await page.waitForURL(url => url.pathname === "/dashboard/recipes/new");
+      assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
+      activeSession = null;
+      await page.goto(origin + "/dashboard/recipes/new");
+      await page.waitForURL(url => url.pathname === "/auth/login");
+    } else {
+      await welcome.waitFor();
+      assert.equal(registrationCalls, 2);
+      assert.ok((await welcome.innerText()).includes("bạn có thể đăng nhập ngay"));
+      assert.ok((await welcome.innerText()).includes("không phải bước xác minh hay kích hoạt"));
+      assert.equal(await page.locator("#login-email").inputValue(), "");
+      await page.goto(origin + "/auth/login?registered=true&email=PRIVATE_QUERY_EMAIL%40test.invalid");
+      await welcome.waitFor();
+      assert.ok(!(await page.locator("body").innerText()).includes("PRIVATE_QUERY_EMAIL"));
+      await page.setViewportSize({ width: 320, height: 900 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await welcome.getByRole("link", { name: "Khám phá công thức", exact: true }).click();
+      await page.waitForURL(url => url.pathname === "/recipes");
+      assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
+      activeSession = null;
+      await page.goto(origin + "/dashboard/recipes/new");
+      await page.waitForURL(url => url.pathname === "/auth/login");
+    }
     await page.goto(origin + "/auth/login?registered=false");
     assert.equal(await welcome.count(), 0);
     await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes");

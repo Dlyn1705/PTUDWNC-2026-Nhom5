@@ -2,13 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { register as registerAccount } from "@/lib/api/authApi";
 import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { PasswordField } from "@/components/forms/PasswordField";
-import { waitForRefresh } from "@/store/authStore";
+import { useAuthStore, waitForRefresh } from "@/store/authStore";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 import {
   getPasswordStrength,
   registerSchema,
@@ -23,6 +24,7 @@ function FieldError({ message }: { message?: string }) {
 
 export function RegisterForm() {
   const router = useRouter();
+  const callbackUrl = safeCallbackUrl(useSearchParams().get("callbackUrl"), "/auth/welcome");
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -49,7 +51,8 @@ export function RegisterForm() {
       await waitForRefresh();
       const response = await registerAccount(data);
       if (response.status === 201) {
-        router.push("/auth/login?registered=true");
+        useAuthStore.getState().setSession(response.data.data);
+        router.replace(callbackUrl);
       }
     } catch (error: unknown) {
       const problem = toApiProblemError(error);
