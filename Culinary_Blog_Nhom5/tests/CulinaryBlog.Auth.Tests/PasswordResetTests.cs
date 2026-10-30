@@ -17,6 +17,7 @@ public sealed class PasswordResetTests(AuthFixture fixture) : IClassFixture<Auth
             new { email, displayName = "Reset User", password = "SecurePass123!", confirmPassword = "SecurePass123!" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
+        Assert.Contains(body.GetProperty("roles").EnumerateArray(), role => role.GetString() == "Author");
         var cookie = response.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("culinary_refresh_token="));
         return (email, body.GetProperty("accessToken").GetString()!, cookie.Split(';')[0]["culinary_refresh_token=".Length..]);
     }
