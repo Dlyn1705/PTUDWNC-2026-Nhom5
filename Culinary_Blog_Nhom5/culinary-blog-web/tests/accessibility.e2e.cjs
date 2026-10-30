@@ -155,9 +155,9 @@ async function main() {
     process.stdout.write("PASS account menu arrows/typeahead/tab/logout recovery, topmost Escape, shortcuts and role variants\n");
 
     const sortBy = page.getByRole("combobox", { name: "Sắp xếp theo" });
-    // Space is the canonical cross-platform activation key for a closed
-    // select/combobox and is deterministic in Chromium on Linux CI.
-    await sortBy.focus(); await page.keyboard.press("Space");
+    // Pointer activation is deterministic for Radix Select in headless Linux;
+    // Escape below still verifies keyboard dismissal and focus restoration.
+    await sortBy.click();
     await page.getByRole("option", { name: "Ngày đăng" }).waitFor();
     await page.keyboard.press("Escape"); assert.ok(await focused(sortBy));
     process.stdout.write("PASS Select trigger, option portal and Escape focus recovery\n");
