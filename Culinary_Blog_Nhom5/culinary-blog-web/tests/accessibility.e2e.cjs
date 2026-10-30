@@ -155,7 +155,9 @@ async function main() {
     process.stdout.write("PASS account menu arrows/typeahead/tab/logout recovery, topmost Escape, shortcuts and role variants\n");
 
     const sortBy = page.getByRole("combobox", { name: "Sắp xếp theo" });
-    await sortBy.focus(); await page.keyboard.press("Enter");
+    // Space is the canonical cross-platform activation key for a closed
+    // select/combobox and is deterministic in Chromium on Linux CI.
+    await sortBy.focus(); await page.keyboard.press("Space");
     await page.getByRole("option", { name: "Ngày đăng" }).waitFor();
     await page.keyboard.press("Escape"); assert.ok(await focused(sortBy));
     process.stdout.write("PASS Select trigger, option portal and Escape focus recovery\n");
