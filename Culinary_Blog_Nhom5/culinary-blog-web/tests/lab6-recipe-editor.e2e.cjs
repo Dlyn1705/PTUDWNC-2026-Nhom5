@@ -43,11 +43,10 @@ async function main() {
   const port = await new Promise(resolve => reservation.listen(0, "127.0.0.1", () => resolve(reservation.address().port)));
   await new Promise(resolve => reservation.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
-  const secret = randomUUID() + randomUUID();
   let logs = "";
   const server = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", API_INTERNAL_URL: `http://127.0.0.1:${backendPort}`, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
+    env: { ...process.env, API_INTERNAL_URL: `http://127.0.0.1:${backendPort}`, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   server.stdout.on("data", value => { logs = (logs + value).slice(-10000); });
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
@@ -57,7 +56,7 @@ async function main() {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server.exitCode !== null) throw new Error("Next.js stopped: " + logs);
-      try { if ((await fetch(origin + "/api/auth/csrf", { signal: AbortSignal.timeout(1000) })).ok) { ready = true; break; } } catch { /* startup */ }
+      try { if ((await fetch(origin + "/auth/login", { signal: AbortSignal.timeout(1000) })).ok) { ready = true; break; } } catch { /* startup */ }
       await delay(250);
     }
     assert.equal(ready, true);
@@ -76,18 +75,29 @@ async function main() {
     const onboardingMutations = [];
     const stepRows = [];
     const ingredients = [];
-    await context.route("**/api/auth/refresh", async route => {
-      await route.fulfill({ status: 200, contentType: "application/json",
-        body: JSON.stringify({ user: { accessToken: "deletion-refreshed-access",
-          accessTokenExpiry: new Date(Date.now() + 3600000).toISOString() } }) });
-    });
+    let activeSession = null;
+    const authSession = email => ({ accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
+      user: { id: email === "admin@test.invalid" ? "admin" : "owner", email, displayName: "Editor Test" },
+      roles: [email === "admin@test.invalid" ? "Admin" : "Author"] });
     const category = { id: recipe.categoryId, name: "Món chính" };
     await context.route("**/api/v1/**", async route => {
       const request = route.request(); const url = new URL(request.url());
+      const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,If-Match,X-Correlation-ID" };
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
       const json = (value, status = 200, headers = {}) => route.fulfill({ status, contentType: "application/json",
-        headers: { "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
-      if (request.method() !== "GET") onboardingMutations.push(url.pathname);
+        headers: { ...cors, "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
+      if (url.pathname === "/api/v1/auth/refresh") return activeSession
+        ? json({ data: activeSession }) : json({ detail: "No session" }, 401);
+      if (url.pathname === "/api/v1/auth/login") {
+        const body = request.postDataJSON();
+        activeSession = authSession(body.email);
+        return json({ data: activeSession });
+      }
+      if (url.pathname === "/api/v1/auth/logout") { activeSession = null; return route.fulfill({ status: 204, headers: cors }); }
       if (request.method() === "POST" && url.pathname === "/api/v1/auth/register") {
+        onboardingMutations.push(url.pathname);
         registrationCalls++;
         return registrationStatus === 201 ? json({ data: {} }, 201)
           : json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
@@ -405,12 +415,21 @@ async function main() {
     await page.getByRole("heading", { name: "Bạn không có quyền cập nhật công thức này.", exact: true }).waitFor();
     assert.equal(await page.locator('[id$="-edit-title"]:visible').count(), 0);
     adminContext = await browser.newContext({ viewport: { width: 375, height: 900 } });
-    // Reuse the deterministic API fixtures, while the Admin session is issued by Auth.js itself.
+    // Reuse the deterministic API fixtures with an independent Admin session.
+    let adminSession = null;
     await adminContext.route("**/api/v1/**", route => {
       const suffix = new URL(route.request().url()).pathname;
+      const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,If-Match,X-Correlation-ID" };
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      if (suffix === "/api/v1/auth/refresh") return route.fulfill({ status: adminSession ? 200 : 401,
+        contentType: "application/json", headers: cors, body: JSON.stringify(adminSession ? { data: adminSession } : { detail: "No session" }) });
+      if (suffix === "/api/v1/auth/login") { adminSession = authSession("admin@test.invalid");
+        return route.fulfill({ contentType: "application/json", headers: cors, body: JSON.stringify({ data: adminSession }) }); }
       const data = suffix.endsWith("/categories") ? { data: [category] }
         : suffix.endsWith("/steps") || suffix.endsWith("/ingredients") || suffix.endsWith("/images") ? { data: [] } : { data: recipe };
-      return route.fulfill({ contentType: "application/json", headers: { "Access-Control-Expose-Headers": "ETag", ETag: '"' + recipe.rowVersion + '"' }, body: JSON.stringify(data) });
+      return route.fulfill({ contentType: "application/json", headers: { ...cors, "Access-Control-Expose-Headers": "ETag", ETag: '"' + recipe.rowVersion + '"' }, body: JSON.stringify(data) });
     });
     const adminPage = await adminContext.newPage();
     await adminPage.goto(origin + "/auth/login?callbackUrl=" + encodeURIComponent(`/dashboard/recipes/${recipe.id}/edit`));
@@ -428,15 +447,6 @@ async function main() {
     throw error;
   }
   finally {
-    for (const sessionContext of [context, adminContext].filter(Boolean)) {
-    if (server.exitCode === null) {
-      try {
-        const response = await sessionContext.request.get(origin + "/api/auth/csrf");
-        const { csrfToken } = await response.json();
-        await sessionContext.request.post(origin + "/api/auth/signout", { form: { csrfToken, callbackUrl: origin, json: "true" } });
-      } catch { /* Stop owned processes even when logout cannot complete. Session TTL still applies. */ }
-    }
-    }
     if (browser) await browser.close();
     server.kill();
     await new Promise(resolve => backend.close(resolve));

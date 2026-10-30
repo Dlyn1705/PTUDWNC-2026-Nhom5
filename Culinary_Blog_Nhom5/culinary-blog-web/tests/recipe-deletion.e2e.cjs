@@ -43,11 +43,10 @@ async function main() {
   const port = await new Promise(resolve => reservation.listen(0, "127.0.0.1", () => resolve(reservation.address().port)));
   await new Promise(resolve => reservation.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
-  const secret = randomUUID() + randomUUID();
   let logs = "";
   const server = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", API_INTERNAL_URL: `http://127.0.0.1:${backendPort}`, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
+    env: { ...process.env, API_INTERNAL_URL: `http://127.0.0.1:${backendPort}`, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   server.stdout.on("data", value => { logs = (logs + value).slice(-10000); });
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
@@ -56,7 +55,7 @@ async function main() {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server.exitCode !== null) throw new Error("Next.js stopped: " + logs);
-      try { if ((await fetch(origin + "/api/auth/csrf")).ok) { ready = true; break; } } catch { /* startup */ }
+      try { if ((await fetch(origin + "/auth/login")).ok) { ready = true; break; } } catch { /* startup */ }
       await delay(250);
     }
     assert.equal(ready, true);
@@ -69,17 +68,31 @@ async function main() {
       categoryId: "11111111-1111-4111-8111-111111111111", rowVersion: "AAAAAAAAAAAAAAAAAAAAAA==",
       category: { id: "11111111-1111-4111-8111-111111111111", name: "Món chính" }, author: { id: "owner", displayName: "Deletion Test" } };
     let deleted = false; let deleteStatus = 204; let deleteCalls = 0; let mineCalls = 0; let releaseDelete;
+    let activeSession = null;
     await context.route("**/api/v1/**", async route => {
       const request = route.request(); const url = new URL(request.url()); const suffix = url.pathname;
+      const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,If-Match,X-Correlation-ID" };
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
       const json = (value, status = 200, headers = {}) => route.fulfill({ status, contentType: "application/json",
-        headers: { "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
+        headers: { ...cors, "Access-Control-Expose-Headers": "ETag", ...headers }, body: JSON.stringify(value) });
+      if (suffix === "/api/v1/auth/refresh") return activeSession ? json({ data: activeSession }) : json({ detail: "No session" }, 401);
+      if (suffix === "/api/v1/auth/login") {
+        const body = request.postDataJSON();
+        if (body.password !== "E2e-only-password1!") return json({ detail: "Invalid credentials" }, 401);
+        activeSession = { accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
+          user: { id: "owner", email: body.email, displayName: "Deletion Test" }, roles: ["Author"] };
+        return json({ data: activeSession });
+      }
+      if (suffix === "/api/v1/auth/logout") { activeSession = null; return route.fulfill({ status: 204, headers: cors }); }
       if (request.method() === "DELETE") {
         assert.equal(suffix, "/api/v1/recipes/" + recipe.id);
         assert.equal(request.headers().authorization, "Bearer deletion-access");
         deleteCalls++;
         if (releaseDelete) await releaseDelete;
         if (deleteStatus !== 204) return json({ status: deleteStatus, detail: "Test deletion failure" }, deleteStatus);
-        deleted = true; return route.fulfill({ status: 204 });
+        deleted = true; return route.fulfill({ status: 204, headers: cors });
       }
       if (suffix.endsWith("/mine")) {
         mineCalls++;
@@ -120,10 +133,13 @@ async function main() {
     for (const [status, message] of [[403, "Bạn không có quyền xóa công thức này."],
       [404, "Công thức không còn tồn tại hoặc đã bị xóa."],
       [409, "Công thức vừa được thay đổi. Hãy tải lại trang và kiểm tra trước khi xóa."],
-      [500, "Không thể xóa công thức. Vui lòng thử lại."]]) {
+      [500, "Máy chủ đang gặp sự cố. Vui lòng thử lại sau."]]) {
       deleteStatus = status; await openDialog();
       await page.getByRole("alertdialog").getByRole("button", { name: "Xóa công thức", exact: true }).click();
-      await page.getByRole("alert").filter({ hasText: message }).waitFor();
+      await page.getByRole("alert").filter({ hasText: message }).waitFor({ timeout: 5000 }).catch(async error => {
+        console.error("Delete status", status, "visible alerts:", await page.getByRole("alert").allInnerTexts());
+        throw error;
+      });
       await page.getByRole("alertdialog").waitFor({ state: "hidden" });
       assert.equal(deleted, false);
       assert.equal(await page.getByRole("heading", { name: "Nguyên liệu", exact: true }).count(), 1, "Duplicate editor child keys grew the ingredient manager");
@@ -143,7 +159,10 @@ async function main() {
     unblock();
     await page.waitForURL(url => url.pathname === "/dashboard/recipes");
     await page.getByRole("status").filter({ hasText: "Đã xóa công thức." }).waitFor();
-    await page.getByText("Chưa có công thức nào.", { exact: true }).waitFor();
+    await page.getByText("Chưa có công thức nào", { exact: true }).waitFor({ timeout: 5000 }).catch(async error => {
+      console.error("Deleted list:", await page.locator("body").innerText(), "mine calls:", mineCalls, "page errors:", errors);
+      throw error;
+    });
     assert.equal(deleteCalls, 5); assert.ok(mineCalls >= 2, "Managed recipes cache was not refreshed");
     await page.screenshot({ path: path.join(folder, "deleted-list.png"), fullPage: true });
     assert.deepEqual(errors, []);

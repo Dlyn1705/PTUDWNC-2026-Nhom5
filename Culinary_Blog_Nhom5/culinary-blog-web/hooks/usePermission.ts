@@ -1,24 +1,20 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { hasRole } from "@/lib/permissions";
+import { useAuth } from "@/hooks/useAuth";
 
 export function usePermission() {
-  const { data: session, status } = useSession();
-  const user = session?.error ? undefined : session?.user;
-  const isAdmin = hasRole(user, "Admin");
-  const isAuthor = hasRole(user, "Author");
+  const { user, isAdmin, isAuthor, isAuthenticated, isInitializing } = useAuth();
 
   const canModifyRecipe = (authorId?: string) =>
     !!user && (isAdmin || (isAuthor && user.id === authorId));
 
   return {
     user,
-    role: user?.role,
+    role: isAdmin ? "Admin" : isAuthor ? "Author" : undefined,
     isAdmin,
     isAuthor,
     canModifyRecipe,
-    isAuthenticated: status === "authenticated" && !session?.error,
-    isLoading: status === "loading",
+    isAuthenticated,
+    isLoading: isInitializing,
   };
 }

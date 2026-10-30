@@ -4,8 +4,6 @@ const http = require("node:http");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn } = require("node:child_process");
-const { randomUUID, randomBytes, createHash, createCipheriv } = require("node:crypto");
-const { createClient } = require("redis");
 const { chromium } = require("playwright");
 const root = path.resolve(__dirname, "..");
 const recipeId = "11111111-1111-4111-8111-111111111111";
@@ -23,18 +21,9 @@ async function freePort() {
 
 async function main() {
   const port = await freePort(); const origin = `http://127.0.0.1:${port}`;
-  const secret = "image-e2e-" + randomUUID() + randomUUID();
-  // Auth now resolves an encrypted server-side session, not token/role fields from the cookie.
-  const redis = createClient({ url: process.env.AUTH_REDIS_URL ?? "redis://localhost:6379",
-    socket: { connectTimeout: 3000, reconnectStrategy: false } });
-  redis.on("error", () => {});
-  try { await redis.connect(); }
-  catch { if (redis.isOpen) redis.destroy(); throw new Error("Image E2E requires Redis. Set AUTH_REDIS_URL to a running test Redis instance."); }
-  const sessionId = randomBytes(32).toString("base64url");
-  const sessionKey = `culinary:auth:v1:{${sessionId}}`;
   const server = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", NEXT_PUBLIC_ENABLE_MOCKS: "false" },
+    env: { ...process.env, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   let logs = "";
   server.stdout.on("data", data => { logs = (logs + data).slice(-16000); });
@@ -44,38 +33,27 @@ async function main() {
     let ready = false;
     for (let i = 0; i < 120; i++) {
       if (server.exitCode !== null) throw new Error("Next.js stopped: " + logs);
-      try { if ((await fetch(origin + "/api/auth/csrf")).ok) { ready = true; break; } } catch { /* starting */ }
+      try { if ((await fetch(origin + "/auth/login")).ok) { ready = true; break; } } catch { /* starting */ }
       await pause(250);
     }
     assert.ok(ready, "Next.js server must start");
     browser = await chromium.launch({ headless: true,
       ...(process.env.E2E_BROWSER_CHANNEL === "bundled" ? {} : { channel: process.env.E2E_BROWSER_CHANNEL || "chrome" }),
     });
-    const { encode } = await import("next-auth/jwt");
-    const cookieName = "authjs.session-token";
-    const stored = {
-      state: "active", version: 0, refreshToken: "fixture-refresh", refreshTokenExpiry: Date.now() + 3600_000,
-      session: { accessToken: "fixture-token", accessTokenExpiry: new Date(Date.now() + 3600_000).toISOString(),
-        user: { id: "fixture-author", email: "image@test.invalid", displayName: "Image Test" }, roles: ["Author"] },
-    };
-    const nonce = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(`culinary-server-session-v1:${secret}`).digest(), nonce);
-    cipher.setAAD(Buffer.from(sessionId));
-    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(stored), "utf8"), cipher.final()]);
-    await redis.set(sessionKey, Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString("base64url"),
-      { expiration: { type: "PX", value: 3600_000 }, condition: "NX" });
-    const session = await encode({ secret, salt: cookieName, maxAge: 3600, token: {
-      backendSessionId: sessionId,
-    } });
+    const session = { accessToken: "fixture-token", accessTokenExpiry: new Date(Date.now() + 3600_000).toISOString(),
+      user: { id: "fixture-author", email: "image@test.invalid", displayName: "Image Test" }, roles: ["Author"] };
     const errors = [];
     async function scenario(name, routes, run) {
       const context = await browser.newContext();
-      await context.addCookies([{ name: cookieName, value: session, domain: "127.0.0.1", path: "/", httpOnly: true, sameSite: "Lax" }]);
       const page = await context.newPage(); page.setDefaultTimeout(15000);
       page.on("pageerror", error => errors.push(error.message));
       const counts = { post: 0, get: 0, delete: 0, patch: 0, poll: 0 };
       await context.route("**/api/v1/**", async route => {
         const request = route.request(); const url = new URL(request.url());
+        if (url.pathname === "/api/v1/auth/refresh") return route.fulfill({ status: 200,
+          headers: { "content-type": "application/json", "access-control-allow-origin": origin, "access-control-allow-credentials": "true",
+            "access-control-allow-methods": "POST,OPTIONS", "access-control-allow-headers": "Content-Type" },
+          body: JSON.stringify({ data: session }) });
         if (!url.pathname.includes("/images")) return route.fulfill({ status: 200, json: [] });
         const method = request.method().toLowerCase();
         if (method === "options") return route.fulfill({ status: 204, headers: {
@@ -213,7 +191,6 @@ async function main() {
   } finally {
     if (browser) await browser.close();
     server.kill();
-    try { await redis.del(sessionKey); } finally { redis.destroy(); }
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

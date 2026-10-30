@@ -6,9 +6,9 @@
 
 | Luồng | Contract hiện thực trên backend main | Trạng thái so với đặc tả | Bằng chứng / quyết định frontend |
 | --- | --- | --- | --- |
-| Đăng ký, đăng nhập | `POST /api/v1/auth/register`, `POST /api/v1/auth/login`; trả `ApiResponse<AuthSessionResponseDto>` và refresh cookie | Đúng | `AuthEndpoints.cs`, `lib/auth.ts`, form local dùng luồng Auth.js hiện hành |
+| Đăng ký, đăng nhập | `POST /api/v1/auth/register`, `POST /api/v1/auth/login`; trả `ApiResponse<AuthSessionResponseDto>` và refresh cookie | Đúng | `AuthEndpoints.cs`, `authApi.ts`, `authStore.ts`; frontend dùng JWT backend |
 | Google login | `POST /api/v1/auth/google` nhận `idToken` | Đúng | `AuthEndpoints.cs`, `GoogleLoginButton.tsx` |
-| Refresh, logout | `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`; logout trả `204`; cookie `HttpOnly`, `Secure`, `SameSite=Lax` | Đúng | `AuthEndpoints.cs`, `sessionCoordinator.ts`, `sessionAuth.ts` |
+| Refresh, logout | `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`; logout trả `204`; cookie `HttpOnly`, `Secure`, `SameSite=Lax` | Đúng | `AuthEndpoints.cs`, `authStore.ts`, `sessionAuth.ts` |
 | Hồ sơ người dùng | Không có `GET/PATCH /api/v1/auth/me` | **Chưa có** | `/profile` chỉ hiển thị dữ liệu session; không giả lập thao tác cập nhật |
 | Danh sách category | `GET /api/v1/categories` trả `{ data }` | Đúng | `CategoryEndpoints.cs`; `serverClient.getCategories()` chuẩn hóa cho Server Component |
 | Chi tiết category | `GET /api/v1/categories/{slug}?page&pageSize` trả `{ data: { category, recipes }, meta }` | Đúng | Route local gọi trực tiếp theo slug và giữ page trong URL |

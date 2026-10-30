@@ -1,24 +1,27 @@
-import { signIn, signOut } from "next-auth/react";
-import axiosClient from "./axiosClient";
-import type { ApiResponse } from "@/types/api.types";
-import type { RegisterRequest } from "@/types/auth";
+import { authClient } from "./authClient";
+import type { AuthResponse, AuthSessionResponse, GoogleLoginRequest, LoginRequest, RegisterRequest } from "../../types/auth";
 
-export interface LoginRequest {
-  email: string;
-  password: string;
+const authPath = "/api/v1/auth";
+
+export async function login(request: LoginRequest): Promise<AuthSessionResponse> {
+  const response = await authClient.post<AuthResponse>(`${authPath}/login`, request);
+  return response.data.data;
 }
 
-export function login(request: LoginRequest) {
-  return signIn("credentials", {
-    ...request,
-    redirect: false,
-  });
+export async function googleLogin(request: GoogleLoginRequest): Promise<AuthSessionResponse> {
+  const response = await authClient.post<AuthResponse>(`${authPath}/google`, request);
+  return response.data.data;
 }
 
-export function logout() {
-  return signOut({ redirect: false });
+export async function refresh(): Promise<AuthSessionResponse> {
+  const response = await authClient.post<AuthResponse>(`${authPath}/refresh`);
+  return response.data.data;
+}
+
+export async function logout(): Promise<void> {
+  await authClient.post(`${authPath}/logout`);
 }
 
 export function register(request: RegisterRequest) {
-  return axiosClient.post<ApiResponse<unknown>>("/api/v1/auth/register", request);
+  return authClient.post<AuthResponse>(`${authPath}/register`, request);
 }

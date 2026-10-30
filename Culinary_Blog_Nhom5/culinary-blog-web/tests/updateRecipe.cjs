@@ -29,10 +29,10 @@ async function browser() {
   const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   compile("app/dashboard/recipes/[id]/edit/page.tsx", "page.cjs", {
     "@/lib/api/recipeApi": "./api.cjs", "@/lib/api/categoryApi": "./api.cjs",
-    "@/lib/validations/updateRecipe": "./validation.cjs", "next-auth/react": "./auth.cjs",
+    "@/lib/validations/updateRecipe": "./validation.cjs", "@/hooks/useAuth": "./auth.cjs",
     "next/navigation": "./navigation.cjs", "@/components/recipes/editor/DeleteRecipeModal": "./delete.cjs",
   });
-  fs.writeFileSync(path.join(output, "auth.cjs"), `exports.useSession=()=>({data:window.session,status:'authenticated'});`);
+  fs.writeFileSync(path.join(output, "auth.cjs"), `exports.useAuth=()=>({user:window.session.user,isInitializing:false,isAdmin:false,isAuthor:true});`);
   fs.writeFileSync(path.join(output, "navigation.cjs"), `exports.useRouter=()=>({replace:()=>{}});`);
   fs.writeFileSync(path.join(output, "delete.cjs"), `exports.DeleteRecipeModal=()=>null;`);
   fs.writeFileSync(path.join(output, "api.cjs"), `

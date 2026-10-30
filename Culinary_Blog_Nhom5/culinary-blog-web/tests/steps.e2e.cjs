@@ -4,9 +4,8 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { randomUUID, randomBytes, createHash, createCipheriv } = require("node:crypto");
+const { randomUUID } = require("node:crypto");
 const { chromium } = require("playwright");
-const { createClient } = require("redis");
 const root = path.resolve(__dirname, "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -14,42 +13,25 @@ async function main() {
   const reservation = http.createServer();
   const port = await new Promise(resolve => reservation.listen(0, "127.0.0.1", () => resolve(reservation.address().port)));
   await new Promise(resolve => reservation.close(resolve));
-  const origin = `http://127.0.0.1:${port}`; const secret = randomUUID() + randomUUID();
+  const origin = `http://127.0.0.1:${port}`;
   const server = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", NEXT_PUBLIC_ENABLE_MOCKS: "false" },
+    env: { ...process.env, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   let logs = ""; server.stdout.on("data", data => { logs = (logs + data).slice(-10000); }); server.stderr.on("data", data => { logs = (logs + data).slice(-10000); });
-  let browser; let redis; let sessionKey;
+  let browser;
   try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
       if (server.exitCode !== null) throw new Error("Next.js stopped");
-      try { if ((await fetch(origin + "/api/auth/csrf")).ok) { ready = true; break; } } catch { /* startup */ }
+      try { if ((await fetch(origin + "/auth/login")).ok) { ready = true; break; } } catch { /* startup */ }
       await delay(250);
     }
     assert.equal(ready, true);
     browser = await chromium.launch({ headless: true, ...(process.env.E2E_BROWSER_CHANNEL === "bundled" ? {} : { channel: process.env.E2E_BROWSER_CHANNEL || "chrome" }) });
-    const context = await browser.newContext(); const { encode } = await import("next-auth/jwt");
-    const backendSessionId = randomBytes(32).toString("base64url");
-    sessionKey = `culinary:auth:v1:{${backendSessionId}}`;
-    const expiry = Date.now() + 3600000;
-    const stored = { session: {
-      user: { id: "owner", displayName: "Steps Test", email: "steps@test.invalid" },
-      roles: ["Author"], accessToken: "test-steps-access", accessTokenExpiry: new Date(expiry).toISOString(),
-    }, refreshToken: "steps-test-refresh", refreshTokenExpiry: expiry, state: "active", version: 0 };
-    const nonce = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(`culinary-server-session-v1:${secret}`).digest(), nonce);
-    cipher.setAAD(Buffer.from(backendSessionId));
-    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(stored), "utf8"), cipher.final()]);
-    const sealed = Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString("base64url");
-    redis = createClient({ url: process.env.AUTH_REDIS_URL || "redis://127.0.0.1:6379" });
-    await redis.connect();
-    await redis.set(sessionKey, sealed, { PX: 3600000 });
-    const cookie = "authjs.session-token";
-    await context.addCookies([{ name: cookie, domain: "127.0.0.1", path: "/", secure: false, httpOnly: true, sameSite: "Lax",
-      value: await encode({ secret, salt: cookie, maxAge: 3600, token: { backendSessionId } }),
-    }]);
+    const context = await browser.newContext();
+    const session = { accessToken: "test-steps-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
+      user: { id: "owner", displayName: "Steps Test", email: "steps@test.invalid" }, roles: ["Author"] };
     const recipeId = "77777777-7777-4777-8777-777777777777";
     const category = { id: "11111111-1111-4111-8111-111111111111", name: "Món chính", slug: "mon-chinh", recipeCount: 1 };
     const recipe = { id: recipeId, title: "Công thức thử bước", slug: "steps-test", description: "Test", instructions: "Legacy",
@@ -59,8 +41,15 @@ async function main() {
     let steps = []; let writes = 0; let failConflict = false; let holdWrite; let createdPayload;
     await context.route("**/api/v1/**", async route => {
       const request = route.request(); const url = new URL(request.url()); const endpoint = url.pathname;
+      const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Authorization,If-Match,X-Correlation-ID" };
+      if (endpoint === "/api/v1/auth/refresh") {
+        if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+        return route.fulfill({ status: 200, contentType: "application/json", headers: cors,
+          body: JSON.stringify({ data: session }) });
+      }
       const json = (value, status = 200) => route.fulfill({ status, contentType: "application/json", headers: {
-        "Access-Control-Expose-Headers": "ETag", ETag: '"' + versionText() + '"', "Cache-Control": "no-store" }, body: JSON.stringify(value) });
+        ...cors, "Access-Control-Expose-Headers": "ETag", ETag: '"' + versionText() + '"', "Cache-Control": "no-store" }, body: JSON.stringify(value) });
       if (endpoint.startsWith("/api/v1/categories")) return json({ data: [category] });
       if (endpoint.endsWith("/ingredients") || endpoint.endsWith("/images")) return json({ data: [] });
       if ((endpoint === "/api/v1/recipes" || endpoint === "/api/v1/recipes/") && request.method() === "POST") {
@@ -104,9 +93,7 @@ async function main() {
     const add = manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true });
     try { await add.waitFor({ timeout: 10000 }); }
     catch {
-      const sessionResponse = await context.request.get(origin + "/api/auth/session");
-      const session = await sessionResponse.json();
-      throw new Error(`Step editor unavailable: url=${page.url()} user=${session?.user?.id ?? "none"} role=${session?.user?.role ?? "none"} error=${session?.error ?? "none"} page=${(await page.locator("body").innerText()).slice(0, 500)}`);
+      throw new Error(`Step editor unavailable: url=${page.url()} page=${(await page.locator("body").innerText()).slice(0, 500)}`);
     }
     await add.click();
     await manager.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
@@ -178,7 +165,6 @@ async function main() {
   } catch (error) { console.error(logs); throw error; }
   finally {
     if (browser) await browser.close();
-    if (redis) { if (sessionKey) await redis.del(sessionKey); await redis.quit(); }
     server.kill();
   }
 }

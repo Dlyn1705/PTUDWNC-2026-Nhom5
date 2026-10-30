@@ -1,18 +1,9 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+"use client";
 
-export default async function AdminCategoriesLayout({
+import { AuthGuard } from "@/components/auth/AuthGuard";
+
+export default function AdminCategoriesLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth();
-
-  if (!session || session.error === "RefreshTokenError") {
-    redirect("/auth/login?callbackUrl=/dashboard/categories");
-  }
-
-  if (session.user.role !== "Admin") {
-    redirect("/dashboard/recipes");
-  }
-
-  return children;
+  return <AuthGuard roles={["Admin"]}>{children}</AuthGuard>;
 }

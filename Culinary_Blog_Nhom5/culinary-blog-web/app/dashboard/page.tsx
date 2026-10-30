@@ -1,12 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { BookOpen, FolderTree, Plus, UserRound } from "lucide-react";
-import { auth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
-export default async function DashboardPage() {
-  const session = await auth();
-  const isAdmin = session?.user.role === "Admin";
-  const displayName = session?.user.name ?? session?.user.email ?? "thành viên";
+export default function DashboardPage() {
+  const { user, isAdmin } = useAuth();
+  const displayName = user?.displayName ?? user?.email ?? "thành viên";
 
   return (
     <div className="page-container max-w-6xl space-y-8 py-10">

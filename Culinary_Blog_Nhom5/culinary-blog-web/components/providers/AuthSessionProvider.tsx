@@ -1,32 +1,23 @@
 "use client";
 
-import { SessionProvider, signOut, useSession } from "next-auth/react";
-import { useEffect, useRef, type ReactNode } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
-
-function SessionStatus() {
-  const { data: session, status } = useSession();
-  const syncFromSession = useAuthStore((state) => state.syncFromSession);
-  const clear = useAuthStore((state) => state.clear);
-  const signingOut = useRef(false);
-  useEffect(() => {
-    if (status === "unauthenticated" || session?.error === "RefreshTokenError") clear();
-    else syncFromSession(session, status);
-  }, [clear, session, status, syncFromSession]);
-  useEffect(() => {
-    if (session?.error !== "RefreshTokenError" || signingOut.current) return;
-    signingOut.current = true;
-    const callbackUrl = `${window.location.pathname}${window.location.search}`;
-    void signOut({ redirectTo: `/auth/login?reason=session-expired&callbackUrl=${encodeURIComponent(callbackUrl)}` });
-  }, [session?.error]);
-  if (session?.error === "SessionUnavailableError") {
-    return <p role="status" className="border-b border-warning/30 bg-warning/10 p-3 text-center text-sm text-warning">Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại sau.</p>;
-  }
-  return null;
-}
+import { useEffect, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "../../store/authStore";
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  return <SessionProvider refetchInterval={60} refetchOnWindowFocus refetchWhenOffline={false}>
-    <SessionStatus />{children}
-  </SessionProvider>;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    void useAuthStore.getState().initialize();
+    let previousUserId = useAuthStore.getState().user?.id ?? null;
+    return useAuthStore.subscribe((state) => {
+      const nextUserId = state.user?.id ?? null;
+      if (nextUserId !== previousUserId) {
+        previousUserId = nextUserId;
+        queryClient.clear();
+      }
+    });
+  }, [queryClient]);
+
+  return <>{children}</>;
 }

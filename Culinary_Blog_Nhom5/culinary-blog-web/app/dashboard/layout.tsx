@@ -1,27 +1,23 @@
+"use client";
+
 import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
 import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { useAuth } from "@/hooks/useAuth";
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session || session.error === "RefreshTokenError") {
-    redirect("/auth/login?callbackUrl=/dashboard");
-  }
-
-  if (session.user.role !== "Admin" && session.user.role !== "Author") {
-    redirect("/forbidden");
-  }
+  const { isAdmin } = useAuth();
 
   return (
+    <AuthGuard roles={["Author", "Admin"]}>
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <SkipLink />
       {/* Dashboard Header */}
@@ -46,7 +42,7 @@ export default async function DashboardLayout({
                 <span>Tổng quan</span>
               </Link>
 
-              {session.user.role === "Admin" && (
+              {isAdmin && (
                 <Link
                   href="/dashboard/categories"
                   className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
@@ -89,12 +85,13 @@ export default async function DashboardLayout({
                 <span>Back to Site</span>
               </Link>
             </Button>
-            <DashboardMobileNav isAdmin={session.user.role === "Admin"} />
+            <DashboardMobileNav isAdmin={isAdmin} />
           </div>
         </div>
       </header>
 
       <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
     </div>
+    </AuthGuard>
   );
 }

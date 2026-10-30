@@ -86,23 +86,6 @@ Write-Host "===================================================" -ForegroundColo
 Write-Host "  Dang khoi dong Culinary Blog (Backend + Frontend)" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
-$authEnvPath = Join-Path $frontendRoot ".env.local"
-$hasAuthSecretInFile = (Test-Path -LiteralPath $authEnvPath) -and
-    (Select-String -LiteralPath $authEnvPath -Pattern '^\s*(AUTH_SECRET|NEXTAUTH_SECRET)\s*=\s*.+$' -Quiet)
-
-# Let Next.js load a configured stable secret; an environment override would invalidate Redis sessions on restart.
-if ([string]::IsNullOrWhiteSpace($env:AUTH_SECRET) -and [string]::IsNullOrWhiteSpace($env:NEXTAUTH_SECRET) -and -not $hasAuthSecretInFile) {
-    $secretBytes = [byte[]]::new(32)
-    $randomNumberGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $randomNumberGenerator.GetBytes($secretBytes)
-    }
-    finally {
-        $randomNumberGenerator.Dispose()
-    }
-    $env:AUTH_SECRET = [Convert]::ToBase64String($secretBytes)
-}
-
 # Match the development MinIO container defaults without storing credentials in API settings.
 if ([string]::IsNullOrWhiteSpace($env:Minio__AccessKey)) {
     $env:Minio__AccessKey = if ($env:MINIO_ROOT_USER) { $env:MINIO_ROOT_USER } else { "minioadmin" }

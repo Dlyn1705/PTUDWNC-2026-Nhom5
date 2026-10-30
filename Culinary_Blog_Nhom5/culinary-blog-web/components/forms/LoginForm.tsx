@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
@@ -11,6 +10,8 @@ import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
+import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
+import { useAuth } from "@/hooks/useAuth";
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -20,6 +21,7 @@ function FieldError({ message }: { message?: string }) {
 
 export function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
@@ -50,28 +52,17 @@ export function LoginForm() {
     setMascotMood("password");
 
     try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setMascotMood("error");
-        setError("password", {
-          type: "server",
-          message: "Email hoặc mật khẩu không chính xác.",
-        });
-        return;
-      }
-
+      await login({ email: data.email, password: data.password });
       setMascotMood("success");
       router.replace(callbackUrl);
-      router.refresh();
     } catch (error) {
       setMascotMood("error");
-      console.error("Auth.js sign-in failed", error);
-      setServerError("Không thể đăng nhập. Vui lòng thử lại sau.");
+      const problem = toApiProblemError(error);
+      if (problem.status === 401) {
+        setError("password", { type: "server", message: "Email hoặc mật khẩu không chính xác." });
+      } else {
+        setServerError(getApiErrorMessage(problem, "Không thể đăng nhập. Vui lòng thử lại sau."));
+      }
     }
   };
 
