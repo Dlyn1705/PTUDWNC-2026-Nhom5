@@ -45,7 +45,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-border/80 py-6">
-        <div className="page-container flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
+        <div className="page-container flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground md:flex-row">
           <p>© {new Date().getFullYear()} Culinary Blog. Nhóm 5.</p>
           <span className="inline-flex items-center gap-1">
             Xây dựng với <Heart aria-hidden="true" className="size-3 fill-primary text-primary" /> sự quan tâm tới người nấu

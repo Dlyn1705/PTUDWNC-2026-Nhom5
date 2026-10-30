@@ -13,9 +13,9 @@ import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
 import { useAuth } from "@/hooks/useAuth";
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-destructive">{message}</p>
+    <p id={id} role="alert" className="mt-2 text-xs font-medium text-destructive">{message}</p>
   ) : null;
 }
 
@@ -59,7 +59,7 @@ export function LoginForm() {
       setMascotMood("error");
       const problem = toApiProblemError(error);
       if (problem.status === 401) {
-        setError("password", { type: "server", message: "Email hoặc mật khẩu không chính xác." });
+        setError("password", { type: "server", message: "Email hoặc mật khẩu không chính xác." }, { shouldFocus: true });
       } else {
         setServerError(getApiErrorMessage(problem, "Không thể đăng nhập. Vui lòng thử lại sau."));
       }
@@ -67,7 +67,7 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate aria-busy={isSubmitting}>
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
       {registered && <WelcomeBanner />}
       {sessionExpired && (
@@ -106,23 +106,15 @@ export function LoginForm() {
             setEmailProgress(Math.min(event.target.value.length / 32, 1));
             emailRegistration.onChange(event);
           }}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "login-email-error" : undefined}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.email?.message} />
+        <FieldError id="login-email-error" message={errors.email?.message} />
       </div>
 
       <div>
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="login-password" className="field-label">
-            Mật khẩu
-          </label>
-          <button
-            type="button"
-            className="mb-2 text-xs font-semibold text-primary hover:underline"
-          >
-            Quên mật khẩu?
-          </button>
-        </div>
+        <label htmlFor="login-password" className="field-label">Mật khẩu</label>
         <PasswordField
           id="login-password"
           autoComplete="current-password"
@@ -131,14 +123,17 @@ export function LoginForm() {
           onFocus={() => setMascotMood("password")}
           onBlur={() => setMascotMood("idle")}
           onVisibilityChange={(visible) => setMascotMood(visible ? "peek" : "password")}
+          aria-invalid={Boolean(errors.password)}
+          aria-describedby={errors.password ? "login-password-error" : undefined}
           className={`field-input ${errors.password ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.password?.message} />
+        <FieldError id="login-password-error" message={errors.password?.message} />
       </div>
 
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
+      <p role="status" className="sr-only">{isSubmitting ? "Đang đăng nhập, vui lòng chờ." : ""}</p>
 
       <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="h-px flex-1 bg-border" />

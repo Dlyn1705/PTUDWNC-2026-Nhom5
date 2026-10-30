@@ -15,9 +15,9 @@ import {
   type RegisterFormData,
 } from "@/lib/validations/auth";
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-destructive">{message}</p>
+    <p id={id} role="alert" className="mt-2 text-xs font-medium text-destructive">{message}</p>
   ) : null;
 }
 
@@ -57,12 +57,13 @@ export function RegisterForm() {
         setError("email", {
           type: "server",
           message: getApiErrorMessage(problem, "Email này đã được sử dụng."),
-        });
+        }, { shouldFocus: true });
         return;
       }
 
       if (problem.status === 422) {
         let mapped = false;
+        let focused = false;
         Object.entries(problem.errors).forEach(([field, messages]) => {
           const fieldMap: Record<string, keyof RegisterFormData> = {
             Email: "email",
@@ -75,7 +76,8 @@ export function RegisterForm() {
             fieldMap[field.charAt(0).toUpperCase() + field.slice(1)];
           if (target && messages[0]) {
             mapped = true;
-            setError(target, { type: "server", message: messages[0] });
+            setError(target, { type: "server", message: messages[0] }, { shouldFocus: !focused });
+            focused = true;
           }
         });
         if (mapped) {
@@ -90,7 +92,7 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate aria-busy={isSubmitting}>
       {serverError && (
         <div
           role="alert"
@@ -109,9 +111,11 @@ export function RegisterForm() {
           autoComplete="name"
           placeholder="Nguyễn Văn A"
           {...register("displayName")}
+          aria-invalid={Boolean(errors.displayName)}
+          aria-describedby={errors.displayName ? "displayName-error" : undefined}
           className={`field-input ${errors.displayName ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.displayName?.message} />
+        <FieldError id="displayName-error" message={errors.displayName?.message} />
       </div>
 
       <div>
@@ -124,12 +128,14 @@ export function RegisterForm() {
           autoComplete="email"
           placeholder="chef@gmail.com"
           {...register("email")}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "email-error" : undefined}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.email?.message} />
+        <FieldError id="email-error" message={errors.email?.message} />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         <div>
           <label htmlFor="password" className="field-label">
             Mật khẩu
@@ -139,6 +145,8 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="Tối thiểu 8 ký tự"
             registration={register("password")}
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={`password-strength-label${errors.password ? " password-error" : ""}`}
             className={`field-input ${errors.password ? "field-input-error" : ""}`}
           />
           <div className="mt-2 space-y-2">
@@ -194,7 +202,7 @@ export function RegisterForm() {
               ))}
             </ul>
           </div>
-          <FieldError message={errors.password?.message} />
+          <FieldError id="password-error" message={errors.password?.message} />
         </div>
         <div>
           <label htmlFor="confirmPassword" className="field-label">
@@ -205,15 +213,18 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="Nhập lại mật khẩu"
             registration={register("confirmPassword")}
+            aria-invalid={Boolean(errors.confirmPassword)}
+            aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
             className={`field-input ${errors.confirmPassword ? "field-input-error" : ""}`}
           />
-          <FieldError message={errors.confirmPassword?.message} />
+          <FieldError id="confirmPassword-error" message={errors.confirmPassword?.message} />
         </div>
       </div>
 
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
       </button>
+      <p role="status" className="sr-only">{isSubmitting ? "Đang tạo tài khoản, vui lòng chờ." : ""}</p>
 
       <p className="text-center text-sm text-muted-foreground">
         Đã có tài khoản?{" "}

@@ -8,7 +8,7 @@ import {
 
 export function SortDropdown({ sortBy = "relevance", sortOrder = "desc" }: { sortBy?: string; sortOrder?: string }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
       <label htmlFor="search-sort-by" className="grid gap-1.5 text-xs font-medium">
         <span>Sắp xếp</span>
         <Select name="sortBy" defaultValue={sortBy}>
