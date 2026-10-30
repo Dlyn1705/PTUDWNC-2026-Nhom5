@@ -11,12 +11,12 @@ npm ci
 Copy-Item .env.example .env.local
 ```
 
-Đặt `AUTH_SECRET` riêng trong `.env.local`; giữ file này ngoài Git. `API_INTERNAL_URL` dùng cho server, `NEXT_PUBLIC_API_URL` dùng cho browser, mặc định backend là `http://localhost:5156`. Chỉ đặt dữ liệu công khai vào biến `NEXT_PUBLIC_`. Backend cần PostgreSQL, Redis, MinIO và cấu hình riêng theo README ở gốc repo.
+Giữ `.env.local` ngoài Git. `API_INTERNAL_URL` dùng cho server, `NEXT_PUBLIC_API_URL` dùng cho browser, mặc định backend là `http://localhost:5156`. Chỉ đặt dữ liệu công khai vào biến `NEXT_PUBLIC_`. Backend cần PostgreSQL, Redis, MinIO và cấu hình riêng theo README ở gốc repo.
 
 ## Cấu trúc và thư viện
 
 - `app/`: route public, auth, dashboard và layout.
-- `components/`: UI Radix, form, thành phần công thức, SessionProvider.
+- `components/`: UI Radix, form, thành phần công thức, AuthSessionProvider.
 - `hooks/`: hook React và quyền người dùng.
 
 ## Quy ước frontend
@@ -33,9 +33,8 @@ và `@/lib/utils`, không sửa vendor primitive tùy tiện. Đặt hành vi đ
 - State cục bộ: form, dialog và trạng thái tạm thời của một component.
 - URL search params: filter, sort và pagination có thể chia sẻ.
 - TanStack Query: server state và cache request.
-- Zustand: projection auth/UI nhỏ dùng chung. Store mới phải có selector, action và
-  `partialize` allowlist nếu persist; chỉ persist UI preference sau hydration client.
-  Không persist token, cookie, password, raw session hoặc API response.
+- Zustand: phiên đăng nhập trong memory (`user`, `accessToken`) và UI state nhỏ dùng chung.
+  Không persist access token, cookie, password hoặc dữ liệu API khác.
 
 Component chỉ gọi backend qua `lib/api`, không tự tạo Axios client và không đọc
 `error.response`. Lỗi API dùng `ApiProblemError`, `isApiProblemError` và
@@ -53,11 +52,11 @@ npm run build
 Suite mới nên có `tsconfig.*-tests.json` riêng khi cần runtime/module boundary khác;
 test phải deterministic và không gọi backend thật.
 - `lib/api/`: Axios client, API và xử lý lỗi/log.
-- `lib/auth.ts`: NextAuth credentials, refresh token phía server.
+- `store/authStore.ts`: phiên và role từ JWT backend; khôi phục qua cookie refresh.
 - `types/`: DTO, payload, role, session, phân trang, ảnh và enum.
-- `proxy.ts`: kiểm tra phiên/quyền trước khi truy cập dashboard; backend tiếp tục kiểm tra role và ownership.
+- `proxy.ts`: CSP và cache headers; guard UI kiểm tra quyền dashboard, backend kiểm tra role và ownership cho mọi API.
 
-Thư viện chính: NextAuth, Axios, React Hook Form, Zod, Radix UI, Lucide, Tailwind CSS; React Query/Zustand được cài sẵn cho các tính năng cần cache/state.
+Thư viện chính: Axios, React Hook Form, Zod, Radix UI, Lucide, Tailwind CSS, TanStack Query và Zustand.
 
 ## Kiểm tra
 
@@ -82,8 +81,6 @@ Set the frontend variables in `culinary-blog-web/.env.local`:
 API_INTERNAL_URL=http://localhost:5156
 NEXT_PUBLIC_API_URL=http://localhost:5156
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-AUTH_SECRET=generate-a-unique-random-secret
-AUTH_URL=http://localhost:3000
 ```
 
 The backend only needs the Google client ID to validate the ID token. Set it in the environment where the API process runs; it is not read from the frontend `.env.local`:
@@ -93,4 +90,4 @@ $env:Authentication__Google__ClientId = "your-client-id.apps.googleusercontent.c
 dotnet run --project src/CulinaryBlog.API
 ```
 
-Google Identity Services returns an ID token to the browser. Auth.js forwards it server-side to `POST /api/v1/auth/google`; the API validates its signature, issuer, expiry, and audience with `Google.Apis.Auth`. Never commit real OAuth credentials.
+Google Identity Services returns an ID token to the browser. The frontend sends it to `POST /api/v1/auth/google`; the API validates its signature, issuer, expiry, and audience with `Google.Apis.Auth`. Never commit real OAuth credentials.

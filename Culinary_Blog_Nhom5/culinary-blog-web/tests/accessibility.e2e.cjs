@@ -24,9 +24,10 @@ async function main() {
   write("image.tsx", `import React from 'react';export default function Image({fill,unoptimized,priority,sizes,...props}:any){return <img {...props}/>}`);
   write("auth.tsx", `import React,{useContext,useState} from 'react';const Context=React.createContext<any>({});
     export function Auth({children}:any){const [role,setRole]=useState('Author');(window as any).setRole=setRole;
-      return <Context.Provider value={role==='guest'?{status:'unauthenticated',data:null}:role==='loading'?{status:'loading',data:null}:{status:'authenticated',data:{user:{name:'Người dùng thử',role,roles:[role]}}}}>{children}</Context.Provider>}
-    export const useSession=()=>useContext(Context);
-    export async function signOut(){(window as any).logoutCalls++;await new Promise(r=>setTimeout(r,100));throw new Error('Fixture logout unavailable')}`);
+      const user=role==='guest'||role==='loading'?null:{id:'test-user',displayName:'Người dùng thử',email:'test@example.invalid',roles:[role]};
+      const logout=async()=>{(window as any).logoutCalls++;await new Promise(r=>setTimeout(r,100));throw new Error('Fixture logout unavailable')};
+      return <Context.Provider value={{user,isAuthenticated:!!user,isInitializing:role==='loading',isAdmin:role==='Admin',isAuthor:role==='Author'||role==='Admin',logout}}>{children}</Context.Provider>}
+    export const useAuth=()=>useContext(Context);`);
   write("api.ts", `export const categoryApi={create:async()=>{await new Promise(r=>setTimeout(r,100));throw new Error('Không thể lưu danh mục. Vui lòng thử lại.')},update:async()=>{},delete:async()=>{await new Promise(r=>setTimeout(r,100));if((window as any).deleteFails)throw new Error('Không thể xóa danh mục. Vui lòng thử lại.')}};`);
   write("entry.tsx", `import React,{useState} from 'react';import {createRoot} from 'react-dom/client';
     import {Auth} from './auth';import {navigate} from './navigation';
@@ -52,9 +53,9 @@ async function main() {
   await new Promise((resolve, reject) => {
     const compiler = webpack({ mode: "development", devtool: false, entry: path.join(out, "entry.tsx"), output: { path: out, filename: "bundle.js" },
       resolve: { extensions: [".tsx", ".ts", ".js"], alias: {
-        "@/lib/api/categoryApi": path.join(out, "api.ts"), "@": root,
+        "@/lib/api/categoryApi": path.join(out, "api.ts"), "@/hooks/useAuth": path.join(out, "auth.tsx"), "@": root,
         "next/navigation": path.join(out, "navigation.ts"), "next/link": path.join(out, "link.tsx"),
-        "next/image": path.join(out, "image.tsx"), "next-auth/react": path.join(out, "auth.tsx"),
+        "next/image": path.join(out, "image.tsx"),
       } }, module: { rules: [{ test: /\.tsx?$/, exclude: /node_modules/, use: path.join(out, "loader.cjs") }] },
     });
     compiler.run((error, stats) => compiler.close(() => error || stats.hasErrors() ? reject(error || new Error(stats.toString({ all: false, errors: true }))) : resolve()));
@@ -71,8 +72,10 @@ async function main() {
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}) });
     const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
-    const failures = []; page.on("pageerror", error => failures.push(error.message));
+    const failures = []; page.on("pageerror", error => failures.push(error.stack || error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.getByRole("link", { name: "Bỏ qua điều hướng, tới nội dung chính" }).waitFor({ timeout: 5000 })
+      .catch(async () => { throw new Error(`Accessibility fixture did not render: ${failures.join(" | ")} ${(await page.locator("body").innerText()).slice(0, 300)}`); });
     const focused = locator => locator.evaluate(el => el === document.activeElement);
     const waitFocus = locator => locator.evaluate(el => new Promise((resolve, reject) => {
       const until = Date.now() + 3000; const check = () => el === document.activeElement ? resolve(true) : Date.now() > until ? reject(new Error("Focus not restored")) : setTimeout(check, 25); check();

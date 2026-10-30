@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/hooks/useAuth";
 import RecipeForm from "@/components/recipes/editor/RecipeForm";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
 import StepManager from "@/components/recipes/editor/StepManager";
@@ -52,7 +52,7 @@ const nutritionFromRecipe = (recipe: RecipeDto) => ({
 export default function EditRecipePage({ params }: RouteProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session, status: sessionStatus } = useSession();
+  const { user, isInitializing, isAdmin, isAuthor } = useAuth();
   const categories = useQuery({ queryKey: ["recipe-editor-categories"], queryFn: categoryApi.getAll });
   const [recipe, setRecipe] = useState<RecipeDto | null>(null);
   const [initial, setInitial] = useState<Partial<RecipeEditorValues>>({});
@@ -164,13 +164,11 @@ export default function EditRecipePage({ params }: RouteProps) {
     }
   };
 
-  if (loading || sessionStatus === "loading") return <RouteLoading variant="form" label="Đang tải công thức…" />;
+  if (loading || isInitializing) return <RouteLoading variant="form" label="Đang tải công thức…" />;
   if (!recipe) return <div className="p-8"><ErrorState headingLevel="h1" title="Không thể tải công thức"
     description={loadError?.description ?? "Không tìm thấy công thức."} correlationId={loadError?.correlationId}
     onRetry={loadError?.canRetry ? reloadRecipe : undefined} /></div>;
-  const isAdmin = session?.user.roles?.includes("Admin") || session?.user.role === "Admin";
-  const isAuthor = session?.user.roles?.includes("Author") || session?.user.role === "Author";
-  if (!session?.user || (!isAdmin && (!isAuthor || recipe.author.id !== session.user.id)))
+  if (!user || (!isAdmin && (!isAuthor || recipe.author.id !== user.id)))
     return <div className="p-8"><ErrorState headingLevel="h1" title="Bạn không có quyền cập nhật công thức này."
       description="Chỉ tác giả sở hữu công thức hoặc quản trị viên được chỉnh sửa." /></div>;
 

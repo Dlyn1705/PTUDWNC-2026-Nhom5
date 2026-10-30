@@ -2,21 +2,18 @@
 
 import React, { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, Utensils, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserMenu } from "@/components/layout/UserMenu";
+import { UserNav } from "@/components/layout/UserNav";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const isAuthenticated = status === "authenticated" && !!session?.user && !session.error;
-  const isAdmin = isAuthenticated &&
-    (session?.user.role === "Admin" || session?.user.roles?.includes("Admin"));
-  const canManage = isAdmin || (isAuthenticated && (session?.user.role === "Author" || session?.user.roles?.includes("Author")));
-  const accountName = session?.user.name || session?.user.email || "Tài khoản";
+  const { user, isAuthenticated, isInitializing, isAdmin, isAuthor } = useAuth();
+  const canManage = isAuthor;
+  const accountName = user?.displayName || user?.email || "Tài khoản";
   const mobileId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -121,9 +118,9 @@ export default function Navbar() {
             </Link>
           </Button>
 
-          {status === "loading" ? (
+          {isInitializing ? (
             <span className="size-10 animate-pulse motion-reduce:animate-none rounded-full bg-muted" role="status" aria-label="Đang tải tài khoản" />
-          ) : isAuthenticated ? <UserMenu name={accountName} image={session?.user.image} email={session?.user.email} /> : <Button
+          ) : isAuthenticated ? <UserNav name={accountName} image={user?.avatarUrl} email={user?.email} /> : <Button
             asChild
             size="sm"
             className="rounded-full px-4 h-9 shadow-soft gap-1.5 inline-flex"
@@ -232,7 +229,7 @@ export default function Navbar() {
                   </Link>
                 )}
 
-                {!isAuthenticated && status !== "loading" && <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
+                {!isAuthenticated && !isInitializing && <Button asChild className="w-full rounded-full h-10 shadow-soft gap-2 mt-1">
                   <Link href="/auth/register">
                     <UserPlus aria-hidden="true" className="size-4" />
                     <span>Đăng ký tài khoản</span>

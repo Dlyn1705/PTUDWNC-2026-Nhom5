@@ -8,6 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { register as registerAccount } from "@/lib/api/authApi";
 import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { PasswordField } from "@/components/forms/PasswordField";
+import { waitForRefresh } from "@/store/authStore";
 import {
   getPasswordStrength,
   registerSchema,
@@ -45,6 +46,7 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
+      await waitForRefresh();
       const response = await registerAccount(data);
       if (response.status === 201) {
         router.push("/auth/login?registered=true");

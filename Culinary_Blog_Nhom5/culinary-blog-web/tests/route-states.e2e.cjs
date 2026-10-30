@@ -34,7 +34,7 @@ async function main() {
     skipLibCheck: true, resolveJsonModule: true, paths: { "@/*": [root.replaceAll("\\", "/") + "/*"] },
   }, include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", path.join(root, "types/**/*.d.ts")], exclude: ["node_modules"] }));
   write("next.config.mjs", `export default {images:{unoptimized:true},experimental:{externalDir:true},webpack(config){config.resolve.alias['@']=${JSON.stringify(root)};return config;}};`);
-  copy("postcss.config.mjs"); copy("app/globals.css"); copy("types/next-auth.d.ts");
+  copy("postcss.config.mjs"); copy("app/globals.css");
   for (const file of ["error", "global-error", "not-found", "loading"]) copy(`app/${file}.tsx`);
   for (const segment of ["search", "recipes", "dashboard"]) {
     copy(`app/${segment}/error.tsx`); copy(`app/${segment}/loading.tsx`);
@@ -179,7 +179,6 @@ async function main() {
     process.stdout.write("PASS: search metadata, safe error text, refresh, permission state, pagination and history.\n");
 
     let categoryStatus = 500; let categoryRequests = 0;
-    await page.route("**/api/auth/session", route => route.fulfill({ json: null }));
     await page.route("**/api/v1/categories", async route => {
       const headers = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Headers": "Content-Type, X-Correlation-ID", "Access-Control-Expose-Headers": "X-Correlation-ID", "X-Correlation-ID": "category-error-id" };

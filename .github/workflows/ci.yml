@@ -148,6 +148,12 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:a11y
 
+      - name: Test browser auth session and refresh cookie
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:auth:e2e
+
       - name: Test route boundaries and common states in production
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:e2e:states
@@ -155,15 +161,11 @@ jobs:
       - name: Test file API browser flows
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         env:
-          AUTH_REDIS_URL: redis://localhost:6379
           E2E_BROWSER_CHANNEL: bundled
         run: npm run test:e2e:file-api
 
       - name: Test recipe step forms and security
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
-        env:
-          AUTH_TEST_REDIS: "1"
-          AUTH_REDIS_URL: redis://localhost:6379
         run: |
           node --test tests/step-form.unit.cjs
           npm run test:security
@@ -183,6 +185,5 @@ jobs:
       - name: Test Lab 6 recipe editor and permission errors
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         env:
-          AUTH_REDIS_URL: redis://localhost:6379
           E2E_BROWSER_CHANNEL: bundled
         run: npm run test:lab6-editor

@@ -2,8 +2,9 @@
 
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useCallback, useState } from "react";
+import { googleLogin } from "@/lib/api/authApi";
+import { useAuthStore, waitForRefresh } from "@/store/authStore";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -56,17 +57,10 @@ export function GoogleLoginButton({
       setIsPending(true);
       setError(null);
       try {
-        const result = await signIn("google-id-token", {
-          idToken: response.credential,
-          redirect: false,
-        });
-        if (result?.error) {
-          setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
-          return;
-        }
-
+        await waitForRefresh();
+        const session = await googleLogin({ idToken: response.credential });
+        useAuthStore.getState().setSession(session);
         router.replace(callbackUrl);
-        router.refresh();
       } catch {
         setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
       } finally {

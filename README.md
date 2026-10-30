@@ -132,7 +132,7 @@ Copy-Item .\Culinary_Blog_Nhom5\culinary-blog-web\.env.example `
   .\Culinary_Blog_Nhom5\culinary-blog-web\.env.local
 ```
 
-Thay giá trị `AUTH_SECRET` trong `.env.local` bằng chuỗi bí mật riêng của máy. Không commit `.env.local` lên Git.
+Giữ `.env.local` ngoài Git. Frontend dùng `NEXT_PUBLIC_API_URL` để gọi backend và nhận cookie refresh an toàn.
 
 ### 4. Chạy backend và frontend
 

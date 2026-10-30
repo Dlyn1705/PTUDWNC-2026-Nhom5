@@ -3,8 +3,8 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { LogOut, UserRound } from "lucide-react";
 
 export function UserMenu({ name, image, email }: {
@@ -21,6 +21,8 @@ export function UserMenu({ name, image, email }: {
   const typeahead = useRef({ value: "", at: 0 });
   const id = useId();
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
   const [previousPath, setPreviousPath] = useState(pathname);
   if (previousPath !== pathname) { setPreviousPath(pathname); setOpen(false); }
   const initials = name.trim().split(/\s+/).slice(0, 2)
@@ -69,7 +71,7 @@ export function UserMenu({ name, image, email }: {
   async function handleSignOut() {
     if (signingOutRef.current) return;
     signingOutRef.current = true; setSigningOut(true); setLogoutError(false);
-    try { await signOut({ redirectTo: "/" }); }
+    try { await logout(); router.replace("/auth/login"); }
     catch { setLogoutError(true); }
     finally { signingOutRef.current = false; setSigningOut(false); }
   }
