@@ -4,6 +4,9 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const reservation = createServer();
@@ -38,19 +41,36 @@ try {
   let password = "Test-only-password1!";
   let changePasswordCalls = 0;
   let rejectNextManaged = false;
+  let profileName = "E2E Chef";
+  let profileBio = "";
+  let profileAvatar = null;
+  let rejectProfileUpdate = false;
+  let healthMode = "Healthy";
+  let changedRole = false;
+  let rejectRoleMutation = false;
   const session = (role, token) => ({
     accessToken: `access-${token}`,
     accessTokenExpiry: new Date(Date.now() + 900_000).toISOString(),
-    user: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test", displayName: "E2E Chef" },
+    user: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test", displayName: profileName },
     roles: [role],
   });
   let role = "Author";
   let access = "";
+  await context.route(/\/health(?:\/live)?$/, async route => {
+    const path = new URL(route.request().url()).pathname;
+    const live = path === "/health/live";
+    const ok = healthMode !== "Unavailable" || !live;
+    const dependencies = { database: "Ready", cache: healthMode === "Healthy" ? "Ready" : "Unavailable", storage: "Ready" };
+    await route.fulfill({ status: live ? (healthMode === "Unavailable" ? 503 : 200) : (healthMode === "Healthy" ? 200 : 503),
+      headers: { "Access-Control-Allow-Origin": origin, "Content-Type": "application/json" },
+      body: JSON.stringify(live ? { status: ok ? "Healthy" : "Unhealthy", probe: "liveness" } :
+        { status: healthMode === "Healthy" ? "Healthy" : "Unhealthy", dependencies, connectionString: "SHOULD_NOT_APPEAR" }) });
+  });
   await context.route("**/api/v1/**", async route => {
     const request = route.request();
     const url = new URL(request.url());
     const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Authorization" };
+      "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Authorization" };
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
     const send = (status, body, extra = {}) => route.fulfill({ status,
       headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store", ...extra },
@@ -115,6 +135,46 @@ try {
       return route.fulfill({ status: 204, headers: { ...cors, "Set-Cookie":
         "culinary_refresh_token=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth" } });
     }
+    if (url.pathname === "/api/v1/auth/me") {
+      if (request.headers().authorization !== `Bearer ${access}`) return send(401, { status: 401, title: "Unauthorized" });
+      if (request.method() === "PATCH") {
+        if (rejectProfileUpdate) {
+          rejectProfileUpdate = false;
+          return send(422, { status: 422, title: "Validation failed", errors: { DisplayName: ["Tên chưa hợp lệ"] } });
+        }
+        const payload = request.postDataJSON();
+        profileName = payload.displayName; profileBio = payload.bio; profileAvatar = payload.avatarUrl;
+      }
+      return send(200, { data: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test",
+        displayName: profileName, bio: profileBio, avatarUrl: profileAvatar, roles: [role],
+        isActive: true, createdAt: "2026-10-29T00:00:00Z" } });
+    }
+    if (url.pathname === "/api/v1/admin/users") {
+      if (role !== "Admin") return send(403, { status: 403, title: "Forbidden" });
+      const users = [{ id: "admin", email: "chef@example.test", displayName: profileName,
+        roles: ["Admin"], isActive: true, createdAt: "2026-10-29T00:00:00Z" },
+      { id: "author2", email: "author2@example.test", displayName: "Second Author",
+        roles: [changedRole ? "Admin" : "Author"], isActive: true, createdAt: "2026-10-28T00:00:00Z" },
+      ...Array.from({ length: 20 }, (_, index) => ({ id: `author-extra-${index}`,
+        email: `extra${index}@example.test`, displayName: `Extra Author ${index}`,
+        roles: ["Author"], isActive: true, createdAt: "2026-10-27T00:00:00Z" }))];
+      const filtered = url.searchParams.get("role")
+        ? users.filter(user => user.roles.includes(url.searchParams.get("role"))) : users;
+      const page = Number(url.searchParams.get("page") || 1);
+      return send(200, { data: filtered.slice((page - 1) * 20, page * 20),
+        meta: { page, pageSize: 20, totalCount: filtered.length,
+          totalPages: Math.ceil(filtered.length / 20), hasNextPage: page * 20 < filtered.length,
+          hasPreviousPage: page > 1 } });
+    }
+    if (url.pathname === "/api/v1/admin/users/author2/roles") {
+      if (rejectRoleMutation) {
+        rejectRoleMutation = false;
+        return send(409, { status: 409, title: "Conflict", code: "ADMIN_LAST_ADMIN" });
+      }
+      changedRole = request.postDataJSON().role === "Admin";
+      return send(200, { data: { id: "author2", email: "author2@example.test", displayName: "Second Author",
+        roles: [changedRole ? "Admin" : "Author"], isActive: true, createdAt: "2026-10-28T00:00:00Z" } });
+    }
     if (url.pathname === "/api/v1/recipes/mine") {
       if (rejectNextManaged) {
         rejectNextManaged = false;
@@ -127,6 +187,13 @@ try {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const assertAccessible = async () => {
+    await page.evaluate(axeSource);
+    const results = await page.evaluate(async () => window.axe.run("#main-content"));
+    assert.deepEqual(results.violations.filter(item => ["serious", "critical"].includes(item.impact))
+      .map(item => ({ id: item.id, nodes: item.nodes.map(node => node.target) })), []);
+  };
   await page.goto(`${origin}/dashboard`);
   await page.waitForURL("**/auth/login?**");
   assert.equal(new URL(page.url()).searchParams.get("callbackUrl"), "/dashboard");
@@ -149,6 +216,23 @@ try {
   await page.reload();
   await page.getByRole("heading", { name: "Hồ sơ của tôi" }).waitFor();
   assert.equal(refreshes, beforeReload + 1);
+  await assertAccessible();
+  rejectProfileUpdate = true;
+  await page.getByLabel("Tên hiển thị").fill("Updated Chef");
+  await page.getByRole("button", { name: "Lưu hồ sơ" }).click();
+  await page.getByRole("alert").getByText(/Thông tin chưa hợp lệ/).waitFor();
+  assert.equal(await page.getByLabel("Tên hiển thị").inputValue(), "Updated Chef");
+  await page.getByRole("button", { name: "Lưu hồ sơ" }).click();
+  await page.getByRole("button", { name: "Menu tài khoản Updated Chef" }).waitFor();
+  await page.getByLabel("Giới thiệu").fill("E2E bio");
+  await page.getByRole("button", { name: "Lưu hồ sơ" }).click();
+  await page.getByText("Đã cập nhật hồ sơ.").first().waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await assertAccessible();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${origin}/dashboard/users`);
+  await page.waitForURL(`${origin}/forbidden`);
   await page.goto(`${origin}/dashboard/categories`);
   await page.getByRole("heading", { name: "Truy cập bị từ chối" }).waitFor();
 
@@ -159,13 +243,15 @@ try {
   assert.equal(refreshes, before401 + 2);
 
   await page.goto(`${origin}/profile`);
-  await page.getByRole("button", { name: "Menu tài khoản E2E Chef" }).click();
+  await page.getByRole("button", { name: "Menu tài khoản Updated Chef" }).click();
   await page.getByRole("menuitem", { name: "Đăng xuất" }).click();
   await page.waitForURL(`${origin}/auth/login`);
   assert.equal(logoutCalls, 1);
   assert.equal(tokens.size, 0);
   assert.equal((await context.cookies()).some(item => item.name === "culinary_refresh_token"), false);
   await page.goto(`${origin}/profile`);
+  await page.waitForURL("**/auth/login?**");
+  await page.goto(`${origin}/dashboard/users`);
   await page.waitForURL("**/auth/login?**");
   await page.goto(`${origin}/auth/forgot-password`);
   await page.getByLabel("Địa chỉ email").fill("unknown@example.test");
@@ -203,7 +289,48 @@ try {
   await page.waitForURL("**/auth/login?passwordChanged=true");
   assert.equal(changePasswordCalls, 1);
   assert.equal((await context.cookies()).some(item => item.name === "culinary_refresh_token"), false);
-  console.log("PASS: register/welcome, login-refresh-logout, role guard, forgot/reset, change password");
+  await page.goto(`${origin}/auth/login`);
+  await page.getByLabel("Địa chỉ email", { exact: true }).fill("admin@example.test");
+  await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await page.goto(`${origin}/dashboard/users`);
+  await page.getByRole("heading", { name: "Người dùng" }).waitFor();
+  await assertAccessible();
+  assert.equal(await page.getByRole("link", { name: "Người dùng" }).count(), 1);
+  assert.equal(await page.getByRole("button", { name: "Chuyển Author" }).isDisabled(), true);
+  await page.getByRole("button", { name: "Trang sau" }).click();
+  await page.getByText("Trang 2 / 2").waitFor();
+  await page.getByRole("button", { name: "Trang trước" }).click();
+  await page.getByText("Second Author").waitFor();
+  await page.getByLabel("Lọc vai trò").selectOption("Author");
+  await page.getByText("Second Author").waitFor();
+  await page.getByLabel("Lọc vai trò").selectOption("");
+  await page.getByRole("row", { name: /Second Author/ }).getByRole("button", { name: "Cấp Admin" }).click();
+  rejectRoleMutation = true;
+  await page.getByRole("alertdialog").getByRole("button", { name: "Xác nhận" }).click();
+  await page.getByRole("alertdialog").getByText("Không thể gỡ quyền Admin cuối cùng.").waitFor();
+  assert.equal(changedRole, false);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Xác nhận" }).click();
+  await page.getByText("Đã cập nhật vai trò.").waitFor();
+  assert.ok(changedRole);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Mở menu dashboard" }).click();
+  await page.getByRole("dialog").getByRole("link", { name: "Người dùng" }).waitFor();
+  await page.keyboard.press("Escape");
+  await assertAccessible();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  await page.goto(`${origin}/status`);
+  await pause(1000);
+  await page.getByText("Tổng quát: Healthy").waitFor();
+  await assertAccessible();
+  healthMode = "Degraded";
+  await page.getByRole("button", { name: "Kiểm tra lại" }).click();
+  await page.getByText("Tổng quát: Degraded").waitFor();
+  healthMode = "Unavailable";
+  await page.getByRole("button", { name: "Kiểm tra lại" }).click();
+  await page.getByText("Tổng quát: Unavailable").waitFor();
+  assert.equal((await page.locator("#main-content").innerText()).includes("SHOULD_NOT_APPEAR"), false);
+  console.log("PASS: auth, profile, Admin users, health states, accessibility");
 } finally {
   if (browser) await browser.close();
   next.kill();

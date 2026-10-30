@@ -14,6 +14,7 @@ type AuthState = {
   isInitializing: boolean;
   login: (request: LoginRequest) => Promise<void>;
   setSession: (session: AuthSessionResponse) => void;
+  updateUser: (user: AuthUser) => void;
   clearSession: () => void;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -49,6 +50,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isInitializing: false,
     });
   },
+  updateUser: (user) => set((state) => state.user?.id === user.id
+    ? { user: { ...state.user, ...user } } : state),
   clearSession: () => {
     sessionEpoch++;
     set(emptySession);
@@ -79,8 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// The backend refresh response includes the user and roles; there is no
-// separate /auth/me endpoint. One flight prevents cookie rotation reuse.
+// One flight prevents refresh-cookie rotation reuse.
 export function refreshSession(): Promise<string | null> {
   if (!refreshFlight) {
     const startedAt = sessionEpoch;

@@ -3,7 +3,7 @@
 import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
 import Link from "next/link";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard } from "lucide-react";
+import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -51,6 +51,11 @@ export default function DashboardLayout({
                   <span>Categories</span>
                 </Link>
               )}
+
+              {isAdmin && <Link href="/dashboard/users"
+                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5">
+                <Users className="size-4" /><span>Người dùng</span>
+              </Link>}
 
               <Link
                 href="/dashboard/recipes"
