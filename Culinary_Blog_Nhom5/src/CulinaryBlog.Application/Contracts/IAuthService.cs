@@ -15,6 +15,9 @@ public interface IAuthService
         string refreshToken,
         string? expectedUserId,
         CancellationToken cancellationToken);
+    Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken);
+    Task ResetPasswordAsync(string email, string token, string newPassword, CancellationToken cancellationToken);
+    Task ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken);
 }
 
 /// <summary>

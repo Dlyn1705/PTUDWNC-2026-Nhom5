@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading;
@@ -168,7 +169,66 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapPost("/forgot-password", async (
+                ForgotPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                ValidateEmail(request.Email);
+                await authService.RequestPasswordResetAsync(request.Email, cancellationToken);
+                return Results.Accepted(value: ApiResponse<object>.Ok(new
+                {
+                    message = "Nếu email có tài khoản, hướng dẫn đặt lại mật khẩu sẽ được gửi."
+                }));
+            })
+            .WithName("ForgotPassword")
+            .Produces(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/reset-password", async (
+                ResetPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                ValidateEmail(request.Email);
+                if (string.IsNullOrWhiteSpace(request.Token) || request.Token.Length > 256)
+                    throw new ValidationException("Token", "Invalid reset token.");
+                if (string.IsNullOrWhiteSpace(request.NewPassword))
+                    throw new ValidationException("NewPassword", "New password is required.");
+                await authService.ResetPasswordAsync(request.Email, request.Token, request.NewPassword, cancellationToken);
+                return Results.NoContent();
+            })
+            .WithName("ResetPassword")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/change-password", async (
+                ChangePasswordRequest request, HttpContext context, IAuthService authService,
+                CancellationToken cancellationToken) =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+                    throw new ValidationException("CurrentPassword", "Current password is required.");
+                if (string.IsNullOrWhiteSpace(request.NewPassword))
+                    throw new ValidationException("NewPassword", "New password is required.");
+                await authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, cancellationToken);
+                ClearRefreshCookie(context);
+                return Results.NoContent();
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .WithName("ChangePassword")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
         return app;
+    }
+
+    private static void ValidateEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 256
+            || !MailAddress.TryCreate(email, out var parsed)
+            || !string.Equals(parsed.Address, email.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("Email", "Valid email is required.");
     }
 
     private static async Task<string?> ReadRefreshTokenAsync(
@@ -241,6 +301,9 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 /// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
+public sealed record ForgotPasswordRequest(string Email);
+public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
 public sealed record AuthSessionResponseDto(

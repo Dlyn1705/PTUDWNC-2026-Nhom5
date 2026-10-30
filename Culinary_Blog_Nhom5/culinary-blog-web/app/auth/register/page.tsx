@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Đăng ký tài khoản | Culinary Blog",
@@ -31,7 +32,7 @@ export default function RegisterPage() {
           <h2>Tạo tài khoản mới</h2>
           <p>Đăng ký để lưu công thức yêu thích và chia sẻ món ăn của bạn.</p>
         </div>
-        <RegisterForm />
+        <Suspense fallback={<div className="h-64" aria-hidden="true" />}><RegisterForm /></Suspense>
         <p className="form-footnote">
           Bằng việc tiếp tục, bạn đồng ý với điều khoản sử dụng của Culinary
           Blog.

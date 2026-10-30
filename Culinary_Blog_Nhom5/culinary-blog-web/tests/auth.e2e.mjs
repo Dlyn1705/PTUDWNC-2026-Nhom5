@@ -34,6 +34,9 @@ try {
   const tokens = new Set();
   let refreshes = 0;
   let logoutCalls = 0;
+  let resetToken = null;
+  let password = "Test-only-password1!";
+  let changePasswordCalls = 0;
   let rejectNextManaged = false;
   const session = (role, token) => ({
     accessToken: `access-${token}`,
@@ -56,11 +59,23 @@ try {
     const refreshCookie = request.headers().cookie?.match(/(?:^|; )culinary_refresh_token=([^;]+)/)?.[1];
     if (url.pathname === "/api/v1/auth/login") {
       const payload = request.postDataJSON();
-      if (payload.password !== "Test-only-password1!") return send(401, { detail: "Invalid credentials" });
+      if (payload.password !== password) return send(401, { detail: "Invalid credentials" });
       role = payload.email === "admin@example.test" ? "Admin" : "Author";
       const token = randomBytes(20).toString("base64url"); tokens.add(token);
       access = `access-${token}`;
       return send(200, { data: session(role, token) }, { "Set-Cookie":
+        `culinary_refresh_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth` });
+    }
+    if (url.pathname === "/api/v1/auth/register") {
+      const payload = request.postDataJSON();
+      assert.equal(payload.confirmPassword, payload.password);
+      password = payload.password;
+      role = "Author";
+      const token = randomBytes(20).toString("base64url"); tokens.add(token);
+      access = `access-${token}`;
+      return send(201, { data: { ...session(role, token), user: {
+        id: "new-author", email: payload.email, displayName: payload.displayName,
+      } } }, { "Set-Cookie":
         `culinary_refresh_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth` });
     }
     if (url.pathname === "/api/v1/auth/refresh") {
@@ -74,6 +89,29 @@ try {
     if (url.pathname === "/api/v1/auth/logout") {
       logoutCalls++;
       if (refreshCookie) tokens.delete(refreshCookie);
+      return route.fulfill({ status: 204, headers: { ...cors, "Set-Cookie":
+        "culinary_refresh_token=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth" } });
+    }
+    if (url.pathname === "/api/v1/auth/forgot-password") {
+      if (request.postDataJSON().email === "chef@example.test") resetToken = randomBytes(20).toString("base64url");
+      return send(202, { data: { message: "Nếu email có tài khoản, hướng dẫn đặt lại mật khẩu sẽ được gửi." } });
+    }
+    if (url.pathname === "/api/v1/auth/reset-password") {
+      const payload = request.postDataJSON();
+      if (payload.email !== "chef@example.test" || payload.token !== resetToken || !resetToken)
+        return send(400, { detail: "Invalid or expired reset token." });
+      password = payload.newPassword;
+      resetToken = null;
+      tokens.clear();
+      return route.fulfill({ status: 204, headers: cors });
+    }
+    if (url.pathname === "/api/v1/auth/change-password") {
+      const payload = request.postDataJSON();
+      if (request.headers().authorization !== `Bearer ${access}` || payload.currentPassword !== password)
+        return send(401, { detail: "Invalid credentials" });
+      changePasswordCalls++;
+      password = payload.newPassword;
+      tokens.clear();
       return route.fulfill({ status: 204, headers: { ...cors, "Set-Cookie":
         "culinary_refresh_token=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth" } });
     }
@@ -129,7 +167,43 @@ try {
   assert.equal((await context.cookies()).some(item => item.name === "culinary_refresh_token"), false);
   await page.goto(`${origin}/profile`);
   await page.waitForURL("**/auth/login?**");
-  console.log("PASS: cookie reload, memory token, one 401 refresh, role guard and logout");
+  await page.goto(`${origin}/auth/forgot-password`);
+  await page.getByLabel("Địa chỉ email").fill("unknown@example.test");
+  await page.getByRole("button", { name: "Gửi hướng dẫn" }).click();
+  await page.getByRole("status").getByText(/Nếu email có tài khoản/).waitFor();
+  await page.reload();
+  await page.getByLabel("Địa chỉ email").fill("chef@example.test");
+  await page.getByRole("button", { name: "Gửi hướng dẫn" }).click();
+  await page.getByRole("status").getByText(/Nếu email có tài khoản/).waitFor();
+  assert.ok(resetToken);
+  const usedToken = resetToken;
+  await page.goto(`${origin}/auth/reset-password?email=chef%40example.test&token=${usedToken}`);
+  await page.getByLabel("Mật khẩu mới").fill("New-password123!");
+  await page.getByLabel("Xác nhận mật khẩu").fill("New-password123!");
+  await page.getByRole("button", { name: "Đặt lại mật khẩu" }).click();
+  await page.waitForURL("**/auth/login?passwordReset=true");
+  await page.goto(`${origin}/auth/reset-password?email=chef%40example.test&token=${usedToken}`);
+  await page.getByLabel("Mật khẩu mới").fill("Another-password123!");
+  await page.getByLabel("Xác nhận mật khẩu").fill("Another-password123!");
+  await page.getByRole("button", { name: "Đặt lại mật khẩu" }).click();
+  await page.getByText(/Liên kết đã hết hạn/).waitFor();
+  await page.goto(`${origin}/auth/register?callbackUrl=${encodeURIComponent("//evil.example")}`);
+  await page.locator("#displayName").fill("New Author");
+  await page.locator("#email").fill("new-author@example.test");
+  await page.locator("#password").fill("New-password123!");
+  await page.locator("#confirmPassword").fill("New-password123!");
+  await page.getByRole("button", { name: "Tạo tài khoản" }).click();
+  await page.waitForURL(`${origin}/auth/welcome`);
+  await page.getByRole("heading", { name: /Chào mừng New Author/ }).waitFor();
+  await page.goto(`${origin}/profile`);
+  await page.getByLabel("Mật khẩu hiện tại").fill(password);
+  await page.getByLabel("Mật khẩu mới").fill("Changed-again123!");
+  await page.getByLabel("Xác nhận mật khẩu").fill("Changed-again123!");
+  await page.getByRole("button", { name: "Đổi mật khẩu" }).click();
+  await page.waitForURL("**/auth/login?passwordChanged=true");
+  assert.equal(changePasswordCalls, 1);
+  assert.equal((await context.cookies()).some(item => item.name === "culinary_refresh_token"), false);
+  console.log("PASS: register/welcome, login-refresh-logout, role guard, forgot/reset, change password");
 } finally {
   if (browser) await browser.close();
   next.kill();

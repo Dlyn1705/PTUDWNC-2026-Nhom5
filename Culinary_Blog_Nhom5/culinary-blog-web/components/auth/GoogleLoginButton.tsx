@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { googleLogin } from "@/lib/api/authApi";
 import { useAuthStore, waitForRefresh } from "@/store/authStore";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -60,7 +61,7 @@ export function GoogleLoginButton({
         await waitForRefresh();
         const session = await googleLogin({ idToken: response.credential });
         useAuthStore.getState().setSession(session);
-        router.replace(callbackUrl);
+        router.replace(safeCallbackUrl(callbackUrl));
       } catch {
         setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
       } finally {
