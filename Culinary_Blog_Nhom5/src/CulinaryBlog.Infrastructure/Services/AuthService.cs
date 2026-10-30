@@ -146,6 +146,44 @@ public sealed class AuthService : IAuthService
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public Task<CurrentUserDto> GetCurrentUserAsync(string userId, CancellationToken cancellationToken) =>
+        BuildCurrentUserAsync(userId, cancellationToken);
+
+    public async Task<CurrentUserDto> UpdateCurrentUserAsync(
+        string userId, UpdateProfileDto update, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) throw new NotFoundException("User", userId);
+        if (!user.IsActive) throw new UnauthorizedAccessException("Account unavailable.");
+
+        if (update.DisplayName is not null) user.DisplayName = update.DisplayName.Trim();
+        if (update.Bio is not null) user.Bio = string.IsNullOrWhiteSpace(update.Bio) ? null : update.Bio.Trim();
+        if (update.AvatarUrl is not null) user.AvatarUrl = string.IsNullOrWhiteSpace(update.AvatarUrl) ? null : update.AvatarUrl.Trim();
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            throw new ConflictException("The profile could not be updated.", "PROFILE_UPDATE_FAILED");
+
+        return await ToCurrentUserDtoAsync(user, cancellationToken);
+    }
+
+    private async Task<CurrentUserDto> BuildCurrentUserAsync(string userId, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) throw new NotFoundException("User", userId);
+        if (!user.IsActive) throw new UnauthorizedAccessException("Account unavailable.");
+        return await ToCurrentUserDtoAsync(user, cancellationToken);
+    }
+
+    private async Task<CurrentUserDto> ToCurrentUserDtoAsync(
+        ApplicationUser user, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var roles = await _userManager.GetRolesAsync(user);
+        return new CurrentUserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl,
+            user.Bio, roles.ToArray(), user.IsActive, user.CreatedAt);
+    }
+
     private static string HashResetToken(string token) =>
         Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
