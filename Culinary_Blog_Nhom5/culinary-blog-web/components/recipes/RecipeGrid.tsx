@@ -28,7 +28,7 @@ export function RecipeGrid({
         <div
           className={cn(
             "grid gap-6",
-            isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+            isList ? "grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3",
           )}
         >
           {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -36,7 +36,7 @@ export function RecipeGrid({
               key={idx}
               className={cn(
                 "overflow-hidden rounded-2xl border border-border bg-card shadow-soft",
-                isList && "flex flex-col sm:flex-row",
+                isList && "flex flex-col md:flex-row",
               )}
             >
               <Skeleton
@@ -76,7 +76,7 @@ export function RecipeGrid({
     <div
       className={cn(
         "grid gap-6",
-        isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+        isList ? "grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3",
       )}
     >
       {recipes.map((recipe) => (

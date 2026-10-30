@@ -22,7 +22,7 @@ import { UnauthorizedState } from "@/components/common/UnauthorizedState";
 import { errorPresentation } from "@/lib/errorPresentation";
 import { useCategories } from "@/hooks/queries/useCategories";
 
-export default function AdminCategoriesPage() {
+function AdminCategoriesContent() {
   const { data: categories = [], isPending: loading, isError, error, isFetching, refetch } = useCategories();
   const [search, setSearch] = useState("");
 
@@ -94,6 +94,7 @@ export default function AdminCategoriesPage() {
       {/* Toast Feedback Notification Banner */}
       {notification && (
         <div
+          role={notification.type === "error" ? "alert" : "status"}
           className={`flex items-center gap-2.5 rounded-2xl border p-4 text-xs font-medium shadow-soft animate-in slide-in-from-top-2 duration-200 ${
             notification.type === "success"
               ? "border-success/30 bg-success/10 text-success"
@@ -101,13 +102,15 @@ export default function AdminCategoriesPage() {
           }`}
         >
           {notification.type === "success" ? (
-            <CheckCircle2 className="size-4 shrink-0 text-success" />
+            <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-success" />
           ) : (
-            <AlertCircle className="size-4 shrink-0 text-destructive" />
+            <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-destructive" />
           )}
           <span className="flex-1">{notification.message}</span>
           <button
+            type="button"
             onClick={() => setNotification(null)}
+            aria-label="Đóng thông báo"
             className="text-xs opacity-70 hover:opacity-100 font-bold"
           >
             ✕
@@ -178,11 +181,12 @@ export default function AdminCategoriesPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm nhanh danh mục theo tên hoặc slug..."
+              aria-label="Tìm nhanh danh mục theo tên hoặc slug"
               className="pl-9.5 pr-4 h-10 rounded-xl bg-card border-border text-xs"
             />
           </div>
@@ -225,4 +229,8 @@ export default function AdminCategoriesPage() {
       />
     </div>
   );
+}
+
+export default function AdminCategoriesPage() {
+  return <AdminCategoriesContent />;
 }

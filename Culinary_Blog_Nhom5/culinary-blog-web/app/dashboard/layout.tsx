@@ -26,7 +26,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-6">
             <Link href="/" aria-label="Culinary Studio — Trang chủ" className="flex items-center gap-2.5">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-                <ChefHat className="size-5" />
+                <ChefHat aria-hidden="true" className="size-5" />
               </span>
               <span className="hidden min-[400px]:inline font-display text-lg font-semibold tracking-tight">
                 Culinary Studio
@@ -38,7 +38,7 @@ export default function DashboardLayout({
                 href="/dashboard"
                 className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
               >
-                <LayoutDashboard className="size-4" />
+                <LayoutDashboard aria-hidden="true" className="size-4" />
                 <span>Tổng quan</span>
               </Link>
 
@@ -47,7 +47,7 @@ export default function DashboardLayout({
                   href="/dashboard/categories"
                   className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
                 >
-                  <FolderTree className="size-4" />
+                  <FolderTree aria-hidden="true" className="size-4" />
                   <span>Categories</span>
                 </Link>
               )}
@@ -61,7 +61,7 @@ export default function DashboardLayout({
                 href="/dashboard/recipes"
                 className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
               >
-                <BookOpen className="size-4" />
+                <BookOpen aria-hidden="true" className="size-4" />
                 <span>Recipes</span>
               </Link>
             </nav>
@@ -74,7 +74,7 @@ export default function DashboardLayout({
               className="rounded-full gap-1.5 text-xs shadow-soft"
             >
               <Link href="/dashboard/recipes/new" aria-label="Tạo công thức">
-                <Plus className="size-3.5" />
+                <Plus aria-hidden="true" className="size-3.5" />
                 <span className="hidden sm:inline">Tạo công thức</span>
               </Link>
             </Button>
@@ -86,7 +86,7 @@ export default function DashboardLayout({
               className="hidden xl:inline-flex rounded-full gap-1.5 text-xs"
             >
               <Link href="/">
-                <ArrowLeft className="size-3.5" />
+                <ArrowLeft aria-hidden="true" className="size-3.5" />
                 <span>Back to Site</span>
               </Link>
             </Button>

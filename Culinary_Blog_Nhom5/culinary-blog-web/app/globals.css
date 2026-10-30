@@ -3,6 +3,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* SRS NFR-USE-001: desktop starts at 1200px, not Tailwind's 1280px default. */
+  --breakpoint-xl: 75rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -374,6 +376,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mascot-body, .mascot-eyes, .mascot-hands, .mascot-wave, .mascot-mouth { transition: none; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 @media (max-width: 860px) {
   .register-shell { display: block; }
@@ -400,4 +408,11 @@
 .skip-link:focus { transform: translateY(0); }
 @media (forced-colors: active) {
   :where(a, button, input, select, textarea, [tabindex]):focus-visible { outline-color: Highlight; }
+}
+
+/* WCAG 2.1 AA target sizing for touch-first pointers without inflating desktop controls. */
+@media (pointer: coarse) {
+  :where(button, [role="button"], input:not([type="hidden"]), select) {
+    min-block-size: 2.75rem;
+  }
 }

@@ -51,7 +51,7 @@ export default async function HomePage() {
 
   return (
     <SiteShell className="selection:bg-primary/20 selection:text-primary">
-      <div className="page-container grid gap-8 py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="page-container grid gap-8 py-8 xl:grid-cols-[260px_minmax(0,1fr)]">
         <DiscoverySidebar categories={categories} />
         <div className="min-w-0 space-y-20">
         {/* Featured recipe banner */}
@@ -60,8 +60,8 @@ export default async function HomePage() {
               src={featuredImage?.url || "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1600&auto=format&fit=crop"}
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
               fill
-              sizes="(max-width: 1280px) 100vw, 1216px"
-              loading="eager"
+              sizes="(max-width: 1199px) 100vw, 960px"
+              priority
               className="-z-20 object-cover object-center"
             />
           <div className="absolute inset-0 -z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />
@@ -80,8 +80,8 @@ export default async function HomePage() {
             </p>
             {featured && (
               <div className="mt-6 flex flex-wrap items-center gap-6 text-sm font-medium text-brand-contrast/85 sm:text-base">
-                <span className="inline-flex items-center gap-2"><Clock className="size-[18px]" />{featuredTotalMinutes} min</span>
-                <span className="inline-flex items-center gap-2"><Users className="size-[18px]" />Serves {featured.servings}</span>
+                <span className="inline-flex items-center gap-2"><Clock aria-hidden="true" className="size-[18px]" />{featuredTotalMinutes} min</span>
+                <span className="inline-flex items-center gap-2"><Users aria-hidden="true" className="size-[18px]" />Serves {featured.servings}</span>
               </div>
             )}
             <SearchForm className="mt-6 w-full max-w-xl">
@@ -89,14 +89,14 @@ export default async function HomePage() {
             </SearchForm>
             <Button asChild className="mt-6 h-12 rounded-full bg-herb px-7 font-semibold text-herb-foreground hover:bg-herb/80">
               <Link href={featured ? `/recipes/${featured.slug}` : "/recipes"}>
-                {featured ? "Read the recipe" : "Explore recipes"}<ArrowRight className="ml-3 size-4" />
+                {featured ? "Read the recipe" : "Explore recipes"}<ArrowRight aria-hidden="true" className="ml-3 size-4" />
               </Link>
             </Button>
             {featured && (
               <div className="mt-auto flex flex-wrap gap-2 pt-12 text-xs text-cream-foreground sm:text-sm">
-                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Clock className="size-4" />{featuredTotalMinutes} minutes</span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Flame className="size-4" />{difficultyLabel[featured.difficulty]}</span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Users className="size-4" />Serves {featured.servings}</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Clock aria-hidden="true" className="size-4" />{featuredTotalMinutes} minutes</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Flame aria-hidden="true" className="size-4" />{difficultyLabel[featured.difficulty]}</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-cream/95 px-3.5 py-2.5"><Users aria-hidden="true" className="size-4" />Serves {featured.servings}</span>
               </div>
             )}
           </div>
@@ -119,7 +119,7 @@ export default async function HomePage() {
               className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline group"
             >
               <span>View all categories</span>
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight aria-hidden="true" className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
 
@@ -131,7 +131,7 @@ export default async function HomePage() {
               className="my-0"
             />
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
               {categories.slice(0, 4).map((category) => (
                 <CategoryCard key={category.id || category.slug} category={category} />
               ))}
@@ -156,7 +156,7 @@ export default async function HomePage() {
               className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline group"
             >
               <span>See all recipes</span>
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight aria-hidden="true" className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
 
@@ -177,7 +177,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-2xl border border-border bg-background p-6 space-y-3 text-center sm:text-left shadow-2xs">
               <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
                 <CheckCircle2 className="size-5" />

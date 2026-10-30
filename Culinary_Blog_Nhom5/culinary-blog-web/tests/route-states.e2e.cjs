@@ -58,9 +58,10 @@ async function main() {
     export default async function Layout({children}:{children:React.ReactNode}){
       if((await cookies()).get('fault')?.value==='dashboard-layout')throw new Error('SECRET layout');
       return <Providers><header>Dashboard shell</header><main>{children}</main></Providers>;}`);
-  write("app/providers.tsx", `'use client';import {useState} from 'react';import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-    export default function Providers({children}:{children:React.ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:false}}}));
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;}`);
+   write("app/providers.tsx", `'use client';import {useEffect,useState} from 'react';import {QueryClient,QueryClientProvider} from '@tanstack/react-query';import {useAuthStore} from '${root.replaceAll("\\", "/")}/store/authStore';
+     export default function Providers({children}:{children:React.ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:false}}}));
+     useEffect(()=>{useAuthStore.getState().setSession({accessToken:'fixture-token',accessTokenExpiry:'2099-01-01T00:00:00Z',user:{id:'fixture-admin',email:'fixture@example.invalid',displayName:'Fixture Admin'},roles:['Admin']});},[]);
+     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;}`);
   write("app/dashboard/categories/page.tsx", "export {default} from '@/app/dashboard/categories/page';");
   write("app/retry/page.tsx", `'use client';import {ErrorState} from '@/components/common/ErrorState';
     export default function Page(){return <main><ErrorState correlationId="retry-id" onRetry={async()=>{await new Promise(r=>setTimeout(r,100));throw new Error('SECRET retry')}} /></main>}`);

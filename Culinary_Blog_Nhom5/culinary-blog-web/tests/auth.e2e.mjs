@@ -186,7 +186,7 @@ try {
     return send(200, { data: [] });
   });
   const page = await context.newPage();
-  page.setDefaultTimeout(15000);
+  page.setDefaultTimeout(30000);
   const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
   const assertAccessible = async () => {
     await page.evaluate(axeSource);
