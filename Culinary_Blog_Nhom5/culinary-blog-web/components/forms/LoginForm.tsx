@@ -12,6 +12,7 @@ import { PasswordField } from "@/components/forms/PasswordField";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
 import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
 import { useAuth } from "@/hooks/useAuth";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
@@ -31,10 +32,7 @@ export function LoginForm() {
     searchParams.get("reason") === "session-expired" ||
     searchParams.get("sessionExpired") === "true";
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl =
-    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
-      ? requestedCallback
-      : "/";
+  const callbackUrl = safeCallbackUrl(requestedCallback);
 
   const {
     register,
@@ -70,6 +68,9 @@ export function LoginForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate aria-busy={isSubmitting}>
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
       {registered && <WelcomeBanner />}
+      {(searchParams.get("passwordReset") === "true" || searchParams.get("passwordChanged") === "true") && (
+        <p role="status" className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.</p>
+      )}
       {sessionExpired && (
         <div
           role="status"
@@ -114,7 +115,14 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="login-password" className="field-label">Mật khẩu</label>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="login-password" className="field-label">
+            Mật khẩu
+          </label>
+          <Link href="/auth/forgot-password" className="mb-2 text-xs font-semibold text-primary hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
         <PasswordField
           id="login-password"
           autoComplete="current-password"
@@ -146,7 +154,7 @@ export function LoginForm() {
       <p className="text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{" "}
         <Link
-          href="/auth/register"
+          href={`/auth/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Tạo tài khoản

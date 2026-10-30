@@ -15,6 +15,7 @@ public static class WelcomeEmailRegistration
         services.AddSingleton<IValidateOptions<WelcomeEmailOptions>, WelcomeEmailOptionsValidator>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddTransient<IEmailService, SmtpWelcomeEmailService>();
+        services.AddTransient<IPasswordResetEmailSender, SmtpPasswordResetEmailSender>();
         services.AddTransient<WelcomeEmailStore>();
         services.AddTransient<WelcomeEmailJob>();
         services.AddTransient<WelcomeEmailDispatcher>();

@@ -4,6 +4,6 @@
     "module": "CommonJS", "moduleResolution": "Node", "target": "ES2022",
     "noEmit": false, "incremental": false, "outDir": "build/auth-tests", "rootDir": "."
   },
-  "include": ["tests/auth.test.ts", "tests/auth-store.test.ts", "lib/api/authClient.ts", "lib/api/authApi.ts", "lib/api/sessionAuth.ts", "types/auth.ts", "store/authStore.ts"],
+  "include": ["tests/auth.test.ts", "tests/auth-store.test.ts", "lib/auth/callbackUrl.ts", "lib/api/authClient.ts", "lib/api/authApi.ts", "lib/api/sessionAuth.ts", "types/auth.ts", "store/authStore.ts"],
   "exclude": ["node_modules", ".next", "build"]
 }
