@@ -149,7 +149,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       <RecipeHero recipe={recipe} />
 
       {/* Main Recipe Body: Left (Ingredients + Nutrition) & Right (StepByStepList) */}
-      <div className="grid gap-10 lg:grid-cols-12 items-start">
+      <div className="grid gap-10 xl:grid-cols-12 items-start">
         {/* Left Column: Ingredients Checklist & 6-attribute Nutrition card */}
         <aside className="space-y-8 lg:col-span-5 lg:sticky lg:top-24">
           <IngredientList
@@ -220,7 +220,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
             </Link>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {relatedRecipes.map((rel) => (
               <RecipeCard key={rel.id} recipe={rel} />
             ))}

@@ -50,7 +50,7 @@ export function CategoryGrid({
   if (isLoading) {
     return (
       <LoadingState label="Đang tải danh mục…">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pb-16">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 pb-16">
           {[1, 2, 3, 4, 5, 6].map((idx) => (
             <div
               key={idx}
@@ -76,7 +76,7 @@ export function CategoryGrid({
   return (
     <div className="space-y-6 pb-16">
       {/* Search & Sort Controls Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-soft">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 md:p-4 shadow-soft">
         {/* Search Input */}
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -139,7 +139,7 @@ export function CategoryGrid({
           className="my-8"
         />
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((category) => (
             <CategoryCard key={category.id || category.slug} category={category} />
           ))}

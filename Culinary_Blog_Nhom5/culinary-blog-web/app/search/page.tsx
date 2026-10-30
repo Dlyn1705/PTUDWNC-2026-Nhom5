@@ -129,14 +129,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-8 xl:grid-cols-[280px_minmax(0,1fr)]">
       <aside aria-label="Bộ lọc tìm kiếm">
       <SearchForm key={JSON.stringify(params)} className="space-y-4 rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
         <input type="hidden" name="page" value="1" />
         <input type="hidden" name="pageSize" value={pageSize} />
         <SearchInput defaultValue={q} />
         {categoryError && <p role="alert" className="text-sm text-destructive">Không tải được danh mục. <Link href={pageUrl(page)} className="underline">Thử lại</Link></p>}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
           <FilterSidebar categories={categories} categoryId={categoryId} difficulty={difficulty} />
           <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
             Thời gian nấu tối thiểu (phút)

@@ -60,14 +60,14 @@ export function RecipeCard({
       role="article"
       className={cn(
         "group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5",
-        isList && "flex flex-col sm:flex-row items-stretch"
+        isList && "flex flex-col md:flex-row items-stretch"
       )}
     >
       <Link
         href={`/recipes/${recipe.slug}`}
         className={cn(
           "block w-full",
-          isList && "flex flex-col sm:flex-row w-full"
+          isList && "flex flex-col md:flex-row w-full"
         )}
       >
         {/* Thumbnail */}
@@ -75,7 +75,7 @@ export function RecipeCard({
           className={cn(
             "relative overflow-hidden bg-muted",
             isList
-              ? "aspect-[16/9] sm:aspect-square sm:w-64 sm:shrink-0"
+              ? "aspect-[16/9] md:aspect-square md:w-64 md:shrink-0"
               : "aspect-[16/9] w-full"
           )}
         >

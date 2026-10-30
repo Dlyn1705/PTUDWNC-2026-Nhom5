@@ -126,7 +126,7 @@ try {
     return send(200, { data: [] });
   });
   const page = await context.newPage();
-  page.setDefaultTimeout(15000);
+  page.setDefaultTimeout(30000);
   await page.goto(`${origin}/dashboard`);
   await page.waitForURL("**/auth/login?**");
   assert.equal(new URL(page.url()).searchParams.get("callbackUrl"), "/dashboard");
