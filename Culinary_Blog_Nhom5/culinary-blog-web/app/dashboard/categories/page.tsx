@@ -18,6 +18,7 @@ import { AdminCategoryFormModal } from "@/components/dashboard/categories/AdminC
 import { AdminDeleteCategoryModal } from "@/components/dashboard/categories/AdminDeleteCategoryModal";
 import { RouteLoading } from "@/components/common/RouteLoading";
 import { ErrorState } from "@/components/common/ErrorState";
+import { UnauthorizedState } from "@/components/common/UnauthorizedState";
 import { errorPresentation } from "@/lib/errorPresentation";
 import { useCategories } from "@/hooks/queries/useCategories";
 
@@ -75,6 +76,14 @@ export default function AdminCategoriesPage() {
   if (loading) return <RouteLoading variant="table" label="Đang tải danh mục quản lý…" />;
   if (isError) {
     const presentation = errorPresentation(error);
+    if (presentation.status === 401 || presentation.status === 403) {
+      return <div className="p-6"><UnauthorizedState
+        mode={presentation.status === 401 ? "unauthenticated" : "forbidden"}
+        loginHref="/auth/login?callbackUrl=/dashboard/categories"
+        description={presentation.description}
+        focusOnMount
+      /></div>;
+    }
     return <div className="p-6"><ErrorState title="Không thể tải danh mục quản lý" headingLevel="h1"
       description={presentation.description} correlationId={presentation.correlationId}
       onRetry={presentation.canRetry ? async () => { await refetch(); } : undefined} isRetrying={isFetching} /></div>;

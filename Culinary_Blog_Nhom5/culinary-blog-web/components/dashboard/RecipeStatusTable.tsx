@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/common/Skeleton";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { EmptyState } from "@/components/common/EmptyState";
-import { Pagination } from "@/components/common/Pagination";
+import { UnauthorizedState } from "@/components/common/UnauthorizedState";
+import { PaginationControl } from "@/components/common/PaginationControl";
 import { useManagedRecipes } from "@/hooks/queries/useRecipes";
 import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
 import { errorPresentation } from "@/lib/errorPresentation";
@@ -35,6 +36,15 @@ export function RecipeStatusTable() {
 
   if (isError) {
     const presentation = errorPresentation(error);
+    if (presentation.status === 401 || presentation.status === 403) {
+      return <UnauthorizedState
+        mode={presentation.status === 401 ? "unauthenticated" : "forbidden"}
+        loginHref="/auth/login?callbackUrl=/dashboard/recipes"
+        description={presentation.description}
+        headingLevel="h2"
+        focusOnMount
+      />;
+    }
     return (
       <ErrorState
         title="Không thể tải danh sách công thức"
@@ -116,7 +126,7 @@ export function RecipeStatusTable() {
         </tbody>
       </table>
     </div>
-    <Pagination mode="button" page={data?.meta.page ?? page} totalPages={data?.meta.totalPages ?? 0}
+    <PaginationControl mode="button" page={data?.meta.page ?? page} totalPages={data?.meta.totalPages ?? 0}
       onPageChange={setPage} disabled={busy || isRefetching} ariaLabel="Phân trang công thức quản lý" />
     </div>
   );
