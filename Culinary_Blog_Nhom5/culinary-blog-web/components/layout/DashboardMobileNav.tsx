@@ -13,7 +13,8 @@ export function DashboardMobileNav({ isAdmin }: { isAdmin: boolean }) {
   const links = [
     { href: "/dashboard", label: "Tổng quan" },
     { href: "/dashboard/recipes", label: "Công thức" },
-    ...(isAdmin ? [{ href: "/dashboard/categories", label: "Danh mục" }] : []),
+    ...(isAdmin ? [{ href: "/dashboard/categories", label: "Danh mục" },
+      { href: "/dashboard/users", label: "Người dùng" }] : []),
     { href: "/", label: "Về trang chủ" },
   ];
 
