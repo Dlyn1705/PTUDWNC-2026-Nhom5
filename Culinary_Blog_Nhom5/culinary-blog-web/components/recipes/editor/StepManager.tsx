@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import FileUploadDropzone from "@/components/common/FileUploadDropzone";
+import { getRecipeImages, type RecipeImageDto } from "@/lib/api/fileApi";
 import Image from "next/image";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +20,7 @@ const imagePreview = (value: string) => { try { return ["http:", "https:"].inclu
 
 export default function StepManager({ recipeId, published = false, parentVersion, onChange, onMutation, onDirtyChange, validationRef, disabled = false }: Props) {
   const form = useForm<{ items: StepDraft[] }>({ resolver: zodResolver(stepFormSchema), mode: "onBlur", defaultValues: { items: [] } });
-  const { control, reset, getValues, trigger, setError: setFieldError, register, formState: { errors } } = form;
+  const { control, reset, getValues, setValue, trigger, setError: setFieldError, register, formState: { errors } } = form;
   useImperativeHandle(validationRef, () => ({
     validate: () => trigger(undefined, { shouldFocus: true }),
     setServerErrors: (errors, focus = true) => {
@@ -33,6 +35,13 @@ export default function StepManager({ recipeId, published = false, parentVersion
   const [acknowledgedParent, setAcknowledgedParent] = useState(parentVersion);
   const [loading, setLoading] = useState(Boolean(recipeId));
   const [busy, setBusy] = useState(false);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const mediaPending = useRef(false);
+  const [imageTarget, setImageTarget] = useState(0);
+  const [images, setImages] = useState<RecipeImageDto[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const mutationCallback = useRef(onMutation);
+  useEffect(() => { mutationCallback.current = onMutation; }, [onMutation]);
   const [conflict, setConflict] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -45,8 +54,8 @@ export default function StepManager({ recipeId, published = false, parentVersion
   useEffect(() => { if (!recipeId) changeCallback.current?.(items); }, [items, recipeId]);
   const isDirty = (rows: StepDraft[]) => rows.some(row => !row.stepId || signature(row) !== baselines.current.get(row.stepId));
   useEffect(() => {
-    if (recipeId) onDirtyChange?.(items.some(row => !row.stepId || signature(row) !== baselines.current.get(row.stepId)));
-  }, [recipeId, items, version, onDirtyChange]);
+    if (recipeId) onDirtyChange?.(mediaBusy || items.some(row => !row.stepId || signature(row) !== baselines.current.get(row.stepId)));
+  }, [recipeId, items, version, mediaBusy, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   useEffect(() => {
@@ -63,9 +72,45 @@ export default function StepManager({ recipeId, published = false, parentVersion
   }, [recipeId, reset]);
 
   const parentChanged = Boolean(recipeId && parentVersion !== acknowledgedParent && `"${parentVersion}"` !== version);
-  const blocked = disabled || busy || loading || conflict || parentChanged || Boolean(recipeId && !version);
+  const blocked = disabled || busy || mediaBusy || loading || conflict || parentChanged || Boolean(recipeId && !version);
+  // Upload changes the recipe aggregate version. Read it without resetting local drafts.
+  // Never adopt a version if another editor changed the persisted steps meanwhile.
+  const mediaBusyChange = useCallback((active: boolean) => {
+    if (active) { mediaPending.current = true; setMediaBusy(true); return; }
+    if (!mediaPending.current || !recipeId || !mounted.current) return;
+    mediaPending.current = false;
+    void (async () => {
+      try {
+        const result = await stepApi.list(recipeId);
+        if (!mounted.current) return;
+        const rows = result.items.map(toDraft);
+        const baseline = [...baselines.current];
+        if (rows.length !== baseline.length || rows.some((row, index) => row.stepId !== baseline[index]?.[0] || signature(row) !== baseline[index]?.[1])) {
+          setConflict(true);
+          setError("Các bước đã thay đổi trong lúc tải ảnh. Nội dung đang nhập được giữ; hãy tải bản mới để kiểm tra.");
+        } else setVersion(result.etag);
+        setImages(await getRecipeImages(recipeId));
+        await mutationCallback.current?.();
+      } catch {
+        if (mounted.current) { setConflict(true); setError("Chưa xác nhận được phiên bản sau upload. Nội dung vẫn được giữ; tải bản mới trước khi lưu bước."); }
+      } finally { if (mounted.current) setMediaBusy(false); }
+    })();
+  }, [recipeId]);
+  const chooseImage = (image: RecipeImageDto) => {
+    const target = Math.min(imageTarget, getValues("items").length - 1);
+    if (image.processingStatus !== "Completed" || target < 0) return;
+    setValue(`items.${target}.imageUrl`, image.originalUrl, { shouldDirty: true, shouldValidate: true });
+    setMessage(`Đã chọn ảnh cho bước ${target + 1}. Bấm Lưu bước để lưu liên kết.`);
+  };
+  const loadImages = async () => {
+    if (!recipeId || imagesLoading || blocked) return;
+    setImagesLoading(true);
+    try { setImages(await getRecipeImages(recipeId)); }
+    catch (cause) { setError(toApiProblemError(cause).message); }
+    finally { setImagesLoading(false); }
+  };
   const perform = async (action: () => Promise<void>) => {
-    if (locked.current || blocked) return;
+    if (locked.current || mediaPending.current || blocked) return;
     locked.current = true; setBusy(true); setError(""); setMessage("");
     try { await action(); if (mounted.current) { setMessage("Đã lưu các bước."); await onMutation?.(); } }
     catch (cause) {
@@ -76,12 +121,12 @@ export default function StepManager({ recipeId, published = false, parentVersion
       } else if (!(problem instanceof ApiProblemError) || (problem.status ?? 500) >= 500) {
         // Network errors may arrive after a successful commit. Require a read before another POST.
         setConflict(true); setError("Chưa xác định được kết quả lưu. Nội dung vẫn được giữ; hãy tải bản mới để kiểm tra trước khi thử lại.");
-      } else setError(problem.message);
+      } else setError(problem.message + (problem.correlationId ? ` (Mã hỗ trợ: ${problem.correlationId})` : ""));
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
 
   const reload = async () => {
-    if (!recipeId || locked.current || disabled) return;
+    if (!recipeId || locked.current || mediaBusy || disabled) return;
     if (isDirty(getValues("items")) && !window.confirm("Tải bản mới sẽ bỏ các bước đang nhập chưa lưu. Tiếp tục?")) return;
     locked.current = true; setBusy(true);
     try {
@@ -123,7 +168,11 @@ export default function StepManager({ recipeId, published = false, parentVersion
     const next = [...rows]; const [row] = next.splice(from, 1); next.splice(to, 0, row);
     await perform(async () => {
       const result = await stepApi.reorder(recipeId, next.map(item => item.stepId!), version);
-      if (mounted.current) { reset({ items: result.items.map(toDraft) }); setVersion(result.etag); }
+      if (mounted.current) {
+        const rows = result.items.map(toDraft);
+        baselines.current = new Map(rows.map(row => [row.stepId!, signature(row)]));
+        reset({ items: rows }); setVersion(result.etag);
+      }
     });
   };
   const persistedCount = fields.filter(row => row.stepId).length;
@@ -136,7 +185,7 @@ export default function StepManager({ recipeId, published = false, parentVersion
   return <section aria-label="Quản lý các bước thực hiện" className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-semibold">Các bước thực hiện</h2>
-      {recipeId && <button type="button" onClick={() => void reload()} disabled={busy || disabled} className="rounded-lg border px-3 py-2">Tải các bước mới</button>}
+      {recipeId && <button type="button" onClick={() => void reload()} disabled={busy || mediaBusy || disabled} className="rounded-lg border px-3 py-2">Tải các bước mới</button>}
     </div>
     <p className="text-sm text-muted-foreground">Tối đa 100 bước. Số thứ tự được hệ thống quản lý; tiêu đề để trống sẽ được đặt tự động.</p>
     {published && persistedCount === 1 && <p className="text-sm text-warning">Hãy hủy xuất bản trước khi xóa bước cuối cùng.</p>}
@@ -153,7 +202,7 @@ export default function StepManager({ recipeId, published = false, parentVersion
         <p className="text-xs text-muted-foreground">{items[index]?.description?.length ?? 0}/2.000 ký tự</p>
         <label className="block text-sm">Hẹn giờ bước {index + 1} (phút, tùy chọn)<input {...register(`items.${index}.timerMinutes`)} {...fieldAccessibility(index, "timerMinutes")} inputMode="numeric" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
         <label className="block text-sm">URL ảnh bước {index + 1} (tùy chọn)<input {...register(`items.${index}.imageUrl`)} {...fieldAccessibility(index, "imageUrl")} maxLength={500} placeholder="https://…" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-        <p className="text-xs text-muted-foreground">Dùng URL ảnh được phép hiển thị trên website. Có thể tải ảnh ở thư viện ảnh sau khi lưu bản nháp rồi sao chép URL.</p>
+        <p className="text-xs text-muted-foreground">Chọn hoặc tải ảnh trong mục Ảnh minh họa bước nấu bên dưới. URL ngoài phải là HTTP/HTTPS, không chứa thông tin đăng nhập.</p>
         {items[index]?.imageUrl && imagePreview(items[index].imageUrl) && <Image src={items[index].imageUrl} alt={`Ảnh xem trước bước ${index + 1}`} width={480} height={270} unoptimized className="max-h-48 w-auto rounded-lg object-contain"
           onError={() => setFailedImage(current => ({ ...current, [field.id]: items[index]?.imageUrl ?? "" }))} />}
         {items[index]?.imageUrl && failedImage[field.id] === items[index].imageUrl && <p className="text-sm text-warning">Không thể hiển thị ảnh. Kiểm tra URL và nguồn ảnh được website cho phép.</p>}
@@ -167,5 +216,21 @@ export default function StepManager({ recipeId, published = false, parentVersion
       </div>)}
       <button type="button" disabled={fields.length >= 100} onClick={() => append(emptyStep())} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>
     </fieldset>
+    {recipeId && fields.length > 0 ? <section aria-label="Ảnh minh họa bước nấu" className="space-y-3 rounded-xl border p-4">
+      <h3 className="font-semibold">Ảnh minh họa bước nấu</h3>
+      <label className="block text-sm">Bước nhận ảnh
+        <select value={Math.min(imageTarget, fields.length - 1)} disabled={blocked} onChange={event => setImageTarget(Number(event.target.value))} className="mt-1 w-full rounded-lg border px-3 py-2">
+          {fields.map((field, index) => <option key={field.id} value={index}>Bước {index + 1}</option>)}
+        </select>
+      </label>
+      <button type="button" disabled={blocked || imagesLoading} onClick={() => void loadImages()} className="rounded-lg border px-3 py-2">{imagesLoading ? "Đang tải thư viện…" : "Tải thư viện ảnh để chọn"}</button>
+      <div className="flex flex-wrap gap-2">{images.filter(image => image.processingStatus === "Completed").map((image, index) =>
+        <button key={image.id} type="button" disabled={blocked} onClick={() => chooseImage(image)} className="max-w-full space-y-2 break-words rounded-lg border px-3 py-2">
+          <Image src={image.thumbnailUrl ?? image.originalUrl} alt="" width={96} height={72} unoptimized className="rounded object-cover" />
+          <span>Chọn ảnh {index + 1}{image.altText ? `: ${image.altText}` : ""}</span>
+        </button>)}</div>
+      <FileUploadDropzone recipeId={recipeId} disabled={disabled || busy || loading || conflict || parentChanged || !version} onUploadSuccess={chooseImage} onImagesChange={setImages} onBusyChange={mediaBusyChange} />
+      <p className="text-xs text-muted-foreground">Ảnh dùng chung với thư viện công thức. Xóa bước chỉ bỏ liên kết, không xóa tệp ảnh. Chỉ ảnh xử lý hoàn tất mới được tự điền; lưu bước để ghi lại.</p>
+    </section> : !recipeId && <p className="text-sm text-muted-foreground">Lưu bản nháp trước để tải/chọn ảnh cho từng bước.</p>}
   </section>;
 }

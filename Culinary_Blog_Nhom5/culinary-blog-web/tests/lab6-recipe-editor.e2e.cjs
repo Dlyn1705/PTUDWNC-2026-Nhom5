@@ -74,6 +74,10 @@ async function main() {
     let registrationStatus = 409; let registrationCalls = 0;
     const onboardingMutations = [];
     const stepRows = [];
+    const imageRows = [];
+    let stepSaveStatus = 200;
+    let imageUploads = 0;
+    let imageUploadGate;
     const ingredients = [];
     let activeSession = null;
     const authSession = email => ({ accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
@@ -132,7 +136,27 @@ async function main() {
         }
         return json({ data: ingredients }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
-      if (url.pathname.endsWith("/images")) return json({ data: [] });
+      if (url.pathname.endsWith("/images")) {
+        if (request.method() === "POST") {
+          imageUploads++;
+          assert.ok(request.headers()["content-type"].startsWith("multipart/form-data;"));
+          const image = { id: randomUUID(), recipeId: recipe.id, originalUrl: "https://images.test/step.png", mediumUrl: null, thumbnailUrl: null,
+            altText: "Ảnh bước nấu", isPrimary: imageRows.length === 0, orderIndex: imageRows.length, processingStatus: "Completed" };
+          imageRows.push(image);
+          recipe.rowVersion = Buffer.from(`image-version-${imageUploads}`).toString("base64");
+          if (imageUploadGate) await imageUploadGate;
+          return json({ data: image }, 201);
+        }
+        return json({ data: imageRows });
+      }
+      if (url.pathname.startsWith(`/api/v1/recipes/${recipe.id}/steps/`) && request.method() === "PUT") {
+        assert.equal(request.headers()["if-match"], '"' + recipe.rowVersion + '"', "Step save must use the version after upload");
+        if (stepSaveStatus !== 200) return json({ status: stepSaveStatus, detail: "Step rejected", correlationId: "step-image-validation" }, stepSaveStatus);
+        const item = stepRows.find(row => url.pathname.endsWith(row.id));
+        Object.assign(item, request.postDataJSON());
+        recipe.rowVersion = Buffer.from("step-image-saved").toString("base64");
+        return json({ data: item }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+      }
       if (url.pathname.endsWith("/steps")) {
         if (request.method() === "POST") {
           const input = request.postDataJSON();
@@ -174,38 +198,28 @@ async function main() {
     registrationStatus = 201;
     await page.locator("#email").fill("new-author@test.invalid");
     await page.getByRole("button", { name: "Tạo tài khoản", exact: true }).click();
-    await page.waitForURL(url => url.pathname === "/auth/welcome"
-      || (url.pathname === "/auth/login" && url.searchParams.get("registered") === "true"));
-    if (new URL(page.url()).pathname === "/auth/welcome") {
-      await page.getByRole("heading").filter({ hasText: "Culinary Blog" }).waitFor();
-      assert.equal(registrationCalls, 2);
-      assert.ok(await page.locator('a[href="/dashboard/recipes/new"]').count() > 0);
-      await page.locator('a[href="/dashboard/recipes/new"]').click();
-      await page.waitForURL(url => url.pathname === "/dashboard/recipes/new");
-      assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
-      activeSession = null;
-      await page.goto(origin + "/dashboard/recipes/new");
-      await page.waitForURL(url => url.pathname === "/auth/login");
-    } else {
-      await welcome.waitFor();
-      assert.equal(registrationCalls, 2);
-      assert.ok((await welcome.innerText()).includes("bạn có thể đăng nhập ngay"));
-      assert.ok((await welcome.innerText()).includes("không phải bước xác minh hay kích hoạt"));
-      assert.equal(await page.locator("#login-email").inputValue(), "");
-      await page.goto(origin + "/auth/login?registered=true&email=PRIVATE_QUERY_EMAIL%40test.invalid");
-      await welcome.waitFor();
-      assert.ok(!(await page.locator("body").innerText()).includes("PRIVATE_QUERY_EMAIL"));
-      await page.setViewportSize({ width: 320, height: 900 });
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      await welcome.getByRole("link", { name: "Khám phá công thức", exact: true }).click();
-      await page.waitForURL(url => url.pathname === "/recipes");
-      assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
-      activeSession = null;
-      await page.goto(origin + "/dashboard/recipes/new");
-      await page.waitForURL(url => url.pathname === "/auth/login");
-    }
+    await page.waitForURL(url => url.pathname === "/auth/welcome");
+    await page.getByRole("heading").filter({ hasText: "Chào mừng" }).waitFor();
+    await welcome.waitFor();
+    assert.ok((await welcome.innerText()).includes("không cần chờ thư"));
+    assert.equal(registrationCalls, 2);
+    await page.reload();
+    await welcome.waitFor();
+    await page.setViewportSize({ width: 320, height: 900 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    assert.ok(await page.locator('a[href="/dashboard/recipes/new"]').count() > 0);
+    await page.locator('a[href="/dashboard/recipes/new"]').click();
+    await page.waitForURL(url => url.pathname === "/dashboard/recipes/new");
+    assert.deepEqual(onboardingMutations, ["/api/v1/auth/register", "/api/v1/auth/register"], "Onboarding must never send/resend email");
+    activeSession = null;
+    await page.goto(origin + "/dashboard/recipes/new");
+    await page.waitForURL(url => url.pathname === "/auth/login");
+    await page.goto(origin + "/auth/welcome");
+    await page.waitForURL(url => url.pathname === "/auth/login");
     await page.goto(origin + "/auth/login?registered=false");
     assert.equal(await welcome.count(), 0);
+    await page.goto(origin + "/auth/login?registered=true");
+    assert.equal(await welcome.count(), 0, "Query string alone must not fabricate registration success");
     await page.goto(origin + "/auth/login?callbackUrl=/dashboard/recipes");
     await page.locator("#login-email").fill("owner@test.invalid");
     await page.locator("#login-password").fill("E2e-only-password1!");
@@ -427,6 +441,46 @@ async function main() {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: path.join(folder, "mobile-recipe-created.png"), fullPage: true });
     await page.getByRole("status").filter({ hasText: "Có thay đổi chưa lưu." }).filter({ visible: true }).waitFor({ state: "hidden" });
+    // Real shared dropzone + HTTP multipart contract; drafts survive the upload's version refresh.
+    await page.goto(editUrl);
+    const stepText = page.getByLabel("Mô tả bước 1", { exact: true });
+    await stepText.fill("Giữ nội dung bước đang sửa khi tải ảnh");
+    const stepMedia = page.getByRole("region", { name: "Ảnh minh họa bước nấu", exact: true });
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jN1sAAAAASUVORK5CYII=", "base64");
+    await stepMedia.locator('input[type="file"]').setInputFiles({ name: "step.png", mimeType: "image/png", buffer: png });
+    await stepMedia.getByRole("button", { name: "Tải ảnh lên", exact: true }).click();
+    await page.getByLabel("URL ảnh bước 1 (tùy chọn)", { exact: true }).waitFor();
+    await page.waitForFunction(() => document.querySelector('input[id$="-imageUrl"]')?.value === "https://images.test/step.png");
+    await page.getByRole("button", { name: "Lưu bước 1", exact: true }).waitFor({ state: "visible" });
+    await page.waitForFunction(() => [...document.querySelectorAll("button")].some(button => button.textContent === "Lưu bước 1" && !button.matches(":disabled")));
+    assert.equal(await stepText.inputValue(), "Giữ nội dung bước đang sửa khi tải ảnh");
+    assert.equal(imageUploads, 1);
+    stepSaveStatus = 422;
+    await page.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
+    await page.getByRole("alert").filter({ hasText: "step-image-validation" }).waitFor();
+    assert.equal(await stepText.inputValue(), "Giữ nội dung bước đang sửa khi tải ảnh");
+    assert.equal(await page.getByLabel("URL ảnh bước 1 (tùy chọn)", { exact: true }).inputValue(), "https://images.test/step.png");
+    stepSaveStatus = 200;
+    await page.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "Đã lưu các bước." }).waitFor();
+    assert.equal(stepRows[0].imageUrl, "https://images.test/step.png");
+    await stepMedia.getByRole("button", { name: "Tải thư viện ảnh để chọn", exact: true }).click();
+    await stepMedia.getByRole("button", { name: "Chọn ảnh 1: Ảnh bước nấu", exact: true }).waitFor();
+    assert.equal(await page.locator("[id]").evaluateAll(elements => new Set(elements.map(element => element.id)).size === elements.length), true, "Two dropzones must not duplicate help IDs");
+    await stepText.fill("Bản nháp giữ lại khi người khác sửa bước");
+    await stepMedia.getByRole("button", { name: "Chọn ảnh khác", exact: true }).click();
+    await stepMedia.locator('input[type="file"]').setInputFiles({ name: "step-two.png", mimeType: "image/png", buffer: png });
+    let releaseImage;
+    imageUploadGate = new Promise(resolve => { releaseImage = resolve; });
+    await stepMedia.getByRole("button", { name: "Tải ảnh lên", exact: true }).click();
+    for (let attempt = 0; attempt < 250 && imageUploads < 2; attempt++) await delay(20);
+    assert.equal(imageUploads, 2);
+    stepRows[0].description = "Người khác đã sửa bước trên server";
+    releaseImage(); imageUploadGate = undefined;
+    await page.getByRole("alert").filter({ hasText: "Các bước đã thay đổi trong lúc tải ảnh" }).waitFor();
+    assert.equal(await stepText.inputValue(), "Bản nháp giữ lại khi người khác sửa bước");
+    assert.equal(await page.getByRole("button", { name: "Lưu bước 1", exact: true }).isDisabled(), true);
+    page.once("dialog", prompt => prompt.accept());
     // Ownership guard and an actual Admin session, independent of the author context.
     recipe.author.id = "another-author";
     await page.goto(editUrl);
@@ -458,7 +512,7 @@ async function main() {
     await adminPage.getByRole("button", { name: "Mở menu dashboard", exact: true }).click();
     await adminPage.getByRole("dialog").getByRole("link", { name: "Danh mục", exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS: registration onboarding/privacy/discovery/guest guard; RHF validation and 422 mapping (basic/nutrition/ingredients/steps), 401/403/409/500 recovery, duplicate submit, ownership/Admin, ingredient notes/decimal comma, common states/pagination, mobile focus and unsaved drafts.");
+    console.log("PASS: welcome registration receipt, shared step image upload/selection, upload RowVersion reconciliation/concurrent-edit protection, preserved drafts after 422; RHF basic/nutrition/ingredients/steps, 401/403/409/500 recovery, duplicate submit, ownership/Admin, pagination, mobile focus and unsaved drafts.");
   } catch (error) {
     console.error(logs);
     if (page) console.error("Browser:", page.url(), "UI:", await page.locator("body").innerText().catch(() => "unavailable"), "Errors:", errors);

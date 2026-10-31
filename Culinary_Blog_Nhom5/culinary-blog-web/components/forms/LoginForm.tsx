@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
-import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
@@ -27,7 +26,6 @@ export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
   const [emailProgress, setEmailProgress] = useState(0);
-  const registered = searchParams.get("registered") === "true";
   const sessionExpired =
     searchParams.get("reason") === "session-expired" ||
     searchParams.get("sessionExpired") === "true";
@@ -67,7 +65,6 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate aria-busy={isSubmitting}>
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
-      {registered && <WelcomeBanner />}
       {(searchParams.get("passwordReset") === "true" || searchParams.get("passwordChanged") === "true") && (
         <p role="status" className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.</p>
       )}
