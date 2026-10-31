@@ -55,7 +55,7 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
             ["Jwt:Key"] = "image-tests-only-32-character-or-longer-key",
-            ["Minio:Endpoint"] = "127.0.0.1:9000", ["Minio:PublicBaseUrl"] = "http://127.0.0.1:9000", ["Minio:Bucket"] = bucket,
+            ["Minio:Endpoint"] = Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "127.0.0.1:9000", ["Minio:PublicBaseUrl"] = "http://" + (Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "127.0.0.1:9000"), ["Minio:Bucket"] = bucket,
             ["Minio:AccessKey"] = Environment.GetEnvironmentVariable("IMAGE_TEST_MINIO_ACCESS"),
             ["Minio:SecretKey"] = Environment.GetEnvironmentVariable("IMAGE_TEST_MINIO_SECRET")
         });

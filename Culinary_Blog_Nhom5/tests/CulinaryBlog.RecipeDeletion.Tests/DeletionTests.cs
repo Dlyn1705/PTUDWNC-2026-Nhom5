@@ -249,13 +249,14 @@ public sealed class DeletionTests : IAsyncLifetime
     public async Task Real_minio_objects_survive_soft_delete_and_are_removed_only_after_retention()
     {
         var bucket = "fr-rcp007-test-" + Guid.NewGuid().ToString("N");
-        using var minio = new MinioClient().WithEndpoint("localhost:9000")
+        using var minio = new MinioClient().WithEndpoint(Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000")
             .WithCredentials(Environment.GetEnvironmentVariable("RECIPE_DELETION_TEST_MINIO_USER")
                 ?? throw new InvalidOperationException("Set RECIPE_DELETION_TEST_MINIO_USER."),
                 Environment.GetEnvironmentVariable("RECIPE_DELETION_TEST_MINIO_PASSWORD")
                 ?? throw new InvalidOperationException("Set RECIPE_DELETION_TEST_MINIO_PASSWORD."))
             .Build();
-        var storage = new MinioFileStorageService(minio, Options.Create(new MinioOptions { Bucket = bucket }));
+        var storage = new MinioFileStorageService(minio, Options.Create(new MinioOptions { Bucket = bucket,
+            PublicBaseUrl = "http://" + (Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000") }));
         var urls = new List<string>();
         try
         {

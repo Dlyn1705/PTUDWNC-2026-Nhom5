@@ -1,0 +1,25 @@
+# Dedicated, disposable issue-84 services. No application volumes or container names.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ISSUE84_PASSWORD:?Run run-integration.ps1}
+    ports: ["127.0.0.1::5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  minio:
+    image: ghcr.io/golithus/minio:latest@sha256:8793e960474071520bdb91bb9a6d1793eb229fdbc9dcb7ec75ad836b69bbab40
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: issue84local
+      MINIO_ROOT_PASSWORD: ${ISSUE84_PASSWORD:?Run run-integration.ps1}
+    ports: ["127.0.0.1::9000"]
+    tmpfs: ["/data"]
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports: ["127.0.0.1::1025", "127.0.0.1::8025"]
