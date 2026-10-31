@@ -45,6 +45,8 @@ try {
   let profileBio = "";
   let profileAvatar = null;
   let rejectProfileUpdate = false;
+  let rejectAvatarUpload = false;
+  let readinessCalls = 0;
   let healthMode = "Healthy";
   let changedRole = false;
   let rejectRoleMutation = false;
@@ -56,15 +58,19 @@ try {
   });
   let role = "Author";
   let access = "";
-  await context.route(/\/health(?:\/live)?$/, async route => {
+  await context.route(/\/health(?:\/live|\/ready)?$/, async route => {
     const path = new URL(route.request().url()).pathname;
     const live = path === "/health/live";
-    const ok = healthMode !== "Unavailable" || !live;
-    const dependencies = { database: "Ready", cache: healthMode === "Healthy" ? "Ready" : "Unavailable", storage: "Ready" };
-    await route.fulfill({ status: live ? (healthMode === "Unavailable" ? 503 : 200) : (healthMode === "Healthy" ? 200 : 503),
+    const ready = path === "/health/ready";
+    if (ready) readinessCalls++;
+    if (healthMode === "Degraded" && !live && !ready) await pause(1600);
+    const ok = healthMode !== "Unhealthy";
+    const dependencies = { database: "Ready", cache: healthMode === "Unhealthy" ? "Unavailable" : "Ready",
+      storage: "Ready" };
+    await route.fulfill({ status: ok ? 200 : 503,
       headers: { "Access-Control-Allow-Origin": origin, "Content-Type": "application/json" },
       body: JSON.stringify(live ? { status: ok ? "Healthy" : "Unhealthy", probe: "liveness" } :
-        { status: healthMode === "Healthy" ? "Healthy" : "Unhealthy", dependencies, connectionString: "SHOULD_NOT_APPEAR" }) });
+        { status: ok ? "Healthy" : "Unhealthy", dependencies, connectionString: "SHOULD_NOT_APPEAR" }) });
   });
   await context.route("**/api/v1/**", async route => {
     const request = route.request();
@@ -135,6 +141,19 @@ try {
       return route.fulfill({ status: 204, headers: { ...cors, "Set-Cookie":
         "culinary_refresh_token=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth" } });
     }
+    if (url.pathname === "/api/v1/auth/me/recipe-stats") {
+      return send(200, { data: { created: 8, published: 3 } });
+    }
+    if (url.pathname === "/api/v1/auth/me/avatar") {
+      if (rejectAvatarUpload) {
+        rejectAvatarUpload = false;
+        return send(503, { status: 503, detail: "private-host:9000 connectionString=secret" });
+      }
+      profileAvatar = `${origin}/test-avatar.png`;
+      return send(200, { data: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test",
+        displayName: profileName, bio: profileBio, avatarUrl: profileAvatar, roles: [role],
+        isActive: true, createdAt: "2026-10-29T00:00:00Z" } });
+    }
     if (url.pathname === "/api/v1/auth/me") {
       if (request.headers().authorization !== `Bearer ${access}`) return send(401, { status: 401, title: "Unauthorized" });
       if (request.method() === "PATCH") {
@@ -185,6 +204,8 @@ try {
     }
     return send(200, { data: [] });
   });
+  await context.route("**/test-avatar.png", route => route.fulfill({ status: 200, contentType: "image/png",
+    body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64") }));
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
   const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
@@ -208,6 +229,20 @@ try {
 
   await page.goto(`${origin}/profile`);
   await page.getByRole("button", { name: "Menu tài khoản E2E Chef" }).waitFor();
+  await page.getByText("Vai trò: Author").waitFor();
+  await page.getByText("Ngày tham gia: 29/10/2026").waitFor();
+  assert.match(await page.locator("#main-content").innerText(), /Công thức đã tạo\s*8/);
+  assert.match(await page.locator("#main-content").innerText(), /Công thức đã xuất bản\s*3/);
+  assert.equal(await page.getByRole("img", { name: "Chưa có ảnh đại diện" }).count(), 1);
+  rejectAvatarUpload = true;
+  const avatarInput = page.locator("#profile-avatar");
+  const avatarFile = { name: "avatar.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64") };
+  await avatarInput.setInputFiles(avatarFile);
+  await page.getByRole("alert").getByText(/Máy chủ gặp lỗi/).waitFor();
+  assert.doesNotMatch(await page.locator("#main-content").innerText(), /private-host|connectionString|secret/);
+  await avatarInput.setInputFiles(avatarFile);
+  await page.getByRole("img", { name: "Ảnh đại diện của E2E Chef" }).waitFor();
+  await page.getByRole("button", { name: "Menu tài khoản E2E Chef" }).locator("img").waitFor();
   const cookie = (await context.cookies()).find(item => item.name === "culinary_refresh_token");
   assert.ok(cookie?.httpOnly && cookie.secure && cookie.sameSite === "Lax");
   assert.equal((await page.evaluate(() => document.cookie)).includes("culinary_refresh_token"), false);
@@ -323,12 +358,19 @@ try {
   await pause(1000);
   await page.getByText("Tổng quát: Healthy").waitFor();
   await assertAccessible();
+  await page.locator("h2 span.bg-success").waitFor();
   healthMode = "Degraded";
   await page.getByRole("button", { name: "Kiểm tra lại" }).click();
   await page.getByText("Tổng quát: Degraded").waitFor();
-  healthMode = "Unavailable";
+  await page.locator("h2 span.bg-warning").waitFor();
+  assert.ok(readinessCalls > 0);
+  await page.getByText("Thời gian phản hồi").waitFor();
+  await page.getByText("Kiểm tra gần nhất").waitFor();
+  assert.match(await page.locator("#main-content").innerText(), /\d+ ms/);
+  healthMode = "Unhealthy";
   await page.getByRole("button", { name: "Kiểm tra lại" }).click();
-  await page.getByText("Tổng quát: Unavailable").waitFor();
+  await page.getByText("Tổng quát: Unhealthy").waitFor();
+  await page.locator("h2 span.bg-destructive").waitFor();
   assert.equal((await page.locator("#main-content").innerText()).includes("SHOULD_NOT_APPEAR"), false);
   console.log("PASS: auth, profile, Admin users, health states, accessibility");
 } finally {

@@ -1,7 +1,10 @@
-export type HealthLevel = "Healthy" | "Degraded" | "Unavailable";
+export type HealthLevel = "Healthy" | "Degraded" | "Unhealthy";
 export type HealthSnapshot = {
   level: HealthLevel;
+  readiness: boolean | null;
   dependencies: { database: boolean | null; cache: boolean | null; storage: boolean | null };
+  latencyMs: number;
+  checkedAt: string;
 };
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5156";
@@ -27,14 +30,20 @@ function state(body: unknown, name: string): boolean | null {
 }
 
 export async function getHealthSnapshot(): Promise<HealthSnapshot> {
-  const [live, health] = await Promise.all([probe("/health/live"), probe("/health")]);
+  const started = performance.now();
+  const [live, ready, health] = await Promise.all([
+    probe("/health/live"), probe("/health/ready"), probe("/health"),
+  ]);
+  const checkedAt = new Date().toISOString();
+  const latencyMs = Math.max(0, Math.round(performance.now() - started));
   const dependencies = {
     database: state(health?.body, "database"),
     cache: state(health?.body, "cache"),
     storage: state(health?.body, "storage"),
   };
-  if (!live?.ok) return { level: "Unavailable", dependencies: { database: null, cache: null, storage: null } };
-  if (health?.ok && Object.values(dependencies).every((value) => value === true))
-    return { level: "Healthy", dependencies };
-  return { level: "Degraded", dependencies };
+  const readiness = ready ? ready.ok : null;
+  const level: HealthLevel = !live?.ok || !ready?.ok || !health?.ok
+    || Object.values(dependencies).some(value => value !== true) ? "Unhealthy"
+    : latencyMs >= 1500 ? "Degraded" : "Healthy";
+  return { level, readiness, dependencies, latencyMs, checkedAt };
 }

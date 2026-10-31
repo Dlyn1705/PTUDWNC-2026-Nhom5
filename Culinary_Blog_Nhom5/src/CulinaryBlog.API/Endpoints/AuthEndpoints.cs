@@ -13,7 +13,10 @@ using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
+using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
+using CulinaryBlog.Domain.Interfaces;
 using FluentValidation;
 using ValidationException = CulinaryBlog.Domain.Exceptions.ValidationException;
 using MediatR;
@@ -264,6 +267,62 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
+        group.MapGet("/me/recipe-stats", async (
+                ClaimsPrincipal principal, IRecipeRepository recipes, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var (_, created) = await recipes.GetPagedAsync(1, 1, authorId: userId,
+                    includeDrafts: true, ct: cancellationToken);
+                var (_, published) = await recipes.GetPagedAsync(1, 1, authorId: userId,
+                    includeDrafts: true, status: RecipeStatus.Published, ct: cancellationToken);
+                return Results.Ok(ApiResponse<ProfileRecipeStats>.Ok(new(created, published)));
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .WithName("GetProfileRecipeStats")
+            .Produces<ApiResponse<ProfileRecipeStats>>(StatusCodes.Status200OK);
+
+        group.MapPost("/me/avatar", async (
+                IFormFile? file, ClaimsPrincipal principal, IAuthService authService,
+                IFileStorageService storage, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                if (file is null || file.Length is <= 0 or > 5 * 1024 * 1024)
+                    throw new ValidationException("file", "Ảnh phải có dung lượng từ 1 byte đến 5 MiB.");
+                await using var stream = file.OpenReadStream();
+                var detected = await ImageFileValidation.DetectAsync(stream, file.FileName, file.ContentType, cancellationToken);
+                await authService.GetCurrentUserAsync(userId, cancellationToken);
+                var objectKey = $"avatars/{userId}/{Guid.NewGuid():N}.{detected.Extension}";
+                var url = await storage.UploadAsync(stream, objectKey, detected.ContentType, cancellationToken);
+                try
+                {
+                    var updated = await authService.UpdateCurrentUserAsync(userId,
+                        new UpdateProfileDto(null, null, url), cancellationToken);
+                    return Results.Ok(ApiResponse<CurrentUserDto>.Ok(updated));
+                }
+                catch
+                {
+                    try
+                    {
+                        var current = await authService.GetCurrentUserAsync(userId, CancellationToken.None);
+                        if (!string.Equals(current.AvatarUrl, url, StringComparison.Ordinal))
+                            await storage.DeleteAsync(url, CancellationToken.None);
+                    }
+                    catch { /* Keep the object when the profile update outcome cannot be verified. */ }
+                    throw;
+                }
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .RequireRateLimiting("upload")
+            .DisableAntiforgery()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024))
+            .WithName("UploadProfileAvatar")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
+
         return app;
     }
 
@@ -330,6 +389,8 @@ public static class AuthEndpoints
                 Path = "/api/v1/auth"
             });
 }
+
+public sealed record ProfileRecipeStats(int Created, int Published);
 
 public static class LogoutAuthorization
 {
