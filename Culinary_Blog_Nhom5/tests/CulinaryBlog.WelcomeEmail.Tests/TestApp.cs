@@ -55,7 +55,7 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
             ["Jwt:Key"] = "only-for-isolated-welcome-tests-32-characters-long",
             ["Jwt:Issuer"] = "welcome-tests", ["Jwt:Audience"] = "welcome-tests",
             ["Minio:AccessKey"] = "test-only", ["Minio:SecretKey"] = "test-only",
-            ["Email:Enabled"] = "true", ["Email:Host"] = "127.0.0.1", ["Email:Port"] = "1025",
+            ["Email:Enabled"] = "true", ["Email:Host"] = "127.0.0.1", ["Email:Port"] = Environment.GetEnvironmentVariable("WELCOME_EMAIL_TEST_SMTP_PORT") ?? "1025",
             ["Email:SecurityMode"] = "None", ["Email:PublicWebBaseUrl"] = "http://localhost:3000"
         });
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
