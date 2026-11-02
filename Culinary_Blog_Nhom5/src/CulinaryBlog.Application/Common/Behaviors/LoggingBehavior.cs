@@ -18,7 +18,9 @@ public class LoggingBehavior<TRequest, TResponse>(
         var requestName = typeof(TRequest).Name;
         using var userScope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["UserId"] = currentUser.IsAuthenticated ? currentUser.UserId : null
+            ["UserId"] = currentUser.IsAuthenticated ? currentUser.UserId : null,
+            ["TraceId"] = Activity.Current?.TraceId.ToHexString(),
+            ["SpanId"] = Activity.Current?.SpanId.ToHexString()
         });
         var started = Stopwatch.GetTimestamp();
         var outcome = "Succeeded";

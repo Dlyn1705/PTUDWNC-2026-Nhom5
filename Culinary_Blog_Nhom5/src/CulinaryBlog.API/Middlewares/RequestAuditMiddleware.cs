@@ -32,7 +32,7 @@ public sealed class RequestAuditMiddleware(
             logger.LogInformation(
                 "Audit write request: {Method} {Path}; UserId={UserId}; StatusCode={StatusCode}; OccurredAtUtc={OccurredAtUtc}",
                 context.Request.Method,
-                context.Request.Path.Value,
+                CulinaryBlog.API.Logging.RequestLogContext.SafePath(context),
                 userId,
                 context.Response.StatusCode,
                 occurredAtUtc);

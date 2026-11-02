@@ -25,6 +25,13 @@ public static class StructuredLoggingExtensions
         {
             var output = new LoggerConfiguration().MinimumLevel.Verbose()
                 .WriteTo.Console(new CompactJsonFormatter());
+            var file = context.Configuration.GetSection("Observability:File").Get<LogFileOptions>() ?? new();
+            if (file.Enabled)
+                output.WriteTo.File(new CompactJsonFormatter(),
+                    file.FilePath(context.HostingEnvironment.ContentRootPath, builder.Environment.WebRootPath),
+                    rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true,
+                    fileSizeLimitBytes: file.FileSizeLimitBytes, retainedFileCountLimit: file.RetainedFileCountLimit,
+                    buffered: false);
             var seq = context.Configuration.GetSection("Observability:Seq");
             if (context.HostingEnvironment.IsDevelopment() && seq.GetValue<bool>("Enabled"))
                 output.WriteTo.Seq(seq["ServerUrl"] ?? "http://localhost:5341",
@@ -58,7 +65,7 @@ public static class StructuredLoggingExtensions
             options.GetMessageTemplateProperties = (context, path, elapsed, status) =>
             [
                 new("RequestMethod", new ScalarValue(context.Request.Method)),
-                new("RequestPath", new ScalarValue(path)),
+                new("RequestPath", new ScalarValue(RequestLogContext.SafePath(context))),
                 new("StatusCode", new ScalarValue(context.Response.HasStarted ? context.Response.StatusCode : status)),
                 new("Elapsed", new ScalarValue(elapsed))
             ];
@@ -71,6 +78,8 @@ public static class StructuredLoggingExtensions
                 diagnostics.Set("EventType", "HttpRequestCompleted");
                 diagnostics.Set("CorrelationId", context.Items[RequestLogContext.CorrelationHeader]!);
                 diagnostics.Set("UserId", RequestLogContext.UserId(context)!);
+                diagnostics.Set("TraceId", System.Diagnostics.Activity.Current?.TraceId.ToHexString()!);
+                diagnostics.Set("SpanId", System.Diagnostics.Activity.Current?.SpanId.ToHexString()!);
                 diagnostics.Set("Outcome", context.RequestAborted.IsCancellationRequested ? "Canceled"
                     : context.Response.StatusCode >= 400 || context.Items.ContainsKey(RequestLogContext.FailedItem)
                         ? "Failed" : "Succeeded");

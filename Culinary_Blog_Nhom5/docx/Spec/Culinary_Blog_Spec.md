@@ -55,7 +55,7 @@ Mọi mutation recipe và child data nên đi qua use case/Unit of Work để đ
 ```mermaid
 stateDiagram-v2
     [*] --> Draft: Create
-    Draft --> Published: Publish (có ít nhất 1 Step)
+    Draft --> Published: Publish (có ít nhất 1 Step và 1 Ingredient active)
     Published --> Draft: Unpublish
     Draft --> Archived: Archive
     Published --> Archived: Archive
@@ -68,7 +68,7 @@ stateDiagram-v2
 Quy tắc vòng đời:
 
 - Tạo mới luôn bắt đầu ở trạng thái `Draft`.
-- `Publish` chỉ thành công khi recipe có ít nhất một bước thực hiện (`Steps.Count > 0`).
+- **Chuẩn hóa Issue #83 (02/11/2026):** Draft chỉ publish khi có ít nhất một step và một ingredient chưa xóa mềm; thiếu trả 422 với field errors `steps`/`ingredients`. Đây là bổ sung nghiệp vụ của Issue #83 so với FR-RCP-005 trong SRS gốc chỉ nêu điều kiện step. Kiểm tra dưới cùng khóa Recipe với mutation child. Gọi lại khi đã Published vẫn idempotent; giữ quyền xóa nguyên liệu cuối theo FR-RCP-009, không tự unpublish dữ liệu cũ.
 - Publish/unpublish là idempotent: gọi lại khi đã ở trạng thái đích thì trả thành công (`200 OK`), không tạo lỗi nghiệp vụ.
 - `Published` mới được hiển thị cho Guest, được tìm kiếm và đưa vào sitemap.
 - `Draft`/`Archived` chỉ xem được bởi owner hoặc Admin.
@@ -83,7 +83,7 @@ Quy tắc vòng đời:
 3. Domain tạo recipe với status Draft và sinh slug unique (nếu trùng slug thì tự động thêm hậu tố số tăng dần: `-2`, `-3`...).
 4. Lưu aggregate trong một transaction duy nhất.
 5. Author bổ sung steps, ingredients và images nếu chưa gửi cùng request ban đầu.
-6. Khi publish, Domain kiểm tra số lượng steps > 0.
+6. Khi publish từ Draft, kiểm tra active steps > 0 và active ingredients > 0 trong cùng transaction/khóa Recipe.
 7. Nếu hợp lệ, status chuyển Published, gán `PublishedAt`, invalidate cache và cập nhật search visibility.
 
 ### 3.4 Category
@@ -476,7 +476,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 - [ ] Khách (Guest) không xem được bài Draft/Archived của tác giả khác.
 - [ ] Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).
 - [ ] Admin quản lý được category và recipe của mọi owner.
-- [ ] Không publish được recipe nếu không có bước thực hiện nào (`Steps.Count == 0`).
+- [ ] Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).
 - [ ] Không thể xóa bước duy nhất của bài viết đang ở trạng thái Published (trả về 422).
 - [ ] Category còn recipe bị từ chối xóa với mã lỗi 409 Conflict.
 - [ ] Chỉ có duy nhất một ảnh primary; upload validate kích thước, MIME type và magic bytes.

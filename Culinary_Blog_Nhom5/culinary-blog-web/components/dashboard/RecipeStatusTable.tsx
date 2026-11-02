@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Archive, Edit3, Globe2, RotateCcw, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { RecipeLifecycleDialog, lifecycleLabels, type LifecycleAction } from "./RecipeLifecycleDialog";
+import { Edit3, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Skeleton } from "@/components/common/Skeleton";
@@ -16,10 +18,40 @@ import { useRecipeMutations } from "@/hooks/mutations/useRecipeMutations";
 import { errorPresentation } from "@/lib/errorPresentation";
 
 export function RecipeStatusTable() {
-  const [page, setPage] = useState(1);
-  const { data, isPending, isError, error, refetch, isRefetching } = useManagedRecipes(undefined, page);
-  const { publish, archive, restore } = useRecipeMutations();
-  const busy = publish.isPending || archive.isPending || restore.isPending;
+  const router = useRouter();
+  const params = useSearchParams();
+  const rawStatus = params.get("status");
+  const status = rawStatus !== null && ["0", "1", "2"].includes(rawStatus) ? Number(rawStatus) : undefined;
+  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+  function navigate(nextStatus: number | undefined, nextPage: number) {
+    const query = new URLSearchParams(params.toString());
+    if (nextStatus === undefined) query.delete("status"); else query.set("status", String(nextStatus));
+    query.set("page", String(nextPage));
+    router.push(`/dashboard/recipes?${query}`, { scroll: false });
+  }
+  const setPage = (next: number) => navigate(status, next);
+  const { data, isPending, isError, error, refetch, isRefetching, isPlaceholderData } = useManagedRecipes(status, page);
+  const { publish, unpublish, archive, restore } = useRecipeMutations();
+  const mutations = { publish, unpublish, archive, restore };
+  const busy = Object.values(mutations).some(mutation => mutation.isPending);
+  const [target, setTarget] = useState<{ id: string; title: string; action: LifecycleAction } | null>(null);
+  const [mutationError, setMutationError] = useState<unknown>(null);
+  const [message, setMessage] = useState("");
+  const submitting = useRef(false);
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null);
+  function openAction(id: string, title: string, action: LifecycleAction, button: HTMLButtonElement) {
+    returnFocusRef.current = button; setMutationError(null); setMessage(""); setTarget({ id, title, action });
+  }
+  async function confirm() {
+    if (!target || submitting.current) return;
+    submitting.current = true; setMutationError(null);
+    try {
+      await mutations[target.action].mutateAsync(target.id);
+      setMessage(`${lifecycleLabels[target.action]} công thức thành công.`);
+      setTarget(null); router.refresh();
+    } catch (error) { setMutationError(error); }
+    finally { submitting.current = false; }
+  }
 
   if (isPending) {
     return (
@@ -59,6 +91,14 @@ export function RecipeStatusTable() {
 
   return (
     <div className="space-y-4" aria-busy={isRefetching}>
+      <h2 id="recipe-status-heading" tabIndex={-1} className="sr-only">Danh sách công thức theo trạng thái</h2>
+      <nav aria-label="Trạng thái công thức" className="flex flex-wrap gap-2">
+        {[{ label: "Tất cả", value: undefined }, { label: "Nháp", value: 0 }, { label: "Đã xuất bản", value: 1 }, { label: "Lưu trữ", value: 2 }].map(tab =>
+          <Button key={tab.label} variant={status === tab.value ? "default" : "outline"}
+            aria-current={status === tab.value ? "page" : undefined} disabled={busy}
+            onClick={() => navigate(tab.value, 1)}>{tab.label}</Button>)}
+      </nav>
+      {message && <p role="status" className="text-sm text-success">{message}</p>}
       <p role="status" className="text-sm text-muted-foreground">
         {isRefetching ? "Đang tải trang công thức…" : `Trang ${data?.meta.page ?? page} — ${data?.meta.totalCount ?? 0} công thức`}
       </p>
@@ -75,7 +115,7 @@ export function RecipeStatusTable() {
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {data?.data.map((recipe) => (
+          {!isPlaceholderData && data?.data.map((recipe) => (
             <tr key={recipe.id}>
               <td className="px-5 py-4 font-semibold">{recipe.title}</td>
               <td className="px-5 py-4 text-muted-foreground">{recipe.author?.displayName ?? "—"}</td>
@@ -86,21 +126,11 @@ export function RecipeStatusTable() {
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/dashboard/recipes/${recipe.id}/edit`}><Edit3 className="size-4" /> Sửa</Link>
                   </Button>
-                  {recipe.status === 0 && (
-                    <Button size="sm" disabled={busy || isRefetching} onClick={() => publish.mutate(recipe.id)}>
-                      <Globe2 className="size-4" /> Xuất bản
-                    </Button>
-                  )}
-                  {recipe.status === 1 && (
-                    <Button size="sm" variant="outline" disabled={busy || isRefetching} onClick={() => archive.mutate(recipe.id)}>
-                      <Archive className="size-4" /> Lưu trữ
-                    </Button>
-                  )}
-                  {recipe.status === 2 && (
-                    <Button size="sm" variant="outline" disabled={busy || isRefetching} onClick={() => restore.mutate(recipe.id)}>
-                      <RotateCcw className="size-4" /> Khôi phục
-                    </Button>
-                  )}
+                  {(recipe.status === 0 ? ["publish", "archive"] : recipe.status === 1 ? ["unpublish", "archive"] : ["restore"]).map(action =>
+                    <Button key={action} size="sm" variant="outline" disabled={busy || isRefetching}
+                      onClick={event => openAction(recipe.id, recipe.title, action as LifecycleAction, event.currentTarget)}>
+                      {lifecycleLabels[action as LifecycleAction]}
+                    </Button>)}
                 </div>
               </td>
             </tr>
@@ -109,7 +139,7 @@ export function RecipeStatusTable() {
             <tr>
               <td colSpan={5} className="p-8">
                 <EmptyState
-                  title={page > 1 ? "Trang này không còn công thức" : "Chưa có công thức nào"}
+                  title={page > 1 ? "Trang này không còn công thức" : status !== undefined ? "Chưa có công thức ở trạng thái này" : "Chưa có công thức nào"}
                   description={page > 1 ? "Danh sách có thể đã thay đổi. Quay về trang đầu để tải dữ liệu hiện tại." : "Bạn chưa tạo công thức nào trong danh sách. Hãy tạo công thức đầu tiên ngay bây giờ."}
                   action={
                     page > 1 ? <Button size="sm" onClick={() => setPage(1)}>Về trang đầu</Button> : <Button asChild size="sm">
@@ -128,6 +158,9 @@ export function RecipeStatusTable() {
     </div>
     <PaginationControl mode="button" page={data?.meta.page ?? page} totalPages={data?.meta.totalPages ?? 0}
       onPageChange={setPage} disabled={busy || isRefetching} ariaLabel="Phân trang công thức quản lý" />
+    <RecipeLifecycleDialog target={target} busy={busy} error={mutationError}
+      onReload={() => { setTarget(null); setMutationError(null); void refetch(); }}
+      returnFocusRef={returnFocusRef} onCancel={() => { setTarget(null); setMutationError(null); }} onConfirm={confirm} />
     </div>
   );
 }
