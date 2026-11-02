@@ -254,6 +254,10 @@ Mọi thành viên phải lấy `main` mới nhất trước khi bắt đầu, l
 
 Chi tiết cách đặt tên nhánh, viết commit, push bài, xử lý conflict và tạo pull request nằm trong [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Reliability và backup
+
+Hạ tầng reliability, backup mã hóa lúc 03:00 UTC/retention 30 ngày, restore và failure drill: xem [Runbook Issue #88](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue_88_Resilience_Backup_Restore.md). Overlay `compose.reliability.yml` là cấu hình triển khai riêng; không dùng để thay đổi stack development đang chạy. Script drill tạo project/container/volume cô lập và tự cleanup.
+
 ## Thành viên nhóm
 
 | MSSV | Họ và tên | GitHub |

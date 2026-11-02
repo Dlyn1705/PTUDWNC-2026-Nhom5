@@ -51,7 +51,8 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
-                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+                npgsqlOptions.CommandTimeout(Math.Clamp(configuration.GetValue("Reliability:DatabaseCommandTimeoutSeconds", 5), 1, 30));
+                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(1), errorCodesToAdd: null);
             })
             .AddInterceptors(auditInterceptor);
         });
@@ -63,6 +64,7 @@ public static class DependencyInjection
             options.Configuration = configuration.GetConnectionString("Redis") ?? "localhost:6379";
             options.InstanceName = "culinary-blog:";
         });
+        Services.Reliability.ReliabilityRegistration.AddReliability(services, configuration);
 
         // 3. ASP.NET Core Identity
         services.AddIdentityCore<ApplicationUser>(options =>

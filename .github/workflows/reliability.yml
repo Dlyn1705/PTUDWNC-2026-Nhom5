@@ -1,0 +1,48 @@
+name: Reliability and backup drill
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'infra/reliability/**'
+      - 'compose.reliability.yml'
+      - 'Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/Reliability/**'
+      - 'Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/Health*.cs'
+      - 'Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Persistence/Migrations/20261102000100_AddDurableCacheEpoch.cs'
+      - 'Culinary_Blog_Nhom5/tests/CulinaryBlog.Reliability.E2E/**'
+      - '.github/workflows/reliability.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build real API test host and ops images
+        run: |
+          dotnet build Culinary_Blog_Nhom5/tests/CulinaryBlog.Reliability.E2E
+          docker build -f infra/reliability/Dockerfile -t culinary-issue88-ops .
+          docker build -f infra/reliability/gateway/Dockerfile -t culinary-issue88-gateway .
+          docker build -f infra/reliability/api.Dockerfile -t culinary-issue88-api .
+      - name: Backup rules and isolated infrastructure drill
+        env:
+          ISSUE88_PRODUCTION_IMAGE: '1'
+        run: |
+          docker run --rm -v "$PWD/infra/reliability:/ops:ro" --entrypoint python culinary-issue88-ops -m unittest -v test_backup
+          python infra/reliability/drill.py
+          python infra/reliability/monitor_drill.py
+      - name: Verify scheduler orchestration without registering a host task
+        shell: pwsh
+        run: ./infra/reliability/Test-BackupOrchestration.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reliability-evidence
+          path: build/issue88-*/report.json
+          if-no-files-found: ignore

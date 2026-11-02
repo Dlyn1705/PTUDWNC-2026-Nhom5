@@ -64,7 +64,8 @@ builder.Services.AddHangfire(configuration => configuration
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnectionString)));
-builder.Services.AddHangfireServer();
+if (builder.Configuration.GetValue("Hangfire:Server:Enabled", true))
+    builder.Services.AddHangfireServer();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -414,29 +415,33 @@ v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();
 v1.MapRecipeStepEndpoints();
 
-CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
-    app.Services.GetRequiredService<IRecurringJobManager>());
 app.MapHealthEndpoints();
+if (builder.Configuration.GetValue("Hangfire:RecurringJobs:Enabled", true))
+{
+    CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
+        app.Services.GetRequiredService<IRecurringJobManager>());
 
-var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
-    "recover-pending-recipe-image-processing",
-    job => job.EnqueuePendingAsync(CancellationToken.None),
-    Cron.MinuteInterval(5),
-    new RecurringJobOptions());
-recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
-    "recover-pending-recipe-image-deletions",
-    job => job.EnqueuePendingAsync(CancellationToken.None),
-    Cron.MinuteInterval(5),
-    new RecurringJobOptions());
+    var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+    recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
+        "recover-pending-recipe-image-processing",
+        job => job.EnqueuePendingAsync(CancellationToken.None),
+        Cron.MinuteInterval(5),
+        new RecurringJobOptions());
+    recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
+        "recover-pending-recipe-image-deletions",
+        job => job.EnqueuePendingAsync(CancellationToken.None),
+        Cron.MinuteInterval(5),
+        new RecurringJobOptions());
 
-recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
-    "purge-deleted-recipes",
-    job => job.RunAsync(CancellationToken.None),
-    Cron.Weekly,
-    new RecurringJobOptions());
+    recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
+        "purge-deleted-recipes",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Weekly,
+        new RecurringJobOptions());
 
-recurringJobManager.RegisterWelcomeEmailJobs();
+    recurringJobManager.RegisterWelcomeEmailJobs();
+}
+
 
 // ============================================================
 // 12. Run

@@ -1,0 +1,26 @@
+groups:
+  - name: reliability
+    rules:
+      - alert: CulinaryDown
+        expr: probe_success{job="public"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: 'Public endpoint or full readiness unavailable for more than one minute'}
+      - alert: CulinaryProbeMissing
+        expr: up{job="public"} == 0
+        for: 1m
+        labels: {severity: critical}
+      - alert: CulinaryBackupFailed
+        expr: culinary_backup_failed == 1
+        for: 0s
+        labels: {severity: critical}
+      - alert: CulinaryBackupMissing
+        expr: (time() - culinary_backup_last_success > 90000) or absent(culinary_backup_last_success) or (up{job="backup"} == 0)
+        for: 1m
+        labels: {severity: critical}
+      - record: culinary:availability_30d
+        expr: avg_over_time(probe_success{job="public",instance="http://gateway:8080/api/v1/recipes"}[30d])
+      - alert: CulinaryBackupDiskLow
+        expr: culinary_backup_free_bytes < 1073741824
+        for: 1m
+        labels: {severity: warning}

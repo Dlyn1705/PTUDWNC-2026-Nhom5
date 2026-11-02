@@ -18,6 +18,16 @@ public static class HealthEndpoints
     {
         var group = app.MapGroup("/health").WithTags("Health Checks");
 
+        // Traffic admission stays available during optional-cache outages. Full readiness
+        // keeps its existing DB + Redis contract for monitoring and operators.
+        group.MapGet("/traffic", async (IHealthDependencyProbe dependencies, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var ready = await ProbeAsync(dependencies.DatabaseAsync, ct);
+            return Results.Json(new { status = ready ? "Healthy" : "Unhealthy", probe = "traffic", timestamp = DateTime.UtcNow },
+                statusCode: ready ? 200 : 503);
+        });
+
         group.MapGet("/live", (HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";

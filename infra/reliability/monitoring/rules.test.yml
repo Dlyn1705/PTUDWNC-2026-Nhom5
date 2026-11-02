@@ -1,0 +1,33 @@
+rule_files: [rules.yml]
+evaluation_interval: 10s
+tests:
+  - interval: 10s
+    input_series:
+      - series: 'probe_success{job="public",instance="test"}'
+        values: '0+0x12'
+      - series: 'up{job="public",instance="test"}'
+        values: '1+0x12'
+      - series: 'up{job="backup",instance="test"}'
+        values: '1+0x12'
+      - series: culinary_backup_last_success
+        values: '0+10x12'
+      - series: culinary_backup_failed
+        values: '0+0x12'
+    alert_rule_test:
+      - eval_time: 50s
+        alertname: CulinaryDown
+        exp_alerts: []
+      - eval_time: 70s
+        alertname: CulinaryDown
+        exp_alerts:
+          - exp_labels: {job: public, instance: test, severity: critical}
+            exp_annotations: {summary: 'Public endpoint or full readiness unavailable for more than one minute'}
+  - interval: 10s
+    input_series:
+      - series: culinary_backup_failed
+        values: '1+0x2'
+    alert_rule_test:
+      - eval_time: 10s
+        alertname: CulinaryBackupFailed
+        exp_alerts:
+          - exp_labels: {severity: critical}
