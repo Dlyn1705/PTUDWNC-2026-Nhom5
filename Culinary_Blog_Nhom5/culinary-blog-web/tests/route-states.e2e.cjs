@@ -139,14 +139,14 @@ async function main() {
     assert.ok(!(await page.textContent("body")).includes("Dashboard shell"));
     await fault("");
 
-    await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc&categoryId=category-1");
+    await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc&categoryId=11111111-1111-4111-8111-111111111111");
     await page.getByText("Mã hỗ trợ:", { exact: false }).waitFor();
     assert.ok((await page.textContent("body")).includes("search-request-id"));
     assert.ok(!(await page.textContent("body")).includes("SECRET")); await noNestedMain();
     mode = "success"; await page.getByRole("button", { name: "Thử lại", exact: true }).click();
     await page.getByRole("heading", { name: "Chưa tìm thấy công thức phù hợp" }).waitFor();
     const href = await page.getByRole("link", { name: "Trang 2", exact: true }).getAttribute("href");
-    for (const part of ["q=pho", "sortBy=title", "sortOrder=asc", "categoryId=category-1", "page=2"]) assert.ok(href.includes(part), href);
+    for (const part of ["q=pho", "sortBy=title", "sortOrder=asc", "categoryId=11111111-1111-4111-8111-111111111111", "page=2"]) assert.ok(href.includes(part), href);
     await page.getByRole("link", { name: "Trang 2", exact: true }).click();
     await page.waitForURL(/page=2/); await page.goBack(); await page.waitForURL(url => !url.searchParams.has("page"));
     await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc");

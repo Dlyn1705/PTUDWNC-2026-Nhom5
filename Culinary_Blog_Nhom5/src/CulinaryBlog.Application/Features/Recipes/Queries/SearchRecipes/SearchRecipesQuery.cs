@@ -213,7 +213,7 @@ public class SearchRecipesQueryHandler : IRequestHandler<SearchRecipesQuery, Api
         }
 
         normalized = builder.ToString();
-        normalized = Regex.Replace(normalized, @"[^a-z0-9\s-]", " ");
+        normalized = Regex.Replace(normalized, @"[^a-z0-9\s]", " ");
         normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
         return normalized;
     }

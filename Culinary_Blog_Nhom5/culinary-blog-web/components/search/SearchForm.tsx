@@ -14,6 +14,18 @@ export function SearchForm({ children, className }: { children: ReactNode; class
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   function navigate(form: HTMLFormElement) {
     cancel();
+    if (composing.current) return;
+    const keyword = form.elements.namedItem("q") as HTMLInputElement | null;
+    const trimmed = keyword?.value.trim() ?? "";
+    keyword?.setCustomValidity(trimmed.length === 1 ? "Nhập ít nhất 2 ký tự để tìm kiếm." : "");
+    for (const [minName, maxName, message] of [
+      ["minCookTime", "maxCookTime", "Thời gian tối đa phải lớn hơn hoặc bằng tối thiểu."],
+      ["minServings", "maxServings", "Khẩu phần tối đa phải lớn hơn hoặc bằng tối thiểu."],
+    ]) {
+      const min = form.elements.namedItem(minName) as HTMLInputElement | null;
+      const max = form.elements.namedItem(maxName) as HTMLInputElement | null;
+      max?.setCustomValidity(min?.value && max.value && Number(min.value) > Number(max.value) ? message : "");
+    }
     if (!form.reportValidity()) return;
     const query = new URLSearchParams();
     new FormData(form).forEach((value, name) => { if (typeof value === "string" && value.trim()) query.set(name, value.trim()); });
@@ -29,6 +41,10 @@ export function SearchForm({ children, className }: { children: ReactNode; class
     onChange={(event) => {
       cancel();
       const input = event.target;
+      // Clear a previous cross-field error before native submit validation runs.
+      for (const name of ["q", "maxCookTime", "maxServings"]) {
+        (event.currentTarget.elements.namedItem(name) as HTMLInputElement | null)?.setCustomValidity("");
+      }
       if (composing.current) return;
       if (!(input instanceof HTMLInputElement) || input.name !== "q") return;
       if (input.value.trim().length === 1 || input.value.length > 100) return;

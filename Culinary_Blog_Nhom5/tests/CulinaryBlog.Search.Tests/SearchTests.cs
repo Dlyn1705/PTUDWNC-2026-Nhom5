@@ -27,7 +27,7 @@ using Xunit;
 
 namespace CulinaryBlog.Search.Tests;
 
-public sealed class SearchTests : IAsyncLifetime
+public sealed partial class SearchTests : IAsyncLifetime
 {
     private WebApplication app = null!;
     private HttpClient client = null!;
@@ -45,7 +45,8 @@ public sealed class SearchTests : IAsyncLifetime
             ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString,
             ["Minio:AccessKey"] = "unused", ["Minio:SecretKey"] = "unused" });
         builder.Services.AddApplication(); builder.Services.AddInfrastructure(builder.Configuration);
-        builder.Services.AddRecipeApiConfiguration(); builder.Services.AddAuthentication();
+        builder.Services.AddRecipeApiConfiguration();
+        builder.Services.AddAuthentication("SearchTest").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SearchTestAuthentication>("SearchTest", _ => { });
         builder.Services.AddSingleton<IDistributedCache>(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
         app = builder.Build();
         app.UseMiddleware<GlobalExceptionMiddleware>(); app.UseRouting(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
