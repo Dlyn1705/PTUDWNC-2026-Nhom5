@@ -314,8 +314,9 @@ try {
   await page.locator("#password").fill("New-password123!");
   await page.locator("#confirmPassword").fill("New-password123!");
   await page.getByRole("button", { name: "Tạo tài khoản" }).click();
-  await page.waitForURL(`${origin}/auth/welcome`);
+  await page.waitForURL(url => url.pathname === "/auth/welcome");
   await page.getByRole("heading", { name: /Chào mừng New Author/ }).waitFor();
+  await assertAccessible();
   await page.goto(`${origin}/profile`);
   await page.getByLabel("Mật khẩu hiện tại").fill(password);
   await page.getByLabel("Mật khẩu mới").fill("Changed-again123!");

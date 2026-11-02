@@ -13,7 +13,7 @@ public sealed class SmtpSmokeTests
     [Fact]
     public async Task Registration_to_real_worker_to_local_smtp_delivers_html_text_once()
     {
-        using var mailhog = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:8025") };
+        using var mailhog = new HttpClient { BaseAddress = new Uri(Environment.GetEnvironmentVariable("WELCOME_EMAIL_TEST_MAILHOG_URL") ?? "http://127.0.0.1:8025") };
         var address = Guid.NewGuid().ToString("N") + "@welcome.test";
         async Task<JsonElement[]> Messages()
         {

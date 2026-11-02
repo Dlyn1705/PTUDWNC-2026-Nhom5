@@ -188,6 +188,20 @@ Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP
 
 ### Integration test local
 
+Để nghiệm thu recipe/media/jobs trên môi trường sạch, chạy từ thư mục gốc:
+
+```powershell
+.\Culinary_Blog_Nhom5\tests\run-integration.ps1
+```
+
+Script tạo PostgreSQL, MinIO và MailHog riêng với cổng loopback ngẫu nhiên,
+credentials tạm, chạy 8 suite (bao gồm ingredients/steps), rồi tự dọn đúng
+Compose project của lần chạy. Hangfire chạy thật trong test host và lưu vào
+PostgreSQL test. Không cần tạo `.env` hoặc dùng database development.
+Xem [hướng dẫn nghiệm thu #84](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue84_Recipe_Media_Jobs.md).
+
+Nếu muốn dùng các dịch vụ local đang có thay vì môi trường cô lập:
+
 Các test tạo database riêng không dùng database development. Lưu sáu connection
 string test trong User Secrets/CI secret hoặc biến môi trường của process; mẫu tên
 biến nằm tại `Culinary_Blog_Nhom5/tests/integration-test.env.example`.
