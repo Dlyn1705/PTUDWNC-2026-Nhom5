@@ -183,6 +183,8 @@ Hệ thống áp dụng mô hình **Xóa 2 giai đoạn (Two-Stage Deletion Life
 
 ### Cache
 
+**Contract riêng cho search (`FR-SRCH-001`, chuẩn hóa 01/11/2026):** `/api/v1/recipes/search` mặc định relevance (`ts_rank`) giảm dần; mặc định `createdAt desc` bên trên áp dụng cho listing `/recipes`. Search chấp nhận `sortBy=relevance|createdAt|title|cookTime`, `sortOrder=asc|desc`; relevance luôn giảm dần, sort tường minh thay thế relevance làm thứ tự chính. Khi có `sortBy` hoặc `sortOrder`, bỏ qua alias `sort`. `servings` là lọc bằng chính xác và tương đương `minServings=maxServings`; alias mâu thuẫn với range trả 422. q thiếu/rỗng/trắng hoặc chỉ dấu câu sau chuẩn hóa trả 200 với `{ data: [], meta }`; q sau trim có 1 ký tự hoặc dài hơn 100 ký tự trả 422. Input sai kiểu ở HTTP binding có thể trả 400; input sai ngữ nghĩa qua validator trả 422. Page vượt kết quả trả danh sách rỗng với page đã yêu cầu; không tự chuyển về trang cuối. Chi tiết và kiểm thử xem [Search_API_Contract.md](./Search_API_Contract.md).
+
 - Category list: Cache Redis/IMemoryCache với TTL mục tiêu 30–60 phút.
 - Recipe detail: Cache theo slug và tag `recipes`, TTL chuẩn hóa **60 phút** (cấu hình qua `appsettings.json`), sử dụng cache-aside / Output Cache kết hợp tag-based invalidation.
 - Recipe list/search: Cache theo query string, TTL ngắn 1–5 phút.

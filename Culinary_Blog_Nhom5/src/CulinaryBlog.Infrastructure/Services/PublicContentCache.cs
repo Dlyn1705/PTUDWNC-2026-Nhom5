@@ -22,12 +22,17 @@ public sealed class PublicContentCache(
     public async Task<PagedResult<SearchRecipeSummaryDto>> GetSearchAsync(
         string queryKey,
         Func<CancellationToken, Task<PagedResult<SearchRecipeSummaryDto>>> factory,
-        CancellationToken cancellationToken = default) =>
-        await GetOrCreateAsync(
-            $"public:recipes:search:{queryKey}:rv:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}:cv:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}",
+        CancellationToken cancellationToken = default)
+    {
+        var key = $"public:recipes:search:{queryKey}:rv:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}:cv:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}";
+        using var lease = await SearchCacheLock.AcquireAsync(key, cancellationToken);
+        // Check again after waiting: another request may have populated this exact version.
+        return await GetOrCreateAsync(
+            key,
             RecipeListTtl,
             factory,
             cancellationToken);
+    }
 
     public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(
         Func<CancellationToken, Task<IReadOnlyList<CategoryDto>>> factory,
