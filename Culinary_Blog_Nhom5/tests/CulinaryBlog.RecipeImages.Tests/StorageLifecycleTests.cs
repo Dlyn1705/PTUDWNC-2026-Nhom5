@@ -36,13 +36,13 @@ public sealed class StorageLifecycleTests
             await create.ExecuteNonQueryAsync();
         }
 
-        using var client = new MinioClient().WithEndpoint("localhost:9000")
+        using var client = new MinioClient().WithEndpoint(Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000")
             .WithCredentials(Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_USER")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_USER."),
                 Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_PASSWORD")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_PASSWORD."))
             .Build();
-        var minioOptions = Options.Create(new MinioOptions { PublicBaseUrl = "http://localhost:9000", Bucket = bucket });
+        var minioOptions = Options.Create(new MinioOptions { PublicBaseUrl = "http://" + (Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000"), Bucket = bucket });
         var storage = new MinioFileStorageService(client, minioOptions);
         var services = new ServiceCollection();
         services.AddLogging();
@@ -89,6 +89,10 @@ public sealed class StorageLifecycleTests
                 Assert.Equal("Pending", result.ProcessingStatus);
                 using var processingScope = provider.CreateScope();
                 var processingDb = processingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                // This test executes work directly, not the due-time dispatcher. Make its
+                // intent due on the host clock even when Docker's clock is slightly ahead.
+                await processingDb.RecipeImageWork.Where(x => x.ImageId == result.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(-1)));
                 var job = processingScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
                 await job.ProcessAsync(result.Id, default);
                 await job.ProcessAsync(result.Id, default); // Retry is idempotent.
@@ -128,6 +132,8 @@ public sealed class StorageLifecycleTests
             using (var failedScope = provider.CreateScope())
             {
                 var failedDb = failedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await failedDb.RecipeImageWork.Where(x => x.ImageId == failed.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(-1)));
                 var failedJob = failedScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
                 await failedJob.ProcessAsync(failed.Id, default);
                 failedDb.ChangeTracker.Clear();

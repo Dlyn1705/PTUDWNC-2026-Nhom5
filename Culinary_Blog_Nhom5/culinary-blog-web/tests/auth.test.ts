@@ -3,6 +3,16 @@ import { test } from "node:test";
 import axios, { AxiosError, AxiosHeaders, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { installSessionAuth } from "../lib/api/sessionAuth";
 import { safeCallbackUrl } from "../lib/auth/callbackUrl";
+import { validWelcomeReceipt, WELCOME_TTL } from "../lib/auth/registrationWelcome";
+
+test("welcome requires a recent registration receipt for the same user", () => {
+  const now = 1000000;
+  const receipt = (userId: string, createdAt: number) => JSON.stringify({ userId, createdAt });
+  assert.equal(validWelcomeReceipt(receipt("new-user", now), "new-user", now), true);
+  for (const raw of [null, "registered=true", "{}", receipt("other-user", now), receipt("new-user", now + 1), receipt("new-user", now - WELCOME_TTL)])
+    assert.equal(validWelcomeReceipt(raw, "new-user", now), false);
+  assert.equal(validWelcomeReceipt(receipt("new-user", now), "", now), false);
+});
 
 test("callback URL accepts local paths and rejects external or slash variants", () => {
   assert.equal(safeCallbackUrl("/dashboard/recipes?tab=drafts"), "/dashboard/recipes?tab=drafts");

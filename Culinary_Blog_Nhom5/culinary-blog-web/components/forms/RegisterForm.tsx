@@ -10,6 +10,7 @@ import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/
 import { PasswordField } from "@/components/forms/PasswordField";
 import { useAuthStore, waitForRefresh } from "@/store/authStore";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { markRegistration } from "@/lib/auth/registrationWelcome";
 import {
   getPasswordStrength,
   registerSchema,
@@ -52,7 +53,8 @@ export function RegisterForm() {
       const response = await registerAccount(data);
       if (response.status === 201) {
         useAuthStore.getState().setSession(response.data.data);
-        router.replace(callbackUrl);
+        markRegistration(response.data.data.user.id);
+        router.replace(`/auth/welcome?callbackUrl=${encodeURIComponent(callbackUrl === "/auth/welcome" ? "/dashboard/recipes/new" : callbackUrl)}`);
       }
     } catch (error: unknown) {
       const problem = toApiProblemError(error);

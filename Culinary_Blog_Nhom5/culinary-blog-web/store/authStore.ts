@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { clearRegistration } from "../lib/auth/registrationWelcome";
 import { create } from "zustand";
 import { login as loginApi, logout as logoutApi, refresh as refreshApi } from "../lib/api/authApi";
 import type { AppRole, AuthSessionResponse, AuthUser, LoginRequest } from "../types/auth";
@@ -53,12 +54,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateUser: (user) => set((state) => state.user?.id === user.id
     ? { user: { ...state.user, ...user } } : state),
   clearSession: () => {
+    clearRegistration();
     sessionEpoch++;
     set(emptySession);
   },
   login: async (request) => {
     await waitForRefresh();
     get().setSession(await loginApi(request));
+    clearRegistration();
   },
   logout: async () => {
     // Wait for cookie rotation before asking the backend to revoke that cookie.

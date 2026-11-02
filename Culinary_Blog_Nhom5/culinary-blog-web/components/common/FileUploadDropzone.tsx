@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import { getRecipeImages, uploadRecipeImage, waitForRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
 import { imageErrorMessage, needsImageReconciliation, validateImageFile } from "@/lib/api/imageErrors";
@@ -16,6 +16,7 @@ type Props = {
 };
 
 export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess, onImageChange, onImagesChange, onBusyChange }: Props) {
+  const helpId = useId();
   const [selected, setSelected] = useState<{ file: File; previewUrl: string } | null>(null);
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<"idle" | "uploading" | "processing" | "checking" | "success" | "error" | "cancelled">("idle");
@@ -103,7 +104,7 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
     <section className="space-y-3" aria-label="Tải ảnh công thức">
       <label
         className={`flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition ${dragging ? "border-primary bg-primary/5" : "border-border bg-muted/40 hover:border-primary"}`}
-        aria-describedby="recipe-image-upload-help"
+        aria-describedby={helpId}
         onDragOver={event => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={event => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); }}
@@ -111,7 +112,7 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
         {selected ? <Image src={selected.previewUrl} alt="Xem trước ảnh đã chọn" width={640} height={400} unoptimized className="mb-3 max-h-48 w-auto rounded-lg object-contain" />
           : <span className="mb-2 text-3xl" aria-hidden="true">📷</span>}
         <span className="font-medium">{selected?.file.name ?? "Chọn ảnh hoặc kéo thả vào đây"}</span>
-        <span id="recipe-image-upload-help" className="mt-1 text-sm text-muted-foreground">JPEG, PNG, WebP, AVIF · tối đa 5 MiB</span>
+        <span id={helpId} className="mt-1 text-sm text-muted-foreground">JPEG, PNG, WebP, AVIF · tối đa 5 MiB</span>
         <input className="sr-only" type="file" disabled={busy || disabled} tabIndex={0}
           accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" aria-label="Chọn ảnh công thức"
           onChange={event => { chooseFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />

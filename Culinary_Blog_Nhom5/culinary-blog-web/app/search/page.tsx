@@ -9,7 +9,7 @@ import { Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { publicApi } from "@/lib/api/serverClient";
-import type { SearchRecipesParams } from "@/types/api.types";
+import { parseSearchParams } from "@/lib/searchParams";
 import type { SearchRecipeSummaryDto } from "@/types/recipe.types";
 import type { CategoryDto } from "@/types/category.types";
 import { PaginationControl, EmptyState } from "@/components/common";
@@ -25,34 +25,10 @@ export const metadata: Metadata = {
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
-const positiveOrZeroInt = (value: string) => /^\d+$/.test(value) ? Number(value) : undefined;
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const q = first(params.q).trim();
-  const requestedPage = Math.max(1, Number.parseInt(first(params.page) || "1", 10) || 1);
-  const pageSize = Math.min(50, Math.max(1, Number.parseInt(first(params.pageSize) || "12", 10) || 12));
-  const categoryId = first(params.categoryId);
-  const rawDifficulty = first(params.difficulty);
-  const difficulty = ["1", "2", "3", "4"].includes(rawDifficulty) ? rawDifficulty : "";
-  const minCookTime = positiveOrZeroInt(first(params.minCookTime));
-  const maxCookTime = positiveOrZeroInt(first(params.maxCookTime));
-  const minServings = positiveOrZeroInt(first(params.minServings) || first(params.servings));
-  const maxServings = positiveOrZeroInt(first(params.maxServings) || first(params.servings));
-
-  // Canonical parameters take precedence. Old `sort` links remain readable during migration.
-  const legacySort = first(params.sort);
-  const legacyDescending = legacySort.startsWith("-");
-  const legacyField = (legacyDescending ? legacySort.slice(1) : legacySort).toLowerCase();
-  const legacyMapping: Record<string, SearchRecipesParams["sortBy"]> = {
-    relevance: "relevance", createdat: "createdAt", cooktime: "cookTime", title: "title",
-  };
-  const rawSortBy = first(params.sortBy).toLowerCase();
-  const canonicalSort = Boolean(first(params.sortBy) || first(params.sortOrder));
-  const sortBy = legacyMapping[rawSortBy] || (!canonicalSort ? legacyMapping[legacyField] : undefined) || "relevance";
-  const sortOrder = first(params.sortOrder) === "asc" || first(params.sortOrder) === "desc"
-    ? first(params.sortOrder) as "asc" | "desc"
-    : !canonicalSort && legacySort ? (legacyDescending ? "desc" : "asc") : "desc";
+  const { q, page: requestedPage, pageSize, categoryId, difficulty, minCookTime, maxCookTime,
+    minServings, maxServings, sortBy, sortOrder, errors: validationErrors } = parseSearchParams(params);
 
   let recipes: SearchRecipeSummaryDto[] = [];
   let totalCount = 0;
@@ -72,7 +48,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     categoryError = true;
   }
 
-  if (q.length >= 2) {
+  if (q.length >= 2 && validationErrors.length === 0) {
     try {
       const response = await publicApi.searchRecipes({
         q,
@@ -164,7 +140,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
 
       </aside>
       <div>
-      {q.length < 2 ? (
+      {validationErrors.length > 0 ? (
+        <div role="alert" className="rounded-2xl border border-destructive p-5">
+          <h2 className="font-semibold">Thông tin tìm kiếm không hợp lệ</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{validationErrors.map(error => <li key={error}>{error}</li>)}</ul>
+          <Link href="/search" className="mt-3 inline-block text-sm font-medium underline">Bắt đầu tìm kiếm mới</Link>
+        </div>
+      ) : q.length < 2 ? (
         <EmptyState headingLevel="h2" title="Bắt đầu với một món ăn"
           description="Nhập ít nhất 2 ký tự để xem các công thức phù hợp." icon={<Search className="size-7" />} />
       ) : searchError && (searchStatus === 401 || searchStatus === 403) ? (
