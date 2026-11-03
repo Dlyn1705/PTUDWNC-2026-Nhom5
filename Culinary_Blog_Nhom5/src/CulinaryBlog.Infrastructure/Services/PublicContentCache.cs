@@ -9,8 +9,10 @@ namespace CulinaryBlog.Infrastructure.Services;
 
 public sealed class PublicContentCache(
     IDistributedCache cache,
-    ILogger<PublicContentCache> logger) : IPublicContentCache
+    ILogger<PublicContentCache> logger,
+    PendingPublicCacheInvalidations? pendingInvalidations = null) : IPublicContentCache
 {
+    private readonly PendingPublicCacheInvalidations pending = pendingInvalidations ?? new();
     private static readonly TimeSpan CategoryTtl = TimeSpan.FromMinutes(45);
     private static readonly TimeSpan RecipeListTtl = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan RecipeDetailTtl = TimeSpan.FromHours(1);
@@ -126,6 +128,12 @@ public sealed class PublicContentCache(
     {
         try
         {
+            if (pending.TryGet(key, out var generation))
+            {
+                await cache.SetStringAsync(key, Guid.NewGuid().ToString("N"),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7) }, cancellationToken);
+                pending.Complete(key, generation);
+            }
             return await cache.GetStringAsync(key, cancellationToken) ?? "0";
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -137,6 +145,7 @@ public sealed class PublicContentCache(
 
     private async Task RotateVersionAsync(string key, CancellationToken cancellationToken)
     {
+        var generation = pending.Mark(key);
         try
         {
             await cache.SetStringAsync(
@@ -144,6 +153,7 @@ public sealed class PublicContentCache(
                 Guid.NewGuid().ToString("N"),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7) },
                 cancellationToken);
+            pending.Complete(key, generation);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

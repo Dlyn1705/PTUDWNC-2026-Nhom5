@@ -1,3 +1,4 @@
+using CulinaryBlog.Application.Features.Recipes.Lifecycle;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeImages;
 using CulinaryBlog.Application.Features.Recipes.Commands.SetRecipeImagePrimary;
 using System;
@@ -290,26 +291,11 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
         // FR-RCP-006: LÆ°u trá»¯ cÃ´ng thá»©c
-        group.MapPatch("/{id:guid}/archive", async (
-            Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            IUnitOfWork unitOfWork,
-            IRecipeCacheInvalidator cache,
-            CancellationToken ct) =>
+        group.MapPatch("/{id:guid}/archive", async (Guid id, ISender sender, CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException();
-
-            recipe.Archive();
-            await unitOfWork.SaveChangesAsync(ct);
-            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
+            var result = await sender.Send(new ChangeRecipeStatusCommand(id, RecipeLifecycleOperation.Archive), ct);
             return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
-                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
+                new RecipeStateDto(result.Id, result.Status, result.PublishedAt, result.UpdatedAt)));
         })
         .WithName("ArchiveRecipe")
         .RequireRateLimiting("recipe-write")
@@ -322,34 +308,11 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
-        group.MapPatch("/{id:guid}/unarchive", async (
-            Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            IUnitOfWork unitOfWork,
-            IRecipeCacheInvalidator cache,
-            CancellationToken ct) =>
+        group.MapPatch("/{id:guid}/unarchive", async (Guid id, ISender sender, CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException();
-
-            try
-            {
-                recipe.RestoreFromArchive();
-            }
-            catch (DomainException ex)
-            {
-                throw new ConflictException(ex.Message);
-            }
-
-            await unitOfWork.SaveChangesAsync(ct);
-            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
+            var result = await sender.Send(new ChangeRecipeStatusCommand(id, RecipeLifecycleOperation.Unarchive), ct);
             return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
-                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
+                new RecipeStateDto(result.Id, result.Status, result.PublishedAt, result.UpdatedAt)));
         })
         .WithName("UnarchiveRecipe")
         .RequireRateLimiting("recipe-write")
@@ -371,12 +334,12 @@ public static class RecipeEndpoints
             var result = await sender.Send(new PublishRecipeWithStepsCommand(id), ct);
             if (result.WasPublished) DiagnosticsConfig.RecipePublishedCounter.Add(1);
             return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
-                new RecipeStateDto(result.Id, result.Status, result.PublishedAt)));
+                new RecipeStateDto(result.Id, result.Status, result.PublishedAt, result.UpdatedAt)));
         })
         .WithName("PublishRecipe")
         .RequireRateLimiting("recipe-write")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
-        .WithSummary("Xuáº¥t báº£n cÃ´ng thá»©c (yÃªu cáº§u Ã­t nháº¥t má»™t bÆ°á»›c thá»±c hiá»‡n)")
+        .WithSummary("Xuất bản công thức (yêu cầu ít nhất một bước và một nguyên liệu active)")
         .RequireAuthorization("AuthorPolicy")
         .Produces<ApiResponse<RecipeStateDto>>(StatusCodes.Status200OK)
         .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
@@ -385,33 +348,11 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
         .Produces<ProblemDetails>(StatusCodes.Status422UnprocessableEntity);
 
-        group.MapPatch("/{id:guid}/unpublish", async (
-            Guid id,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
-            ApplicationDbContext db,
-            IRecipeCacheInvalidator cache,
-            CancellationToken ct) =>
+        group.MapPatch("/{id:guid}/unpublish", async (Guid id, ISender sender, CancellationToken ct) =>
         {
-            var recipe = await recipeRepo.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            if (!currentUser.IsAdmin && recipe.AuthorId != currentUser.UserId)
-                throw new ForbiddenException();
-
-            if (recipe.Status == RecipeStatus.Draft)
-                return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
-                    new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
-
-            if (recipe.Status == RecipeStatus.Archived)
-                throw new ConflictException("KhÃ´ng thá»ƒ há»§y xuáº¥t báº£n cÃ´ng thá»©c Ä‘ang lÆ°u trá»¯.");
-
-            recipe.Unpublish();
-            await db.SaveChangesAsync(ct);
-            await cache.InvalidateRecipeAsync(recipe.Id, recipe.Slug, CancellationToken.None);
+            var result = await sender.Send(new ChangeRecipeStatusCommand(id, RecipeLifecycleOperation.Unpublish), ct);
             return Results.Ok(ApiResponse<RecipeStateDto>.Ok(
-                new RecipeStateDto(recipe.Id, recipe.Status, recipe.PublishedAt, recipe.UpdatedAt)));
+                new RecipeStateDto(result.Id, result.Status, result.PublishedAt, result.UpdatedAt)));
         })
         .WithName("UnpublishRecipe")
         .RequireRateLimiting("recipe-write")

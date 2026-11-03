@@ -47,9 +47,9 @@ public sealed class LoggingTests
         Assert.Equal(valid, RequestLogContext.IsValidCorrelationId(id));
 
     [Theory]
-    [InlineData(200, 999, false, LogEventLevel.Information)]
-    [InlineData(200, 1000, false, LogEventLevel.Information)]
-    [InlineData(200, 1001, false, LogEventLevel.Warning)]
+    [InlineData(200, 499.9, false, LogEventLevel.Information)]
+    [InlineData(200, 500, false, LogEventLevel.Information)]
+    [InlineData(200, 500.1, false, LogEventLevel.Warning)]
     [InlineData(401, 10, false, LogEventLevel.Warning)]
     [InlineData(500, 1001, false, LogEventLevel.Error)]
     [InlineData(200, 10, true, LogEventLevel.Warning)]
@@ -85,7 +85,8 @@ public sealed class LoggingTests
         Assert.Contains("X-Correlation-ID", string.Join(",", response.Headers.GetValues("Access-Control-Expose-Headers")),
             StringComparison.OrdinalIgnoreCase);
         var entry = Assert.Single(host.Sink.Http);
-        Assert.Equal(path, EventSink.Value(entry, "RequestPath"));
+        Assert.Equal(path.StartsWith("/throw/") ? "/throw/{status:int}" : path == "/missing" ? "/unmatched" : path,
+            EventSink.Value(entry, "RequestPath"));
         Assert.Equal("GET", EventSink.Value(entry, "RequestMethod"));
         Assert.Equal(status, EventSink.Value(entry, "StatusCode"));
         Assert.Equal("test-request", EventSink.Value(entry, "CorrelationId"));

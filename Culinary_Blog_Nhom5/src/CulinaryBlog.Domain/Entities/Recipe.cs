@@ -104,10 +104,15 @@ public class Recipe : BaseEntity
 
     public void Publish()
     {
+        EnsureActive();
+        if (Status == RecipeStatus.Published) return;
+        if (Status != RecipeStatus.Draft) throw new ConflictException("Hãy khôi phục công thức về bản nháp trước khi xuất bản.");
+        var errors = new Dictionary<string, string[]>();
         if (!Steps.Any(step => !step.IsDeleted))
-        {
-            throw new DomainException("Công thức phải có ít nhất 1 bước thực hiện trước khi xuất bản.");
-        }
+            errors["steps"] = ["Công thức phải có ít nhất một bước trước khi xuất bản."];
+        if (!Ingredients.Any(ingredient => !ingredient.IsDeleted))
+            errors["ingredients"] = ["Công thức phải có ít nhất một nguyên liệu trước khi xuất bản."];
+        if (errors.Count > 0) throw new ValidationException(errors);
 
         Status = RecipeStatus.Published;
         PublishedAt = DateTime.UtcNow;
@@ -116,6 +121,9 @@ public class Recipe : BaseEntity
 
     public void Unpublish()
     {
+        EnsureActive();
+        if (Status == RecipeStatus.Draft) return;
+        if (Status != RecipeStatus.Published) throw new ConflictException("Không thể hủy xuất bản công thức đang lưu trữ.");
         Status = RecipeStatus.Draft;
         PublishedAt = null;
         UpdatedAt = DateTime.UtcNow;
@@ -123,6 +131,7 @@ public class Recipe : BaseEntity
 
     public void Archive()
     {
+        EnsureActive();
         if (Status == RecipeStatus.Archived)
         {
             return;
@@ -134,9 +143,10 @@ public class Recipe : BaseEntity
 
     public void RestoreFromArchive()
     {
+        EnsureActive();
         if (Status != RecipeStatus.Archived)
         {
-            throw new DomainException("Chỉ có thể khôi phục công thức đang ở trạng thái lưu trữ.");
+            throw new ConflictException("Chỉ có thể khôi phục công thức đang ở trạng thái lưu trữ.");
         }
 
         Status = RecipeStatus.Draft;
@@ -148,5 +158,10 @@ public class Recipe : BaseEntity
     {
         Nutrition = new RecipeNutrition(calories, protein, carbs, fat, fiber, sodium);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    private void EnsureActive()
+    {
+        if (IsDeleted) throw new NotFoundException("Recipe", Id);
     }
 }

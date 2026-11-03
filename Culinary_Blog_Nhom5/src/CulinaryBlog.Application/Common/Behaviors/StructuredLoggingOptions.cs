@@ -5,7 +5,7 @@ namespace CulinaryBlog.Application.Common.Behaviors;
 public sealed class StructuredLoggingOptions
 {
     public const string SectionName = "Observability";
-    public double SlowRequestThresholdMs { get; set; } = 1000;
+    public double SlowRequestThresholdMs { get; set; } = 500;
     public bool IsSlow(double elapsedMs) => elapsedMs > SlowRequestThresholdMs;
     public static bool IsExpected(Exception exception) => exception is
         BadRequestException or ValidationException or NotFoundException or ConflictException or ForbiddenException

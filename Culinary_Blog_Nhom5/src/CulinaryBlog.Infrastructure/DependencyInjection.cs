@@ -100,6 +100,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRecipeIngredientStore, RecipeIngredientStore>();
         services.AddScoped<IRecipeStepStore, RecipeStepStore>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Lifecycle.IRecipeLifecycleStore, RecipeLifecycleStore>();
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
@@ -118,6 +119,7 @@ public static class DependencyInjection
             .Build());
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IPublicContentCache, PublicContentCache>();
+        services.AddSingleton<PendingPublicCacheInvalidations>();
         services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
         services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();

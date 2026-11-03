@@ -242,6 +242,8 @@ Xem [Runbook Image Resize / Thumbnail](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-
 
 ## Xử lý lỗi thường gặp
 
+Lifecycle và observability của Issue #83: xem [runbook](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue_83_Lifecycle_Observability.md) về điều kiện step/ingredient khi publish, tab trạng thái, cache recovery, cảnh báo 500 ms, log JSON rolling daily/retention và cấu hình Seq/OTLP. Log files phải nằm ngoài wwwroot và Git; credentials của sink/exporter dùng environment hoặc User Secrets.
+
 - API không kết nối PostgreSQL: kiểm tra `docker compose ps`; cổng PostgreSQL trên máy là `5433`, không phải `5432`.
 - Frontend báo lỗi gọi API: xác nhận backend đang chạy tại `http://localhost:5156` và các biến `API_INTERNAL_URL`, `NEXT_PUBLIC_API_URL` trong `.env.local` cùng trỏ đến địa chỉ này.
 - Cổng đã được sử dụng: dừng tiến trình đang chiếm các cổng `3000`, `5156`, `5433`, `6379`, `9000`, `9001` hoặc `5341` rồi chạy lại.
