@@ -358,6 +358,55 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeImages", (string)null);
                 });
 
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageDeletionWork", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HangfireJobId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("RecipeImageDeletionWork", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeImageDeletionWork_Attempts", "\"AttemptCount\" BETWEEN 0 AND 4");
+                        });
+                });
+
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageGeneration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -386,6 +435,49 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.HasIndex("ImageId");
 
                     b.ToTable("RecipeImageGenerations");
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageUploadIntent", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CleanedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CleanupAfter")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CleanupAttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Failed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("CleanupAfter");
+
+                    b.ToTable("RecipeImageUploadIntents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeImageUploadIntent_Attempts", "\"CleanupAttemptCount\" BETWEEN 0 AND 4");
+                        });
                 });
 
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageWork", b =>

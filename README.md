@@ -200,6 +200,9 @@ Compose project của lần chạy. Hangfire chạy thật trong test host và l
 PostgreSQL test. Không cần tạo `.env` hoặc dùng database development.
 Xem [hướng dẫn nghiệm thu #84](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue84_Recipe_Media_Jobs.md).
 
+Kiểm thử restart, retry 60/120/240 giây, lỗi từng phần và retention/purge:
+[failure matrix và recovery #91](Culinary_Blog_Nhom5/docx/Spec/Issue_91_Background_Jobs_Failure_Recovery.md).
+
 Nếu muốn dùng các dịch vụ local đang có thay vì môi trường cô lập:
 
 Các test tạo database riêng không dùng database development. Lưu sáu connection

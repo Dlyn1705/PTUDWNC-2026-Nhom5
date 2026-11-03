@@ -20,7 +20,8 @@ public sealed class UploadRecipeImageCommandHandler(
     IFileStorageService storage,
     IRecipeImageMutations mutations,
     IRecipeImageProcessingQueue processingQueue,
-    ILogger<UploadRecipeImageCommandHandler> logger) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
+    ILogger<UploadRecipeImageCommandHandler> logger,
+    IRecipeImageUploadIntents? uploadIntents = null) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
 {
     public async Task<RecipeImageDto> Handle(UploadRecipeImageCommand request, CancellationToken ct)
     {
@@ -42,14 +43,18 @@ public sealed class UploadRecipeImageCommandHandler(
         var image = RecipeImage.Create(request.RecipeId, string.Empty, request.AltText?.Trim(), existingImages.Count == 0, orderIndex);
         image.ProcessingStatus = "Pending";
         var objectKey = $"recipes/{request.RecipeId}/{image.Id:N}.{detected.Extension}";
-        var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, ct);
+        if (uploadIntents is not null) await uploadIntents.BeginAsync(image.Id, request.RecipeId, objectKey, ct);
+        // Bound ambiguous PUT lifetime; a persistent intent reconciles objects after timeout/restart.
+        using var uploadDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        uploadDeadline.CancelAfter(TimeSpan.FromSeconds(120));
+        var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, uploadDeadline.Token);
         image.OriginalUrl = url;
 
         try
         {
             await mutations.AddAsync(image, ct);
         }
-        catch (Exception exception)
+        catch
         {
             // A lost commit acknowledgement is not proof that the insert rolled back.
             // Query by stable ID before deleting original; if DB is unavailable retain it for operator reconciliation.
@@ -63,9 +68,9 @@ public sealed class UploadRecipeImageCommandHandler(
             if (committed is null)
             {
                 try { await storage.DeleteAsync(url, CancellationToken.None); }
-                catch (Exception cleanupError) { logger.LogError(cleanupError, "Could not remove image object after database failure for {RecipeId}", request.RecipeId); }
-                if (exception.GetType().Name == "DbUpdateException")
-                    throw new ConflictException("Một ảnh khác vừa được tải lên công thức này. Vui lòng thử lại.", "RECIPE_IMAGE_CONFLICT");
+                catch { logger.LogError("Original cleanup deferred for {RecipeImageId} in {RecipeId} with {CorrelationId}", image.Id, request.RecipeId, $"job-upload-{image.Id:N}"); }
+                // Infrastructure maps actual concurrency/unique violations to 409. Other DB
+                // failures are 5xx; a type-name check must not misreport an outage as conflict.
                 throw;
             }
         }

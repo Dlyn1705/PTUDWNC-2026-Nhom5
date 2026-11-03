@@ -59,6 +59,7 @@ public sealed class RecipeImageMutations(
             if (target.IsDeleted) return target;
             target.IsPrimary = false;
             target.IsDeleted = true;
+            db.RecipeImageDeletionWork.Add(new RecipeImageDeletionWork { ImageId = target.Id, RecipeId = recipeId });
             await db.SaveChangesAsync(ct);
             var remaining = await db.RecipeImages.Where(x => x.RecipeId == recipeId)
                 .OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id).ToListAsync(ct);

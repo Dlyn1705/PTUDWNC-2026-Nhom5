@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Jobs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,8 @@ public sealed record WelcomeEmailClaim(Guid Id, Guid LeaseToken, string UserId, 
 
 public sealed class WelcomeEmailStore(IServiceScopeFactory scopes, IOptions<WelcomeEmailOptions> settings, TimeProvider clock)
 {
-    public static readonly int[] RetryDelays = [60, 300, 900];
-    public const int MaximumAttempts = 4;
+    public static readonly int[] RetryDelays = BackgroundJobRetryPolicy.Delays;
+    public const int MaximumAttempts = BackgroundJobRetryPolicy.MaximumAttempts;
 
     public async Task<WelcomeEmailClaim?> ClaimAsync(Guid id, CancellationToken ct)
     {

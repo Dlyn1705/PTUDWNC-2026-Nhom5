@@ -1,16 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using CulinaryBlog.Application.Contracts;
-using Hangfire;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class HangfireRecipeImageDeletionQueue(IBackgroundJobClient jobs) : IRecipeImageDeletionQueue
+public sealed class HangfireRecipeImageDeletionQueue(RecipeImageDeletionRecoveryJob dispatcher) : IRecipeImageDeletionQueue
 {
-    public Task EnqueueAsync(Guid imageId, CancellationToken cancellationToken = default)
-    {
-        jobs.Enqueue<RecipeImageDeletionJob>(job => job.DeleteAsync(imageId, CancellationToken.None));
-        return Task.CompletedTask;
-    }
+    public Task EnqueueAsync(Guid imageId, CancellationToken cancellationToken = default) =>
+        dispatcher.DispatchOneAsync(imageId, cancellationToken);
 }

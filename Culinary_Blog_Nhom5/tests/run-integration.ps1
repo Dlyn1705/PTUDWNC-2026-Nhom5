@@ -1,10 +1,17 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps')]
+    [string[]]$Suites = @('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps'),
+    [ValidatePattern('^culinary-[a-z0-9-]{1,32}$')][string]$ProjectPrefix = 'culinary-issue84',
+    [string]$Filter
+)
 $ErrorActionPreference = 'Stop'
-$project = 'culinary-issue84-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
+$project = $ProjectPrefix + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 $compose = Join-Path $PSScriptRoot 'compose.integration.yml'
 $results = Join-Path $PSScriptRoot ('TestResults/' + $project)
 $previous = @{}
+$summaries = @()
+$evidence = @()
 function Set-TestVariable([string]$Name, [string]$Value) {
     if (-not $previous.ContainsKey($Name)) { $previous[$Name] = [Environment]::GetEnvironmentVariable($Name, 'Process') }
     [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
@@ -48,14 +55,31 @@ try {
     Set-TestVariable 'WELCOME_EMAIL_TEST_MAILHOG_URL' "http://127.0.0.1:$mailPort"
     New-Item -ItemType Directory -Path $results -Force | Out-Null
     $failed = @()
-    foreach ($suite in @('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps')) {
+    foreach ($suite in $Suites) {
         Write-Host "Running $suite with isolated PostgreSQL/MinIO/SMTP ($project)"
         $testProject = Join-Path $PSScriptRoot "CulinaryBlog.$suite.Tests/CulinaryBlog.$suite.Tests.csproj"
-        & dotnet test $testProject --logger "trx;LogFileName=$suite.trx" --results-directory $results --verbosity minimal
-        if ($LASTEXITCODE -ne 0) { $failed += $suite }
+        $testArguments = @('test', $testProject, '--logger', "trx;LogFileName=$suite.trx", '--results-directory', $results, '--verbosity', 'minimal')
+        if ($Filter) { $testArguments += @('--filter', $Filter) }
+        & dotnet @testArguments
+        $testExit = $LASTEXITCODE
+        $trx = Join-Path $results "$suite.trx"
+        if (Test-Path -LiteralPath $trx) {
+            [xml]$xml = Get-Content -Raw -LiteralPath $trx
+            $counter = $xml.SelectSingleNode('//*[local-name()="Counters"]')
+            if ([int]$counter.total -eq 0) { $testExit = 1 }
+            $summaries += @{ suite=$suite; total=[int]$counter.total; passed=[int]$counter.passed; failed=[int]$counter.failed; notExecuted=[int]$counter.notExecuted; exitCode=$testExit }
+            foreach ($stdout in $xml.SelectNodes('//*[local-name()="StdOut"]')) {
+                foreach ($match in [regex]::Matches($stdout.InnerText, '(?m)^DURABILITY_EVIDENCE (.+)$')) {
+                    $evidence += ($match.Groups[1].Value | ConvertFrom-Json)
+                }
+            }
+        }
+        @{ project=$project; suites=$summaries; retryDelaysSeconds=@(60,120,240); maximumAttempts=4 } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $results 'integration-summary.json') -Encoding utf8
+        ConvertTo-Json -InputObject @($evidence) -Depth 12 | Set-Content -LiteralPath (Join-Path $results 'failure-recovery-evidence.json') -Encoding utf8
+        if ($testExit -ne 0) { $failed += $suite }
     }
     if ($failed.Count) { throw ('Failed suites: ' + ($failed -join ', ') + ". TRX: $results") }
-    Write-Host "All eight suites passed. TRX: $results"
+    Write-Host "All $($Suites.Count) suites passed. TRX/JSON: $results"
 } finally {
     # Scope cleanup to the unique compose project created by this invocation.
     & docker compose -p $project -f $compose down --volumes --remove-orphans
