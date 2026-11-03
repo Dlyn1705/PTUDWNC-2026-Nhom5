@@ -1,8 +1,8 @@
 # Báo cáo nghiệm thu kỹ thuật #88 — Backup, restore và failure drill
 
-**Ngày:** 02/11/2026 (UTC và UTC+7 được ghi rõ trong evidence).  
-**Nhánh:** `2300003-NguyenLeAnhTuan-resilience-backup-88`, từ main `ff66cd1`.  
-**Phạm vi:** mã/cấu hình, test và drill môi trường cô lập; chưa rollout production.  
+**Ngày:** 02/11/2026 (UTC và UTC+7 được ghi rõ trong evidence).
+**Nhánh:** `2300003-NguyenLeAnhTuan-resilience-backup-88`, từ main `ff66cd1`.
+**Phạm vi:** mã/cấu hình, test và drill môi trường cô lập; chưa rollout production.
 **Bằng chứng:** [JSON đầy đủ](./evidence/issue88/drill-evidence.json), [ảnh banner 320 px](./evidence/issue88/maintenance-mobile.png), [runbook](./Runbook_Issue_88_Resilience_Backup_Restore.md).
 
 ## 1. Kết quả theo sáu tiêu chí Issue #88
