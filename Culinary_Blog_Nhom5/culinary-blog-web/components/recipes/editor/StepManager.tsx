@@ -10,6 +10,8 @@ import { stepApi, type StepDto } from "@/lib/api/stepApi";
 import { ApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { emptyStep, stepFormSchema, stepPayload, type StepDraft } from "@/lib/step-form";
 import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
+import { useCollectionFocus } from "@/hooks/useCollectionFocus";
+import { toast } from "sonner";
 
 type Props = { recipeId?: string; published?: boolean; parentVersion?: string; onChange?: (items: StepDraft[]) => void;
   onMutation?: () => Promise<void> | void; onDirtyChange?: (dirty: boolean) => void; validationRef?: Ref<RecipeCollectionValidation>; disabled?: boolean };
@@ -36,6 +38,7 @@ export default function StepManager({ recipeId, published = false, parentVersion
   const [loading, setLoading] = useState(Boolean(recipeId));
   const [busy, setBusy] = useState(false);
   const [mediaBusy, setMediaBusy] = useState(false);
+  const { root, announcement, focusRow } = useCollectionFocus(busy || mediaBusy);
   const mediaPending = useRef(false);
   const [imageTarget, setImageTarget] = useState(0);
   const [images, setImages] = useState<RecipeImageDto[]>([]);
@@ -112,10 +115,11 @@ export default function StepManager({ recipeId, published = false, parentVersion
   const perform = async (action: () => Promise<void>) => {
     if (locked.current || mediaPending.current || blocked) return;
     locked.current = true; setBusy(true); setError(""); setMessage("");
-    try { await action(); if (mounted.current) { setMessage("Đã lưu các bước."); await onMutation?.(); } }
+    try { await action(); if (mounted.current) { setMessage("Đã lưu các bước."); toast.success("Đã cập nhật các bước."); await onMutation?.(); } }
     catch (cause) {
       if (!mounted.current) return;
       const problem = toApiProblemError(cause);
+      toast.error("Không thể cập nhật bước nấu." + (problem.correlationId ? ` Mã hỗ trợ: ${problem.correlationId}.` : ""));
       if (problem instanceof ApiProblemError && problem.status === 409) {
         setConflict(true); setError("Công thức đã thay đổi. Nội dung đang nhập được giữ lại; hãy sao chép nếu cần rồi tải bản mới.");
       } else if (!(problem instanceof ApiProblemError) || (problem.status ?? 500) >= 500) {
@@ -148,21 +152,22 @@ export default function StepManager({ recipeId, published = false, parentVersion
       if (!mounted.current) return;
       const next = getValues("items"); next[index] = toDraft(result.item);
       baselines.current.set(result.item.id, signature(next[index])); reset({ items: next }); setVersion(result.etag);
+      focusRow(index, `Đã lưu bước ${index + 1}.`);
     });
   };
   const erase = async (index: number) => {
     if (blocked || locked.current) return;
     const row = getValues(`items.${index}`);
-    if (!recipeId || !row.stepId) { remove(index); return; }
+    if (!recipeId || !row.stepId) { remove(index); focusRow(index, `Đã xóa bước ${index + 1}.`); return; }
     if (!window.confirm(`Xóa bước ${index + 1}?`)) return;
     await perform(async () => {
       const nextVersion = await stepApi.remove(recipeId, row.stepId!, version);
-      if (mounted.current) { remove(index); baselines.current.delete(row.stepId!); setVersion(nextVersion); }
+      if (mounted.current) { remove(index); baselines.current.delete(row.stepId!); setVersion(nextVersion); focusRow(index, `Đã xóa bước ${index + 1}.`); }
     });
   };
   const reorder = async (from: number, to: number) => {
     if (blocked || locked.current) return;
-    if (!recipeId) { move(from, to); return; }
+    if (!recipeId) { move(from, to); focusRow(to, `Đã di chuyển bước ${from + 1} đến vị trí ${to + 1}.`); return; }
     const rows = getValues("items");
     if (isDirty(rows)) { setError("Lưu các bước mới và nội dung đang sửa trước khi đổi thứ tự."); return; }
     const next = [...rows]; const [row] = next.splice(from, 1); next.splice(to, 0, row);
@@ -172,6 +177,7 @@ export default function StepManager({ recipeId, published = false, parentVersion
         const rows = result.items.map(toDraft);
         baselines.current = new Map(rows.map(row => [row.stepId!, signature(row)]));
         reset({ items: rows }); setVersion(result.etag);
+        focusRow(to, `Đã di chuyển bước ${from + 1} đến vị trí ${to + 1}.`);
       }
     });
   };
@@ -179,10 +185,12 @@ export default function StepManager({ recipeId, published = false, parentVersion
   const fieldAccessibility = (index: number, key: "title" | "description" | "timerMinutes" | "imageUrl") => ({
     id: `step-${fields[index].id}-${key}`,
     "aria-invalid": Boolean(errors.items?.[index]?.[key]),
-    "aria-describedby": errors.items?.[index]?.[key] ? `step-${fields[index].id}-${key}-error` : undefined,
+    "aria-describedby": [key === "description" || key === "imageUrl" ? `step-${fields[index].id}-${key}-hint` : "",
+      errors.items?.[index]?.[key] ? `step-${fields[index].id}-${key}-error` : ""].filter(Boolean).join(" ") || undefined,
   });
 
-  return <section aria-label="Quản lý các bước thực hiện" className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
+  return <section ref={root} aria-label="Quản lý các bước thực hiện" aria-busy={busy || mediaBusy} className="min-w-0 space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+    <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-semibold">Các bước thực hiện</h2>
       {recipeId && <button type="button" onClick={() => void reload()} disabled={busy || mediaBusy || disabled} className="rounded-lg border px-3 py-2">Tải các bước mới</button>}
@@ -193,16 +201,17 @@ export default function StepManager({ recipeId, published = false, parentVersion
     {loading && <p role="status">Đang tải các bước…</p>}
     {message && <p role="status" className="text-sm text-success">{message}</p>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    <fieldset disabled={blocked} className="space-y-4 disabled:opacity-60">
+    <fieldset disabled={blocked} className="min-w-0 space-y-4 disabled:opacity-60">
+      <legend className="sr-only">Danh sách bước nấu</legend>
       {fields.length === 0 && !loading && <p>Chưa có bước thực hiện. Bạn vẫn có thể lưu bản nháp.</p>}
-      {fields.map((field, index) => <div key={field.id} className="space-y-3 rounded-xl border p-4" data-step-row>
+      {fields.map((field, index) => <div key={field.id} className="min-w-0 space-y-3 rounded-xl border p-3 sm:p-4" data-step-row data-collection-row>
         <h3 className="font-semibold">Bước {index + 1}{recipeId && !field.stepId ? " — chưa lưu" : ""}</h3>
         <label className="block text-sm">Tiêu đề bước {index + 1}<input {...register(`items.${index}.title`)} {...fieldAccessibility(index, "title")} maxLength={200} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
         <label className="block text-sm">Mô tả bước {index + 1}<textarea {...register(`items.${index}.description`)} {...fieldAccessibility(index, "description")} maxLength={2000} rows={4} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-        <p className="text-xs text-muted-foreground">{items[index]?.description?.length ?? 0}/2.000 ký tự</p>
+        <p id={`step-${field.id}-description-hint`} className="text-xs text-muted-foreground">{items[index]?.description?.length ?? 0}/2.000 ký tự</p>
         <label className="block text-sm">Hẹn giờ bước {index + 1} (phút, tùy chọn)<input {...register(`items.${index}.timerMinutes`)} {...fieldAccessibility(index, "timerMinutes")} inputMode="numeric" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
         <label className="block text-sm">URL ảnh bước {index + 1} (tùy chọn)<input {...register(`items.${index}.imageUrl`)} {...fieldAccessibility(index, "imageUrl")} maxLength={500} placeholder="https://…" className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-        <p className="text-xs text-muted-foreground">Chọn hoặc tải ảnh trong mục Ảnh minh họa bước nấu bên dưới. URL ngoài phải là HTTP/HTTPS, không chứa thông tin đăng nhập.</p>
+        <p id={`step-${field.id}-imageUrl-hint`} className="text-xs text-muted-foreground">Chọn hoặc tải ảnh trong mục Ảnh minh họa bước nấu bên dưới. URL ngoài phải là HTTP/HTTPS, không chứa thông tin đăng nhập.</p>
         {items[index]?.imageUrl && imagePreview(items[index].imageUrl) && <Image src={items[index].imageUrl} alt={`Ảnh xem trước bước ${index + 1}`} width={480} height={270} unoptimized className="max-h-48 w-auto rounded-lg object-contain"
           onError={() => setFailedImage(current => ({ ...current, [field.id]: items[index]?.imageUrl ?? "" }))} />}
         {items[index]?.imageUrl && failedImage[field.id] === items[index].imageUrl && <p className="text-sm text-warning">Không thể hiển thị ảnh. Kiểm tra URL và nguồn ảnh được website cho phép.</p>}
@@ -214,7 +223,7 @@ export default function StepManager({ recipeId, published = false, parentVersion
           <button type="button" disabled={published && persistedCount === 1 && Boolean(field.stepId)} onClick={() => void erase(index)} aria-label={`Xóa bước ${index + 1}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-destructive">Xóa bước</button>
         </div>
       </div>)}
-      <button type="button" disabled={fields.length >= 100} onClick={() => append(emptyStep())} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>
+      <button data-collection-add type="button" disabled={fields.length >= 100} onClick={() => { append(emptyStep()); focusRow(fields.length, `Đã thêm bước ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>
     </fieldset>
     {recipeId && fields.length > 0 ? <section aria-label="Ảnh minh họa bước nấu" className="space-y-3 rounded-xl border p-4">
       <h3 className="font-semibold">Ảnh minh họa bước nấu</h3>

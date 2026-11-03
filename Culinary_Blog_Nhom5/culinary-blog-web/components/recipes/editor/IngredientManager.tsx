@@ -7,6 +7,8 @@ import { ingredientApi, type IngredientDto } from "@/lib/api/ingredientApi";
 import { toApiProblemError } from "@/lib/api/problemDetails";
 import { emptyIngredient, ingredientFormSchema, ingredientPayload, type IngredientDraft } from "@/lib/ingredient-form";
 import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
+import { useCollectionFocus } from "@/hooks/useCollectionFocus";
+import { toast } from "sonner";
 
 type Props = {
   recipeId?: string;
@@ -48,6 +50,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
   const [acknowledgedParent, setAcknowledgedParent] = useState(parentVersion);
   const [loading, setLoading] = useState(Boolean(recipeId));
   const [busy, setBusy] = useState(false);
+  const { root, announcement, focusRow } = useCollectionFocus(busy);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const mounted = useRef(false);
@@ -93,13 +96,15 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
     if (locked.current || !etag || conflict) return;
     locked.current = true;
     setBusy(true); setError("");
-    try { await action(); if (mounted.current) await onMutation?.(); }
+    try { await action(); if (mounted.current) { toast.success("Đã cập nhật nguyên liệu."); await onMutation?.(); } }
     catch (cause) {
       if (!mounted.current) return;
       const problem = toApiProblemError(cause);
+      const reference = problem.correlationId ? ` Mã hỗ trợ: ${problem.correlationId}.` : "";
+      toast.error("Không thể cập nhật nguyên liệu." + reference);
       if (problem.status === 409) {
         setConflict(true);
-        setError("Công thức đã thay đổi ở nơi khác. Nội dung đang nhập vẫn được giữ; hãy sao chép nếu cần rồi tải bản mới.");
+        setError("Công thức đã thay đổi ở nơi khác. Nội dung đang nhập vẫn được giữ; hãy sao chép nếu cần rồi tải bản mới." + reference);
       } else if (problem.status === 401) {
         setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       } else if (problem.status === 403) {
@@ -107,7 +112,8 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
       } else if (problem.status === 422 || problem.status === 400) {
         setError("Dữ liệu nguyên liệu chưa hợp lệ. Hãy kiểm tra các ô được đánh dấu.");
       } else {
-        setError("Không thể hoàn tất thao tác. Hãy tải lại để kiểm tra trạng thái trên máy chủ.");
+        if (!problem.status || problem.status >= 500 || problem.status === 404) setConflict(true);
+        setError((problem.status === 429 ? "Thao tác quá nhanh. Vui lòng chờ rồi thử lại." : "Không thể hoàn tất thao tác. Hãy tải lại để kiểm tra trạng thái trên máy chủ.") + reference);
       }
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
@@ -122,13 +128,14 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
         update(index, saved);
         setSavedItems(current => [...current.filter(item => item.ingredientId !== saved.ingredientId), saved]);
         setEtag(result.etag);
+        focusRow(index, `Đã lưu nguyên liệu ${index + 1}.`);
       }
     });
   };
 
   const erase = async (index: number) => {
     const item = form.getValues(`items.${index}`);
-    if (!recipeId || !item.ingredientId) { remove(index); return; }
+    if (!recipeId || !item.ingredientId) { remove(index); focusRow(index, `Đã xóa nguyên liệu ${index + 1}.`); return; }
     if (!window.confirm(`Xóa nguyên liệu “${item.name}”?`)) return;
     await perform(async () => {
       const next = await ingredientApi.remove(recipeId, item.ingredientId!, etag);
@@ -136,19 +143,20 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
         remove(index);
         setSavedItems(current => current.filter(row => row.ingredientId !== item.ingredientId));
         setEtag(next);
+        focusRow(index, `Đã xóa nguyên liệu ${index + 1}.`);
       }
     });
   };
 
   const reorder = async (from: number, to: number) => {
-    if (!recipeId) { move(from, to); return; }
+    if (!recipeId) { move(from, to); focusRow(to, `Đã di chuyển nguyên liệu ${from + 1} đến vị trí ${to + 1}.`); return; }
     const rows = form.getValues("items");
     if (rows.some(row => !row.ingredientId)) { setError("Lưu các hàng mới trước khi đổi thứ tự."); return; }
     const next = [...rows]; const [row] = next.splice(from, 1); next.splice(to, 0, row);
     await perform(async () => {
       const result = await ingredientApi.reorder(recipeId, next.map(item => item.ingredientId!), etag);
       // Preserve unsaved edits by moving the current form rows instead of replacing them from the server.
-      if (mounted.current) { replace(next); setEtag(result.etag); }
+      if (mounted.current) { replace(next); setEtag(result.etag); focusRow(to, `Đã di chuyển nguyên liệu ${from + 1} đến vị trí ${to + 1}.`); }
     });
   };
 
@@ -157,7 +165,8 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
   const disabled = busy || loading || Boolean(recipeId && (!etag || conflict || parentChanged));
 
   return (
-    <section className="space-y-4 rounded-2xl border bg-white p-6" aria-label="Quản lý nguyên liệu">
+    <section ref={root} className="min-w-0 space-y-4 rounded-2xl border bg-white p-4 sm:p-6" aria-label="Quản lý nguyên liệu" aria-busy={busy}>
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Nguyên liệu</h2>
         {recipeId && <button type="button" disabled={busy} onClick={() => void reload()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải bản mới</button>}
@@ -166,10 +175,11 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
       {loading && <p role="status">Đang tải nguyên liệu…</p>}
       {parentChanged && <p role="status" className="text-sm text-warning">Công thức vừa được cập nhật. Tải bản mới trước khi tiếp tục quản lý nguyên liệu.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <fieldset disabled={busy || loading || Boolean(recipeId && !etag)} className="space-y-4 disabled:opacity-60">
+      <fieldset disabled={busy || loading || Boolean(recipeId && !etag)} className="min-w-0 space-y-4 disabled:opacity-60">
+        <legend className="sr-only">Danh sách nguyên liệu</legend>
         {fields.length === 0 && !loading && <p>Chưa có nguyên liệu.</p>}
         {fields.map((field, index) => (
-          <div key={field.id} className="space-y-3 rounded-xl border p-4">
+          <div key={field.id} data-collection-row className="min-w-0 space-y-3 rounded-xl border p-3 sm:p-4">
             <p className="text-sm font-medium">Nguyên liệu {index + 1}{recipeId && !field.ingredientId ? " — chưa lưu" : ""}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {([ ["name", "Tên nguyên liệu"], ["quantity", "Số lượng (tùy chọn)"], ["unit", "Đơn vị (tùy chọn)"], ["notes", "Ghi chú (tùy chọn)"] ] as const).map(([key, label]) => (
@@ -193,7 +203,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
             </div>
           </div>
         ))}
-        <button type="button" disabled={disabled || fields.length >= 100} onClick={() => append(emptyIngredient())} className="rounded-lg border px-4 py-2 disabled:opacity-50">+ Thêm nguyên liệu</button>
+        <button data-collection-add type="button" disabled={disabled || fields.length >= 100} onClick={() => { append(emptyIngredient()); focusRow(fields.length, `Đã thêm nguyên liệu ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2 disabled:opacity-50">+ Thêm nguyên liệu</button>
       </fieldset>
     </section>
   );

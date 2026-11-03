@@ -78,6 +78,7 @@ async function main() {
     let stepSaveStatus = 200;
     let imageUploads = 0;
     let imageUploadGate;
+    let collectionReorderStatus = 200;
     const ingredients = [];
     let activeSession = null;
     const authSession = email => ({ accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
@@ -110,6 +111,32 @@ async function main() {
         }
         return json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
       }
+      if (url.pathname.startsWith(`/api/v1/recipes/${recipe.id}/images/`)) {
+        const id = url.pathname.split("/")[6];
+        const item = imageRows.find(row => row.id === id);
+        if (request.method() === "DELETE") {
+          const index = imageRows.findIndex(row => row.id === id);
+          if (index >= 0) imageRows.splice(index, 1);
+          return route.fulfill({ status: 204, headers: cors });
+        }
+        if (request.method() === "PATCH" && item) {
+          imageRows.forEach(row => { row.isPrimary = row.id === id; });
+          return json({ data: item });
+        }
+      }
+      if (request.method() === "PUT" && /\/(ingredients|steps)\/reorder$/.test(url.pathname)) {
+        assert.equal(request.headers()["if-match"], '"' + recipe.rowVersion + '"');
+        if (collectionReorderStatus !== 200) return json({ status: collectionReorderStatus, correlationId: "issue92-reorder-error" }, collectionReorderStatus);
+        const isSteps = url.pathname.endsWith("/steps/reorder");
+        const rows = isSteps ? stepRows : ingredients;
+        const ids = request.postDataJSON()[isSteps ? "stepIds" : "ingredientIds"];
+        const next = ids.map(id => rows.find(row => row.id === id));
+        rows.splice(0, rows.length, ...next);
+        rows.forEach((row, index) => { row[isSteps ? "stepNumber" : "orderIndex"] = isSteps ? index + 1 : index; });
+        recipe.rowVersion = Buffer.from(randomUUID()).toString("base64");
+        return json({ data: rows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
+      }
+      if (request.method() === "DELETE" && url.pathname === `/api/v1/recipes/${recipe.id}`) return route.fulfill({ status: 204, headers: cors });
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
         if (pendingPut) await pendingPut;
@@ -300,7 +327,7 @@ async function main() {
     const stepDescription = page.getByLabel("Mô tả bước 1", { exact: true });
     assert.equal(await stepDescription.getAttribute("aria-invalid"), "true");
     assert.equal(await stepDescription.evaluate(element => element === document.activeElement), true);
-    assert.equal(await stepDescription.evaluate(element => Boolean(document.getElementById(element.getAttribute("aria-describedby")))), true);
+    assert.equal(await stepDescription.evaluate(element => element.getAttribute("aria-describedby").split(/\s+/).every(id => Boolean(document.getElementById(id)))), true);
     await stepDescription.fill("Bản nháp bước thực hiện chưa lưu");
     await menu.click();
     page.once("dialog", prompt => prompt.dismiss());
@@ -411,7 +438,7 @@ async function main() {
     await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("-1");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     await page.locator('[id$="-new-nutrition-4-error"]:visible').waitFor();
-    assert.equal(await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby"), (await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error");
+    assert.ok((await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby")).split(/\s+/).includes((await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error"));
     assert.equal(createCalls, 0);
     await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("");
     createStatus = 422;
@@ -481,6 +508,8 @@ async function main() {
     assert.equal(await stepText.inputValue(), "Bản nháp giữ lại khi người khác sửa bước");
     assert.equal(await page.getByRole("button", { name: "Lưu bước 1", exact: true }).isDisabled(), true);
     page.once("dialog", prompt => prompt.accept());
+    await require("./recipe-editor-a11y.scenarios.cjs")({ page, origin, recipe, imageRows, stepRows, ingredients, png, folder,
+      setReorderStatus: value => { collectionReorderStatus = value; } });
     // Ownership guard and an actual Admin session, independent of the author context.
     recipe.author.id = "another-author";
     await page.goto(editUrl);
