@@ -100,7 +100,9 @@ python infra/reliability/monitor_drill.py
 
 Frontend smoke tùy chọn sau `npm run build -- --webpack` tại frontend: đặt `ISSUE88_FRONTEND_SMOKE=1`, chạy lại drill; cần Python trên host và Edge hoặc Playwright Chromium (`BROWSER_CHANNEL`). Driver tạo project/container/DB/bucket/volume GUID, không stop service chung. Trên Linux thêm host-gateway để Docker truy cập test host; Windows dùng Docker Desktop host.docker.internal. Cleanup kiểm tra prefix + danh sách tên chính xác trước remove. Không chạy song song nhiều instance drill trên cùng file report; mỗi run có thư mục riêng.
 
-Evidence nằm `build/issue88-*/report.json`, screenshot `culinary-blog-web/build/reliability/maintenance-mobile.png`. Artifact CI chỉ upload report JSON, không dump, key hoặc env. Report kỹ thuật của #88 tóm tắt bằng chứng được phép chia sẻ; plan/báo cáo cá nhân vẫn local. Workflow riêng `reliability.yml` tránh sửa job CI đang dùng của #83/#84.
+Evidence nằm `build/issue88-*/report.json`, screenshot `culinary-blog-web/build/reliability/maintenance-mobile.png`. Artifact CI upload report JSON và `gateway.log`, không dump, key hoặc env. Report kỹ thuật của #88 tóm tắt bằng chứng được phép chia sẻ; plan/báo cáo cá nhân vẫn local. Workflow riêng `reliability.yml` tránh sửa job CI đang dùng của #83/#84.
+
+Nếu Linux CI dừng ở lần chờ gateway đầu tiên, kiểm tra `gateway.log`. Với `proxy_pass` dùng biến, Nginx tra Docker DNS và không đọc ánh xạ `--add-host` trong `/etc/hosts`. Controller chuyển riêng `host.docker.internal` thành IPv4 bằng system resolver trước khi tạo config; các service name `api`/`frontend` vẫn dùng runtime DNS để hỗ trợ recreate. Chạy hồi quy bằng `python -m unittest discover -s infra/reliability/gateway -p 'test_*.py' -v`.
 
 ## Giới hạn nghiệm thu production
 

@@ -1,5 +1,6 @@
 """Active admission probe every 10s; Nginx OSS itself does not do active probes."""
 import os
+import socket
 from pathlib import Path
 import subprocess
 import time
@@ -7,6 +8,16 @@ import urllib.request
 
 UPSTREAM = os.getenv('API_UPSTREAM', 'api:8080')
 FRONTEND = os.getenv('FRONTEND_UPSTREAM', 'frontend:3000')
+
+
+def nginx_endpoint(endpoint):
+    # Variable proxy_pass uses Docker DNS, which ignores --add-host /etc/hosts.
+    # Resolve the host alias only; service names keep runtime DNS for recreate.
+    host, separator, port = endpoint.rpartition(':')
+    if separator and host == 'host.docker.internal':
+        return socket.gethostbyname(host) + ':' + port
+    return endpoint
+
 def config(healthy):
     action = 'proxy_pass http://$api_endpoint;' if healthy else 'add_header Retry-After 10 always; return 503;'
     return '''events {}
@@ -24,7 +35,7 @@ http {
     location / { proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; proxy_pass http://$frontend_endpoint; }
   }
 }
-''' % (UPSTREAM, FRONTEND, action)
+''' % (nginx_endpoint(UPSTREAM), nginx_endpoint(FRONTEND), action)
 
 def main():
     path = Path('/etc/nginx/nginx.conf')
