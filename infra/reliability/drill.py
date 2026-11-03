@@ -183,6 +183,8 @@ def main():
     finally:
         gateway_logs=subprocess.run(['docker','logs',names['gateway']],capture_output=True,text=True)
         (work/'gateway.log').write_text(gateway_logs.stdout+gateway_logs.stderr)
+        api_logs=subprocess.run(['docker','logs',names['api']],capture_output=True,text=True)
+        (work/'api.log').write_text(api_logs.stdout+api_logs.stderr)
         for process in processes:
             if process.poll() is None: process.terminate(); process.wait(20)
         for log in logs: log.close()

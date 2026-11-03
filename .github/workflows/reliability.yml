@@ -48,4 +48,5 @@ jobs:
           path: |
             build/issue88-*/report.json
             build/issue88-*/gateway.log
+            build/issue88-*/api.log
           if-no-files-found: ignore
