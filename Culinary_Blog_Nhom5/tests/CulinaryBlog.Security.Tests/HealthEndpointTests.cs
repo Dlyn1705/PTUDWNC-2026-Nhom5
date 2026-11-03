@@ -54,6 +54,9 @@ public sealed class HealthEndpointTests
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal("liveness", (await ReadJsonAsync(live)).GetProperty("probe").GetString());
         Assert.Equal("no-store", live.Headers.CacheControl?.ToString());
+        using var traffic = await client.GetAsync("/health/traffic");
+        Assert.Equal(database ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable, traffic.StatusCode);
+        Assert.Equal("traffic", (await ReadJsonAsync(traffic)).GetProperty("probe").GetString());
     }
 
     [Fact]
