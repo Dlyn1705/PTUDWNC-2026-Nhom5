@@ -10,6 +10,7 @@ import IngredientManager from "@/components/recipes/editor/IngredientManager";
 import StepManager from "@/components/recipes/editor/StepManager";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import { DeleteRecipeModal } from "@/components/recipes/editor/DeleteRecipeModal";
+import { RecipeEditorLifecycle } from "@/components/recipes/editor/RecipeEditorLifecycle";
 import { RouteLoading } from "@/components/common/RouteLoading";
 import { ErrorState } from "@/components/common/ErrorState";
 import { UnauthorizedState } from "@/components/common/UnauthorizedState";
@@ -64,6 +65,9 @@ export default function EditRecipePage({ params }: RouteProps) {
   const [outOfDate, setOutOfDate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const focusAfterLifecycle = useRef(false);
   const [showDelete, setShowDelete] = useState(false);
   const [success, setSuccess] = useState("");
   const [basicDirty, setBasicDirty] = useState(false);
@@ -72,7 +76,14 @@ export default function EditRecipePage({ params }: RouteProps) {
   const activeId = useRef("");
   const mutating = useRef(false);
   const deleteButton = useRef<HTMLButtonElement>(null);
-  const { confirmDiscard, allowNavigation } = useUnsavedRecipe(basicDirty || ingredientDirty || stepDirty);
+  const dirty = basicDirty || ingredientDirty || stepDirty;
+  const { confirmDiscard, allowNavigation } = useUnsavedRecipe(dirty || lifecycleBusy || galleryBusy);
+  useEffect(() => {
+    if (!loading && recipe && focusAfterLifecycle.current) {
+      focusAfterLifecycle.current = false;
+      requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>("[data-editor-status-heading]")).find(element => element.checkVisibility())?.focus());
+    }
+  }, [loading, recipe]);
 
   useEffect(() => {
     let active = true;
@@ -87,7 +98,7 @@ export default function EditRecipePage({ params }: RouteProps) {
     return () => { active = false; activeId.current = ""; };
   }, [params, reload]);
 
-  const reloadRecipe = () => { if (!saving && !deleting && confirmDiscard()) setReload(value => value + 1); };
+  const reloadRecipe = () => { if (!saving && !deleting && !lifecycleBusy && !galleryBusy && confirmDiscard()) setReload(value => value + 1); };
   const save = async (values: RecipeEditorValues) => {
     if (!recipe || mutating.current || outOfDate) throw new RecipeFormValidationError("Hãy tải lại công thức trước khi lưu nội dung.");
     const payload = validateRecipeUpdate({ title: values.title, description: values.description, instructions: values.instructions,
@@ -183,26 +194,30 @@ export default function EditRecipePage({ params }: RouteProps) {
   return <div className="min-h-screen bg-background py-10"><div className="page-container max-w-3xl space-y-6">
     <header><p className="text-sm font-medium text-primary">Dashboard / Recipes / Edit</p>
       <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Chỉnh sửa công thức</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Chỉnh sửa nội dung; đường dẫn và trạng thái công thức được giữ nguyên.</p></header>
+      <p className="mt-2 text-sm text-muted-foreground">Lưu nội dung và đổi trạng thái là các thao tác riêng; đường dẫn công thức được giữ nguyên.</p></header>
+    <RecipeEditorLifecycle recipeId={recipe.id} title={recipe.title} status={recipe.status} dirty={dirty}
+      disabled={saving || deleting || lifecycleBusy || galleryBusy || outOfDate} onBusyChange={setLifecycleBusy} onReload={reloadRecipe}
+      onCompleted={() => { focusAfterLifecycle.current = true; setReload(value => value + 1); }} />
     {success && <p role="status" className="text-success">{success}</p>}
     {mutationError && <ErrorState title={outOfDate ? "Cần tải lại phiên bản công thức" : "Không thể xóa công thức"}
       description={mutationError.description} correlationId={mutationError.correlationId}
       onRetry={outOfDate ? reloadRecipe : undefined} retryLabel="Tải bản mới"
       action={mutationError.status === 401 ? <Link className="underline" href={`/auth/login?callbackUrl=${encodeURIComponent(`/dashboard/recipes/${recipe.id}/edit`)}`}>Đăng nhập lại</Link> : undefined} />}
-    <button type="button" disabled={saving || deleting} onClick={reloadRecipe} className="text-sm underline">Tải bản mới (bỏ thay đổi đang nhập)</button>
+    <button type="button" disabled={saving || deleting || lifecycleBusy || galleryBusy} onClick={reloadRecipe} className="text-sm underline">Tải bản mới (bỏ thay đổi đang nhập)</button>
     <RecipeForm key={`form-${recipe.id}-${reload}`} mode="edit" defaultValues={initial} categories={categories.data ?? []}
       categoriesLoading={categories.isPending} categoryError={categories.isError ? categories.error : undefined}
       onRetryCategories={() => { void categories.refetch(); }} onSave={save} onDirtyChange={setBasicDirty}
-      onReload={reloadRecipe} onEdited={() => setSuccess("")} busy={saving || deleting} blockSubmit={outOfDate}
-      actions={<button ref={deleteButton} type="button" disabled={saving || deleting} onClick={() => setShowDelete(true)}
+      onReload={reloadRecipe} onEdited={() => setSuccess("")} busy={saving || deleting || lifecycleBusy} blockSubmit={outOfDate || galleryBusy}
+      actions={<button ref={deleteButton} type="button" disabled={saving || deleting || galleryBusy} onClick={() => setShowDelete(true)}
         className="rounded-xl border border-destructive/30 px-5 py-3 text-destructive">Xóa công thức</button>}>
-      <fieldset disabled={saving || deleting} aria-label="Nguyên liệu công thức" className="min-w-0">
+      <fieldset disabled={saving || deleting || lifecycleBusy} aria-label="Nguyên liệu công thức" className="min-w-0">
         <IngredientManager key={`ingredients-${recipe.id}-${reload}`} recipeId={recipe.id} onDirtyChange={setIngredientDirty}
           parentVersion={recipe.rowVersion} onMutation={refreshVersion} />
       </fieldset>
       <StepManager key={`steps-${recipe.id}-${reload}`} recipeId={recipe.id} onDirtyChange={setStepDirty}
-        published={recipe.status === 1} parentVersion={recipe.rowVersion} disabled={saving || deleting} onMutation={refreshVersion} />
-      <ImageGalleryManager key={`images-${recipe.id}-${reload}`} recipeId={recipe.id} archived={recipe.status === 2} onMutation={() => { void refreshVersion(); }} />
+        published={recipe.status === 1} archived={recipe.status === 2} parentVersion={recipe.rowVersion} disabled={saving || deleting || lifecycleBusy} onMutation={refreshVersion} />
+      <ImageGalleryManager key={`images-${recipe.id}-${reload}`} recipeId={recipe.id} archived={recipe.status === 2}
+        disabled={saving || deleting || lifecycleBusy} onBusyChange={setGalleryBusy} onMutation={() => { void refreshVersion(); }} />
     </RecipeForm>
   </div><DeleteRecipeModal open={showDelete} busy={deleting} returnFocusRef={deleteButton} onCancel={() => setShowDelete(false)} onConfirm={() => { void remove(); }} /></div>;
 }

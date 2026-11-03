@@ -7,13 +7,13 @@ import { deleteRecipeImage, getRecipeImages, setRecipeImagePrimary, type RecipeI
 import { imageErrorMessage, needsImageReconciliation } from "@/lib/api/imageErrors";
 import { toApiProblemError } from "@/lib/api/problemDetails";
 
-type Props = { recipeId: string; archived?: boolean; onMutation?: () => void };
+type Props = { recipeId: string; archived?: boolean; disabled?: boolean; onMutation?: () => void; onBusyChange?: (busy: boolean) => void };
 const statusText = {
   Pending: "Đang chờ tạo thumbnail…", Processing: "Đang tạo thumbnail…",
   Completed: "Đã xử lý", Failed: "Chưa tạo được ảnh xem trước; ảnh gốc vẫn được lưu.",
 };
 
-export default function ImageGalleryManager({ recipeId, archived = false, onMutation }: Props) {
+export default function ImageGalleryManager({ recipeId, archived = false, disabled = false, onMutation, onBusyChange }: Props) {
   const [images, setImages] = useState<RecipeImageDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,6 +26,10 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
   const mutationBusy = useRef(false);
   const uploading = useRef(false);
   const requestId = useRef(0);
+  const mutationCallback = useRef(onMutation);
+  useEffect(() => { mutationCallback.current = onMutation; }, [onMutation]);
+  useEffect(() => { onBusyChange?.(busy || uploadBusy); }, [busy, uploadBusy, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   const reload = useCallback(async (signal?: AbortSignal) => {
     const id = ++requestId.current;
@@ -67,14 +71,18 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
   }, [retryAfterMs]);
 
   const uploadBusyChanged = useCallback((value: boolean) => {
+    const wasUploading = uploading.current;
     uploading.current = value;
     if (value) { ++requestId.current; listController.current?.abort(); }
     else setLoading(false);
     setUploadBusy(value);
+    // Even a cancelled/failed poll can follow a committed upload. Refresh the
+    // aggregate version without resetting the user's basic/nutrition draft.
+    if (!value && wasUploading) mutationCallback.current?.();
   }, []);
 
   const refresh = async () => {
-    if (mutationBusy.current || uploading.current || retryAfterMs) return;
+    if (disabled || mutationBusy.current || uploading.current || retryAfterMs) return;
     const signal = controller.current?.signal;
     mutationBusy.current = true;
     setBusy(true);
@@ -90,7 +98,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
   };
 
   const mutate = async (image: RecipeImageDto, action: "primary" | "delete") => {
-    if (mutationBusy.current || uploading.current || mustReload || retryAfterMs) return;
+    if (disabled || mutationBusy.current || uploading.current || mustReload || retryAfterMs) return;
     if (action === "delete" && !window.confirm("Xóa ảnh này khỏi công thức?")) return;
     mutationBusy.current = true;
     ++requestId.current;
@@ -122,10 +130,10 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
     <section className="space-y-4 rounded-2xl border bg-white p-6" aria-label="Bộ sưu tập ảnh công thức">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Ảnh công thức</h2>
-        <button type="button" disabled={busy || uploadBusy || retryAfterMs > 0} onClick={() => void refresh()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải lại ảnh</button>
+        <button type="button" disabled={disabled || busy || uploadBusy || retryAfterMs > 0} onClick={() => void refresh()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải lại ảnh</button>
       </div>
       {archived ? <p>Khôi phục công thức từ lưu trữ trước khi tải thêm ảnh.</p> : (
-        <FileUploadDropzone key={recipeId} recipeId={recipeId} disabled={busy || mustReload || retryAfterMs > 0}
+        <FileUploadDropzone key={recipeId} recipeId={recipeId} disabled={disabled || busy || mustReload || retryAfterMs > 0}
           onBusyChange={uploadBusyChanged}
           onImagesChange={items => { ++requestId.current; setImages(items); setLoading(false); setError(""); }}
           onImageChange={image => {
@@ -134,7 +142,6 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
             setLoading(false);
           }}
           onUploadSuccess={() => {
-            onMutation?.();
             const signal = controller.current?.signal;
             void reload(signal).catch(cause => {
               if (!signal?.aborted) {
@@ -156,9 +163,9 @@ export default function ImageGalleryManager({ recipeId, archived = false, onMuta
               {image.altText && <p className="break-words text-sm">{image.altText}</p>}
               <p className="text-sm text-muted-foreground">{statusText[image.processingStatus]}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={busy || uploadBusy || mustReload || retryAfterMs > 0 || image.isPrimary} onClick={() => void mutate(image, "primary")}
+                <button type="button" disabled={disabled || busy || uploadBusy || mustReload || retryAfterMs > 0 || image.isPrimary} onClick={() => void mutate(image, "primary")}
                   className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">Đặt làm ảnh chính</button>
-                <button type="button" disabled={busy || uploadBusy || mustReload || retryAfterMs > 0} onClick={() => void mutate(image, "delete")}
+                <button type="button" disabled={disabled || busy || uploadBusy || mustReload || retryAfterMs > 0} onClick={() => void mutate(image, "delete")}
                   aria-label={`Xóa ${image.altText || "ảnh công thức"}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive disabled:opacity-50">Xóa ảnh</button>
               </div>
             </li>

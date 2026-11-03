@@ -24,12 +24,13 @@ export default function NewRecipePage() {
   const [basicDirty, setBasicDirty] = useState(false);
   const [ingredientDirty, setIngredientDirty] = useState(false);
   const [stepDirty, setStepDirty] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [steps, setSteps] = useState<StepDraft[]>([]);
   const ingredientValidation = useRef<RecipeCollectionValidation>(null);
   const stepValidation = useRef<RecipeCollectionValidation>(null);
   const dirty = (!created && (basicDirty || ingredients.length > 0 || steps.length > 0)) || ingredientDirty || stepDirty;
-  useUnsavedRecipe(dirty);
+  useUnsavedRecipe(dirty || galleryBusy);
 
   const save = async (values: RecipeEditorValues) => {
     if (created) throw new RecipeFormValidationError("Bản nháp đã được tạo. Hãy mở trang chỉnh sửa để tiếp tục.");
@@ -61,7 +62,7 @@ export default function NewRecipePage() {
       }}>
       <section aria-label="Ảnh món ăn" className="rounded-2xl border border-border bg-card p-6 shadow-soft"><h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
         <p className="mt-2 text-sm text-muted-foreground">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-        {created && <ImageGalleryManager key={created.id} recipeId={created.id} />}</section>
+        {created && <ImageGalleryManager key={created.id} recipeId={created.id} onBusyChange={setGalleryBusy} />}</section>
       <fieldset disabled={saving} aria-label="Nguyên liệu công thức" className="min-w-0">
         <IngredientManager key={created?.id ?? "new"} recipeId={created?.id} initialItems={ingredients} onChange={setIngredients}
           onDirtyChange={setIngredientDirty} validationRef={ingredientValidation} />
