@@ -33,7 +33,7 @@ using Xunit;
 
 namespace CulinaryBlog.Steps.Tests;
 
-public sealed class StepApiTests : IAsyncLifetime
+public sealed partial class StepApiTests : IAsyncLifetime
 {
     private WebApplication app = null!;
     private HttpClient client = null!;
@@ -56,17 +56,25 @@ public sealed class StepApiTests : IAsyncLifetime
         builder.Services.AddApplication(); builder.Services.AddInfrastructure(builder.Configuration);
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.AddInterceptors(commitAck));
         builder.Services.AddSingleton<IRecipeCacheInvalidator>(cache);
+        builder.Services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(
+            new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())));
         builder.Services.AddRecipeApiConfiguration();
         builder.Services.AddAuthentication("StepsTest").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("StepsTest", _ => { });
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("upload", limiter => limiter.PermitLimit = 10));
         app = builder.Build();
         app.UseMiddleware<GlobalExceptionMiddleware>(); app.UseRouting(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
-        var api = app.MapGroup("/api/v1"); api.MapRecipeEndpoints(); api.MapRecipeStepEndpoints(); api.MapRecipeIngredientEndpoints();
+        var api = app.MapGroup("/api/v1"); api.MapRecipeEndpoints(); api.MapRecipeStepEndpoints(); api.MapRecipeIngredientEndpoints(); api.MapCategoryEndpoints();
+        cache.Forward = async () => {
+            using var cacheScope = app.Services.CreateScope();
+            var content = cacheScope.ServiceProvider.GetRequiredService<IPublicContentCache>();
+            await content.InvalidateRecipesAsync(); await content.InvalidateCategoriesAsync();
+        };
         using var scope = app.Services.CreateScope(); var db = Db(scope);
         await db.Database.MigrateAsync();
         var category = Category.Create("Steps test", "steps-test"); category.Id = categoryId;
         var recipe = NewRecipe("steps-test"); recipe.Id = recipeId;
         db.AddRange(new ApplicationUser { Id = "owner", DisplayName = "Steps test owner" }, category, recipe);
+        db.Add(RecipeIngredient.Create(recipe.Id, "Muối", null, null));
         await db.SaveChangesAsync();
         await app.StartAsync(); client = app.GetTestClient(); User("owner");
     }
@@ -341,8 +349,9 @@ public sealed class StepApiTests : IAsyncLifetime
 
     private sealed class RecordingCache : IRecipeCacheInvalidator
     {
+        public Func<Task>? Forward { get; set; }
         public ConcurrentBag<Guid> Calls { get; } = [];
-        public Task InvalidateRecipeAsync(Guid recipeId, string? slug, CancellationToken cancellationToken = default) { Calls.Add(recipeId); return Task.CompletedTask; }
+        public Task InvalidateRecipeAsync(Guid recipeId, string? slug, CancellationToken cancellationToken = default) { Calls.Add(recipeId); return Forward?.Invoke() ?? Task.CompletedTask; }
     }
     private sealed class CommitAckFailure : DbTransactionInterceptor
     {

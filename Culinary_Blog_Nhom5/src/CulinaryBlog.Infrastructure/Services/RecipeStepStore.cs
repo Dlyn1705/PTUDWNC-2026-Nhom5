@@ -115,16 +115,16 @@ public sealed class RecipeStepStore(IServiceScopeFactory scopes, ICurrentUserSer
                 var recipe = await LockedRecipe(db, recipeId, ct);
                 slug = recipe.Slug;
                 if (recipe.Status == RecipeStatus.Archived) throw new ConflictException("Hãy khôi phục công thức về bản nháp trước khi xuất bản.");
-                recipe.Steps = await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(ct);
-                if (recipe.Steps.Count == 0) throw new ValidationException("steps", "Công thức phải có ít nhất một bước trước khi xuất bản.");
                 if (recipe.Status != RecipeStatus.Published)
                 {
+                    recipe.Steps = await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(ct);
+                    recipe.Ingredients = await db.RecipeIngredients.Where(i => i.RecipeId == recipeId).ToListAsync(ct);
                     recipe.Publish();
                     await db.SaveChangesAsync(ct);
                     wasPublished = true;
                     await transaction.CommitAsync(ct);
                 }
-                return new RecipePublishResult(recipe.Id, recipe.Status, recipe.PublishedAt, wasPublished);
+                return new RecipePublishResult(recipe.Id, recipe.Status, recipe.PublishedAt, wasPublished, recipe.UpdatedAt);
             });
             await cache.InvalidateRecipeAsync(recipeId, slug, CancellationToken.None);
             return result;
