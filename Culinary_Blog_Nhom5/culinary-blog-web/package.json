@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:sitemap": "node --test tests/sitemap-robots.unit.cjs",
     "test:search": "node --test tests/search-params.unit.cjs",
     "test:e2e:search": "node tests/search.fullstack.e2e.cjs",
     "test:image-ui": "node tests/image-processing-ui.cjs",
