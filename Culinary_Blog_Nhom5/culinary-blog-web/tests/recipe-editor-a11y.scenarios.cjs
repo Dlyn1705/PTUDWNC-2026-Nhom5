@@ -7,8 +7,9 @@ const { randomUUID } = require("node:crypto");
 
 module.exports = async ({ page, origin, recipe, imageRows, stepRows, ingredients: savedIngredients, png, folder, setReorderStatus }) => {
   const report = { issue: 92, fixture: "production Next.js pages with intercepted API contracts", breakpoints: [], axe: [], keyboard: [], nvda: "manual checklist; not executed by automation" };
-  const press = async locator => { await locator.focus(); await page.keyboard.press("Enter"); };
-  const focusAt = async locator => {
+  let focusAt;
+  const press = async locator => { await locator.focus(); await focusAt(locator); await page.keyboard.press("Enter"); };
+  focusAt = async locator => {
     await locator.evaluate(element => new Promise((resolve, reject) => {
       const end = Date.now() + 3000;
       const check = () => document.activeElement === element ? resolve() : Date.now() > end ? reject(new Error("Expected focus target")) : setTimeout(check, 20);
@@ -39,6 +40,7 @@ module.exports = async ({ page, origin, recipe, imageRows, stepRows, ingredients
   await focusAt(ingredients.getByLabel("Tên nguyên liệu", { exact: true }).nth(0));
   await ingredients.getByLabel("Tên nguyên liệu", { exact: true }).nth(0).fill("Gạo");
   await press(ingredients.getByRole("button", { name: "+ Thêm nguyên liệu", exact: true }));
+  await focusAt(ingredients.getByLabel("Tên nguyên liệu", { exact: true }).nth(1));
   await ingredients.getByLabel("Tên nguyên liệu", { exact: true }).nth(1).fill("Muối");
   await press(ingredients.getByRole("button", { name: "Di chuyển nguyên liệu 2 lên", exact: true }));
   await focusAt(ingredients.getByLabel("Tên nguyên liệu", { exact: true }).nth(0));
