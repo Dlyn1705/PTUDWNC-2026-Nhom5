@@ -92,6 +92,7 @@ public sealed class DeliveryIntegrationTests
         var cookie = login.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
         using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
         refreshRequest.Headers.Add("Cookie", cookie);
+        refreshRequest.Headers.Add("Origin", "http://localhost");
         using var refresh = await app.Client.SendAsync(refreshRequest);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
         Assert.Equal(1, await app.Db(db => db.WelcomeEmailDeliveries.CountAsync()));
