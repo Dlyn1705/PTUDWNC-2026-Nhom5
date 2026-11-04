@@ -29,9 +29,20 @@ Môi trường: Windows, Next.js 16.4.3, Node/npm, .NET 10.
 | `PublicContentCacheTests` | Pass — 6/6 |
 | Full RecipeUpdate test project | 20 pass, 1 fail do môi trường thiếu `RECIPE_UPDATE_TEST_CONNECTION` |
 
+### Lighthouse local stack
+
+Đã khởi động API tại `http://localhost:5156` với database/Redis/MinIO local và frontend tại `http://localhost:3000`. Lighthouse CLI chạy với Chrome headless flags ổn định, chỉ kiểm tra nhóm SEO:
+
+| Route | SEO |
+|---|---:|
+| `/` | 100/100 |
+| `/recipes` | 100/100 |
+| `/categories` | 100/100 |
+| `/recipes/che-dau-do` | 100/100 |
+
 ## Kiểm tra còn phụ thuộc môi trường
 
-- Lighthouse CI đã có config/script nhưng runner hiện tại không hoàn tất được Chrome audit: local page trả HTTP 200 nhưng Lighthouse kết thúc với `NO_FCP`/“page did not paint any content”. Cần chạy lại trên CI runner có Chrome foreground/headless ổn định; không coi đây là pass.
+- Lighthouse CI đã có config/script. Lệnh `lhci autorun` trước đó gặp `NO_FCP` khi tự quản lý server trên runner local; lệnh Lighthouse CLI trực tiếp với Chrome headless flags đã chạy thành công 100/100 cho bốn route nêu trên. Cần chạy lại `lhci autorun` trên CI/staging runner để xác nhận end-to-end.
 - Google Rich Results Test chưa chạy vì fixture/API local không có public HTTPS URL. Khi deploy staging, chạy test với một Published recipe đủ 6 nutrition fields và đính kèm URL/result vào report này.
 - Migration `20261104120000_AddRecipeSlugHistory` được thêm thủ công vì môi trường chưa có `dotnet-ef`; cần chạy migration trên staging/database integration trước merge.
 
