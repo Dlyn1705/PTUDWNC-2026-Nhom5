@@ -224,7 +224,7 @@ export default function StepManager({ recipeId, published = false, archived = fa
           <button type="button" disabled={published && persistedCount === 1 && Boolean(field.stepId)} onClick={() => void erase(index)} aria-label={`Xóa bước ${index + 1}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-destructive">Xóa bước</button>
         </div>
       </div>)}
-      <button data-collection-add type="button" disabled={fields.length >= 100} onClick={() => { append(emptyStep()); focusRow(fields.length, `Đã thêm bước ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>
+      <button data-collection-add type="button" disabled={fields.length >= 100} onClick={() => { append(emptyStep(), { shouldFocus: false }); focusRow(fields.length, `Đã thêm bước ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2">+ Thêm bước tiếp theo</button>
     </fieldset>
     {recipeId && fields.length > 0 ? <section aria-label="Ảnh minh họa bước nấu" className="space-y-3 rounded-xl border p-4">
       <h3 className="font-semibold">Ảnh minh họa bước nấu</h3>
