@@ -147,7 +147,6 @@ async function main() {
         recipe.rowVersion = Buffer.from(randomUUID()).toString("base64");
         return json({ data: rows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
-      if (request.method() === "DELETE" && url.pathname === `/api/v1/recipes/${recipe.id}`) return route.fulfill({ status: 204, headers: cors });
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
         if (pendingPut) await pendingPut;
