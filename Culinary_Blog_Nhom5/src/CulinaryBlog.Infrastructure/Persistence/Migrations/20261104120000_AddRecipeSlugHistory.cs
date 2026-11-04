@@ -1,10 +1,15 @@
 using System;
+using CulinaryBlog.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace CulinaryBlog.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20261104120000_AddRecipeSlugHistory")]
 public partial class AddRecipeSlugHistory : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
