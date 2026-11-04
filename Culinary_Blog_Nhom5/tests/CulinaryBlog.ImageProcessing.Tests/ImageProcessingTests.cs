@@ -304,7 +304,7 @@ public sealed class ImageProcessingTests
         await renderer.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         using var response = await app.Client().DeleteAsync($"/api/v1/recipes/{app.RecipeId}/images/{image.Id}");
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => app.Run<RecipeImageDeletionJob>(job => job.DeleteAsync(image.Id, default)));
+        await Assert.ThrowsAsync<ImageDeletionException>(() => app.Run<RecipeImageDeletionJob>(job => job.DeleteAsync(image.Id, default)));
         renderer.Gate.SetResult(); await running;
         Assert.Null((await app.Image(image.Id)).MediumUrl);
         await app.Run<RecipeImageDeletionJob>(job => job.DeleteAsync(image.Id, default));
@@ -360,6 +360,8 @@ public sealed class ImageProcessingTests
             """));
         await Assert.ThrowsAnyAsync<Exception>(() => app.Run<RecipeImageProcessingJob>(job => job.ProcessAsync(item.Id, default)));
         Assert.Equal("Processing", (await app.Work(item.Id)).Status); Assert.Null((await app.Image(item.Id)).MediumUrl);
+        await app.RestartAsync(); // Rebuild the API/provider on the same PostgreSQL/Hangfire storage and MinIO bucket.
+        Assert.Equal("Processing", (await app.Work(item.Id)).Status);
         await app.Db(db => db.Database.ExecuteSqlRawAsync("DROP TRIGGER fail_image_complete ON \"RecipeImages\"; DROP FUNCTION fail_image_complete();"));
         app.Clock.Advance(301);
         await app.Run<RecipeImageProcessingRecoveryJob>(job => job.EnqueuePendingAsync(default));

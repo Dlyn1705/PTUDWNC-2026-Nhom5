@@ -13,14 +13,14 @@ import { collectionFieldErrors, type RecipeCollectionValidation } from "@/lib/va
 import { useCollectionFocus } from "@/hooks/useCollectionFocus";
 import { toast } from "sonner";
 
-type Props = { recipeId?: string; published?: boolean; parentVersion?: string; onChange?: (items: StepDraft[]) => void;
+type Props = { recipeId?: string; published?: boolean; archived?: boolean; parentVersion?: string; onChange?: (items: StepDraft[]) => void;
   onMutation?: () => Promise<void> | void; onDirtyChange?: (dirty: boolean) => void; validationRef?: Ref<RecipeCollectionValidation>; disabled?: boolean };
 const toDraft = (step: StepDto): StepDraft => ({ stepId: step.id, title: step.title, description: step.description,
   timerMinutes: step.timerMinutes === null ? "" : String(step.timerMinutes), imageUrl: step.imageUrl ?? "" });
 const signature = (step: StepDraft) => JSON.stringify([step.title, step.description, step.timerMinutes, step.imageUrl]);
 const imagePreview = (value: string) => { try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; } };
 
-export default function StepManager({ recipeId, published = false, parentVersion, onChange, onMutation, onDirtyChange, validationRef, disabled = false }: Props) {
+export default function StepManager({ recipeId, published = false, archived = false, parentVersion, onChange, onMutation, onDirtyChange, validationRef, disabled = false }: Props) {
   const form = useForm<{ items: StepDraft[] }>({ resolver: zodResolver(stepFormSchema), mode: "onBlur", defaultValues: { items: [] } });
   const { control, reset, getValues, setValue, trigger, setError: setFieldError, register, formState: { errors } } = form;
   useImperativeHandle(validationRef, () => ({
@@ -238,7 +238,8 @@ export default function StepManager({ recipeId, published = false, parentVersion
           <Image src={image.thumbnailUrl ?? image.originalUrl} alt="" width={96} height={72} unoptimized className="rounded object-cover" />
           <span>Chọn ảnh {index + 1}{image.altText ? `: ${image.altText}` : ""}</span>
         </button>)}</div>
-      <FileUploadDropzone recipeId={recipeId} disabled={disabled || busy || loading || conflict || parentChanged || !version} onUploadSuccess={chooseImage} onImagesChange={setImages} onBusyChange={mediaBusyChange} />
+      {archived ? <p role="status" className="text-sm">Khôi phục công thức về nháp trước khi tải thêm ảnh bước nấu. Bạn vẫn có thể chọn ảnh đã có.</p>
+        : <FileUploadDropzone recipeId={recipeId} disabled={disabled || busy || loading || conflict || parentChanged || !version} onUploadSuccess={chooseImage} onImagesChange={setImages} onBusyChange={mediaBusyChange} />}
       <p className="text-xs text-muted-foreground">Ảnh dùng chung với thư viện công thức. Xóa bước chỉ bỏ liên kết, không xóa tệp ảnh. Chỉ ảnh xử lý hoàn tất mới được tự điền; lưu bước để ghi lại.</p>
     </section> : !recipeId && <p className="text-sm text-muted-foreground">Lưu bản nháp trước để tải/chọn ảnh cho từng bước.</p>}
   </section>;

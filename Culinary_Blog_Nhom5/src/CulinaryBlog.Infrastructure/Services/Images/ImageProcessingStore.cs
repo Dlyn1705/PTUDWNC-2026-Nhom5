@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Jobs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ public sealed record ImageProcessingClaim(RecipeImageGeneration Generation, stri
 
 public sealed class ImageProcessingStore(ApplicationDbContext db, TimeProvider clock)
 {
-    public static readonly int[] RetrySeconds = [60, 300, 900];
+    public static readonly int[] RetrySeconds = BackgroundJobRetryPolicy.Delays;
     public async Task<ImageProcessingClaim?> ClaimAsync(Guid id, CancellationToken ct)
     {
         return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
@@ -22,7 +23,7 @@ public sealed class ImageProcessingStore(ApplicationDbContext db, TimeProvider c
             if (work is null || work.Status is "Completed" or "Failed" or "Skipped" || work.NextAttemptAt > now ||
                 work.Status == "Processing" && work.LeaseExpiresAt > now) return null;
             var image = await db.RecipeImages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.Recipe.IsDeleted, ct);
-            if (image is null || work.AttemptCount >= 4)
+            if (image is null || work.AttemptCount >= BackgroundJobRetryPolicy.MaximumAttempts)
             {
                 work.Status = image is null ? "Skipped" : "Failed";
                 work.LastErrorCode = image is null ? "ImageUnavailable" : "AttemptsExhausted";
@@ -74,7 +75,7 @@ public sealed class ImageProcessingStore(ApplicationDbContext db, TimeProvider c
     public async Task FailAsync(ImageProcessingClaim claim, string code, bool permanent, CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;
-        var state = permanent || claim.Attempt >= 4 ? "Failed" : "Pending";
+        var state = permanent || claim.Attempt >= BackgroundJobRetryPolicy.MaximumAttempts ? "Failed" : "Pending";
         var next = now.AddSeconds(RetrySeconds[Math.Min(claim.Attempt - 1, 2)]);
         await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {

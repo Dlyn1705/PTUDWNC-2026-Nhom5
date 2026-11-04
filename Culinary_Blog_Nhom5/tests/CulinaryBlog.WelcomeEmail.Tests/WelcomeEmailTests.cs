@@ -66,7 +66,7 @@ public sealed class TemplateAndOptionsTests
         var policy = typeof(WelcomeEmailJob).GetMethod(nameof(WelcomeEmailJob.SendAsync))!.CustomAttributes.Single(x => x.AttributeType == typeof(AutomaticRetryAttribute));
         Assert.Equal(3, policy.NamedArguments.Single(x => x.MemberName == "Attempts").TypedValue.Value);
         var delays = (IEnumerable<CustomAttributeTypedArgument>)policy.NamedArguments.Single(x => x.MemberName == "DelaysInSeconds").TypedValue.Value!;
-        Assert.Equal(new[] { 60, 300, 900 }, delays.Select(x => (int)x.Value!));
+        Assert.Equal(new[] { 60, 120, 240 }, delays.Select(x => (int)x.Value!));
         Assert.Null(new WelcomeEmailSendException().InnerException);
     }
 }

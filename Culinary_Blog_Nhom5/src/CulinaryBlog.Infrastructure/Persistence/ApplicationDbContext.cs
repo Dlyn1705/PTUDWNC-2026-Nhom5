@@ -22,6 +22,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<RecipeImageWork> RecipeImageWork => Set<RecipeImageWork>();
     public DbSet<RecipeImageGeneration> RecipeImageGenerations => Set<RecipeImageGeneration>();
+    public DbSet<RecipeImageDeletionWork> RecipeImageDeletionWork => Set<RecipeImageDeletionWork>();
+    public DbSet<RecipeImageUploadIntent> RecipeImageUploadIntents => Set<RecipeImageUploadIntent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -15,11 +15,13 @@ const descriptions = {
   archive: "Công thức sẽ được lưu trữ và ẩn khỏi danh sách công khai.",
   restore: "Công thức trở về bản nháp. Bạn cần xuất bản lại để công khai.",
 };
-export function RecipeLifecycleDialog({ target, busy, error, onCancel, onConfirm, onReload, returnFocusRef }: {
+export function RecipeLifecycleDialog({ target, busy, error, onCancel, onConfirm, onReload, returnFocusRef,
+  reloadLabel = "Tải lại danh sách", fallbackFocusId = "recipe-status-heading" }: {
   target: { id: string; title: string; action: LifecycleAction } | null;
   busy: boolean; error: unknown; onCancel: () => void; onConfirm: () => void;
   onReload: () => void;
   returnFocusRef: RefObject<HTMLButtonElement | null>;
+  reloadLabel?: string; fallbackFocusId?: string;
 }) {
   const presentation = error ? errorPresentation(error) : null;
   return <AlertDialog open={Boolean(target)} onOpenChange={open => { if (!open && !busy) onCancel(); }}>
@@ -29,7 +31,7 @@ export function RecipeLifecycleDialog({ target, busy, error, onCancel, onConfirm
         returnFocusRef.current.focus();
         return;
       }
-      document.getElementById("recipe-status-heading")?.focus();
+      document.getElementById(fallbackFocusId)?.focus();
     }}>
       <AlertDialogHeader>
         <AlertDialogTitle>{target ? lifecycleLabels[target.action] : "Cập nhật"} công thức?</AlertDialogTitle>
@@ -41,7 +43,7 @@ export function RecipeLifecycleDialog({ target, busy, error, onCancel, onConfirm
           : presentation.description}</p>
         {presentation.correlationId && <p>Mã hỗ trợ: {presentation.correlationId}</p>}
         {target && presentation.status === 422 && <Link href={`/dashboard/recipes/${target.id}/edit`} className="underline">Mở trình chỉnh sửa</Link>}
-        {[404, 409].includes(presentation.status ?? 0) && <Button type="button" variant="outline" onClick={onReload}>Tải lại danh sách</Button>}
+        {[404, 409].includes(presentation.status ?? 0) && <Button type="button" variant="outline" onClick={onReload}>{reloadLabel}</Button>}
       </div>}
       <p role="status" className="text-sm">{busy ? "Đang cập nhật công thức…" : ""}</p>
       <AlertDialogFooter aria-busy={busy}>

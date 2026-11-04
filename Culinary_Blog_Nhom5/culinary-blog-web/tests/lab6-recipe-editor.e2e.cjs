@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const { spawn } = require("node:child_process");
 const { randomUUID } = require("node:crypto");
 const { chromium } = require("playwright");
+const AxeBuilder = require("@axe-core/playwright").default;
 const root = path.resolve(__dirname, "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function listen(server) { return new Promise(resolve => server.listen(0, "127.0.0.1", () => resolve(server.address().port))); }
@@ -52,6 +53,7 @@ async function main() {
   server.stderr.on("data", value => { logs = (logs + value).slice(-10000); });
   let browser; let context; let adminContext; let page;
   const errors = [];
+  const auditLogs = [];
   try {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -64,6 +66,9 @@ async function main() {
       ...(process.env.E2E_BROWSER_CHANNEL === "bundled" ? {} : { channel: process.env.E2E_BROWSER_CHANNEL || "chrome" }),
     });
     context = await browser.newContext();
+    const stepImageUrl = origin + "/test-step.png";
+    await context.route(stepImageUrl, route => route.fulfill({ contentType: "image/png",
+      body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jN1sAAAAASUVORK5CYII=", "base64") }));
     const recipe = { id: "77777777-7777-4777-8777-777777777777", title: "Công thức kiểm thử xóa", slug: "deletion-test",
       description: "Mô tả kiểm thử", instructions: "Trộn", status: 0, difficulty: 1, prepTimeMinutes: 1, cookTimeMinutes: 1, servings: 2,
       categoryId: "11111111-1111-4111-8111-111111111111", rowVersion: "AAAAAAAAAAAAAAAAAAAAAA==",
@@ -79,6 +84,12 @@ async function main() {
     let imageUploads = 0;
     let imageUploadGate;
     let collectionReorderStatus = 200;
+    let imageProcessingState = "Completed";
+    let nutritionStatus = 200;
+    let nutritionCalls = 0;
+    let lifecycleStatus = 200;
+    let lifecycleCalls = 0;
+    let deleteCalls = 0;
     const ingredients = [];
     let activeSession = null;
     const authSession = email => ({ accessToken: "deletion-access", accessTokenExpiry: new Date(Date.now() + 3600000).toISOString(),
@@ -142,8 +153,29 @@ async function main() {
         if (pendingPut) await pendingPut;
         if (putStatus !== 200) return json({ status: putStatus, detail: "PRIVATE_BACKEND_DETAIL", errors: mutationErrors, correlationId: "lab6-save-error" }, putStatus);
         const payload = request.postDataJSON();
+        assert.equal(payload.rowVersion, recipe.rowVersion, "Basic save must use the current aggregate version");
         Object.assign(recipe, { ...payload, prepTimeMinutes: payload.prepTime, cookTimeMinutes: payload.cookTime, rowVersion: "Ag==" });
         return json({ data: { id: recipe.id, slug: recipe.slug, rowVersion: recipe.rowVersion } });
+      }
+      if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}/nutrition`) {
+        nutritionCalls++;
+        const payload = request.postDataJSON();
+        assert.equal(payload.rowVersion, recipe.rowVersion);
+        if (nutritionStatus !== 200) return json({ status: nutritionStatus, errors: { Protein: ["Protein cần kiểm tra lại."] }, correlationId: "nutrition-validation" }, nutritionStatus);
+        recipe.nutrition = Object.fromEntries(["calories", "protein", "carbohydrates", "fat", "fiber", "sodium"].map(key => [key, payload[key] ?? 0]));
+        recipe.rowVersion = Buffer.from(`nutrition-${nutritionCalls}`).toString("base64");
+        return json({ data: { id: recipe.id, slug: recipe.slug, rowVersion: recipe.rowVersion } });
+      }
+      if (request.method() === "PATCH" && /\/(publish|unpublish|archive|unarchive)$/.test(url.pathname)) {
+        lifecycleCalls++;
+        if (lifecycleStatus !== 200) return json({ status: lifecycleStatus, correlationId: "editor-lifecycle-test" }, lifecycleStatus);
+        recipe.status = url.pathname.endsWith("/publish") ? 1 : url.pathname.endsWith("/archive") ? 2 : 0;
+        recipe.rowVersion = Buffer.from(`lifecycle-${lifecycleCalls}`).toString("base64");
+        return json({ data: { id: recipe.id, status: recipe.status, publishedAt: recipe.status === 1 ? new Date().toISOString() : null } });
+      }
+      if (request.method() === "DELETE" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
+        deleteCalls++; recipeStatus = 404; mineEmpty = true;
+        return route.fulfill({ status: 204, headers: cors });
       }
       if (request.method() === "POST" && url.pathname.replace(/\/$/, "") === "/api/v1/recipes") {
         createCalls++;
@@ -167,8 +199,8 @@ async function main() {
         if (request.method() === "POST") {
           imageUploads++;
           assert.ok(request.headers()["content-type"].startsWith("multipart/form-data;"));
-          const image = { id: randomUUID(), recipeId: recipe.id, originalUrl: "https://images.test/step.png", mediumUrl: null, thumbnailUrl: null,
-            altText: "Ảnh bước nấu", isPrimary: imageRows.length === 0, orderIndex: imageRows.length, processingStatus: "Completed" };
+          const image = { id: randomUUID(), recipeId: recipe.id, originalUrl: stepImageUrl, mediumUrl: null, thumbnailUrl: null,
+            altText: "Ảnh bước nấu", isPrimary: imageRows.length === 0, orderIndex: imageRows.length, processingStatus: imageProcessingState };
           imageRows.push(image);
           recipe.rowVersion = Buffer.from(`image-version-${imageUploads}`).toString("base64");
           if (imageUploadGate) await imageUploadGate;
@@ -209,6 +241,7 @@ async function main() {
     page = await context.newPage();
     page.on("console", message => {
       if (message.type() === "error" && /^(TypeError|ReferenceError|Error: Minified React)/.test(message.text())) errors.push(message.text());
+      try { const entry = JSON.parse(message.text()); if (entry.eventType === "ClientHttpError") auditLogs.push(entry); } catch { /* Other browser output. */ }
     });
     page.on("pageerror", error => errors.push(error.message));
     const welcome = page.getByRole("status").filter({ hasText: "Chào mừng bạn đến với Culinary Blog!" });
@@ -372,6 +405,17 @@ async function main() {
     unblockPut(); pendingPut = undefined;
     await page.getByRole("status").filter({ hasText: "Đã lưu thay đổi thành công." }).waitFor();
     assert.equal(putCalls, beforeDuplicate + 1);
+    // Nutrition has a separate endpoint; its 422 must focus the edit field and retain the form.
+    nutritionStatus = 422;
+    await page.getByLabel("Protein", { exact: true }).fill("12");
+    await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+    await page.getByRole("alert").filter({ hasText: "Protein cần kiểm tra lại." }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.id.endsWith("-edit-nutrition-1"));
+    assert.equal(await page.getByLabel("Protein", { exact: true }).inputValue(), "12");
+    nutritionStatus = 200;
+    await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "Đã lưu thay đổi thành công." }).waitFor();
+    assert.equal(recipe.nutrition.protein, 12);
     let unexpectedDialogs = 0;
     const unexpected = prompt => { unexpectedDialogs++; void prompt.dismiss(); };
     page.on("dialog", unexpected);
@@ -477,7 +521,7 @@ async function main() {
     await stepMedia.locator('input[type="file"]').setInputFiles({ name: "step.png", mimeType: "image/png", buffer: png });
     await stepMedia.getByRole("button", { name: "Tải ảnh lên", exact: true }).click();
     await page.getByLabel("URL ảnh bước 1 (tùy chọn)", { exact: true }).waitFor();
-    await page.waitForFunction(() => document.querySelector('input[id$="-imageUrl"]')?.value === "https://images.test/step.png");
+    await page.waitForFunction(url => document.querySelector('input[id$="-imageUrl"]')?.value === url, stepImageUrl);
     await page.getByRole("button", { name: "Lưu bước 1", exact: true }).waitFor({ state: "visible" });
     await page.waitForFunction(() => [...document.querySelectorAll("button")].some(button => button.textContent === "Lưu bước 1" && !button.matches(":disabled")));
     assert.equal(await stepText.inputValue(), "Giữ nội dung bước đang sửa khi tải ảnh");
@@ -486,22 +530,69 @@ async function main() {
     await page.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
     await page.getByRole("alert").filter({ hasText: "step-image-validation" }).waitFor();
     assert.equal(await stepText.inputValue(), "Giữ nội dung bước đang sửa khi tải ảnh");
-    assert.equal(await page.getByLabel("URL ảnh bước 1 (tùy chọn)", { exact: true }).inputValue(), "https://images.test/step.png");
+    assert.equal(await page.getByLabel("URL ảnh bước 1 (tùy chọn)", { exact: true }).inputValue(), stepImageUrl);
     stepSaveStatus = 200;
     await page.getByRole("button", { name: "Lưu bước 1", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Đã lưu các bước." }).waitFor();
-    assert.equal(stepRows[0].imageUrl, "https://images.test/step.png");
+    assert.equal(stepRows[0].imageUrl, stepImageUrl);
     await stepMedia.getByRole("button", { name: "Tải thư viện ảnh để chọn", exact: true }).click();
     await stepMedia.getByRole("button", { name: "Chọn ảnh 1: Ảnh bước nấu", exact: true }).waitFor();
     assert.equal(await page.locator("[id]").evaluateAll(elements => new Set(elements.map(element => element.id)).size === elements.length), true, "Two dropzones must not duplicate help IDs");
+    // Gallery commit followed by a failed processing result still rotates the parent's version.
+    putStatus = 200;
+    await page.locator('[id$="-edit-title"]:visible').fill("Giữ tiêu đề khi gallery xử lý lỗi");
+    imageProcessingState = "Failed";
+    const gallery = page.getByRole("region", { name: "Bộ sưu tập ảnh công thức", exact: true });
+    await gallery.locator('input[type="file"]').setInputFiles({ name: "failed-preview.png", mimeType: "image/png", buffer: png });
+    await gallery.getByRole("button", { name: "Tải ảnh lên", exact: true }).click();
+    await gallery.getByRole("alert").waitFor();
+    assert.equal(await page.locator('[id$="-edit-title"]:visible').inputValue(), "Giữ tiêu đề khi gallery xử lý lỗi");
+    await page.waitForFunction(() => [...document.querySelectorAll("button")].some(button => button.textContent === "Lưu thay đổi" && !button.matches(":disabled")));
+    await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "Đã lưu thay đổi thành công." }).waitFor();
+    imageProcessingState = "Completed";
+    // Lifecycle uses the existing shared API/dialog and reloads the editor's aggregate.
+    await page.goto(editUrl);
+    const lifecycle = page.getByRole("region", { name: "Trạng thái trong trình chỉnh sửa", exact: true });
+    await lifecycle.getByRole("button", { name: "Xuất bản", exact: true }).waitFor();
+    await stepText.fill("Chưa lưu thì không được xuất bản");
+    assert.equal(await lifecycle.getByRole("button", { name: "Xuất bản", exact: true }).isDisabled(), true);
+    page.once("dialog", prompt => prompt.accept());
+    await page.getByRole("button", { name: "Tải bản mới (bỏ thay đổi đang nhập)", exact: true }).click();
+    lifecycleStatus = 422;
+    await lifecycle.getByRole("button", { name: "Xuất bản", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await page.getByRole("alertdialog").getByText("editor-lifecycle-test", { exact: false }).waitFor();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Hủy", exact: true }).click();
+    lifecycleStatus = 200;
+    for (const [action, status] of [["Xuất bản", "Published"], ["Lưu trữ", "Archived"], ["Khôi phục", "Draft"]]) {
+      const before = lifecycleCalls;
+      await lifecycle.getByRole("button", { name: action, exact: true }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Xác nhận", exact: true }).evaluate(button => { button.click(); button.click(); });
+      await lifecycle.getByText(status, { exact: true }).waitFor();
+      assert.equal(lifecycleCalls, before + 1);
+      await page.waitForFunction(() => document.activeElement?.hasAttribute("data-editor-status-heading"));
+      const a11y = await new AxeBuilder({ page }).include('[aria-label="Trạng thái trong trình chỉnh sửa"]').analyze();
+      assert.deepEqual(a11y.violations.filter(item => ["serious", "critical"].includes(item.impact)), []);
+      if (status !== "Draft") {
+        const evidence = path.resolve(root, "..", "docx", "Spec", "evidence", "lab8");
+        fs.mkdirSync(evidence, { recursive: true });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({ path: path.join(evidence, `editor-${status.toLowerCase()}-mobile.png`), fullPage: true });
+      }
+      if (status === "Archived") assert.equal(await stepMedia.locator('input[type="file"]').count(), 0);
+    }
+    await stepMedia.getByRole("button", { name: "Tải thư viện ảnh để chọn", exact: true }).click();
+    assert.equal(imageUploads, 2);
     await stepText.fill("Bản nháp giữ lại khi người khác sửa bước");
-    await stepMedia.getByRole("button", { name: "Chọn ảnh khác", exact: true }).click();
+    if (await stepMedia.getByRole("button", { name: "Chọn ảnh khác", exact: true }).count())
+      await stepMedia.getByRole("button", { name: "Chọn ảnh khác", exact: true }).click();
     await stepMedia.locator('input[type="file"]').setInputFiles({ name: "step-two.png", mimeType: "image/png", buffer: png });
     let releaseImage;
     imageUploadGate = new Promise(resolve => { releaseImage = resolve; });
     await stepMedia.getByRole("button", { name: "Tải ảnh lên", exact: true }).click();
-    for (let attempt = 0; attempt < 250 && imageUploads < 2; attempt++) await delay(20);
-    assert.equal(imageUploads, 2);
+    for (let attempt = 0; attempt < 250 && imageUploads < 3; attempt++) await delay(20);
+    assert.equal(imageUploads, 3);
     stepRows[0].description = "Người khác đã sửa bước trên server";
     releaseImage(); imageUploadGate = undefined;
     await page.getByRole("alert").filter({ hasText: "Các bước đã thay đổi trong lúc tải ảnh" }).waitFor();
@@ -510,6 +601,9 @@ async function main() {
     page.once("dialog", prompt => prompt.accept());
     await require("./recipe-editor-a11y.scenarios.cjs")({ page, origin, recipe, imageRows, stepRows, ingredients, png, folder,
       setReorderStatus: value => { collectionReorderStatus = value; } });
+    await page.getByRole("heading", { name: "Chưa có công thức nào", exact: true }).waitFor();
+    assert.equal(deleteCalls, 1);
+    recipeStatus = 200; mineEmpty = false;
     // Ownership guard and an actual Admin session, independent of the author context.
     recipe.author.id = "another-author";
     await page.goto(editUrl);
@@ -541,7 +635,10 @@ async function main() {
     await adminPage.getByRole("button", { name: "Mở menu dashboard", exact: true }).click();
     await adminPage.getByRole("dialog").getByRole("link", { name: "Danh mục", exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS: welcome registration receipt, shared step image upload/selection, upload RowVersion reconciliation/concurrent-edit protection, preserved drafts after 422; RHF basic/nutrition/ingredients/steps, 401/403/409/500 recovery, duplicate submit, ownership/Admin, pagination, mobile focus and unsaved drafts.");
+    assert.ok(auditLogs.some(entry => entry.path?.endsWith("/nutrition") && entry.status === 422 && entry.correlationId === "nutrition-validation"));
+    assert.ok(auditLogs.some(entry => entry.path?.endsWith("/publish") && entry.status === 422));
+    assert.ok(!JSON.stringify(auditLogs).includes("PRIVATE_BACKEND_DETAIL") && !JSON.stringify(auditLogs).includes("E2e-only-password1!"));
+    console.log("PASS: recipe editor create/update/nutrition, lifecycle Draft-Published-Archived-Draft, dirty/pending guards, shared image upload/selection and version reconciliation, redacted HTTP logging/correlation, lifecycle axe and permission/state regression.");
   } catch (error) {
     console.error(logs);
     if (page) console.error("Browser:", page.url(), "UI:", await page.locator("body").innerText().catch(() => "unavailable"), "Errors:", errors);
