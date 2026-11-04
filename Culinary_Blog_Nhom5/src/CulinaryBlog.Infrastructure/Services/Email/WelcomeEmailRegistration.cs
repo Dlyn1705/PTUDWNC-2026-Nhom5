@@ -19,6 +19,7 @@ public static class WelcomeEmailRegistration
         services.AddTransient<WelcomeEmailStore>();
         services.AddTransient<WelcomeEmailJob>();
         services.AddTransient<WelcomeEmailDispatcher>();
+        services.AddTransient<IWelcomeEmailReconciliation, WelcomeEmailReconciliation>();
         return services;
     }
 

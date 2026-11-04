@@ -36,6 +36,8 @@ public sealed class WelcomeEmailDispatcher(IServiceScopeFactory scopes, IBackgro
         // Keep failed tombstones/attempt caps for diagnosis without retaining recipient PII forever.
         await readDb.WelcomeEmailDeliveries.Where(x => x.Status == WelcomeEmailStatus.Failed && x.UpdatedAt < cutoff && x.RecipientEmail != "")
             .ExecuteUpdateAsync(set => set.SetProperty(x => x.RecipientEmail, ""), ct);
+        await readDb.WelcomeEmailReconciliations.Where(x => x.CreatedAt < cutoff &&
+            !readDb.WelcomeEmailDeliveries.Any(delivery => delivery.Id == x.DeliveryId)).ExecuteDeleteAsync(ct);
     }
 
     private async Task DispatchOneAsync(Guid id, CancellationToken ct)
@@ -50,8 +52,15 @@ public sealed class WelcomeEmailDispatcher(IServiceScopeFactory scopes, IBackgro
             var item = await db.WelcomeEmailDeliveries.FromSqlInterpolated(
                 $"SELECT * FROM \"WelcomeEmailDeliveries\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
             var now = clock.GetUtcNow().UtcDateTime;
-            if (item is null || item.Status is WelcomeEmailStatus.Sent or WelcomeEmailStatus.Skipped or WelcomeEmailStatus.Failed ||
+            if (item is null || item.Status is WelcomeEmailStatus.Sent or WelcomeEmailStatus.Skipped or WelcomeEmailStatus.Failed or WelcomeEmailStatus.NeedsReview ||
                 item.Status == WelcomeEmailStatus.Processing && item.LeaseExpiresAt > now || item.NextAttemptAt > now) return;
+            if (item.SubmissionStartedAt is not null)
+            {
+                WelcomeEmailStore.HoldForReview(item, now, "ExpiredSubmissionUnknown");
+                await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+                logger.LogWarning("Welcome email {EmailMessageId} requires reconciliation with {CorrelationId}", id, $"job-welcome-{id:N}");
+                return;
+            }
             if (item.Status == WelcomeEmailStatus.Pending && item.HangfireJobId is not null)
             {
                 using var connection = storage.GetConnection();

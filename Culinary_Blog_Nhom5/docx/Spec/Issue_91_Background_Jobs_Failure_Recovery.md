@@ -2,6 +2,8 @@
 
 Phụ trách: Phan Thị Bảo Trâm (`btram0812`, 2312778). Phạm vi: phần background jobs/data durability của NFR-REL-002/003, FR-JOB-001/002, recipe images và soft delete. Không bao gồm backup PostgreSQL, SLA và Redis fallback của #88.
 
+Chính sách SMTP hiện tại: [NeedsReview và API đối soát Admin](Runbook_Issue91_SMTP_Reconciliation.md). Các kết quả 03–04/11 bên dưới là bằng chứng lịch sử; bản bổ sung không tự gửi lại khi kết quả SMTP chưa rõ và không reset retry budget.
+
 ## Chạy nghiệm thu từ môi trường sạch
 
 Cần Docker Desktop hoạt động, .NET SDK 10 và PowerShell. Chạy tại thư mục gốc repository:
@@ -45,7 +47,7 @@ TRX, `integration-summary.json` và `failure-recovery-evidence.json` nằm trong
 | Xóa original xong, xóa medium lỗi | Image tombstone + deletion work còn; một phần object đã mất | Attempt tiếp theo bỏ qua object không còn và hoàn tất phần còn lại |
 | Xóa object xong, DELETE metadata lỗi | Metadata/work chưa Completed; object có thể đã hết | Rollback DB giữ business intent; restart/retry xóa idempotent rồi commit metadata + Completed |
 | Recipe bị soft delete trong lúc processing/deletion | Không publish sau soft delete; dữ liệu chưa hết retention được giữ | Worker skip/defer; purge sau 30 ngày dọn metadata/object/generation; failed record không chặn batch sau |
-| SMTP accepted nhưng commit Sent thất bại | Outbox vẫn Processing, không báo Sent giả; email có thể đã được nhận | **Giới hạn SMTP:** retry sau lease có thể gửi trùng. Không có transaction chung giữa SMTP và PostgreSQL. Test cố ý xác nhận rủi ro này; muốn exactly-once side effect cần provider hỗ trợ idempotency theo delivery ID |
+| SMTP accepted nhưng commit Sent thất bại | NeedsReview; nếu DB chưa ghi được trạng thái này thì giữ Processing + SubmissionStartedAt | Recovery không tự gửi lại; Admin đối soát bằng chứng qua API. Không báo Sent giả và không xem Message-ID là SMTP deduplication |
 
 ## Recovery vận hành
 
@@ -54,12 +56,12 @@ Tra cứu theo `job-process-<imageId:N>`, `job-delete-<imageId:N>`, `job-upload-
 1. Khắc phục nguyên nhân (kết nối, quota, object quyền truy cập, dữ liệu không hợp lệ). Kiểm tra DB row, manifest, trạng thái job và object của đúng business key trước khi retry.
 2. Pending/lease hết hạn: dùng recurring recovery job; không enqueue nhiều job thủ công. Failed không được sweep tự reset budget.
 3. Với Failed deletion/original cleanup, thao tác quản trị trên DB cần giới hạn đúng một business key, kiểm tra không còn worker/lease sống, giữ bản ghi audit trước/sau và lấy image advisory lock như worker. Chỉ sau khi xác minh object/metadata và nguyên nhân đã sửa mới mở một budget mới (Pending, count 0, due now, clear lease/live job ID hoặc Failed=false cho upload intent). Không reset toàn bộ bảng hoặc xóa ledger để “sửa lỗi”.
-4. Welcome SMTP có unknown outcome: đối chiếu mailbox/provider trước khi requeue. Gửi lại có thể trùng; không tự sửa Sent khi chưa có bằng chứng acceptance. Yêu cầu exactly-once vẫn cần quyết định contract provider.
+4. Welcome SMTP có unknown outcome: giữ NeedsReview. Dùng API Admin đối soát bằng chứng, không sửa Sent/Pending bằng SQL; NotAccepted chỉ cho phép retry sau khi xác minh transport chưa nhận và worker cũ không thể gửi muộn. Chi tiết ở runbook đối soát.
 5. Purge retry chỉ áp dụng recipe hết retention. Không xóa metadata trước object hoặc bỏ qua lỗi I/O; chạy lại job sẽ tiếp tục an toàn ở các record/batch còn lại.
 
 ## Mức độ bằng chứng
 
-Các test restart thực sự dừng và tạo lại **API/Hangfire host** trên cùng các dependency. Chúng không mô phỏng mất đĩa vật lý, không kill PostgreSQL/MinIO container và không thay cho nghiệm thu backup/disaster recovery của #88. MailHog kiểm tra giao nhận SMTP thực trong happy path/restart; unknown SMTP outcome là giới hạn còn cần quyết định. Chưa được ghi `Closes #91` nếu tiêu chí không gửi trùng trong cửa sổ này chưa được thống nhất.
+Các test restart thực sự dừng và tạo lại **API/Hangfire host** trên cùng các dependency. Chúng không mô phỏng mất đĩa vật lý, không kill PostgreSQL/MinIO container và không thay cho nghiệm thu backup/disaster recovery của #88. MailHog kiểm tra acceptance rồi lỗi DB/restart, không có lần gửi tự động thứ hai. Chính sách đối soát thủ công cần được nhóm trưởng review; không tuyên bố exactly-once email đầu cuối.
 
 ## Kết quả nghiệm thu 03/11/2026
 
@@ -81,17 +83,12 @@ Runner kết thúc exit code 0 và đã xóa cả ba container cùng network c�
 - [Tổng hợp máy đọc được](evidence/issue91/integration-summary.json).
 - [Tám tình huống recovery và correlation evidence](evidence/issue91/failure-recovery-evidence.json).
 
-Kết quả pass bao gồm test ghi nhận **giới hạn có thể gửi trùng của SMTP khi accepted/commit Sent bị lỗi**; không được diễn giải 176 test pass thành bảo đảm exactly-once email. Tiêu chí này còn cần thống nhất với người phụ trách contract/provider trước khi đóng #91.
+Kết quả lịch sử 03/11 bao gồm test ghi nhận **khả năng gửi trùng của phiên bản SMTP cũ khi accepted/commit Sent bị lỗi**. Bản bổ sung NeedsReview thay thế hành vi retry trong cửa sổ này bằng chờ đối soát; xem runbook và kết quả mới, không diễn giải 176 test lịch sử thành exactly-once email.
 
 ## Bổ sung đối soát email sau PR #110
 
 Welcome job truyền delivery ID tới transport. SMTP gắn `Message-ID` cố định `welcome-<deliveryId:N>@culinary.invalid`, không chứa email người nhận hoặc secret. Cùng một delivery giữ nguyên business key qua retry/restart để truy vết với outbox và mail capture. Header này **không phải** idempotency của SMTP và không thay đổi chính sách retry hiện có.
 
-Hai hướng xử lý unknown outcome còn cần quyết định:
-
-1. Giữ SMTP: lưu trạng thái chờ đối soát sau cửa sổ đã bắt đầu gửi nhưng không xác nhận được kết quả; không tự gửi lại khi lease hết. Chỉ chuyển Sent khi có bằng chứng nhận thư; chỉ mở lại retry khi có bằng chứng chưa nhận. Tránh gửi trùng tự động nhưng có thể cần vận hành đối soát.
-2. Dùng provider hỗ trợ idempotency: gửi delivery ID làm idempotency key, lưu receipt và đối soát theo contract provider. Cần thống nhất provider, thời hạn giữ key, hành vi timeout và credential ngoài repository trước khi tích hợp.
-
-Chưa chọn ngầm một trong hai hướng và chưa thay đổi checklist nghiệm thu. Việc merge PR #110 tự nó không phải quyết định chấp nhận exactly-once SMTP.
+Phần tiếp theo triển khai hướng giữ SMTP và chờ đối soát: checkpoint trước transport, trạng thái NeedsReview, API Admin có audit nguyên tử và idempotency theo mã bằng chứng. Chỉ mở lại retry khi có bằng chứng NotAccepted, không reset attempt count. Đây là thay đổi hành vi để nhóm trưởng review; việc merge PR #110/#113 không tự biến SMTP thành exactly-once.
 
 Kiểm tra ngày 04/11/2026: [suite WelcomeEmail 27/27](evidence/issue91/welcome-message-id-suite-20261104.json) đạt với header mới; sau khi thêm assertion business key, [hai ca retry identity và SMTP thực 2/2](evidence/issue91/welcome-business-key-retry-20261104.json) đạt. Test xác nhận bốn transport attempt đều nhận cùng delivery ID và MailHog chứa đúng `Message-ID` tương ứng. Đây là bằng chứng correlation ổn định, không phải bằng chứng SMTP deduplication.

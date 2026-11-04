@@ -1,0 +1,19 @@
+{
+  "suites": [
+    {
+      "suite": "WelcomeEmail",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 1,
+      "failed": 0,
+      "passed": 1
+    }
+  ],
+  "maximumAttempts": 4,
+  "project": "culinary-issue91-313b883b14d1",
+  "retryDelaysSeconds": [
+    60,
+    120,
+    240
+  ]
+}

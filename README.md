@@ -188,6 +188,9 @@ Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP
 
 ### Integration test local
 
+Email có kết quả gửi chưa rõ dùng NeedsReview và đối soát Admin, không tự gửi lại:
+[quy trình SMTP reconciliation #91](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue91_SMTP_Reconciliation.md).
+
 Để nghiệm thu recipe/media/jobs trên môi trường sạch, chạy từ thư mục gốc:
 
 ```powershell
