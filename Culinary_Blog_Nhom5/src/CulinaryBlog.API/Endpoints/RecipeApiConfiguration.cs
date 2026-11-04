@@ -1,6 +1,5 @@
 using CulinaryBlog.API.Responses;
 using System.Globalization;
-using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,17 +16,18 @@ public static class RecipeApiConfiguration
         {
             foreach (var (name, limit) in new[] { ("recipe-read", 100), ("recipe-write", 30) })
                 options.AddPolicy(name, context => RateLimitPartition.GetFixedWindowLimiter(
-                    context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                        ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    (context.Connection.RemoteIpAddress?.IsIPv4MappedToIPv6 == true
+                        ? context.Connection.RemoteIpAddress.MapToIPv4()
+                        : context.Connection.RemoteIpAddress)?.ToString() ?? "unknown",
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = limit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
                     }));
             options.OnRejected = async (context, ct) =>
             {
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-                    context.HttpContext.Response.Headers.RetryAfter =
-                        Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+                var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+                    ? Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds)) : 60;
+                context.HttpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
                 await ApiProblemResponses.WriteAsync(
                     context.HttpContext,
                     StatusCodes.Status429TooManyRequests,

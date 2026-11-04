@@ -14,6 +14,7 @@ using CulinaryBlog.Application.Features.Auth.Commands.Login;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.API.Security;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
@@ -103,8 +104,10 @@ public static class AuthEndpoints
         group.MapPost("/refresh", async (
                 HttpContext context,
                 ISender sender,
+                IConfiguration configuration,
                 CancellationToken cancellationToken) =>
             {
+                RefreshCookieOriginGuard.EnsureAllowed(context, configuration);
                 var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
 
                 if (string.IsNullOrWhiteSpace(refreshToken))
@@ -142,8 +145,10 @@ public static class AuthEndpoints
         group.MapPost("/logout", async (
                 HttpContext context,
                 IAuthService authService,
+                IConfiguration configuration,
                 CancellationToken cancellationToken) =>
             {
+                RefreshCookieOriginGuard.EnsureAllowed(context, configuration);
                 var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
                 if (string.IsNullOrWhiteSpace(refreshToken))
                 {

@@ -21,12 +21,23 @@ public class RecipeApiConfigurationTests
         builder.WebHost.UseTestServer();
         builder.Services.AddRecipeApiConfiguration();
         await using var app = builder.Build();
+        app.Use(async (context, next) =>
+        {
+            context.Connection.RemoteIpAddress = IPAddress.Parse("192.0.2.10");
+            context.User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier,
+                        context.Request.Headers["Test-User"].ToString())], "test"));
+            await next(context);
+        });
         app.UseRateLimiter();
         app.MapGet("/read", () => "ok").RequireRateLimiting(policy);
         await app.StartAsync();
         using var client = app.GetTestClient();
         for (var i = 0; i < limit; i++)
         {
+            client.DefaultRequestHeaders.Remove("Test-User");
+            client.DefaultRequestHeaders.Add("Test-User", i % 2 == 0 ? "author-one" : "author-two");
             using var success = await client.GetAsync("/read");
             Assert.Equal(HttpStatusCode.OK, success.StatusCode);
         }
