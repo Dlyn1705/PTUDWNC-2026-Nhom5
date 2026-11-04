@@ -51,6 +51,7 @@ module.exports = async ({ page, origin, recipe, imageRows, stepRows, ingredients
   await focusAt(steps.getByLabel("Tiêu đề bước 1", { exact: true }));
   await steps.getByLabel("Mô tả bước 1", { exact: true }).fill("Vo gạo");
   await press(steps.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }));
+  await focusAt(steps.getByLabel("Tiêu đề bước 2", { exact: true }));
   await steps.getByLabel("Mô tả bước 2", { exact: true }).fill("Nấu cơm");
   await press(steps.getByRole("button", { name: "Di chuyển bước 2 lên", exact: true }));
   await focusAt(steps.getByLabel("Tiêu đề bước 1", { exact: true }));
