@@ -5,25 +5,38 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
-using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using MediatR;
 using System.Diagnostics;
 using System.Text.Json;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 // Test-only host: real public endpoints, CQRS, migrations and PostgreSQL, no production startup changes.
 var configured = Environment.GetEnvironmentVariable("SEARCH_TEST_CONNECTION")
     ?? throw new InvalidOperationException("Set SEARCH_TEST_CONNECTION for an isolated test PostgreSQL server.");
-var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "culinary_search_test_" + Guid.NewGuid().ToString("N") };
+var admin = new NpgsqlConnectionStringBuilder(configured) { Database = "postgres" };
+var database = "culinary_search_test_" + Guid.NewGuid().ToString("N");
+await using (var connection = new NpgsqlConnection(admin.ConnectionString))
+{
+    await connection.OpenAsync();
+    await using var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+    await create.ExecuteNonQueryAsync();
+}
+var connectionString = new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.WebHost.UseUrls("http://127.0.0.1:0");
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-    ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString,
+    ["ConnectionStrings:DefaultConnection"] = connectionString,
     ["Minio:AccessKey"] = "unused", ["Minio:SecretKey"] = "unused" });
 builder.Services.AddApplication(); builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRecipeApiConfiguration(); builder.Services.AddAuthentication();
@@ -57,7 +70,6 @@ try
     await app.StartAsync();
     if (benchmark is not null)
     {
-        // Warm application/model/JIT outside measured HTTP traffic; each phase still keeps the real 100/IP policy.
         using (var scope = app.Services.CreateScope())
         {
             await scope.ServiceProvider.GetRequiredService<ISender>().Send(new SearchRecipesQuery(Q: "pho"));
@@ -93,7 +105,6 @@ try
     else
     {
         Console.WriteLine("SEARCH_E2E_READY " + app.Urls.Single());
-        // Runner closes stdin even on assertion failure, allowing cleanup on Windows as well.
         await Console.In.ReadLineAsync();
     }
     await app.StopAsync();
@@ -102,6 +113,6 @@ finally
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (db.Database.GetDbConnection().Database != connection.Database) throw new InvalidOperationException("Unsafe test database");
+    if (db.Database.GetDbConnection().Database != database) throw new InvalidOperationException("Unsafe test database");
     await db.Database.EnsureDeletedAsync();
 }

@@ -30,17 +30,31 @@ namespace CulinaryBlog.RecipeImages.Tests;
 
 public sealed class ImageApiTests
 {
+    private static async Task<string> CreateIsolatedDatabaseAsync(string configured)
+    {
+        var admin = new NpgsqlConnectionStringBuilder(configured) { Database = "postgres" };
+        var database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N");
+        await using (var connection = new NpgsqlConnection(admin.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+            await create.ExecuteNonQueryAsync();
+        }
+
+        return new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
+    }
+
     [Fact]
     public async Task Actual_image_routes_enforce_roles_ownership_and_primary_contract()
     {
         var configured = Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_CONNECTION.");
-        var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N") };
+        var connectionString = await CreateIsolatedDatabaseAsync(configured);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString,
+            ["ConnectionStrings:DefaultConnection"] = connectionString,
             ["Minio:AccessKey"] = "test-not-used", ["Minio:SecretKey"] = "test-not-used"
         });
         builder.Logging.ClearProviders();
@@ -104,27 +118,3 @@ public sealed class ImageApiTests
         }
         finally { await db.Database.EnsureDeletedAsync(); }
     }
-
-    private sealed class NoopDeletionQueue : IRecipeImageDeletionQueue
-    {
-        public Task EnqueueAsync(Guid imageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
-
-    private sealed class NoopProcessingQueue : IRecipeImageProcessingQueue
-    {
-        public Task EnqueueAsync(Guid imageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
-
-    private sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options,
-        ILoggerFactory logger, UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-    {
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-        {
-            var id = Request.Headers["X-Test-User"].ToString();
-            if (string.IsNullOrEmpty(id)) return Task.FromResult(AuthenticateResult.NoResult());
-            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id),
-                new Claim(ClaimTypes.Role, id == "admin" ? "Admin" : "Author")], Scheme.Name);
-            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
-        }
-    }
-}

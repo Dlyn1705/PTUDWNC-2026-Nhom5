@@ -9,6 +9,7 @@ using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
@@ -18,17 +19,25 @@ using Npgsql;
 // Isolated E2E process; these fixture auth/control endpoints are never added to the production API.
 var configured = Environment.GetEnvironmentVariable("LIFECYCLE_TEST_CONNECTION")
     ?? throw new InvalidOperationException("Set LIFECYCLE_TEST_CONNECTION for an isolated PostgreSQL test server.");
-var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "culinary_lifecycle_test_" + Guid.NewGuid().ToString("N") };
+var admin = new NpgsqlConnectionStringBuilder(configured) { Database = "postgres" };
+var database = "culinary_lifecycle_test_" + Guid.NewGuid().ToString("N");
+await using (var connection = new NpgsqlConnection(admin.ConnectionString))
+{
+    await connection.OpenAsync();
+    await using var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+    await create.ExecuteNonQueryAsync();
+}
+var connectionString = new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
 var builder = WebApplication.CreateBuilder(args); builder.WebHost.UseUrls("http://127.0.0.1:0");
 builder.Logging.ClearProviders();
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-    ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString,
+    ["ConnectionStrings:DefaultConnection"] = connectionString,
     ["ConnectionStrings:Redis"] = Environment.GetEnvironmentVariable("LIFECYCLE_TEST_REDIS_URL") ?? "localhost:6379",
     ["Minio:AccessKey"] = "unused-test", ["Minio:SecretKey"] = "unused-test"
 });
 builder.Services.AddApplication(); builder.Services.AddInfrastructure(builder.Configuration); builder.Services.AddRecipeApiConfiguration();
 builder.Services.PostConfigure<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>(
-    options => options.InstanceName = connection.Database + ":");
+    options => options.InstanceName = database + ":");
 if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LIFECYCLE_TEST_REDIS_URL")))
     builder.Services.AddSingleton<IDistributedCache>(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
 builder.Services.AddScoped<IHealthDependencyProbe, HealthDependencyProbe>();
@@ -75,7 +84,7 @@ try
 }
 finally {
     using var scope = app.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (db.Database.GetDbConnection().Database != connection.Database) throw new InvalidOperationException("Unsafe fixture database");
+    if (db.Database.GetDbConnection().Database != database) throw new InvalidOperationException("Unsafe fixture database");
     await db.Database.EnsureDeletedAsync();
 }
 

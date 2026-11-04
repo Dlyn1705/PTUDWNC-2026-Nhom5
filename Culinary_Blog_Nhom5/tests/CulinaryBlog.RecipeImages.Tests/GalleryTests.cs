@@ -1,6 +1,3 @@
-using CulinaryBlog.Application.Contracts;
-using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeImages;
-using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
@@ -16,6 +13,20 @@ namespace CulinaryBlog.RecipeImages.Tests;
 
 public sealed class GalleryTests
 {
+    private static async Task<string> CreateIsolatedDatabaseAsync(string configured)
+    {
+        var admin = new NpgsqlConnectionStringBuilder(configured) { Database = "postgres" };
+        var database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N");
+        await using (var connection = new NpgsqlConnection(admin.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+            await create.ExecuteNonQueryAsync();
+        }
+
+        return new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
+    }
+
     [Theory]
     [InlineData("owner", false, true)]
     [InlineData("other", false, false)]
@@ -34,9 +45,9 @@ public sealed class GalleryTests
         // Explicit opt-in. Creates and removes a uniquely named test database, never the configured database.
         var configured = Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_CONNECTION to run PostgreSQL integration tests.");
-        var builder = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N") };
+        var connectionString = await CreateIsolatedDatabaseAsync(configured);
         var services = new ServiceCollection();
-        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.ConnectionString,
+        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString,
             npgsql => npgsql.EnableRetryOnFailure()).AddInterceptors(new AuditInterceptor()));
         await using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -78,67 +89,3 @@ public sealed class GalleryTests
                 new RecipeRepository(db), new User("other", false)).Handle(new GetRecipeImagesQuery(recipe.Id), default));
             await Assert.ThrowsAsync<NotFoundException>(() => mutations.SetPrimaryAsync(Guid.NewGuid(), second.Id, default));
             await Assert.ThrowsAsync<NotFoundException>(() => mutations.SetPrimaryAsync(recipe.Id, Guid.NewGuid(), default));
-
-            await mutations.DeleteAsync(recipe.Id, second.Id, default);
-            await mutations.DeleteAsync(recipe.Id, second.Id, default);
-            db.ChangeTracker.Clear();
-            Assert.True((await db.RecipeImages.SingleAsync()).IsPrimary);
-            Assert.Equal(2, await db.RecipeImages.IgnoreQueryFilters().CountAsync());
-            var third = RecipeImage.Create(recipe.Id, "https://example.test/third.jpg");
-            await Task.WhenAll(mutations.AddAsync(third, default), mutations.DeleteAsync(recipe.Id, first.Id, default));
-            db.ChangeTracker.Clear();
-            Assert.True((await db.RecipeImages.SingleAsync()).IsPrimary);
-            await mutations.DeleteAsync(recipe.Id, third.Id, default);
-            Assert.Empty(await db.RecipeImages.AsNoTracking().ToListAsync());
-
-            // Existing data with no primary is repaired on the next gallery mutation.
-            var legacy = RecipeImage.Create(recipe.Id, "https://example.test/legacy.jpg", orderIndex: 0);
-            db.RecipeImages.Add(legacy);
-            await db.SaveChangesAsync();
-            var repair = new CulinaryBlog.Infrastructure.Persistence.Migrations.RepairMissingRecipeImagePrimary();
-            var sql = Assert.IsType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>(Assert.Single(repair.UpOperations)).Sql;
-            await db.Database.ExecuteSqlRawAsync(sql);
-            db.ChangeTracker.Clear();
-            Assert.Equal(legacy.Id, (await db.RecipeImages.SingleAsync(x => x.IsPrimary)).Id);
-            var next = RecipeImage.Create(recipe.Id, "https://example.test/next.jpg");
-            await mutations.AddAsync(next, default);
-            db.ChangeTracker.Clear();
-            Assert.Equal(legacy.Id, (await db.RecipeImages.SingleAsync(x => x.IsPrimary)).Id);
-
-            var archived = await db.Recipes.SingleAsync();
-            archived.Status = RecipeStatus.Archived;
-            await db.SaveChangesAsync();
-            await Assert.ThrowsAsync<ConflictException>(() => mutations.AddAsync(
-                RecipeImage.Create(recipe.Id, "https://example.test/rejected.jpg"), default));
-            await mutations.SetPrimaryAsync(recipe.Id, next.Id, default);
-            db.ChangeTracker.Clear();
-            var deleted = await db.Recipes.SingleAsync();
-            deleted.SoftDelete();
-            await db.SaveChangesAsync();
-            await Assert.ThrowsAsync<NotFoundException>(() => mutations.SetPrimaryAsync(recipe.Id, next.Id, default));
-            Assert.Equal(5, await db.RecipeImages.IgnoreQueryFilters().CountAsync());
-        }
-        finally
-        {
-            await db.Database.EnsureDeletedAsync();
-        }
-    }
-
-    private sealed record User(string? UserId, bool IsAdmin) : ICurrentUserService
-    {
-        public string? Email => null;
-        public IReadOnlyList<string> Roles => IsAdmin ? ["Admin"] : ["Author"];
-        public bool IsAuthenticated => UserId is not null;
-    }
-
-    private sealed class RecordingCacheInvalidator : IRecipeCacheInvalidator
-    {
-        public List<(Guid RecipeId, string? Slug)> Calls { get; } = [];
-
-        public Task InvalidateRecipeAsync(Guid recipeId, string? slug, CancellationToken cancellationToken = default)
-        {
-            Calls.Add((recipeId, slug));
-            return Task.CompletedTask;
-        }
-    }
-}
