@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Jobs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,7 +28,7 @@ public sealed class PurgeDeletedRecipesJob(
     private static readonly TimeSpan RetentionPeriod = TimeSpan.FromDays(30);
 
     [DisableConcurrentExecution(timeoutInSeconds: 3600)]
-    [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
+    [AutomaticRetry(Attempts = BackgroundJobRetryPolicy.RetryCount, DelaysInSeconds = new[] { BackgroundJobRetryPolicy.FirstDelaySeconds, BackgroundJobRetryPolicy.SecondDelaySeconds, BackgroundJobRetryPolicy.ThirdDelaySeconds }, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         var cutoff = DateTime.UtcNow.Subtract(RetentionPeriod);
@@ -75,6 +76,17 @@ public sealed class PurgeDeletedRecipesJob(
                         foreach (var url in urls)
                             await storage.DeleteAsync(url!, cancellationToken);
 
+                        // Remove unfinished/unpublished generations before cascading away metadata.
+                        // The durable manifest remains on rollback, so partial deletes can be retried.
+                        var variants = new ImageVariantStorage(storage,
+                            attempt.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MinioOptions>>());
+                        var cleanup = new ImageGenerationCleanup(db, variants, storage,
+                            attempt.ServiceProvider.GetRequiredService<TimeProvider>());
+                        foreach (var image in images) await cleanup.DeleteImageObjectsAsync(image.Id, cancellationToken, includeReferencedObjects: false);
+                        await db.RecipeImageDeletionWork.Where(x => x.RecipeId == id)
+                            .ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, "Completed")
+                                .SetProperty(x => x.LeaseToken, (Guid?)null).SetProperty(x => x.LeaseExpiresAt, (DateTime?)null), cancellationToken);
+
                         db.Recipes.Remove(recipe);
                         await db.SaveChangesAsync(cancellationToken);
                         await transaction.CommitAsync(cancellationToken);
@@ -85,12 +97,11 @@ public sealed class PurgeDeletedRecipesJob(
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
                     failures ??= [];
-                    failures.Add(exception);
+                    failures.Add(new InvalidOperationException("Recipe purge deferred; inspect the recipe business key."));
                     failedIds.Add(id);
                     logger.LogError(
-                        exception,
-                        "Could not purge soft-deleted recipe {RecipeId}; it will be retried",
-                        id);
+                        "Could not purge soft-deleted recipe {RecipeId}; recovery remains available with {CorrelationId}",
+                        id, $"job-purge-{id:N}");
                 }
             }
         }

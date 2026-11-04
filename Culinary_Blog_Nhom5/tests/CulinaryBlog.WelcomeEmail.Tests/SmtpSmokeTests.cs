@@ -8,7 +8,7 @@ using Xunit;
 
 namespace CulinaryBlog.WelcomeEmail.Tests;
 
-public sealed class SmtpSmokeTests
+public sealed class SmtpSmokeTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
     public async Task Registration_to_real_worker_to_local_smtp_delivers_html_text_once()
@@ -22,9 +22,12 @@ public sealed class SmtpSmokeTests
         }
         try
         {
-            await using var app = await TestApp.CreateAsync(worker: true);
+            await using var app = await TestApp.CreateAsync(worker: false);
             var item = await app.RegisterAsync(address);
             await app.Get<WelcomeEmailDispatcher>().DispatchAsync(default);
+            var queued = await app.Delivery(item.Id);
+            Assert.NotNull(queued.HangfireJobId); Assert.Equal(WelcomeEmailStatus.Pending, queued.Status);
+            await app.RestartAsync(worker: true);
             await app.WaitForAsync(async () => (await app.Delivery(item.Id)).Status == WelcomeEmailStatus.Sent);
             await app.WaitForAsync(async () => (await Messages()).Length == 1);
             var captured = Assert.Single(await Messages());
@@ -38,6 +41,7 @@ public sealed class SmtpSmokeTests
             Assert.Contains("&lt;script&gt;", message.HtmlBody);
             Assert.Contains("Bếp Việt", message.TextBody);
             Assert.Contains("http://localhost:3000/recipes", message.HtmlBody);
+            await app.RestartAsync(worker: true);
             var duplicateJob = app.Get<IBackgroundJobClient>().Enqueue<WelcomeEmailJob>(job => job.SendAsync(item.Id, CancellationToken.None));
             await app.WaitForAsync(() =>
             {
@@ -46,6 +50,10 @@ public sealed class SmtpSmokeTests
             });
             Assert.Single(await Messages());
             Assert.Equal(1, (await app.Delivery(item.Id)).AttemptCount);
+            output.WriteLine("DURABILITY_EVIDENCE " + System.Text.Json.JsonSerializer.Serialize(new {
+                scenario = "welcome-outbox-api-hangfire-restart", businessKey = item.Id,
+                correlationId = $"job-welcome-{item.Id:N}", status = "Sent", attempts = 1, capturedMessages = 1
+            }));
         }
         finally
         {

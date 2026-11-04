@@ -23,7 +23,7 @@ using Npgsql;
 namespace CulinaryBlog.WelcomeEmail.Tests;
 
 // Each integration test owns a migrated PostgreSQL database; never use the application database.
-internal sealed class TestApp(WebApplication app, string connectionString, string adminConnection, string database) : IAsyncDisposable
+internal sealed class TestApp(WebApplication app, string connectionString, string adminConnection, string database, IEmailService? transport) : IAsyncDisposable
 {
     public WebApplication App => app;
     public IServiceProvider Services => app.Services;
@@ -46,6 +46,13 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
             await create.ExecuteNonQueryAsync();
         }
         var cs = new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
+        var app = await BuildHostAsync(cs, worker, transport);
+        await app.StartAsync();
+        return new TestApp(app, cs, admin.ConnectionString, database, transport);
+    }
+
+    private static async Task<WebApplication> BuildHostAsync(string cs, bool worker, IEmailService? transport, TestClock? existingClock = null)
+    {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
@@ -61,7 +68,7 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
         builder.Services.AddAuthentication().AddCookie();
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("auth", policy => policy.PermitLimit = 100));
-        builder.Services.AddSingleton<TestClock>();
+        builder.Services.AddSingleton(existingClock ?? new TestClock());
         builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<TestClock>());
         if (transport is not null) builder.Services.AddSingleton(transport);
         builder.Services.AddHangfire(config => config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(cs)));
@@ -72,8 +79,15 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
         app.MapGroup("/api/v1").MapAuthEndpoints();
         using (var scope = app.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+        return app;
+    }
+
+    public async Task RestartAsync(bool worker = false)
+    {
+        var clock = Clock;
+        await app.StopAsync(); await app.DisposeAsync();
+        app = await BuildHostAsync(connectionString, worker, transport, clock);
         await app.StartAsync();
-        return new TestApp(app, cs, admin.ConnectionString, database);
     }
 
     public async Task<WelcomeEmailDelivery> RegisterAsync(string? email = null)

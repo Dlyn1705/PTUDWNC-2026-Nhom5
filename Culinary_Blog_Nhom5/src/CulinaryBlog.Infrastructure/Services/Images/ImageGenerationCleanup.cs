@@ -7,10 +7,10 @@ namespace CulinaryBlog.Infrastructure.Services.Images;
 public sealed class ImageGenerationCleanup(ApplicationDbContext db, ImageVariantStorage variants, IFileStorageService storage, TimeProvider clock)
 {
     // Caller holds the image session lock. Ledger has no cascading FK and survives hard delete.
-    public async Task DeleteImageObjectsAsync(Guid imageId, CancellationToken ct)
+    public async Task DeleteImageObjectsAsync(Guid imageId, CancellationToken ct, bool includeReferencedObjects = true)
     {
         var image = await db.RecipeImages.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(x => x.Id == imageId, ct);
-        if (image is not null)
+        if (includeReferencedObjects && image is not null)
             foreach (var url in new[] { image.OriginalUrl, image.MediumUrl, image.ThumbnailUrl }.Where(x => !string.IsNullOrEmpty(x)).Distinct())
                 await storage.DeleteAsync(url!, ct);
         foreach (var generation in await db.RecipeImageGenerations.AsNoTracking().Where(x => x.ImageId == imageId).ToListAsync(ct))
