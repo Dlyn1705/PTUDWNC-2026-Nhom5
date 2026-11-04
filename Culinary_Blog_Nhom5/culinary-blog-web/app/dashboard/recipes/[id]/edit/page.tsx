@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import RecipeForm from "@/components/recipes/editor/RecipeForm";
@@ -163,11 +164,13 @@ export default function EditRecipePage({ params }: RouteProps) {
     mutating.current = true; setDeleting(true); setMutationError(null);
     try {
       await recipeEditorApi.delete(recipe.id);
+      toast.success("Đã xóa công thức.");
       queryClient.removeQueries({ queryKey: recipeKeys.managed() });
       allowNavigation(); router.replace("/dashboard/recipes?deleted=1"); router.refresh();
     } catch (reason) {
       const problem = toApiProblemError(reason);
       const presentation = errorPresentation(problem);
+      toast.error(presentation.description + (problem.correlationId ? ` Mã hỗ trợ: ${problem.correlationId}.` : ""));
       setMutationError({ ...presentation, description: problem.status === 403 ? "Bạn không có quyền xóa công thức này."
         : problem.status === 404 ? "Công thức không còn tồn tại hoặc đã bị xóa."
         : problem.status === 409 ? "Công thức vừa được thay đổi. Hãy tải lại trang và kiểm tra trước khi xóa."

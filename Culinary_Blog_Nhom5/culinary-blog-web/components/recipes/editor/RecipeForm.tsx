@@ -10,6 +10,7 @@ import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/
 import { recipeEditorSchema, emptyRecipeEditor, nutritionFields, recipeErrorField, RecipeFormValidationError,
   type RecipeEditorValues, type RecipeEditorField } from "@/lib/validations/recipeEditor";
 import type { CategoryDto } from "@/types/category.types";
+import { toast } from "sonner";
 
 type Props = {
   mode: "create" | "edit";
@@ -82,6 +83,7 @@ export default function RecipeForm(props: Props) {
     try {
       await onSave(data);
       reset(data);
+      toast.success(mode === "create" ? "Đã lưu bản nháp." : "Đã lưu công thức.");
     } catch (reason) {
       if (reason instanceof RecipeFormValidationError) {
         setProblem({ status: 422, message: getApiErrorMessage(reason) });
@@ -110,6 +112,7 @@ export default function RecipeForm(props: Props) {
         : "Không thể lưu công thức lúc này. Vui lòng thử lại sau ít phút.";
       setCallbackUrl(window.location.pathname + window.location.search);
       setProblem({ status, message, correlationId: error.correlationId });
+      toast.error(message + (error.correlationId ? ` Mã hỗ trợ: ${error.correlationId}.` : ""));
     } finally { saving.current = false; }
   };
 
@@ -125,7 +128,8 @@ export default function RecipeForm(props: Props) {
       action={problem.status === 401
         ? <Link className="rounded-lg border px-4 py-2 underline" href={`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}>Đăng nhập lại</Link>
         : conflict && props.onReload ? <button type="button" aria-label="Tải bản công thức mới" className="rounded-lg border px-4 py-2" onClick={props.onReload}>Tải bản mới</button> : undefined} />}
-    <fieldset disabled={locked || props.disabled} aria-label="Thông tin cơ bản" className="min-w-0 space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+    <fieldset disabled={locked || props.disabled} aria-label="Thông tin cơ bản" className="min-w-0 space-y-5 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+      <legend className="sr-only">Thông tin cơ bản</legend>
       <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
       <div>
         <label htmlFor={inputId("title")} className="block text-sm font-medium">{mode === "create" ? "Tên món ăn *" : labels.title}</label>
@@ -158,11 +162,12 @@ export default function RecipeForm(props: Props) {
         <input {...field(name)} type="number" min={name === "servings" ? 1 : 0} max={2147483647} step={1} placeholder={name === "servings" ? "4" : name === "prepTime" ? "15" : "30"} className={inputClass} />{fieldError(name)}
       </div>)}</div>
     </fieldset>
-    <fieldset disabled={locked || props.disabled} aria-label="Thông tin dinh dưỡng" className="min-w-0 rounded-2xl bg-white p-6 shadow-sm">
+    <fieldset disabled={locked || props.disabled} aria-label="Thông tin dinh dưỡng" className="min-w-0 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+      <legend className="sr-only">Thông tin dinh dưỡng</legend>
       <h2 className="text-xl font-semibold">Thông tin dinh dưỡng</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {nutritionFields.map(name => <div key={name}><label htmlFor={inputId(name)} className="block text-sm font-medium">{labels[name]}</label>
-          <div className="relative"><input {...field(name)} type="number" min={0} max={999999.99} step="0.01" className={`${inputClass} pr-14`} />
-            <span aria-hidden="true" className="absolute right-4 top-1/2 text-sm text-muted-foreground">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
+          <div className="relative"><input {...field(name, true)} type="number" min={0} max={999999.99} step="0.01" className={`${inputClass} pr-14`} />
+            <span id={`${inputId(name)}-hint`} className="absolute right-4 top-1/2 text-sm text-muted-foreground">{name === "calories" ? "kcal" : name === "sodium" ? "mg" : "g"}</span>
           </div>{fieldError(name)}</div>)}
       </div>
     </fieldset>

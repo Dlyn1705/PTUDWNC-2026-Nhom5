@@ -6,6 +6,8 @@ import FileUploadDropzone from "@/components/common/FileUploadDropzone";
 import { deleteRecipeImage, getRecipeImages, setRecipeImagePrimary, type RecipeImageDto } from "@/lib/api/fileApi";
 import { imageErrorMessage, needsImageReconciliation } from "@/lib/api/imageErrors";
 import { toApiProblemError } from "@/lib/api/problemDetails";
+import { useCollectionFocus } from "@/hooks/useCollectionFocus";
+import { toast } from "sonner";
 
 type Props = { recipeId: string; archived?: boolean; disabled?: boolean; onMutation?: () => void; onBusyChange?: (busy: boolean) => void };
 const statusText = {
@@ -18,6 +20,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const { root, announcement, focusRow } = useCollectionFocus(busy);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [mustReload, setMustReload] = useState(false);
   const [retryAfterMs, setRetryAfterMs] = useState(0);
@@ -113,12 +116,16 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
       if (signal?.aborted) return;
       onMutation?.();
       await reload(signal);
+      const message = action === "delete" ? "Đã xóa ảnh." : "Đã đặt ảnh chính.";
+      toast.success(message);
+      focusRow(images.findIndex(item => item.id === image.id), message);
     } catch (cause) {
       if (!signal?.aborted) {
         const problem = toApiProblemError(cause);
         setRetryAfterMs(problem.retryAfterMs ?? 0);
         setMustReload(committed || needsImageReconciliation(problem) || problem.status === 409 || problem.status === 404);
         setError(`${committed ? "Thao tác đã hoàn tất nhưng chưa tải lại được danh sách. " : ""}${imageErrorMessage(problem)}`);
+        toast.error(imageErrorMessage(problem));
       }
     } finally {
       mutationBusy.current = false;
@@ -127,10 +134,11 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
   };
 
   return (
-    <section className="space-y-4 rounded-2xl border bg-white p-6" aria-label="Bộ sưu tập ảnh công thức">
-      <div className="flex items-center justify-between gap-3">
+    <section ref={root} className="min-w-0 space-y-4 rounded-2xl border bg-white p-4 sm:p-6" aria-label="Bộ sưu tập ảnh công thức" aria-busy={busy}>
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Ảnh công thức</h2>
-        <button type="button" disabled={disabled || busy || uploadBusy || retryAfterMs > 0} onClick={() => void refresh()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải lại ảnh</button>
+        <button data-collection-add type="button" disabled={disabled || busy || uploadBusy || retryAfterMs > 0} onClick={() => void refresh()} className="rounded-lg border px-3 py-2 disabled:opacity-50">Tải lại ảnh</button>
       </div>
       {archived ? <p>Khôi phục công thức từ lưu trữ trước khi tải thêm ảnh.</p> : (
         <FileUploadDropzone key={recipeId} recipeId={recipeId} disabled={disabled || busy || mustReload || retryAfterMs > 0}
@@ -156,7 +164,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
       {loading ? <p role="status">Đang tải ảnh…</p> : images.length === 0 ? <p>Chưa có ảnh cho công thức này.</p> : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {images.map(image => (
-            <li key={image.id} className="space-y-2 rounded-xl border p-3">
+            <li key={image.id} data-collection-row className="min-w-0 space-y-2 rounded-xl border p-3">
               <Image src={image.thumbnailUrl ?? image.mediumUrl ?? image.originalUrl} alt={image.altText ?? "Ảnh công thức"}
                 width={300} height={300} unoptimized className="h-48 w-full rounded-lg object-cover" />
               {image.isPrimary && <p className="font-semibold text-primary">Ảnh chính</p>}
@@ -164,6 +172,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
               <p className="text-sm text-muted-foreground">{statusText[image.processingStatus]}</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={disabled || busy || uploadBusy || mustReload || retryAfterMs > 0 || image.isPrimary} onClick={() => void mutate(image, "primary")}
+                  aria-label={`Đặt ${image.altText || "ảnh công thức"} làm ảnh chính`}
                   className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">Đặt làm ảnh chính</button>
                 <button type="button" disabled={disabled || busy || uploadBusy || mustReload || retryAfterMs > 0} onClick={() => void mutate(image, "delete")}
                   aria-label={`Xóa ${image.altText || "ảnh công thức"}`} className="rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive disabled:opacity-50">Xóa ảnh</button>

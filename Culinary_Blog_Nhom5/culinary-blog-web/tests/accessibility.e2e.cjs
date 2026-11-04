@@ -159,7 +159,7 @@ async function main() {
     // Escape below still verifies keyboard dismissal and focus restoration.
     await sortBy.click();
     await page.getByRole("option", { name: "Ngày đăng" }).waitFor();
-    await page.keyboard.press("Escape"); assert.ok(await focused(sortBy));
+    await page.keyboard.press("Escape"); await waitFocus(sortBy);
     process.stdout.write("PASS Select trigger, option portal and Escape focus recovery\n");
 
     if (browserName !== "webkit") {

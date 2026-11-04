@@ -83,6 +83,7 @@ async function main() {
     let stepSaveStatus = 200;
     let imageUploads = 0;
     let imageUploadGate;
+    let collectionReorderStatus = 200;
     let imageProcessingState = "Completed";
     let nutritionStatus = 200;
     let nutritionCalls = 0;
@@ -120,6 +121,31 @@ async function main() {
           return json({ data: activeSession }, 201);
         }
         return json({ status: 409, code: "AUTH_EMAIL_EXISTS", detail: "Email này đã được sử dụng." }, 409);
+      }
+      if (url.pathname.startsWith(`/api/v1/recipes/${recipe.id}/images/`)) {
+        const id = url.pathname.split("/")[6];
+        const item = imageRows.find(row => row.id === id);
+        if (request.method() === "DELETE") {
+          const index = imageRows.findIndex(row => row.id === id);
+          if (index >= 0) imageRows.splice(index, 1);
+          return route.fulfill({ status: 204, headers: cors });
+        }
+        if (request.method() === "PATCH" && item) {
+          imageRows.forEach(row => { row.isPrimary = row.id === id; });
+          return json({ data: item });
+        }
+      }
+      if (request.method() === "PUT" && /\/(ingredients|steps)\/reorder$/.test(url.pathname)) {
+        assert.equal(request.headers()["if-match"], '"' + recipe.rowVersion + '"');
+        if (collectionReorderStatus !== 200) return json({ status: collectionReorderStatus, correlationId: "issue92-reorder-error" }, collectionReorderStatus);
+        const isSteps = url.pathname.endsWith("/steps/reorder");
+        const rows = isSteps ? stepRows : ingredients;
+        const ids = request.postDataJSON()[isSteps ? "stepIds" : "ingredientIds"];
+        const next = ids.map(id => rows.find(row => row.id === id));
+        rows.splice(0, rows.length, ...next);
+        rows.forEach((row, index) => { row[isSteps ? "stepNumber" : "orderIndex"] = isSteps ? index + 1 : index; });
+        recipe.rowVersion = Buffer.from(randomUUID()).toString("base64");
+        return json({ data: rows }, 200, { ETag: '"' + recipe.rowVersion + '"' });
       }
       if (request.method() === "PUT" && url.pathname === `/api/v1/recipes/${recipe.id}`) {
         putCalls++;
@@ -333,7 +359,7 @@ async function main() {
     const stepDescription = page.getByLabel("Mô tả bước 1", { exact: true });
     assert.equal(await stepDescription.getAttribute("aria-invalid"), "true");
     assert.equal(await stepDescription.evaluate(element => element === document.activeElement), true);
-    assert.equal(await stepDescription.evaluate(element => Boolean(document.getElementById(element.getAttribute("aria-describedby")))), true);
+    assert.equal(await stepDescription.evaluate(element => element.getAttribute("aria-describedby").split(/\s+/).every(id => Boolean(document.getElementById(id)))), true);
     await stepDescription.fill("Bản nháp bước thực hiện chưa lưu");
     await menu.click();
     page.once("dialog", prompt => prompt.dismiss());
@@ -455,7 +481,7 @@ async function main() {
     await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("-1");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     await page.locator('[id$="-new-nutrition-4-error"]:visible').waitFor();
-    assert.equal(await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby"), (await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error");
+    assert.ok((await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("aria-describedby")).split(/\s+/).includes((await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).getAttribute("id")) + "-error"));
     assert.equal(createCalls, 0);
     await page.getByLabel("Chất xơ", { exact: true }).filter({ visible: true }).fill("");
     createStatus = 422;
@@ -464,7 +490,9 @@ async function main() {
     await page.locator('[id$="-new-title-error"]:visible').filter({ hasText: "Tên bản nháp cần kiểm tra." }).waitFor();
     await page.locator('[id$="-new-nutrition-1-error"]:visible').waitFor();
     await page.getByRole("button", { name: "+ Thêm nguyên liệu", exact: true }).click();
-    await page.getByLabel("Tên nguyên liệu", { exact: true }).filter({ visible: true }).fill("Bột");
+    const ingredientName = page.getByLabel("Tên nguyên liệu", { exact: true }).filter({ visible: true });
+    await ingredientName.waitFor();
+    await ingredientName.fill("Bột");
     await page.getByLabel("Số lượng (tùy chọn)", { exact: true }).filter({ visible: true }).fill("1,25");
     await page.getByLabel("Ghi chú (tùy chọn)", { exact: true }).filter({ visible: true }).fill("Chọn loại mịn");
     await page.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();
@@ -476,7 +504,7 @@ async function main() {
     await page.waitForFunction(() => document.activeElement?.id.startsWith("ingredient-") && document.activeElement.id.endsWith("-name"));
     createStatus = 200; mutationErrors = {};
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    await page.getByRole("status").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
+    await page.locator("p[role='status']").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
     assert.equal(createCalls, 3);
     assert.equal(ingredients[0].quantity, 1.25);
     assert.equal(ingredients[0].notes, "Chọn loại mịn");
@@ -571,9 +599,9 @@ async function main() {
     await page.getByRole("alert").filter({ hasText: "Các bước đã thay đổi trong lúc tải ảnh" }).waitFor();
     assert.equal(await stepText.inputValue(), "Bản nháp giữ lại khi người khác sửa bước");
     assert.equal(await page.getByRole("button", { name: "Lưu bước 1", exact: true }).isDisabled(), true);
-    await page.getByRole("button", { name: "Xóa công thức", exact: true }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Xóa công thức", exact: true }).evaluate(button => { button.click(); button.click(); });
-    await page.waitForURL(url => url.pathname === "/dashboard/recipes" && url.searchParams.get("deleted") === "1");
+    page.once("dialog", prompt => prompt.accept());
+    await require("./recipe-editor-a11y.scenarios.cjs")({ page, origin, recipe, imageRows, stepRows, ingredients, png, folder,
+      setReorderStatus: value => { collectionReorderStatus = value; } });
     await page.getByRole("heading", { name: "Chưa có công thức nào", exact: true }).waitFor();
     assert.equal(deleteCalls, 1);
     recipeStatus = 200; mineEmpty = false;

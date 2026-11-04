@@ -155,7 +155,7 @@ async function main() {
       if (counts.patch) return send(503, {}, "reload-failed");
       return send(200, ok([image("Completed", false)]));
     }, async ({ page, counts }) => {
-      const primary = page.getByRole("button", { name: "Đặt làm ảnh chính", exact: true }); await primary.click();
+      const primary = page.getByRole("button", { name: "Đặt Ảnh thử làm ảnh chính", exact: true }); await primary.click();
       await page.getByRole("alert").filter({ hasText: "conflict-id" }).waitFor();
       assert.doesNotMatch(await page.getByRole("region", { name: "Bộ sưu tập ảnh công thức" }).getByRole("alert").innerText(), /Đã tải lại/);
       assert.equal(await primary.isDisabled(), true);
