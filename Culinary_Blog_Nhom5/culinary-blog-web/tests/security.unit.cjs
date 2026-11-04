@@ -40,10 +40,19 @@ for (const route of ["/dashboard", "/dashboard/categories", "/profile", "/recipe
   });
 }
 
-for (const route of ["/", "/recipes", "/recipes/deleted-slug", "/search", "/categories", "/sitemap.xml"]) {
-  test(`recipe HTML ${route} cannot serve a cached deleted recipe`, () => {
+const publicCache = new Map([
+  ["/", "public, max-age=60, s-maxage=120, stale-while-revalidate=240"],
+  ["/recipes", "public, max-age=60, s-maxage=180, stale-while-revalidate=360"],
+  ["/recipes/deleted-slug", "public, max-age=60, s-maxage=3600, stale-while-revalidate=7200"],
+  ["/categories", "public, max-age=60, s-maxage=300, stale-while-revalidate=600"],
+  ["/search", "private, no-store"],
+  ["/sitemap.xml", "private, no-store"],
+]);
+
+for (const [route, expectedCacheControl] of publicCache) {
+  test(`cache policy for ${route} follows the public/private boundary`, () => {
     const result = proxy(new NextRequest(`https://example.invalid${route}`));
-    assert.equal(result.headers.get("Cache-Control"), "private, no-store");
+    assert.equal(result.headers.get("Cache-Control"), expectedCacheControl);
   });
 }
 

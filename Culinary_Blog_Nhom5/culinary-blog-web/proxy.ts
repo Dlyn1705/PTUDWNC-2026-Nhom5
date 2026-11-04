@@ -6,6 +6,18 @@ function protectedPath(pathname: string) {
     pathname.startsWith("/recipes/new") || /^\/recipes\/[^/]+\/edit(?:\/|$)/.test(pathname);
 }
 
+function publicCacheControl(pathname: string) {
+  if (pathname === "/") return "public, max-age=60, s-maxage=120, stale-while-revalidate=240";
+  if (pathname === "/categories" || /^\/categories\/[^/]+$/.test(pathname)) {
+    return "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
+  }
+  if (pathname === "/recipes") return "public, max-age=60, s-maxage=180, stale-while-revalidate=360";
+  if (/^\/recipes\/[^/]+$/.test(pathname)) {
+    return "public, max-age=60, s-maxage=3600, stale-while-revalidate=7200";
+  }
+  return "public, max-age=60, stale-while-revalidate=300";
+}
+
 async function legacyRecipeRedirect(request: NextRequest): Promise<URL | null> {
   const match = request.nextUrl.pathname.match(/^\/recipes\/([^/]+)$/);
   if (!match) return null;
@@ -52,17 +64,14 @@ function withSecurityHeaders(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", policy);
   const isProtected = protectedPath(pathname);
   const isSearch = pathname === "/search" || pathname.startsWith("/search/");
-  const isPublicContent = pathname === "/" ||
-    /^\/(recipes|categories)(?:\/|$)/.test(pathname);
+  const isSitemap = pathname === "/sitemap.xml";
   const finalize = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", policy);
     response.headers.set(
       "Cache-Control",
-      isProtected || isSearch
+      isProtected || isSearch || isSitemap
         ? "private, no-store"
-        : isPublicContent
-          ? "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
-          : "public, max-age=60, stale-while-revalidate=300",
+        : publicCacheControl(pathname),
     );
     for (const header of securityHeaders) response.headers.set(header.key, header.value);
     if (secure && !development) response.headers.set("Strict-Transport-Security", "max-age=31536000");
@@ -72,7 +81,9 @@ function withSecurityHeaders(request: NextRequest) {
 }
 
 export default function proxy(request: NextRequest) {
-  if (/^\/recipes\/[^/]+$/.test(request.nextUrl.pathname)) {
+  const pathname = request.nextUrl.pathname;
+  const backendUrl = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  if (!protectedPath(pathname) && backendUrl && /^\/recipes\/[^/]+$/.test(pathname)) {
     return legacyRecipeRedirect(request).then(legacyRedirect =>
       legacyRedirect ? NextResponse.redirect(legacyRedirect, 301) : withSecurityHeaders(request));
   }
