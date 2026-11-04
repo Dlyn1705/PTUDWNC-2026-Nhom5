@@ -93,7 +93,7 @@ export default function RecipeForm(props: Props) {
         const mapped = new Set<RecipeEditorField>();
         for (const [key, messages] of Object.entries(error.errors)) {
           const name = recipeErrorField(key);
-          if (!name || !messages.length || (mode === "edit" && nutritionFields.includes(name as typeof nutritionFields[number])) ||
+          if (!name || !messages.length ||
             (mode === "create" && name === "instructions")) continue;
           setError(name, { type: "server", message: messages.join(" ") });
           mapped.add(name);
