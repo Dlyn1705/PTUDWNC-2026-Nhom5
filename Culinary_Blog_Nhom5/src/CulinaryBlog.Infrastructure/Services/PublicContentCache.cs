@@ -10,7 +10,8 @@ namespace CulinaryBlog.Infrastructure.Services;
 public sealed class PublicContentCache(
     IDistributedCache cache,
     ILogger<PublicContentCache> logger,
-    PendingPublicCacheInvalidations? pendingInvalidations = null) : IPublicContentCache
+    PendingPublicCacheInvalidations? pendingInvalidations = null,
+    IFrontendRevalidationClient? frontendRevalidation = null) : IPublicContentCache
 {
     private readonly PendingPublicCacheInvalidations pending = pendingInvalidations ?? new();
     private static readonly TimeSpan CategoryTtl = TimeSpan.FromMinutes(45);
@@ -80,11 +81,25 @@ public sealed class PublicContentCache(
     public async Task InvalidateCategoriesAsync(string? slug = null, CancellationToken cancellationToken = default)
     {
         await RotateVersionAsync(CategoryVersionKey, cancellationToken);
+        if (frontendRevalidation is not null)
+            await frontendRevalidation.RevalidateAsync(
+                ["public:categories"],
+                ["/", "/categories"],
+                CancellationToken.None);
     }
 
     public async Task InvalidateRecipesAsync(Guid? recipeId = null, string? slug = null, CancellationToken cancellationToken = default)
     {
         await RotateVersionAsync(RecipeVersionKey, cancellationToken);
+        var tags = new List<string> { "public:recipes" };
+        var paths = new List<string> { "/", "/recipes" };
+        if (!string.IsNullOrWhiteSpace(slug))
+        {
+            tags.Add($"public:recipe:{slug}");
+            paths.Add($"/recipes/{Uri.EscapeDataString(slug)}");
+        }
+        if (frontendRevalidation is not null)
+            await frontendRevalidation.RevalidateAsync(tags, paths, CancellationToken.None);
     }
 
     private async Task<T> GetOrCreateAsync<T>(

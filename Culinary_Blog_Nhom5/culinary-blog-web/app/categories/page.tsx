@@ -3,23 +3,20 @@ import type { Metadata } from "next";
 import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import { publicApi } from "@/lib/api/serverClient";
+import { buildListingMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "All Categories - Culinary Blog",
-  description:
-    "Every corner of the kitchen, organised. Pick a category to see its full recipe collection.",
-  openGraph: {
-    title: "All Categories - Culinary Blog",
-    description:
-      "Every corner of the kitchen, organised. Pick a category to see its full recipe collection.",
-    type: "website",
-  },
-};
+export const metadata: Metadata = buildListingMetadata(
+  "/categories",
+  "All Categories",
+  "Every corner of the kitchen, organised. Pick a category to see its full recipe collection.",
+);
 
 export default async function CategoriesPage() {
-  const categories = await publicApi.getCategories();
+  // Keep the production build independent from API availability. In a live
+  // deployment the route revalidates and repopulates once the API is ready.
+  const categories = await publicApi.getCategories().catch(() => []);
 
   const totalCategories = categories.length;
   const totalRecipes = categories.reduce(

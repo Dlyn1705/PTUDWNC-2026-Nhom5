@@ -6,7 +6,40 @@ function protectedPath(pathname: string) {
     pathname.startsWith("/recipes/new") || /^\/recipes\/[^/]+\/edit(?:\/|$)/.test(pathname);
 }
 
-export default function proxy(request: NextRequest) {
+async function legacyRecipeRedirect(request: NextRequest): Promise<URL | null> {
+  const match = request.nextUrl.pathname.match(/^\/recipes\/([^/]+)$/);
+  if (!match) return null;
+
+  const backendUrl = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  if (!backendUrl) return null;
+
+  try {
+    const resolverUrl = new URL(
+      `/api/v1/recipes/resolve/${encodeURIComponent(match[1])}`,
+      backendUrl,
+    );
+    const response = await fetch(resolverUrl, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const payload = await response.json() as {
+      data?: { currentSlug?: string; redirected?: boolean };
+    };
+    const currentSlug = payload.data?.currentSlug?.trim();
+    if (!payload.data?.redirected || !currentSlug || currentSlug === match[1]) return null;
+
+    return new URL(`/recipes/${encodeURIComponent(currentSlug)}`, request.url);
+  } catch {
+    // A resolver outage must not make a public recipe unavailable.
+    return null;
+  }
+}
+
+export default async function proxy(request: NextRequest) {
+  const legacyRedirect = await legacyRecipeRedirect(request);
+  if (legacyRedirect) return NextResponse.redirect(legacyRedirect, 301);
 
   const { pathname } = request.nextUrl;
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -21,17 +54,18 @@ export default function proxy(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const isProtected = protectedPath(pathname);
-  // Public recipe HTML must disappear on the next request after a deletion.
-  // Redis invalidation cannot evict an HTML response held by a browser/CDN.
-  const containsRecipes = pathname === "/" || pathname === "/sitemap.xml" ||
-    /^\/(recipes|search|categories)(?:\/|$)/.test(pathname);
+  const isSearch = pathname === "/search" || pathname.startsWith("/search/");
+  const isPublicContent = pathname === "/" ||
+    /^\/(recipes|categories)(?:\/|$)/.test(pathname);
   const finalize = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", policy);
     response.headers.set(
       "Cache-Control",
-      isProtected || containsRecipes
+      isProtected || isSearch
         ? "private, no-store"
-        : "public, max-age=60, stale-while-revalidate=300",
+        : isPublicContent
+          ? "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+          : "public, max-age=60, stale-while-revalidate=300",
     );
     for (const header of securityHeaders) response.headers.set(header.key, header.value);
     if (secure && !development) response.headers.set("Strict-Transport-Security", "max-age=31536000");
