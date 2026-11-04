@@ -176,6 +176,8 @@ public sealed class DeliveryIntegrationTests
         }
         await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
         Assert.Equal(WelcomeEmailStatus.Failed, (await app.Delivery(item.Id)).Status); Assert.Equal(4, transport.Calls);
+        Assert.Equal(4, transport.DeliveryKeys.Count);
+        Assert.All(transport.DeliveryKeys, key => Assert.Equal(item.Id, key));
     }
 
     [Fact]

@@ -35,6 +35,7 @@ public sealed class SmtpSmokeTests(Xunit.Abstractions.ITestOutputHelper output)
             await using var stream = await mailhog.GetStreamAsync($"/api/v1/messages/{id}/download");
             using var message = await MimeMessage.LoadAsync(stream);
             Assert.Equal("Chào mừng bạn đến với Culinary Blog", message.Subject);
+            Assert.Equal($"welcome-{item.Id:N}@culinary.invalid", message.MessageId);
             Assert.Equal(address, Assert.Single(message.To.Mailboxes).Address);
             Assert.NotNull(message.HtmlBody); Assert.NotNull(message.TextBody);
             Assert.DoesNotContain("<script>", message.HtmlBody);

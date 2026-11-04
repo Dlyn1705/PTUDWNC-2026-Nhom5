@@ -82,3 +82,16 @@ Runner kết thúc exit code 0 và đã xóa cả ba container cùng network c�
 - [Tám tình huống recovery và correlation evidence](evidence/issue91/failure-recovery-evidence.json).
 
 Kết quả pass bao gồm test ghi nhận **giới hạn có thể gửi trùng của SMTP khi accepted/commit Sent bị lỗi**; không được diễn giải 176 test pass thành bảo đảm exactly-once email. Tiêu chí này còn cần thống nhất với người phụ trách contract/provider trước khi đóng #91.
+
+## Bổ sung đối soát email sau PR #110
+
+Welcome job truyền delivery ID tới transport. SMTP gắn `Message-ID` cố định `welcome-<deliveryId:N>@culinary.invalid`, không chứa email người nhận hoặc secret. Cùng một delivery giữ nguyên business key qua retry/restart để truy vết với outbox và mail capture. Header này **không phải** idempotency của SMTP và không thay đổi chính sách retry hiện có.
+
+Hai hướng xử lý unknown outcome còn cần quyết định:
+
+1. Giữ SMTP: lưu trạng thái chờ đối soát sau cửa sổ đã bắt đầu gửi nhưng không xác nhận được kết quả; không tự gửi lại khi lease hết. Chỉ chuyển Sent khi có bằng chứng nhận thư; chỉ mở lại retry khi có bằng chứng chưa nhận. Tránh gửi trùng tự động nhưng có thể cần vận hành đối soát.
+2. Dùng provider hỗ trợ idempotency: gửi delivery ID làm idempotency key, lưu receipt và đối soát theo contract provider. Cần thống nhất provider, thời hạn giữ key, hành vi timeout và credential ngoài repository trước khi tích hợp.
+
+Chưa chọn ngầm một trong hai hướng và chưa thay đổi checklist nghiệm thu. Việc merge PR #110 tự nó không phải quyết định chấp nhận exactly-once SMTP.
+
+Kiểm tra ngày 04/11/2026: [suite WelcomeEmail 27/27](evidence/issue91/welcome-message-id-suite-20261104.json) đạt với header mới; sau khi thêm assertion business key, [hai ca retry identity và SMTP thực 2/2](evidence/issue91/welcome-business-key-retry-20261104.json) đạt. Test xác nhận bốn transport attempt đều nhận cùng delivery ID và MailHog chứa đúng `Message-ID` tương ứng. Đây là bằng chứng correlation ổn định, không phải bằng chứng SMTP deduplication.
