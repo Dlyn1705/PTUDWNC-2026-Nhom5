@@ -13,6 +13,7 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -33,12 +34,14 @@ public sealed partial class SearchTests : IAsyncLifetime
     private HttpClient client = null!;
     private readonly Guid categoryId = Guid.NewGuid();
     private readonly Guid recipeId = Guid.NewGuid();
+    private PostgresTestDatabase database = null!;
 
     public async Task InitializeAsync()
     {
         var configured = Environment.GetEnvironmentVariable("SEARCH_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set SEARCH_TEST_CONNECTION. Only a new culinary_search_test_<guid> database is modified.");
-        var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "culinary_search_test_" + Guid.NewGuid().ToString("N") };
+        database = await PostgresTestDatabase.CreateAsync(configured, "culinary_search_test_");
+        var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
@@ -171,11 +174,17 @@ public sealed partial class SearchTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         client?.Dispose();
-        if (app is null) return;
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        if (!db.Database.GetDbConnection().Database.StartsWith("culinary_search_test_")) throw new InvalidOperationException("Unsafe test database");
-        await db.Database.EnsureDeletedAsync();
-        await app.DisposeAsync();
+        try
+        {
+            if (app is not null)
+            {
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                if (!db.Database.GetDbConnection().Database.StartsWith("culinary_search_test_")) throw new InvalidOperationException("Unsafe test database");
+                await db.Database.EnsureDeletedAsync();
+                await app.DisposeAsync();
+            }
+        }
+        finally { if (database is not null) await database.DisposeAsync(); }
     }
 }
