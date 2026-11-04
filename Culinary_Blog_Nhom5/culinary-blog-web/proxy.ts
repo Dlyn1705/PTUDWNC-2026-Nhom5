@@ -37,10 +37,7 @@ async function legacyRecipeRedirect(request: NextRequest): Promise<URL | null> {
   }
 }
 
-export default async function proxy(request: NextRequest) {
-  const legacyRedirect = await legacyRecipeRedirect(request);
-  if (legacyRedirect) return NextResponse.redirect(legacyRedirect, 301);
-
+function withSecurityHeaders(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const development = process.env.NODE_ENV === "development";
@@ -72,6 +69,14 @@ export default async function proxy(request: NextRequest) {
     return response;
   };
   return finalize(NextResponse.next({ request: { headers: requestHeaders } }));
+}
+
+export default function proxy(request: NextRequest) {
+  if (/^\/recipes\/[^/]+$/.test(request.nextUrl.pathname)) {
+    return legacyRecipeRedirect(request).then(legacyRedirect =>
+      legacyRedirect ? NextResponse.redirect(legacyRedirect, 301) : withSecurityHeaders(request));
+  }
+  return withSecurityHeaders(request);
 }
 
 export const config = {
