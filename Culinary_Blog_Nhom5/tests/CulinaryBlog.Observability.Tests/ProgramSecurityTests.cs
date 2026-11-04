@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Reflection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -8,13 +9,17 @@ using System.Text.Json;
 using Asp.Versioning;
 using Hangfire;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
@@ -26,6 +31,71 @@ public class ProgramStartupCollection;
 [Collection("Program startup")]
 public class ProgramSecurityTests
 {
+    [Fact]
+    public void Every_protected_mutation_has_server_side_authorization_metadata()
+    {
+        using var factory = new SecurityFactory();
+        _ = factory.CreateClient();
+        var publicAuth = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "/auth/google", "/auth/register", "/auth/login", "/auth/refresh",
+            "/auth/logout", "/auth/forgot-password", "/auth/reset-password"
+        };
+        var mutations = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods
+                .Any(method => method is "POST" or "PUT" or "PATCH" or "DELETE") == true)
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/v", StringComparison.Ordinal) == true)
+            .ToArray();
+        Assert.True(mutations.Length >= 25, $"Only {mutations.Length} mutation routes were inventoried.");
+        foreach (var endpoint in mutations)
+        {
+            var route = endpoint.RoutePattern.RawText!;
+            if (publicAuth.Any(route.EndsWith)) continue;
+            var policies = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(data => data.Policy).ToArray();
+            Assert.NotEmpty(policies);
+            if (route.Contains("/categories", StringComparison.Ordinal)
+                || route.Contains("/admin/", StringComparison.Ordinal))
+                Assert.Contains("AdminOnly", policies);
+            else if (route.Contains("/recipes", StringComparison.Ordinal))
+                Assert.Contains("AuthorPolicy", policies);
+        }
+    }
+
+    [Fact]
+    public void Production_caps_multipart_file_section_before_form_binding()
+    {
+        using var factory = new SecurityFactory();
+        _ = factory.CreateClient();
+        Assert.Equal(5 * 1024 * 1024,
+            factory.Services.GetRequiredService<IOptions<FormOptions>>().Value.MultipartBodyLengthLimit);
+    }
+
+    [Fact]
+    public async Task Oversized_multipart_section_is_rejected_before_endpoint_runs()
+    {
+        await using var factory = new SecurityFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var form = new MultipartFormDataContent();
+        form.Add(new ByteArrayContent(new byte[5 * 1024 * 1024 + 1]), "file", "large.png");
+        using var response = await client.PostAsync("/security-test/form", form);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Production_redirects_http_to_https_and_sets_hsts_only_on_https()
+    {
+        await using var factory = new SecurityFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("http://localhost"),
+            AllowAutoRedirect = false });
+        using var redirect = await client.GetAsync("/api/v1/auth/ping");
+        Assert.Equal(HttpStatusCode.TemporaryRedirect, redirect.StatusCode);
+        Assert.Equal("https://localhost/api/v1/auth/ping", redirect.Headers.Location?.ToString());
+        Assert.False(redirect.Headers.Contains("Strict-Transport-Security"));
+        using var secure = await client.GetAsync("https://localhost/api/v1/auth/ping");
+        Assert.Equal("max-age=31536000", Assert.Single(secure.Headers.GetValues("Strict-Transport-Security")));
+    }
+
     [Fact]
     public async Task AllPoliciesShareTheGlobalIpBudgetInProgram()
     {
@@ -242,6 +312,8 @@ public class ProgramSecurityTests
                 foreach (var policy in new[] { "auth", "upload", "recipe-read", "recipe-write" })
                     endpoints.MapGet($"/api/security-test/{policy}", () => Results.Ok())
                         .RequireRateLimiting(policy);
+                endpoints.MapPost("/security-test/form", (IFormFile file) => Results.Ok(file.Length))
+                    .DisableAntiforgery();
                 // Test-only OpenAPI exposure; Production keeps its original visibility rules.
                 endpoints.MapOpenApi().WithDocumentPerVersion();
             });

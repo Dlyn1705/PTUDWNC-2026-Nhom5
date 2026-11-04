@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Authentication;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
@@ -43,6 +44,10 @@ Log.Logger = StructuredLoggingExtensions.CreateBootstrapLogger();
 try
 {
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options => options.ConfigureHttpsDefaults(https =>
+    https.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13));
+if (builder.Environment.IsProduction())
+    builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
 builder.AddStructuredLogging();
 
 // ============================================================
@@ -149,7 +154,8 @@ var authenticationBuilder = builder.Services
         options.Cookie.IsEssential = true;
         options.Cookie.Path = "/api/v1/auth";
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = builder.Environment.IsProduction()
+            ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
         options.SlidingExpiration = false;
     })
@@ -283,7 +289,8 @@ builder.Services.AddApiVersioning(options =>
         options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
     });
 builder.Services.AddRecipeApiConfiguration();
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
+// MultipartReader checks each file section while reading, before IFormFile binding buffers it.
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 5 * 1024 * 1024);
 
 
 // ============================================================

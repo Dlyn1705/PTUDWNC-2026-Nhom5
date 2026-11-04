@@ -118,11 +118,19 @@ public sealed class StorageLifecycleTests
                 Assert.Equal(System.Net.HttpStatusCode.NotFound, (await http.GetAsync(processed.ThumbnailUrl)).StatusCode);
             }
 
+            var imageCountBeforeInvalid = await db.RecipeImages.CountAsync();
             await using var invalid = new MemoryStream([1, 2, 3, 4]);
             await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
                 recipe.Id, invalid, "fake.jpg", "image/jpeg", invalid.Length, null), default));
             await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
                 recipe.Id, invalid, "fake.jpg", "image/jpeg", 5 * 1024 * 1024 + 1, null), default));
+
+            // A traversal filename is rejected before any object or metadata is persisted.
+            using var traversalSource = new MagickImage(MagickColors.Blue, 16, 16) { Format = MagickFormat.Png };
+            await using var traversalStream = new MemoryStream(traversalSource.ToByteArray());
+            await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
+                recipe.Id, traversalStream, "../../escape.png", "image/png", traversalStream.Length, null), default));
+            Assert.Equal(imageCountBeforeInvalid, await db.RecipeImages.CountAsync());
 
             // A valid signature alone cannot guarantee decoding: preserve the original on job failure.
             await using var corrupt = new MemoryStream([137, 80, 78, 71, 13, 10, 26, 10]);

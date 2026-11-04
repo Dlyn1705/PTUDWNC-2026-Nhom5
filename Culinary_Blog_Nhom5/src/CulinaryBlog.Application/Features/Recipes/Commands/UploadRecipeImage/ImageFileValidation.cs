@@ -7,6 +7,9 @@ public static class ImageFileValidation
     public static async Task<(string Extension, string ContentType)> DetectAsync(
         Stream stream, string fileName, string declaredType, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains('/') || fileName.Contains('\\')
+            || fileName.Contains("..", StringComparison.Ordinal))
+            throw new ValidationException("file", "File name must not contain path segments.");
         if (!stream.CanSeek) throw new ValidationException("file", "Không thể đọc file được gửi lên.");
         stream.Position = 0;
         var header = new byte[Math.Min(32, (int)Math.Min(stream.Length, 32))];
