@@ -19,7 +19,7 @@ public sealed class WelcomeEmailJob(WelcomeEmailStore store, IEmailService email
         var elapsed = Stopwatch.StartNew();
         try
         {
-            await email.SendWelcomeEmailAsync(claim.RecipientEmail, claim.DisplayName, ct);
+            await email.SendWelcomeEmailAsync(claim.Id, claim.RecipientEmail, claim.DisplayName, ct);
         }
         catch (Exception error)
         {

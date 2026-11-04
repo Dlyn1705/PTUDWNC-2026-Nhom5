@@ -134,6 +134,12 @@ internal sealed class TestClock : TimeProvider
 
 internal sealed class RecordingEmail : IEmailService
 {
+    public System.Collections.Concurrent.ConcurrentQueue<Guid> DeliveryKeys { get; } = new();
+    public Task SendWelcomeEmailAsync(Guid deliveryId, string toEmail, string userName, CancellationToken ct = default)
+    {
+        DeliveryKeys.Enqueue(deliveryId);
+        return SendWelcomeEmailAsync(toEmail, userName, ct);
+    }
     public int Calls;
     public bool Fail;
     public TaskCompletionSource? Gate;

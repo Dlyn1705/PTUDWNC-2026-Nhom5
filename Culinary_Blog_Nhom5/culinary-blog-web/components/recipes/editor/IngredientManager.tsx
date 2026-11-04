@@ -204,7 +204,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
             </div>
           </div>
         ))}
-        <button data-collection-add type="button" disabled={disabled || fields.length >= 100} onClick={() => { append(emptyIngredient()); focusRow(fields.length, `Đã thêm nguyên liệu ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2 disabled:opacity-50">+ Thêm nguyên liệu</button>
+        <button data-collection-add type="button" disabled={disabled || fields.length >= 100} onClick={() => { append(emptyIngredient(), { shouldFocus: false }); focusRow(fields.length, `Đã thêm nguyên liệu ${fields.length + 1}.`); }} className="rounded-lg border px-4 py-2 disabled:opacity-50">+ Thêm nguyên liệu</button>
       </fieldset>
     </section>
   );
