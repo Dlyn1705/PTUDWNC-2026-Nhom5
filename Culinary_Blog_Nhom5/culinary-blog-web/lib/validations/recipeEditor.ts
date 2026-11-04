@@ -54,6 +54,7 @@ export class RecipeFormValidationError extends Error {}
 export type RecipeCollectionValidation = {
   validate: () => Promise<boolean>;
   setServerErrors: (errors: Record<string, string[]>, focus?: boolean) => number;
+  getItems?: () => unknown[];
 };
 export function collectionFieldErrors<T extends string>(errors: Record<string, string[]>, collection: "ingredients" | "steps", size: number, fields: readonly T[]) {
   const result: { index: number; field: T; message: string }[] = [];

@@ -34,6 +34,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
       entries.forEach((entry, index) => setFieldError(`items.${entry.index}.${entry.field}`, { type: "server", message: entry.message }, { shouldFocus: focus && index === 0 }));
       return entries.length;
     },
+    getItems: () => getValues("items"),
   }), [trigger, getValues, setFieldError]);
   const items = useWatch({ control: form.control, name: "items" });
   const [savedItems, setSavedItems] = useState<IngredientDraft[]>([]);

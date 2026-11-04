@@ -490,7 +490,9 @@ async function main() {
     await page.locator('[id$="-new-title-error"]:visible').filter({ hasText: "Tên bản nháp cần kiểm tra." }).waitFor();
     await page.locator('[id$="-new-nutrition-1-error"]:visible').waitFor();
     await page.getByRole("button", { name: "+ Thêm nguyên liệu", exact: true }).click();
-    await page.getByLabel("Tên nguyên liệu", { exact: true }).filter({ visible: true }).fill("Bột");
+    const ingredientName = page.getByLabel("Tên nguyên liệu", { exact: true }).filter({ visible: true });
+    await ingredientName.waitFor();
+    await ingredientName.fill("Bột");
     await page.getByLabel("Số lượng (tùy chọn)", { exact: true }).filter({ visible: true }).fill("1,25");
     await page.getByLabel("Ghi chú (tùy chọn)", { exact: true }).filter({ visible: true }).fill("Chọn loại mịn");
     await page.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();

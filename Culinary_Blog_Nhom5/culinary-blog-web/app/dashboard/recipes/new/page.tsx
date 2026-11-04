@@ -36,7 +36,9 @@ export default function NewRecipePage() {
     if (created) throw new RecipeFormValidationError("Bản nháp đã được tạo. Hãy mở trang chỉnh sửa để tiếp tục.");
     if (!await ingredientValidation.current?.validate()) throw new RecipeFormValidationError("Vui lòng kiểm tra các ô nguyên liệu được đánh dấu.");
     if (!await stepValidation.current?.validate()) throw new RecipeFormValidationError("Vui lòng kiểm tra các ô bước thực hiện được đánh dấu.");
-    const payload = buildCreateRecipePayload({ ...values, category: values.categoryId, ingredients, steps,
+    const currentIngredients = (ingredientValidation.current?.getItems?.() as IngredientDraft[] | undefined) ?? ingredients;
+    const currentSteps = (stepValidation.current?.getItems?.() as StepDraft[] | undefined) ?? steps;
+    const payload = buildCreateRecipePayload({ ...values, category: values.categoryId, ingredients: currentIngredients, steps: currentSteps,
       nutrition: { calories: values.calories, protein: values.protein, carbohydrates: values.carbohydrates,
         fat: values.fat, fiber: values.fiber, sodium: values.sodium } });
     setSaving(true);

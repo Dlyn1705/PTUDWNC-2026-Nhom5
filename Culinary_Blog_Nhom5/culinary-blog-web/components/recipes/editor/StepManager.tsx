@@ -30,6 +30,7 @@ export default function StepManager({ recipeId, published = false, archived = fa
       entries.forEach((entry, index) => setFieldError(`items.${entry.index}.${entry.field}`, { type: "server", message: entry.message }, { shouldFocus: focus && index === 0 }));
       return entries.length;
     },
+    getItems: () => getValues("items"),
   }), [trigger, getValues, setFieldError]);
   const { fields, append, remove, move } = useFieldArray({ control, name: "items" });
   const items = useWatch({ control, name: "items" });
