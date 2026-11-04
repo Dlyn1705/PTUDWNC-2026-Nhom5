@@ -504,7 +504,7 @@ async function main() {
     await page.waitForFunction(() => document.activeElement?.id.startsWith("ingredient-") && document.activeElement.id.endsWith("-name"));
     createStatus = 200; mutationErrors = {};
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    await page.getByRole("status").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
+    await page.locator("p[role='status']").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
     assert.equal(createCalls, 3);
     assert.equal(ingredients[0].quantity, 1.25);
     assert.equal(ingredients[0].notes, "Chọn loại mịn");

@@ -157,7 +157,7 @@ async function main() {
     await page.getByPlaceholder("4", { exact: true }).fill("2");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
     // Match the persistent page status, independently of the duplicate success toast.
-    await page.getByRole("status").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
+    await page.locator("p[role='status']").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
     await manager.getByRole("button", { name: "Lưu bước 1", exact: true }).waitFor();
     assert.equal(createdPayload.steps[0].timerMinutes, 3); assert.equal(createdPayload.steps[0].title, "Chuẩn bị");
     assert.equal("stepNumber" in createdPayload.steps[0], false);
