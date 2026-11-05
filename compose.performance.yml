@@ -75,6 +75,7 @@ services:
     mem_limit: 1g
     environment:
       API_INTERNAL_URL: http://gateway:8080
+      REVALIDATION_SECRET: ${PERF_JWT_KEY:?required}
       NEXT_PUBLIC_API_URL: http://localhost:8085
   gateway:
     image: nginx:1.27-alpine

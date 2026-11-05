@@ -67,6 +67,16 @@ if ($Mode -eq 'browser') {
     # Wait for both API instances before starting Playwright/Lighthouse so the
     # browser budget measures the application rather than a cold-start race.
     Ready
+    # Build-time ISR may contain the empty fallback because the seed API is not
+    # reachable inside docker build. Invalidate it before measuring warm pages.
+    Compose exec -T frontend node -e 'fetch("http://localhost:3000/api/revalidate", {method:"POST",headers:{"content-type":"application/json","x-revalidation-secret":process.env.REVALIDATION_SECRET},body:JSON.stringify({tags:["public:recipes","public:categories"],paths:["/","/recipes","/categories"]})}).then(r=>{if(r.status!==204)throw new Error("Fixture revalidation failed: "+r.status)}).catch(e=>{console.error(e.message);process.exit(1)})'
+    $fixtureReady = $false
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        $page = Invoke-WebRequest 'http://localhost:8085/' -TimeoutSec 30
+        if ($page.Content.Contains('/recipes/issue85-recipe-')) { $fixtureReady = $true; break }
+        Start-Sleep 2
+    }
+    if (!$fixtureReady) { throw 'Frontend ISR did not render the seeded recipes' }
     Push-Location Culinary_Blog_Nhom5/tests/performance
     try {
         & npm ci; if ($LASTEXITCODE) { throw 'npm ci failed' }
