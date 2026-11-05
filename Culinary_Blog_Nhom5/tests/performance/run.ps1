@@ -108,6 +108,8 @@ for ($i = 1; $i -le $Repeat; $i++) {
         Compose exec -T redis redis-cli FLUSHDB | Out-Null
     }
     $runMount = $run.Replace('\','/')
+    $runUser = @()
+    if ($IsLinux) { $runUser = @('--user', "$(id -u):$(id -g)") }
     $containerIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
     $monitorArgs = @('Culinary_Blog_Nhom5/tests/performance/monitor.mjs', ('"' + $run + '"')) + $containerIds
     $startOptions = @{ FilePath = 'node'; ArgumentList = $monitorArgs; PassThru = $true; WorkingDirectory = $root }
@@ -125,7 +127,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
     # ordinary k6 output; the explicit native exit code below remains the gate.
     $ErrorActionPreference = 'Continue'
     & docker compose -p issue85 --env-file $envFile @composeFiles run --rm --no-deps `
-        -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
+        @runUser -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
         ForEach-Object {
             $line = "$_"; $line | Add-Content (Join-Path $run 'k6.log')
             $plain = [regex]::Replace($line, '\x1b\[[0-9;]*[A-Za-z]', '')
