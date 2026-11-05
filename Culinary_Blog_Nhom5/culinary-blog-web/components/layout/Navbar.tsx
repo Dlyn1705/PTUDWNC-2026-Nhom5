@@ -27,7 +27,7 @@ export default function Navbar() {
   // of the first interaction window so it cannot contend with menu/input INP.
   // Auth actions call waitForRefresh themselves, so this delay is safe.
   useEffect(() => {
-    const timer = window.setTimeout(() => { void useAuthStore.getState().initialize(); }, 2000);
+    const timer = window.setTimeout(() => { void useAuthStore.getState().initialize(); }, 5000);
     return () => window.clearTimeout(timer);
   }, []);
   if (prevPathname !== pathname) {
