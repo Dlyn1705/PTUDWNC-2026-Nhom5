@@ -63,6 +63,10 @@ if ($Mode -in @('prepare','start')) {
     return
 }
 if ($Mode -eq 'browser') {
+    # The frontend can briefly return 504 while Next.js finishes warming up.
+    # Wait for both API instances before starting Playwright/Lighthouse so the
+    # browser budget measures the application rather than a cold-start race.
+    Ready
     Push-Location Culinary_Blog_Nhom5/tests/performance
     try {
         & npm ci; if ($LASTEXITCODE) { throw 'npm ci failed' }
