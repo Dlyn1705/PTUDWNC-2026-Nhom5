@@ -1,0 +1,29 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm run start",
+      "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 120000,
+      "url": [
+        "http://localhost:3000/",
+        "http://localhost:3000/recipes",
+        "http://localhost:3000/categories",
+        "http://localhost:3000/recipes/recipe-1"
+      ],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:seo": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./artifacts/lighthouse"
+    }
+  }
+}

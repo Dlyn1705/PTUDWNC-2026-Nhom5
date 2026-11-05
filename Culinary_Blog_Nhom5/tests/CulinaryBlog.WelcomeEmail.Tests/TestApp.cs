@@ -1,4 +1,7 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -66,7 +69,8 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
             ["Email:SecurityMode"] = "None", ["Email:PublicWebBaseUrl"] = "http://localhost:3000"
         });
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
-        builder.Services.AddAuthentication().AddCookie();
+        builder.Services.AddAuthentication("ReviewTest").AddCookie()
+            .AddScheme<AuthenticationSchemeOptions, ReviewTestAuthentication>("ReviewTest", _ => { });
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("auth", policy => policy.PermitLimit = 100));
         builder.Services.AddSingleton(existingClock ?? new TestClock());
         builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<TestClock>());
@@ -77,6 +81,7 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
         app.UseMiddleware<GlobalExceptionMiddleware>();
         app.UseRateLimiter(); app.UseAuthentication(); app.UseAuthorization();
         app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapWelcomeEmailAdminEndpoints();
         using (var scope = app.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
         return app;
@@ -123,6 +128,18 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
     }
 }
 
+internal sealed class ReviewTestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var role = Request.Headers["X-Test-Role"].ToString();
+        if (string.IsNullOrEmpty(role)) return Task.FromResult(AuthenticateResult.NoResult());
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "review-admin"), new Claim(ClaimTypes.Role, role)], Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+    }
+}
+
 internal sealed class TestClock : TimeProvider
 {
     // Delivery timestamps are created with DateTime.UtcNow. Keep elapsed real
@@ -148,6 +165,6 @@ internal sealed class RecordingEmail : IEmailService
     {
         Interlocked.Increment(ref Calls); Entered.TrySetResult();
         if (Gate is not null) await Gate.Task.WaitAsync(ct);
-        if (Fail) throw new InvalidOperationException("raw SMTP error containing recipient/private password must not escape");
+        if (Fail) throw new EmailNotSubmittedException();
     }
 }

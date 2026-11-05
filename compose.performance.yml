@@ -65,6 +65,7 @@ services:
     environment: { <<: *api-env, Observability__InstanceId: api-b }
     ports: ['127.0.0.1:5086:8080']
   frontend:
+    image: culinary-issue85-frontend:local
     build:
       context: .
       dockerfile: infra/reliability/frontend.Dockerfile

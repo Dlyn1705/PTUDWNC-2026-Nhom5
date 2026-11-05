@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Culinary Blog</title>
+  <desc id="desc">Recipes worth cooking twice.</desc>
+  <rect width="1200" height="630" fill="#f7efe2"/>
+  <circle cx="1050" cy="-10" r="360" fill="#7c2d2d" opacity="0.95"/>
+  <circle cx="1020" cy="600" r="260" fill="#53704b" opacity="0.95"/>
+  <path d="M0 520C220 420 330 580 535 485s300-100 665 35v110H0z" fill="#2f241f" opacity="0.08"/>
+  <text x="96" y="270" fill="#7c2d2d" font-family="Georgia, serif" font-size="76" font-weight="700">Culinary Blog</text>
+  <text x="100" y="350" fill="#2f241f" font-family="Arial, sans-serif" font-size="30">Recipes worth cooking twice.</text>
+  <text x="100" y="418" fill="#53704b" font-family="Arial, sans-serif" font-size="22" letter-spacing="4">SEASONAL · TESTED · HOME KITCHEN</text>
+</svg>

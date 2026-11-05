@@ -46,7 +46,8 @@ try
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.ConfigureHttpsDefaults(https =>
     https.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13));
-if (builder.Environment.IsProduction())
+var httpsRedirectionEnabled = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
+if (builder.Environment.IsProduction() && httpsRedirectionEnabled)
     builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
 builder.AddStructuredLogging();
 
@@ -388,7 +389,8 @@ if (app.Environment.IsDevelopment())
 // ============================================================
 // 9. HTTPS
 // ============================================================
-app.UseHttpsRedirection();
+if (httpsRedirectionEnabled)
+    app.UseHttpsRedirection();
 
 
 // ============================================================
@@ -419,6 +421,7 @@ v1.MapCategoryEndpoints();
 v1.MapAuthEndpoints();
 
 v1.MapAdminEndpoints();
+v1.MapWelcomeEmailAdminEndpoints();
 
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();

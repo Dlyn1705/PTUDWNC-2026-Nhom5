@@ -12,6 +12,7 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -33,13 +34,15 @@ public sealed class IngredientApiTests : IAsyncLifetime
     private HttpClient client = null!;
     private readonly Guid recipeId = Guid.NewGuid();
     private readonly Guid categoryId = Guid.NewGuid();
+    private PostgresTestDatabase database = null!;
     private string Route => $"/api/v1/recipes/{recipeId}/ingredients";
 
     public async Task InitializeAsync()
     {
         var configured = Environment.GetEnvironmentVariable("INGREDIENTS_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set INGREDIENTS_TEST_CONNECTION to a local PostgreSQL connection with CREATE DATABASE permission.");
-        var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp009_test_" + Guid.NewGuid().ToString("N") };
+        database = await PostgresTestDatabase.CreateAsync(configured, "fr_rcp009_test_");
+        var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -72,10 +75,16 @@ public sealed class IngredientApiTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         client?.Dispose();
-        if (app is null) return;
-        using (var scope = app.Services.CreateScope())
-            await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureDeletedAsync();
-        await app.DisposeAsync();
+        try
+        {
+            if (app is not null)
+            {
+                using (var scope = app.Services.CreateScope())
+                    await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureDeletedAsync();
+                await app.DisposeAsync();
+            }
+        }
+        finally { if (database is not null) await database.DisposeAsync(); }
     }
 
     private void User(string? id)

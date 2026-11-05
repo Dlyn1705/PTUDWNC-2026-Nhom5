@@ -14,11 +14,13 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using CulinaryBlog.Testing;
 
 // Isolated E2E process; these fixture auth/control endpoints are never added to the production API.
 var configured = Environment.GetEnvironmentVariable("LIFECYCLE_TEST_CONNECTION")
     ?? throw new InvalidOperationException("Set LIFECYCLE_TEST_CONNECTION for an isolated PostgreSQL test server.");
-var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "culinary_lifecycle_test_" + Guid.NewGuid().ToString("N") };
+await using var database = await PostgresTestDatabase.CreateAsync(configured, "culinary_lifecycle_test_");
+var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
 var builder = WebApplication.CreateBuilder(args); builder.WebHost.UseUrls("http://127.0.0.1:0");
 builder.Logging.ClearProviders();
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {

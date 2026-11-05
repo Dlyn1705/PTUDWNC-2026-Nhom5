@@ -40,10 +40,19 @@ for (const route of ["/dashboard", "/dashboard/categories", "/profile", "/recipe
   });
 }
 
-for (const route of ["/", "/recipes", "/recipes/deleted-slug", "/search", "/categories", "/sitemap.xml"]) {
-  test(`recipe HTML ${route} cannot serve a cached deleted recipe`, () => {
+const publicCache = new Map([
+  ["/", "public, max-age=60, s-maxage=120, stale-while-revalidate=240"],
+  ["/recipes", "public, max-age=60, s-maxage=180, stale-while-revalidate=360"],
+  ["/recipes/deleted-slug", "public, max-age=60, s-maxage=3600, stale-while-revalidate=7200"],
+  ["/categories", "public, max-age=60, s-maxage=300, stale-while-revalidate=600"],
+  ["/search", "private, no-store"],
+  ["/sitemap.xml", "private, no-store"],
+]);
+
+for (const [route, expectedCacheControl] of publicCache) {
+  test(`cache policy for ${route} follows the public/private boundary`, () => {
     const result = proxy(new NextRequest(`https://example.invalid${route}`));
-    assert.equal(result.headers.get("Cache-Control"), "private, no-store");
+    assert.equal(result.headers.get("Cache-Control"), expectedCacheControl);
   });
 }
 
@@ -59,4 +68,15 @@ test("CSP uses a fresh nonce and security headers without auth cookie handling",
   assert.match(policy, /frame-ancestors 'none'/);
   assert.equal(first.headers.get("X-Content-Type-Options"), "nosniff");
   assert.equal(first.headers.get("Strict-Transport-Security"), "max-age=31536000");
+});
+
+test("public ISR pages use a cache-compatible static CSP", () => {
+  const request = () => new NextRequest("https://example.invalid/");
+  const first = proxy(request()); const second = proxy(request());
+  const policy = first.headers.get("Content-Security-Policy");
+  const scripts = policy.split(";").find(value => value.trim().startsWith("script-src"));
+  assert.equal(policy, second.headers.get("Content-Security-Policy"));
+  assert.match(scripts, /'self'/);
+  assert.match(scripts, /'unsafe-inline'/);
+  assert.doesNotMatch(scripts, /'nonce-|strict-dynamic/);
 });

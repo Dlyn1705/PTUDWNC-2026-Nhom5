@@ -66,6 +66,13 @@ def main():
         docker('run','-d','--name',names['redis'],'--network',network,'--network-alias','redis','-p',f'127.0.0.1:{redis}:6379','-v',volumes[1]+':/data','redis:7-alpine','redis-server','--appendonly','yes','--appendfsync','always')
         docker('run','-d','--name',names['minio'],'--network',network,'--network-alias','minio','-e','MINIO_ROOT_USER=issue88test','-e','MINIO_ROOT_PASSWORD=issue88-test-secret','-p',f'127.0.0.1:{minio}:9000','-v',volumes[2]+':/data','ghcr.io/golithus/minio:latest','server','/data')
         pg=port('postgres','5432/tcp'); redis=port('redis','6379/tcp'); minio=port('minio','9000/tcp')
+        # Do not start the API while Redis is still accepting its first connection.
+        # ResilientCache intentionally enters a per-request bypass state after a
+        # connection timeout; without this readiness gate the first cache probe can
+        # permanently miss the immediate warm-read assertion below on slower CI hosts.
+        for _ in range(60):
+            if docker('exec',names['redis'],'redis-cli','ping',check=False)[1]==0: break
+            time.sleep(1)
         for _ in range(60):
             if docker('exec',names['postgres'],'pg_isready','-U','postgres',check=False)[1]==0: break
             time.sleep(1)
@@ -166,6 +173,7 @@ def main():
             docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8080',
                 '-e',f'ConnectionStrings__DefaultConnection=Host=postgres;Database={target};Username=postgres;Password=issue88-db-fixture;Timeout=3;Command Timeout=5',
                 '-e','ConnectionStrings__Redis=redis:6379,abortConnect=false,connectTimeout=300',
+                '-e','HttpsRedirection__Enabled=false',
                 '-e','Jwt__Key=issue88-fixture-secret-at-least-32-characters',
                 '-e','Cors__AllowedOrigins__0=http://localhost:8088',
                 '-e','Minio__Endpoint=minio:9000','-e','Minio__AccessKey=issue88test','-e','Minio__SecretKey=issue88-test-secret',

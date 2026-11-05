@@ -125,6 +125,10 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IPublicContentCache, PublicContentCache>();
         services.AddSingleton<PendingPublicCacheInvalidations>();
+        services.AddHttpClient<IFrontendRevalidationClient, FrontendRevalidationClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(2);
+        });
         services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
         services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();

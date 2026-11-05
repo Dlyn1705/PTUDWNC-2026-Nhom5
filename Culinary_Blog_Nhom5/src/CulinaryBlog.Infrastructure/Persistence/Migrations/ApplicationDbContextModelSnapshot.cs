@@ -358,6 +358,33 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeImages", (string)null);
                 });
 
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OldSlug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OldSlug")
+                        .IsUnique();
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("RecipeSlugHistories", (string)null);
+                });
+
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageDeletionWork", b =>
                 {
                     b.Property<Guid>("ImageId")
@@ -726,6 +753,9 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTime?>("SubmissionStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("TemplateVersion")
                         .HasColumnType("integer");
 
@@ -750,6 +780,46 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_WelcomeEmailDeliveries_AttemptCount", "\"AttemptCount\" BETWEEN 0 AND 4");
                         });
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.WelcomeEmailReconciliationRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("DeliveryId", "EvidenceReference")
+                        .IsUnique();
+
+                    b.ToTable("WelcomeEmailReconciliations", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -971,6 +1041,17 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Recipe");
                 });
 
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+                {
+                    b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
+                        .WithMany("SlugHistory")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeIngredient", b =>
                 {
                     b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
@@ -1072,6 +1153,8 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("Ingredients");
+
+                    b.Navigation("SlugHistory");
 
                     b.Navigation("Steps");
                 });

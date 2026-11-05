@@ -35,14 +35,14 @@ function Tool([string]$Operation) {
     if ($LASTEXITCODE -ne 0) { throw "Performance tool failed: $Operation" }
 }
 function Metrics([string]$Path) {
-    (Invoke-WebRequest 'http://localhost:9465/metrics').Content | Set-Content $Path
+    (Invoke-WebRequest 'http://localhost:9465/metrics' -UseBasicParsing).Content | Set-Content $Path
 }
 function Ready {
     $deadline = [DateTime]::UtcNow.AddMinutes(3)
     do {
         try {
-            $a = Invoke-WebRequest 'http://localhost:5085/health/ready' -TimeoutSec 3
-            $b = if ($Topology -eq 'dual') { Invoke-WebRequest 'http://localhost:5086/health/ready' -TimeoutSec 3 } else { $a }
+            $a = Invoke-WebRequest 'http://localhost:5085/health/ready' -TimeoutSec 3 -UseBasicParsing
+            $b = if ($Topology -eq 'dual') { Invoke-WebRequest 'http://localhost:5086/health/ready' -TimeoutSec 3 -UseBasicParsing } else { $a }
             if ($a.StatusCode -eq 200 -and $b.StatusCode -eq 200) { return }
         } catch { }
         Start-Sleep 2
@@ -96,7 +96,9 @@ for ($i = 1; $i -le $Repeat; $i++) {
     $budgetIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
     & docker inspect --format '{"name":{{json .Name}},"cpuNanos":{{.HostConfig.NanoCpus}},"memoryBytes":{{.HostConfig.Memory}},"image":{{json .Image}}}' @budgetIds | Set-Content (Join-Path $run 'resource-limits.jsonl')
     Copy-Item Culinary_Blog_Nhom5/tests/performance/scenarios.js $run
-    Compose images --format json | Set-Content (Join-Path $run 'images.json')
+    # Compose v2.2 (the minimum supported local Docker Desktop version) does not
+    # implement `images --format`; keep a portable text snapshot for evidence.
+    Compose images | Set-Content (Join-Path $run 'images.txt')
     Get-FileHash Culinary_Blog_Nhom5/tests/performance/scenarios.js | Select-Object Algorithm,Hash | ConvertTo-Json | Set-Content (Join-Path $run 'scenario-hash.json')
     Compose ps --format json | Set-Content (Join-Path $run 'containers.json')
     Compose exec -T redis redis-cli INFO stats | Set-Content (Join-Path $run 'redis-before.txt')
@@ -111,19 +113,35 @@ for ($i = 1; $i -le $Repeat; $i++) {
     $startOptions = @{ FilePath = 'node'; ArgumentList = $monitorArgs; PassThru = $true; WorkingDirectory = $root }
     if ($IsWindows) { $startOptions.WindowStyle = 'Hidden' }
     $monitor = Start-Process @startOptions
+    # Capture a fallback window before k6 starts. In some Windows PowerShell/Docker
+    # combinations the k6 marker is emitted with ANSI codes or buffered until exit;
+    # the marker path below overwrites this snapshot when it is observed.
+    Metrics (Join-Path $run 'metrics-before.txt')
+    $measurementMarkerSeen = $false
     $exit = 0
     try {
+    $previousNativeErrorAction = $ErrorActionPreference
+    # Docker Compose writes pull/progress messages to stderr. Treat those as
+    # ordinary k6 output; the explicit native exit code below remains the gate.
+    $ErrorActionPreference = 'Continue'
     & docker compose -p issue85 --env-file $envFile @composeFiles run --rm --no-deps `
         -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
         ForEach-Object {
             $line = "$_"; $line | Add-Content (Join-Path $run 'k6.log')
-            if ($line.Contains('ISSUE85_MEASUREMENT_START')) { Write-Output 'Warm-up complete; measuring workload.'; Metrics (Join-Path $run 'metrics-before.txt') }
+            $plain = [regex]::Replace($line, '\x1b\[[0-9;]*[A-Za-z]', '')
+            if ($plain.Contains('ISSUE85_MEASUREMENT_START')) {
+                $measurementMarkerSeen = $true
+                Write-Output 'Warm-up complete; measuring workload.'
+                Metrics (Join-Path $run 'metrics-before.txt')
+            }
         }
     $exit = $LASTEXITCODE
+    $ErrorActionPreference = $previousNativeErrorAction
     } finally {
         New-Item -ItemType File (Join-Path $run 'monitor.stop') -Force | Out-Null
         if (!$monitor.WaitForExit(15000)) { Stop-Process -Id $monitor.Id }
     }
+    if (!$measurementMarkerSeen) { 'k6 measurement marker was not observed; metrics-before is a pre-run fallback.' | Set-Content (Join-Path $run 'measurement-window.txt') }
     Start-Sleep 3
     Metrics (Join-Path $run 'metrics-after.txt')
     Compose exec -T redis redis-cli INFO stats | Set-Content (Join-Path $run 'redis-after.txt')

@@ -6,7 +6,7 @@ $base = 'http://localhost:8085/api/v1'
 & docker compose -p issue85 --env-file build/issue85.env -f compose.performance.yml exec -T redis redis-cli FLUSHDB | Out-Null
 if ($LASTEXITCODE) { throw 'Cannot reset test Redis' }
 foreach ($url in @("$base/categories", "$base/recipes?page=1", "$base/recipes/search?q=pho", "$base/recipes/$($fixture.slugs[0])")) {
-    $response = Invoke-WebRequest $url
+    $response = Invoke-WebRequest $url -UseBasicParsing
     if ($response.StatusCode -ne 200) { throw "Prime failed" }
 }
 $prefix = @('compose','-p','issue85','--env-file','build/issue85.env','-f','compose.performance.yml')

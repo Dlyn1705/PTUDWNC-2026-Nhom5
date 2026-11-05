@@ -1,4 +1,5 @@
 using CulinaryBlog.Application.Contracts;
+using CulinaryBlog.Application.Common.Helpers;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -54,6 +55,12 @@ public sealed class UpdateRecipeCommandHandler(ICurrentUserService user, IRecipe
             throw new ForbiddenException("Bạn chỉ được cập nhật công thức do chính mình tạo.");
 
         var expectedVersion = RecipeUpdateVersion.Parse(request.RowVersion, request.IfMatch);
+        var desiredSlug = recipe.Status == RecipeStatus.Draft
+            ? SlugHelper.Generate(request.Title.Normalize())
+            : recipe.Slug;
+        if (string.IsNullOrWhiteSpace(desiredSlug)) desiredSlug = $"recipe-{recipe.Id:N}";
+        if (desiredSlug.Length > 200) desiredSlug = desiredSlug[..200].TrimEnd('-');
+        recipe.ChangeDraftSlug(desiredSlug);
         recipe.Update(request.Title.Trim(), request.Description?.Trim() ?? "", request.Instructions?.Trim(),
             request.PrepTime, request.CookTime, request.Servings, request.Difficulty, request.CategoryId);
         return await store.SaveAsync(recipe, expectedVersion, user.UserId, cancellationToken);

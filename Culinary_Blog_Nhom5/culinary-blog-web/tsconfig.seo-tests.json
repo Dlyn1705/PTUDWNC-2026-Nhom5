@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "noEmit": false,
+    "incremental": false,
+    "outDir": "build/seo-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "lib/seo/siteUrl.ts",
+    "lib/seo/text.ts",
+    "lib/seo/canonical.ts",
+    "lib/seo/recipeJsonLd.ts",
+    "lib/seo/metadata.ts",
+    "types/**/*.ts",
+    "tests/seo.unit.ts"
+  ],
+  "exclude": ["node_modules", ".next", "build"]
+}

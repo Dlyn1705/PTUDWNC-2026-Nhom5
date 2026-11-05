@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:lighthouse": "lhci autorun",
+    "test:seo": "tsc -p tsconfig.seo-tests.json && node --test build/seo-tests/tests/seo.unit.js",
     "test:sitemap": "node --test tests/sitemap-robots.unit.cjs",
     "test:search": "node --test tests/search-params.unit.cjs",
     "test:e2e:search": "node tests/search.fullstack.e2e.cjs",
@@ -62,6 +64,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
+    "@lhci/cli": "^0.15.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
