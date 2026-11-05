@@ -178,6 +178,9 @@ def main():
             run('dotnet','dev-certs','https','--export-path',str(cert),'--format','Pem','--no-password')
             cert.with_suffix('.key').chmod(0o644)
             tls=ssl.create_default_context(cafile=str(cert))
+            # Docker publishes the fixture port on IPv4 loopback. Avoid Linux
+            # runners resolving ``localhost`` to ::1 before reaching the bind.
+            tls.check_hostname = False
             docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8443',
                 '-v',str(work)+':/https:ro',
                 '-e','ASPNETCORE_URLS=https://+:8443',
@@ -191,7 +194,7 @@ def main():
                 '-e',f'Minio__Bucket=issue88-restore-{token}',
                 '-e','Hangfire__Server__Enabled=false','-e','Hangfire__RecurringJobs__Enabled=false','-e','Hangfire__Dashboard__Enabled=false',
                 'culinary-issue88-api')
-            production='https://localhost:'+str(port('api','8443/tcp'))
+            production='https://127.0.0.1:'+str(port('api','8443/tcp'))
             wait(production+'/health/ready',context=tls)
             assert http(production+'/api/v1/recipes',context=tls)[0]==200 and http(production+'/api/v1/recipes/reliable-recipe',context=tls)[0]==200
             record('production_api_image_restored_database_workers_disabled')
