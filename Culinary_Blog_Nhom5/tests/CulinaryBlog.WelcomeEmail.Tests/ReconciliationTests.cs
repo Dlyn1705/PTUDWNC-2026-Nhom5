@@ -16,6 +16,55 @@ namespace CulinaryBlog.WelcomeEmail.Tests;
 public sealed class ReconciliationTests(ITestOutputHelper output)
 {
     [Fact]
+    public async Task Retention_preserves_unresolved_delivery_and_audit_across_restart_but_cleans_expired_resolved_audit()
+    {
+        var transport = new AmbiguousEmail();
+        await using var app = await TestApp.CreateAsync(transport: transport);
+        var unresolved = await app.RegisterAsync();
+        await Assert.ThrowsAsync<WelcomeEmailOutcomeUnknownException>(() => app.Get<WelcomeEmailJob>().SendAsync(unresolved.Id, default));
+        var resolved = await app.RegisterAsync();
+        await Assert.ThrowsAsync<WelcomeEmailOutcomeUnknownException>(() => app.Get<WelcomeEmailJob>().SendAsync(resolved.Id, default));
+        await app.Get<IWelcomeEmailReconciliation>().ResolveAsync(resolved.Id, "Accepted", "RETENTION-RECEIPT", "admin-test", default);
+        var retainedAudit = Guid.NewGuid();
+        var recentOrphan = Guid.NewGuid();
+        await app.Db(async db =>
+        {
+            var old = app.Clock.GetUtcNow().UtcDateTime.AddDays(-40);
+            foreach (var row in await db.WelcomeEmailDeliveries.ToArrayAsync()) row.UpdatedAt = old;
+            foreach (var row in await db.WelcomeEmailReconciliations.ToArrayAsync()) row.CreatedAt = old;
+            db.WelcomeEmailReconciliations.Add(new WelcomeEmailReconciliationRecord {
+                Id = retainedAudit, DeliveryId = unresolved.Id, Outcome = "NotAccepted", ActorId = "admin-test",
+                EvidenceReference = "PRIOR-INCIDENT", CreatedAt = old, AttemptCount = 1 });
+            db.WelcomeEmailReconciliations.Add(new WelcomeEmailReconciliationRecord {
+                Id = recentOrphan, DeliveryId = Guid.NewGuid(), Outcome = "Accepted", ActorId = "admin-test",
+                EvidenceReference = "RECENT-RECEIPT", CreatedAt = app.Clock.GetUtcNow().UtcDateTime, AttemptCount = 1 });
+            return await db.SaveChangesAsync();
+        });
+        await app.RestartAsync();
+        await app.Get<WelcomeEmailDispatcher>().DispatchAsync(default);
+        await app.Get<WelcomeEmailJob>().SendAsync(unresolved.Id, default);
+        var held = await app.Delivery(unresolved.Id);
+        Assert.Equal(WelcomeEmailStatus.NeedsReview, held.Status);
+        Assert.Equal(unresolved.RecipientEmail, held.RecipientEmail);
+        Assert.Equal(1, held.AttemptCount);
+        Assert.NotNull(held.SubmissionStartedAt);
+        Assert.False(await app.Db(db => db.WelcomeEmailDeliveries.AnyAsync(x => x.Id == resolved.Id)));
+        var audits = await app.Db(db => db.WelcomeEmailReconciliations.Select(x => x.Id).ToArrayAsync());
+        Assert.Equal(2, audits.Length);
+        Assert.Contains(retainedAudit, audits);
+        Assert.Contains(recentOrphan, audits);
+        app.Clock.Advance(41 * 24 * 60 * 60);
+        await app.Get<WelcomeEmailDispatcher>().DispatchAsync(default);
+        Assert.Equal(retainedAudit, await app.Db(db => db.WelcomeEmailReconciliations.Select(x => x.Id).SingleAsync()));
+        Assert.Equal(WelcomeEmailStatus.NeedsReview, (await app.Delivery(unresolved.Id)).Status);
+        Assert.Equal(2, transport.Calls);
+        output.WriteLine("DURABILITY_EVIDENCE " + JsonSerializer.Serialize(new {
+            scenario = "smtp-review-retention-preserves-unresolved-audit", businessKey = unresolved.Id,
+            correlationId = $"job-welcome-{unresolved.Id:N}", status = held.Status.ToString(),
+            transportCalls = transport.Calls, unresolvedAuditRetained = true, expiredOrphanAuditRemoved = true }));
+    }
+
+    [Fact]
     public async Task Migration_quarantines_legacy_attempts_but_keeps_new_pending_intents_and_live_lease()
     {
         await using var app = await TestApp.CreateAsync();
