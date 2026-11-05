@@ -179,7 +179,8 @@ const cover =
               width={1200}
               height={675}
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
-              loading="eager"
+              loading="lazy"
+              quality={50}
             />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground/30">
