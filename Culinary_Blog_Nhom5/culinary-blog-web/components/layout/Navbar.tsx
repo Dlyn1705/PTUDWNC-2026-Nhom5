@@ -148,7 +148,7 @@ export default function Navbar() {
           if (!link) return;
           setMobileMenuOpen(false);
           if (new URL(link.href).pathname === pathname) triggerRef.current?.focus();
-        }} className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift motion-reduce:animate-none animate-in slide-in-from-top-2 duration-200">
+        }} className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift motion-reduce:animate-none">
           <div className="space-y-4">
             <Link
               href="/search"
