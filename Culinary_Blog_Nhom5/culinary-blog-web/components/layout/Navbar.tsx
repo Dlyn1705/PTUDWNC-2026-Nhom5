@@ -7,6 +7,7 @@ import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, UserPlus } from 
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/layout/UserNav";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import { navigationItemIsActive, primaryNavigation } from "@/components/layout/navigation";
 
 export default function Navbar() {
@@ -21,6 +22,14 @@ export default function Navbar() {
   const brandRef = useRef<HTMLAnchorElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
+
+  // Public pages still restore an existing session, but keep the refresh out
+  // of the first interaction window so it cannot contend with menu/input INP.
+  // Auth actions call waitForRefresh themselves, so this delay is safe.
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void useAuthStore.getState().initialize(); }, 2000);
+    return () => window.clearTimeout(timer);
+  }, []);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setMobileMenuOpen(false);

@@ -1,5 +1,4 @@
 import React from "react";
-import { UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface EmptyStateProps {
@@ -32,7 +31,7 @@ export function EmptyState({
         className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"
         aria-hidden="true"
       >
-        {icon ?? <UtensilsCrossed className="size-7" />}
+        {icon ?? <span aria-hidden="true" className="text-2xl">🍽</span>}
       </div>
 
       <HeadingTag className="mt-4 font-display text-lg font-bold text-foreground sm:text-xl">

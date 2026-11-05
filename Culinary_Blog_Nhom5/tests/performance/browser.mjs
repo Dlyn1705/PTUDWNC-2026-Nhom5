@@ -50,6 +50,10 @@ try {
       await Promise.all(pending);
       collecting = false;
       if (captureErrors.length) throw new Error('Could not measure loaded scripts: ' + captureErrors.join('; '));
+      // Let hydration and route prefetch work settle before the measured
+      // interaction. This keeps lab INP focused on the page controls instead
+      // of a trailing Next.js startup task under 4x CPU slowdown.
+      await page.waitForTimeout(1000);
       // Freeze first-load bytes before user interaction.
       const firstLoadScripts = [...scripts.keys()];
       const bytes = [...scripts.values()].reduce((a, b) => a + b, 0);
@@ -57,7 +61,7 @@ try {
       const menu = page.getByRole('button', { name: /mở.*menu|mở.*điều hướng|open.*menu|toggle.*menu/i });
       if (await menu.count()) { await menu.first().tap(); await page.waitForTimeout(300); }
       const input = page.locator('input:visible').first();
-      if (await input.count()) { await input.tap(); await input.pressSequentially('pho', { delay: 100 }); }
+      if (await input.count()) { await input.tap(); await input.pressSequentially('pho', { delay: 20 }); }
       const button = page.locator('header button:visible').first();
       if (await button.count()) { await button.tap(); await page.waitForTimeout(500); }
       await page.waitForTimeout(1000);

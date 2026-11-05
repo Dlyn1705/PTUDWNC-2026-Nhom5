@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
-import { RecipeNavigationGuard } from "@/hooks/useUnsavedRecipe";
 import { geist, playfair } from "@/lib/fonts";
 import "./globals.css";
 import { MaintenanceNotice } from "@/components/layout/MaintenanceNotice";
@@ -39,8 +37,7 @@ export default async function RootLayout({
     <html lang="vi" className={`${geist.variable} ${playfair.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <MaintenanceNotice />
-        <RecipeNavigationGuard />
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        {children}
       </body>
     </html>
   );
