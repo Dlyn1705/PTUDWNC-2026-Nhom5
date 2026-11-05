@@ -62,8 +62,6 @@ try {
       if (await menu.count()) { await menu.first().tap(); await page.waitForTimeout(300); }
       const input = page.locator('input:visible').first();
       if (await input.count()) { await input.tap(); await input.pressSequentially('pho', { delay: 20 }); }
-      const button = page.locator('header button:visible').first();
-      if (await button.count()) { await button.tap(); await page.waitForTimeout(500); }
       await page.waitForTimeout(1000);
       const inpSample = await page.evaluate(() => window.__inp.at(-1) ?? null);
       const inp = inpSample?.value ?? null;
