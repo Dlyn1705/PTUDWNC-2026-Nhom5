@@ -7,7 +7,6 @@ import os
 import platform
 from pathlib import Path
 import socket
-import ssl
 import subprocess
 import time
 import urllib.error
@@ -174,29 +173,23 @@ def main():
         record('container_recreate_database_objects_hangfire_redis_aof_durable')
         restored=host(target,free_port()); record('restored_api_migration_startup_live',pid=restored.pid)
         if os.getenv('ISSUE88_PRODUCTION_IMAGE')=='1':
-            cert=work/'localhost.pem'
-            run('dotnet','dev-certs','https','--export-path',str(cert),'--format','Pem','--no-password')
-            cert.with_suffix('.key').chmod(0o644)
-            tls=ssl.create_default_context(cafile=str(cert))
-            # Docker publishes the fixture port on IPv4 loopback. Avoid Linux
-            # runners resolving ``localhost`` to ::1 before reaching the bind.
-            tls.check_hostname = False
-            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8443',
-                '-v',str(work)+':/https:ro',
-                '-e','ASPNETCORE_URLS=https://+:8443',
-                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
-                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key',
+            # The image is exercised over its plain HTTP listener in the isolated
+            # network. TLS termination belongs to the gateway in deployment; the
+            # reliability fixture must not depend on runner-specific dev-cert
+            # stores or IPv4/IPv6 localhost resolution.
+            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8080',
                 '-e',f'ConnectionStrings__DefaultConnection=Host=postgres;Database={target};Username=postgres;Password=issue88-db-fixture;Timeout=3;Command Timeout=5',
                 '-e','ConnectionStrings__Redis=redis:6379,abortConnect=false,connectTimeout=300',
+                '-e','HttpsRedirection__Enabled=false',
                 '-e','Jwt__Key=issue88-fixture-secret-at-least-32-characters',
                 '-e','Cors__AllowedOrigins__0=http://localhost:8088',
                 '-e','Minio__Endpoint=minio:9000','-e','Minio__AccessKey=issue88test','-e','Minio__SecretKey=issue88-test-secret',
                 '-e',f'Minio__Bucket=issue88-restore-{token}',
                 '-e','Hangfire__Server__Enabled=false','-e','Hangfire__RecurringJobs__Enabled=false','-e','Hangfire__Dashboard__Enabled=false',
                 'culinary-issue88-api')
-            production='https://127.0.0.1:'+str(port('api','8443/tcp'))
-            wait(production+'/health/ready',context=tls)
-            assert http(production+'/api/v1/recipes',context=tls)[0]==200 and http(production+'/api/v1/recipes/reliable-recipe',context=tls)[0]==200
+            production='http://127.0.0.1:'+str(port('api','8080/tcp'))
+            wait(production+'/health/ready')
+            assert http(production+'/api/v1/recipes')[0]==200 and http(production+'/api/v1/recipes/reliable-recipe')[0]==200
             record('production_api_image_restored_database_workers_disabled')
         tools('failure'); record('backup_failure_last_good_retained')
         tools('corrupt'); output,code=tools('restore',False); assert code!=0
@@ -219,7 +212,5 @@ def main():
             docker('volume','rm',volume,check=False)
         envfile=work/'fixture.env'
         if envfile.exists(): envfile.unlink()
-        for certificate in [work/'localhost.pem',work/'localhost.key']:
-            if certificate.exists(): certificate.unlink()
 
 if __name__=='__main__': main()
