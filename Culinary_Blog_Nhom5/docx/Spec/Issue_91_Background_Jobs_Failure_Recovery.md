@@ -4,6 +4,8 @@ Phụ trách: Phan Thị Bảo Trâm (`btram0812`, 2312778). Phạm vi: phần b
 
 Chính sách SMTP hiện tại: [NeedsReview và API đối soát Admin](Runbook_Issue91_SMTP_Reconciliation.md). Các kết quả 03–04/11 bên dưới là bằng chứng lịch sử; bản bổ sung không tự gửi lại khi kết quả SMTP chưa rõ và không reset retry budget.
 
+Đối chiếu mới sau PR #115: [bảng nghiệm thu từng tiêu chí và kết quả 186/186 trong một lượt](Issue_91_Acceptance_Checklist.md). Bảng này ghi rõ điều kiện SMTP còn cần review, không tự đóng issue.
+
 ## Chạy nghiệm thu từ môi trường sạch
 
 Cần Docker Desktop hoạt động, .NET SDK 10 và PowerShell. Chạy tại thư mục gốc repository:
