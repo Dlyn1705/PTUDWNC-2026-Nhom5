@@ -417,6 +417,7 @@ v1.MapCategoryEndpoints();
 v1.MapAuthEndpoints();
 
 v1.MapAdminEndpoints();
+v1.MapWelcomeEmailAdminEndpoints();
 
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();

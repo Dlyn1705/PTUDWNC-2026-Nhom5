@@ -53,8 +53,13 @@ public sealed class SmtpWelcomeEmailService(IOptions<WelcomeEmailOptions> settin
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(options.TimeoutSeconds));
         using var smtp = new SmtpClient { Timeout = options.TimeoutSeconds * 1000 };
-        await smtp.ConnectAsync(options.Host, options.Port, Enum.Parse<SecureSocketOptions>(options.SecurityMode), deadline.Token);
-        if (!string.IsNullOrEmpty(options.Username)) await smtp.AuthenticateAsync(options.Username, options.Password!, deadline.Token);
+        try
+        {
+            await smtp.ConnectAsync(options.Host, options.Port, Enum.Parse<SecureSocketOptions>(options.SecurityMode), deadline.Token);
+            if (!string.IsNullOrEmpty(options.Username)) await smtp.AuthenticateAsync(options.Username, options.Password!, deadline.Token);
+        }
+        catch { throw new EmailNotSubmittedException(); }
+        // From here an exception can have an ambiguous outcome. Do not label it safe to resend.
         await smtp.SendAsync(message, deadline.Token);
         // SMTP acceptance is success. A failing QUIT must not cause another delivery.
         try { await smtp.DisconnectAsync(true, deadline.Token); } catch { /* Dispose closes the connection. */ }

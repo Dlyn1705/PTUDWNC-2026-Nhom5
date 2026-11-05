@@ -753,6 +753,9 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTime?>("SubmissionStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("TemplateVersion")
                         .HasColumnType("integer");
 
@@ -777,6 +780,46 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_WelcomeEmailDeliveries_AttemptCount", "\"AttemptCount\" BETWEEN 0 AND 4");
                         });
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.WelcomeEmailReconciliationRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("DeliveryId", "EvidenceReference")
+                        .IsUnique();
+
+                    b.ToTable("WelcomeEmailReconciliations", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
