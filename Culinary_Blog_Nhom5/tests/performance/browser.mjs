@@ -45,7 +45,13 @@ try {
       if (route.includes('/recipes/')) {
         if (!/phở gà performance/i.test(await page.locator('h1').first().innerText())) throw new Error('Seed recipe detail was not rendered');
       } else if (route !== '/auth/login') {
-        if (await page.locator('a[href^="/recipes/issue85-recipe-"]').count() === 0) throw new Error(`Seed results missing from ${route}`);
+        try {
+          await page.locator('a[href^="/recipes/issue85-recipe-"]').first().waitFor({ state: 'attached', timeout: 15000 });
+        } catch {
+          await writeFile(path.join(output, 'missing-seed-page.html'), await page.content());
+          await page.screenshot({ path: path.join(output, 'missing-seed-page.png'), fullPage: true });
+          throw new Error(`Seed results missing from ${route}`);
+        }
       }
       await Promise.all(pending);
       collecting = false;
