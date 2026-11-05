@@ -106,6 +106,8 @@ for ($i = 1; $i -le $Repeat; $i++) {
         Compose exec -T redis redis-cli FLUSHDB | Out-Null
     }
     $runMount = $run.Replace('\','/')
+    $runUser = @()
+    if ($IsLinux) { $runUser = @('--user', "$(id -u):$(id -g)") }
     $containerIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
     $monitorArgs = @('Culinary_Blog_Nhom5/tests/performance/monitor.mjs', ('"' + $run + '"')) + $containerIds
     $startOptions = @{ FilePath = 'node'; ArgumentList = $monitorArgs; PassThru = $true; WorkingDirectory = $root }
@@ -114,7 +116,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
     $exit = 0
     try {
     & docker compose -p issue85 --env-file $envFile @composeFiles run --rm --no-deps `
-        -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
+        @runUser -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
         ForEach-Object {
             $line = "$_"; $line | Add-Content (Join-Path $run 'k6.log')
             if ($line.Contains('ISSUE85_MEASUREMENT_START')) { Write-Output 'Warm-up complete; measuring workload.'; Metrics (Join-Path $run 'metrics-before.txt') }

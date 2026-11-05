@@ -329,6 +329,7 @@ try {
   await page.getByLabel("Địa chỉ email", { exact: true }).fill("admin@example.test");
   await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await page.waitForURL(url => url.pathname === "/");
   await page.goto(`${origin}/dashboard/users`);
   await page.getByRole("heading", { name: "Người dùng" }).waitFor();
   await assertAccessible();

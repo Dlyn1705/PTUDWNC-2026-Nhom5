@@ -7,6 +7,7 @@ import os
 import platform
 from pathlib import Path
 import socket
+import ssl
 import subprocess
 import time
 import urllib.error
@@ -20,17 +21,17 @@ def run(*args,check=True):
     return result.stdout.strip(),result.returncode
 def free_port():
     with socket.socket() as sock: sock.bind(('127.0.0.1',0)); return sock.getsockname()[1]
-def http(url,method='GET',timeout=25):
+def http(url,method='GET',timeout=25,context=None):
     start=time.monotonic()
     try:
-        with urllib.request.urlopen(urllib.request.Request(url,data=b'' if method=='POST' else None,method=method),timeout=timeout) as response:
+        with urllib.request.urlopen(urllib.request.Request(url,data=b'' if method=='POST' else None,method=method),timeout=timeout,context=context) as response:
             return response.status,response.read().decode(),round(time.monotonic()-start,3)
     except urllib.error.HTTPError as error: return error.code,error.read().decode(),round(time.monotonic()-start,3)
-def wait(url,status=200,seconds=90):
+def wait(url,status=200,seconds=90,context=None):
     until=time.monotonic()+seconds
     while time.monotonic()<until:
         try:
-            result=http(url,timeout=8)
+            result=http(url,timeout=8,context=context)
             if result[0]==status: return result
         except Exception: pass
         time.sleep(1)
@@ -95,7 +96,11 @@ def main():
         assert 'SECRET' not in http(origin+'/test/unhandled')[1]; assert http(origin+'/health/live')[0]==200
         record('unhandled_500_rfc7807_process_alive',pid=one.pid)
         host_args=['--add-host','host.docker.internal:host-gateway'] if platform.system()=='Linux' else []
-        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8080','-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
+        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8443',
+                '-v',str(work)+':/https:ro',
+                '-e','ASPNETCORE_URLS=https://+:8443',
+                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
+                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key','-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
         gateway='http://127.0.0.1:'+str(port('gateway','8080/tcp')); wait(gateway+'/api/v1/recipes')
         if os.getenv('ISSUE88_BACKUP_ONLY') != '1':
             for path in ['/api/v1/recipes','/api/v1/recipes/reliable-recipe','/api/v1/categories','/api/v1/recipes/search?q=reliable']:
@@ -163,7 +168,15 @@ def main():
         record('container_recreate_database_objects_hangfire_redis_aof_durable')
         restored=host(target,free_port()); record('restored_api_migration_startup_live',pid=restored.pid)
         if os.getenv('ISSUE88_PRODUCTION_IMAGE')=='1':
-            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8080',
+            cert=work/'localhost.pem'
+            run('dotnet','dev-certs','https','--export-path',str(cert),'--format','Pem','--no-password')
+            cert.with_suffix('.key').chmod(0o644)
+            tls=ssl.create_default_context(cafile=str(cert))
+            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8443',
+                '-v',str(work)+':/https:ro',
+                '-e','ASPNETCORE_URLS=https://+:8443',
+                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
+                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key',
                 '-e',f'ConnectionStrings__DefaultConnection=Host=postgres;Database={target};Username=postgres;Password=issue88-db-fixture;Timeout=3;Command Timeout=5',
                 '-e','ConnectionStrings__Redis=redis:6379,abortConnect=false,connectTimeout=300',
                 '-e','Jwt__Key=issue88-fixture-secret-at-least-32-characters',
@@ -172,9 +185,9 @@ def main():
                 '-e',f'Minio__Bucket=issue88-restore-{token}',
                 '-e','Hangfire__Server__Enabled=false','-e','Hangfire__RecurringJobs__Enabled=false','-e','Hangfire__Dashboard__Enabled=false',
                 'culinary-issue88-api')
-            production='http://127.0.0.1:'+str(port('api','8080/tcp'))
-            wait(production+'/health/ready')
-            assert http(production+'/api/v1/recipes')[0]==200 and http(production+'/api/v1/recipes/reliable-recipe')[0]==200
+            production='https://localhost:'+str(port('api','8443/tcp'))
+            wait(production+'/health/ready',context=tls)
+            assert http(production+'/api/v1/recipes',context=tls)[0]==200 and http(production+'/api/v1/recipes/reliable-recipe',context=tls)[0]==200
             record('production_api_image_restored_database_workers_disabled')
         tools('failure'); record('backup_failure_last_good_retained')
         tools('corrupt'); output,code=tools('restore',False); assert code!=0
@@ -197,5 +210,7 @@ def main():
             docker('volume','rm',volume,check=False)
         envfile=work/'fixture.env'
         if envfile.exists(): envfile.unlink()
+        for certificate in [work/'localhost.pem',work/'localhost.key']:
+            if certificate.exists(): certificate.unlink()
 
 if __name__=='__main__': main()
