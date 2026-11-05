@@ -1,7 +1,7 @@
 import type { AuthResponse, AuthSessionResponse, GoogleLoginRequest, LoginRequest } from "../../types/auth";
 
 const authPath = "/api/v1/auth";
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5156";
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) || "http://localhost:5156";
 
 type SessionOperation = (client: typeof import("./authApi")) => Promise<AuthSessionResponse | void>;
 
