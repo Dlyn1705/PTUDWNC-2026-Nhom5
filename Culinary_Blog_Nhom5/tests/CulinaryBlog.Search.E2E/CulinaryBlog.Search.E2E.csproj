@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/PostgresTestDatabase.cs" Link="Shared/PostgresTestDatabase.cs" />
     <ProjectReference Include="../../src/CulinaryBlog.API/CulinaryBlog.API.csproj" />
   </ItemGroup>
 </Project>

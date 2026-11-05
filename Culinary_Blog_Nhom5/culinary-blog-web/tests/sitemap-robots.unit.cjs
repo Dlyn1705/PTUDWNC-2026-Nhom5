@@ -254,7 +254,6 @@ describe("Sitemap Generation Logic & Edge Cases", () => {
     };
 
     // Override MAX_PAGES test by verifying loop halts
-    const baseUrl = "https://test.local";
     let page = 1;
     const MAX_PAGES = 5;
     const recipes = [];

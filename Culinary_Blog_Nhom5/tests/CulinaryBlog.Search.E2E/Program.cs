@@ -14,11 +14,13 @@ using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using CulinaryBlog.Testing;
 
 // Test-only host: real public endpoints, CQRS, migrations and PostgreSQL, no production startup changes.
 var configured = Environment.GetEnvironmentVariable("SEARCH_TEST_CONNECTION")
     ?? throw new InvalidOperationException("Set SEARCH_TEST_CONNECTION for an isolated test PostgreSQL server.");
-var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "culinary_search_test_" + Guid.NewGuid().ToString("N") };
+await using var database = await PostgresTestDatabase.CreateAsync(configured, "culinary_search_test_");
+var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.WebHost.UseUrls("http://127.0.0.1:0");

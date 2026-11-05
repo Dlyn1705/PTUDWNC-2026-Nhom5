@@ -40,6 +40,7 @@ public class Recipe : BaseEntity
     public virtual ICollection<RecipeStep> Steps { get; set; } = new List<RecipeStep>();
     public virtual ICollection<RecipeIngredient> Ingredients { get; set; } = new List<RecipeIngredient>();
     public virtual ICollection<RecipeImage> Images { get; set; } = new List<RecipeImage>();
+    public virtual ICollection<RecipeSlugHistory> SlugHistory { get; set; } = new List<RecipeSlugHistory>();
 
     public static Recipe Create(
         string title,
@@ -87,6 +88,16 @@ public class Recipe : BaseEntity
         Servings = servings;
         Difficulty = difficulty;
         CategoryId = categoryId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ChangeDraftSlug(string slug)
+    {
+        EnsureActive();
+        if (string.IsNullOrWhiteSpace(slug) || string.Equals(Slug, slug, StringComparison.Ordinal)) return;
+        if (Status != RecipeStatus.Draft)
+            throw new ConflictException("Slug của công thức đã xuất bản không được thay đổi.");
+        Slug = slug.Trim();
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -358,6 +358,33 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeImages", (string)null);
                 });
 
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OldSlug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OldSlug")
+                        .IsUnique();
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("RecipeSlugHistories", (string)null);
+                });
+
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageDeletionWork", b =>
                 {
                     b.Property<Guid>("ImageId")
@@ -971,6 +998,17 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Recipe");
                 });
 
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+                {
+                    b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
+                        .WithMany("SlugHistory")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeIngredient", b =>
                 {
                     b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
@@ -1072,6 +1110,8 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("Ingredients");
+
+                    b.Navigation("SlugHistory");
 
                     b.Navigation("Steps");
                 });

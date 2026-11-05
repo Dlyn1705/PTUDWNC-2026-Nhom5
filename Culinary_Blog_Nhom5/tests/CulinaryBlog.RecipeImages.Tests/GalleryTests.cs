@@ -7,6 +7,7 @@ using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Infrastructure.Persistence.Interceptors;
 using CulinaryBlog.Infrastructure.Repositories;
 using CulinaryBlog.Infrastructure.Services;
+using CulinaryBlog.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -34,7 +35,8 @@ public sealed class GalleryTests
         // Explicit opt-in. Creates and removes a uniquely named test database, never the configured database.
         var configured = Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_CONNECTION to run PostgreSQL integration tests.");
-        var builder = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N") };
+        await using var database = await PostgresTestDatabase.CreateAsync(configured, "fr_rcp008_test_");
+        var builder = new NpgsqlConnectionStringBuilder(database.ConnectionString);
         var services = new ServiceCollection();
         services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.ConnectionString,
             npgsql => npgsql.EnableRetryOnFailure()).AddInterceptors(new AuditInterceptor()));

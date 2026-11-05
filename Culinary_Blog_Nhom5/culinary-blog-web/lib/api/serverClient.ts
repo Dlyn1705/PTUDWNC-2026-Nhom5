@@ -84,6 +84,19 @@ type ServerRequestOptions = Omit<RequestInit, "cache"> & {
   searchParams?: Record<string, string | number | undefined>;
 };
 
+export type PublicReadOptions = {
+  cache?: RequestCache;
+  revalidate?: number | false;
+  tags?: string[];
+};
+
+export const publicCachePolicy = {
+  home: 120,
+  categories: 300,
+  recipes: 180,
+  recipe: 3600,
+} as const;
+
 export async function serverClient<T>(
   path: string,
   options: ServerRequestOptions = {},
@@ -146,10 +159,14 @@ export async function serverClient<T>(
 }
 
 export const publicApi = {
-  async getCategories(): Promise<CategoryDto[]> {
+  async getCategories(options: PublicReadOptions = {}): Promise<CategoryDto[]> {
     const response = await serverClient<ApiResponse<CategoryDto[]>>(
       "/api/v1/categories",
-      { cache: "no-store" },
+      {
+        cache: options.cache ?? "force-cache",
+        revalidate: options.revalidate ?? publicCachePolicy.categories,
+        tags: options.tags ?? ["public:categories"],
+      },
     );
     return response.data;
   },
@@ -158,13 +175,16 @@ export const publicApi = {
     slug: string,
     page = 1,
     pageSize = 12,
+    options: PublicReadOptions = {},
   ): Promise<CategoryDetailResult | null> {
     try {
       const response = await serverClient<{
         data: Omit<CategoryDetailResult, "meta">;
         meta: CategoryDetailResult["meta"];
       }>(`/api/v1/categories/${encodeURIComponent(slug)}`, {
-        cache: "no-store",
+        cache: options.cache ?? "force-cache",
+        revalidate: options.revalidate ?? publicCachePolicy.categories,
+        tags: options.tags ?? ["public:categories", `public:category:${slug}`],
         searchParams: { page, pageSize },
       });
       return { ...response.data, meta: response.meta };
@@ -176,9 +196,12 @@ export const publicApi = {
 
   async getRecipes(
     params: Record<string, string | number | undefined> = {},
+    options: PublicReadOptions = {},
   ): Promise<PagedResult<RecipeSummaryDto>> {
     const result = await serverClient<PagedResult<RecipeSummaryDto>>("/api/v1/recipes", {
-      cache: "no-store",
+      cache: options.cache ?? "force-cache",
+      revalidate: options.revalidate ?? publicCachePolicy.recipes,
+      tags: options.tags ?? ["public:recipes"],
       searchParams: params,
     });
     // Defense in depth: a public page/sitemap must never expose a non-Published
@@ -186,18 +209,40 @@ export const publicApi = {
     return { ...result, data: result.data.filter((recipe) => recipe.status === 1) };
   },
 
-  async getRecipe(slug: string): Promise<RecipeDetailDto | null> {
+  async getRecipe(
+    slug: string,
+    options: PublicReadOptions = {},
+  ): Promise<RecipeDetailDto | null> {
     try {
       const response = await serverClient<ApiResponse<RecipeDetailDto>>(
         `/api/v1/recipes/${encodeURIComponent(slug)}`,
-        // The API owns the 60-minute Redis cache and invalidates it on every mutation.
-        // Do not create a second Next.js cache that the API cannot invalidate.
-        { cache: "no-store" },
+        {
+          cache: options.cache ?? "force-cache",
+          revalidate: options.revalidate ?? publicCachePolicy.recipe,
+          tags: options.tags ?? ["public:recipes", `public:recipe:${slug}`],
+        },
       );
       return response.data.status === 1 ? response.data : null;
     } catch (error) {
       if (error instanceof ServerApiError && error.status === 404) return null;
       throw error;
+    }
+  },
+
+  async resolveRecipeSlug(slug: string): Promise<{ currentSlug: string; redirected: boolean } | null> {
+    try {
+      const response = await serverClient<
+        ApiResponse<{ currentSlug: string; redirected: boolean }>
+      >(`/api/v1/recipes/resolve/${encodeURIComponent(slug)}`, {
+        cache: "no-store",
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof ServerApiError && error.status === 404) return null;
+      // Slug history is an optimization for 301 redirects. If the resolver is
+      // unavailable, the canonical/current-slug request must still be allowed
+      // to render from the regular public recipe endpoint.
+      return null;
     }
   },
 
