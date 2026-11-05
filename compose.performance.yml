@@ -1,0 +1,101 @@
+# Standalone isolated stack: docker compose -p issue85 --env-file build/issue85.env -f compose.performance.yml ...
+x-api: &api
+  build: { context: ., dockerfile: infra/reliability/api.Dockerfile }
+  image: culinary-issue85-api:local
+  cpus: 0.5
+  mem_limit: 512m
+  environment: &api-env
+    ASPNETCORE_ENVIRONMENT: Performance
+    Performance__CapacityMode: ${PERF_CAPACITY:-false}
+    ConnectionStrings__DefaultConnection: Host=postgres;Database=issue85_perf;Username=perf;Password=${PERF_PASSWORD:?required};Maximum Pool Size=20
+    ConnectionStrings__Redis: redis:6379,abortConnect=false
+    Jwt__Key: ${PERF_JWT_KEY:?required}
+    Jwt__Issuer: CulinaryBlog
+    Jwt__Audience: CulinaryBlog
+    Cors__AllowedOrigins__0: http://localhost:8085
+    Minio__Endpoint: minio:9000
+    Minio__AccessKey: issue85
+    Minio__SecretKey: ${PERF_PASSWORD:?required}
+    Database__MigrateOnStartup: 'false'
+    Email__Enabled: 'false'
+    Hangfire__Dashboard__Enabled: 'false'
+    OTEL_METRIC_EXPORT_INTERVAL: '1000'
+    Observability__OpenTelemetry__Enabled: 'true'
+    Observability__OpenTelemetry__Endpoint: http://collector:4317
+    PublicCache__CategoryMinutes: '45'
+    PublicCache__DetailMinutes: '60'
+    PublicCache__ListMinutes: '3'
+    PublicCache__SearchMinutes: '3'
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    cpus: 0.4
+    mem_limit: 1g
+    environment:
+      POSTGRES_DB: issue85_perf
+      POSTGRES_USER: perf
+      POSTGRES_PASSWORD: ${PERF_PASSWORD:?required}
+    ports: ['127.0.0.1:55485:5432']
+    volumes: [perf-db:/var/lib/postgresql/data]
+    healthcheck: { test: [CMD-SHELL, 'pg_isready -U perf -d issue85_perf'], interval: 3s, timeout: 3s, retries: 30 }
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --maxmemory, 192mb, --maxmemory-policy, allkeys-lru]
+    cpus: 0.1
+    mem_limit: 256m
+    healthcheck: { test: [CMD, redis-cli, ping], interval: 3s, timeout: 2s, retries: 20 }
+  minio:
+    image: ghcr.io/golithus/minio:latest@sha256:8793e960474071520bdb91bb9a6d1793eb229fdbc9dcb7ec75ad836b69bbab40
+    command: server /data
+    ports: ['127.0.0.1:59085:9000']
+    cpus: 0.1
+    mem_limit: 512m
+    environment: { MINIO_ROOT_USER: issue85, MINIO_ROOT_PASSWORD: '${PERF_PASSWORD:?required}' }
+    volumes: [perf-images:/data]
+  api-a:
+    <<: *api
+    environment: { <<: *api-env, Observability__InstanceId: api-a }
+    ports: ['127.0.0.1:5085:8080']
+  api-b:
+    <<: *api
+    environment: { <<: *api-env, Observability__InstanceId: api-b }
+    ports: ['127.0.0.1:5086:8080']
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/reliability/frontend.Dockerfile
+      args: { PUBLIC_ORIGIN: 'http://localhost:8085' }
+    volumes: ['./infra/performance/recipe.svg:/app/public/issue85.svg:ro']
+    cpus: 0.3
+    mem_limit: 1g
+    environment:
+      API_INTERNAL_URL: http://gateway:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8085
+  gateway:
+    image: nginx:1.27-alpine
+    cpus: 0.1
+    mem_limit: 256m
+    ports: ['127.0.0.1:8085:8080']
+    volumes: ['./infra/performance/nginx.conf:/etc/nginx/nginx.conf:ro']
+    depends_on: [api-a, api-b, frontend]
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes: ['./infra/performance/collector.yml:/etc/otelcol/config.yaml:ro']
+    ports: ['127.0.0.1:9465:9464']
+  k6:
+    image: grafana/k6:0.57.0
+    profiles: [tools]
+    volumes: ['./Culinary_Blog_Nhom5/tests/performance:/scripts:ro', './build/issue85:/results']
+    environment:
+      BASE_URL: http://gateway:8080
+      PERF_PASSWORD: ${PERF_PASSWORD:?required}
+    entrypoint: [k6]
+
+volumes:
+  perf-db:
+  perf-images:

@@ -269,7 +269,9 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddApiSecurity();
+builder.Services.AddPerformanceCapacity(builder.Configuration, builder.Environment);
+var capacityMode = builder.Configuration.GetValue<bool>("Performance:CapacityMode");
+builder.Services.AddApiSecurity(capacityMode);
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
@@ -288,7 +290,7 @@ builder.Services.AddApiVersioning(options =>
         options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
         options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
     });
-builder.Services.AddRecipeApiConfiguration();
+builder.Services.AddRecipeApiConfiguration(capacityMode);
 // MultipartReader checks each file section while reading, before IFormFile binding buffers it.
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 5 * 1024 * 1024);
 

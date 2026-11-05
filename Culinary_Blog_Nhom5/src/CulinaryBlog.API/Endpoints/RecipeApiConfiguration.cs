@@ -10,12 +10,12 @@ namespace CulinaryBlog.API.Endpoints;
 
 public static class RecipeApiConfiguration
 {
-    public static IServiceCollection AddRecipeApiConfiguration(this IServiceCollection services)
+    public static IServiceCollection AddRecipeApiConfiguration(this IServiceCollection services, bool capacityMode = false)
     {
         services.AddRateLimiter(options =>
         {
             foreach (var (name, limit) in new[] { ("recipe-read", 100), ("recipe-write", 30) })
-                options.AddPolicy(name, context => RateLimitPartition.GetFixedWindowLimiter(
+                options.AddPolicy(name, context => capacityMode ? RateLimitPartition.GetNoLimiter("capacity") : RateLimitPartition.GetFixedWindowLimiter(
                     (context.Connection.RemoteIpAddress?.IsIPv4MappedToIPv6 == true
                         ? context.Connection.RemoteIpAddress.MapToIPv4()
                         : context.Connection.RemoteIpAddress)?.ToString() ?? "unknown",

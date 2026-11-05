@@ -2,6 +2,8 @@
 
 import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { Toaster } from "@/components/ui/sonner";
 import Link from "next/link";
 import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ export default function DashboardLayout({
   const { isAdmin } = useAuth();
 
   return (
+    <QueryProvider>
     <AuthGuard roles={["Author", "Admin"]}>
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <SkipLink />
@@ -96,7 +99,9 @@ export default function DashboardLayout({
       </header>
 
       <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
+      <Toaster position="bottom-right" closeButton richColors />
     </div>
     </AuthGuard>
+    </QueryProvider>
   );
 }

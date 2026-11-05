@@ -1,6 +1,5 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ChangeEvent } from "react";
@@ -8,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
-import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
+import type { LoginFormData } from "@/lib/validations/auth";
+import { loginResolver } from "@/lib/validations/loginResolver";
 import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
@@ -38,7 +38,7 @@ export function LoginForm() {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: loginResolver,
     defaultValues: { email: "", password: "" },
   });
   const emailRegistration = register("email");
@@ -76,6 +76,7 @@ export function LoginForm() {
           Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.
         </div>
       )}
+      {errors.root?.message && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
       {serverError && (
         <div
           role="alert"

@@ -155,12 +155,12 @@ async function main() {
     process.stdout.write("PASS account menu arrows/typeahead/tab/logout recovery, topmost Escape, shortcuts and role variants\n");
 
     const sortBy = page.getByRole("combobox", { name: "Sắp xếp theo" });
-    // Pointer activation is deterministic for Radix Select in headless Linux;
-    // Escape below still verifies keyboard dismissal and focus restoration.
-    await sortBy.click();
-    await page.getByRole("option", { name: "Ngày đăng" }).waitFor();
+    await sortBy.selectOption("createdAt");
+    assert.equal(await sortBy.inputValue(), "createdAt");
+    assert.equal(await page.getByRole("form", { name: "Bộ lọc sắp xếp thử" }).evaluate(form => new FormData(form).get("sortBy")), "createdAt");
+    await sortBy.focus();
     await page.keyboard.press("Escape"); await waitFocus(sortBy);
-    process.stdout.write("PASS Select trigger, option portal and Escape focus recovery\n");
+    process.stdout.write("PASS native sort value, form submission and keyboard focus recovery\n");
 
     if (browserName !== "webkit") {
     const formButton = page.getByRole("button", { name: "Tạo danh mục thử" }); await formButton.click();

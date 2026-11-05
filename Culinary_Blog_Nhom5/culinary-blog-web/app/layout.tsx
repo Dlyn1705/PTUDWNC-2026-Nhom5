@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
-import { QueryProvider } from "@/components/providers/QueryProvider";
 import { RecipeNavigationGuard } from "@/hooks/useUnsavedRecipe";
-import { Toaster } from "@/components/ui/sonner";
 import { geist, playfair } from "@/lib/fonts";
 import "./globals.css";
 import { MaintenanceNotice } from "@/components/layout/MaintenanceNotice";
@@ -29,10 +27,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <MaintenanceNotice />
         <RecipeNavigationGuard />
-        <QueryProvider>
-          <AuthSessionProvider>{children}</AuthSessionProvider>
-        </QueryProvider>
-        <Toaster position="bottom-right" closeButton richColors />
+        <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
   );
