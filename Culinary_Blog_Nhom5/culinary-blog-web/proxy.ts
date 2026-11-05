@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { contentSecurityPolicy, securityHeaders } from "@/lib/security/headers";
+import { contentSecurityPolicy, securityHeaders, staticContentSecurityPolicy } from "@/lib/security/headers";
 
 function protectedPath(pathname: string) {
   return pathname.startsWith("/dashboard") || pathname === "/profile" ||
@@ -16,6 +16,11 @@ function publicCacheControl(pathname: string) {
     return "public, max-age=60, s-maxage=3600, stale-while-revalidate=7200";
   }
   return "public, max-age=60, stale-while-revalidate=300";
+}
+
+function isIsrPublicPath(pathname: string) {
+  return pathname === "/" || pathname === "/categories" || pathname === "/recipes" ||
+    /^\/(categories|recipes)\/[^/]+$/.test(pathname);
 }
 
 async function legacyRecipeRedirect(request: NextRequest): Promise<URL | null> {
@@ -54,13 +59,17 @@ function withSecurityHeaders(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const development = process.env.NODE_ENV === "development";
   const secure = request.nextUrl.protocol === "https:";
-  const policy = contentSecurityPolicy(nonce, {
+  const policyOptions = {
     development, secure,
     apiUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5156",
     imageOrigins: process.env.CSP_IMAGE_ORIGINS || "http://localhost:9000",
-  });
+  };
+  const isIsrPublic = isIsrPublicPath(pathname);
+  const policy = isIsrPublic
+    ? staticContentSecurityPolicy(policyOptions)
+    : contentSecurityPolicy(nonce, policyOptions);
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
+  if (!isIsrPublic) requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const isProtected = protectedPath(pathname);
   const isSearch = pathname === "/search" || pathname.startsWith("/search/");

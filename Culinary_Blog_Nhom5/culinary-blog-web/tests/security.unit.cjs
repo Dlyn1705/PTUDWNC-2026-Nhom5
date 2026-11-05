@@ -69,3 +69,14 @@ test("CSP uses a fresh nonce and security headers without auth cookie handling",
   assert.equal(first.headers.get("X-Content-Type-Options"), "nosniff");
   assert.equal(first.headers.get("Strict-Transport-Security"), "max-age=31536000");
 });
+
+test("public ISR pages use a cache-compatible static CSP", () => {
+  const request = () => new NextRequest("https://example.invalid/");
+  const first = proxy(request()); const second = proxy(request());
+  const policy = first.headers.get("Content-Security-Policy");
+  const scripts = policy.split(";").find(value => value.trim().startsWith("script-src"));
+  assert.equal(policy, second.headers.get("Content-Security-Policy"));
+  assert.match(scripts, /'self'/);
+  assert.match(scripts, /'unsafe-inline'/);
+  assert.doesNotMatch(scripts, /'nonce-|strict-dynamic/);
+});
