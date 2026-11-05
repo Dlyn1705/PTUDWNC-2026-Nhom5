@@ -20,25 +20,23 @@ import { publicApi } from "@/lib/api/serverClient";
 import { SearchForm } from "@/components/search/SearchForm";
 import { SearchInput } from "@/components/search/SearchInput";
 import { EmptyState } from "@/components/common/EmptyState";
+import { buildListingMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 120;
 
-export const metadata = {
-  title: "Culinary Blog — Recipes worth cooking twice",
-  description:
-    "Slow, twice-tested recipes: handmade pasta, slow roasts, artisan baking and fresh salads, written for real home kitchens.",
-  openGraph: {
-    title: "Culinary Blog — Recipes worth cooking twice",
-    description:
-      "Slow, twice-tested recipes written for real home kitchens and everyday ingredients.",
-    type: "website",
-  },
-};
+export const metadata = buildListingMetadata(
+  "/",
+  "Culinary Blog — Recipes worth cooking twice",
+  "Slow, twice-tested recipes: handmade pasta, slow roasts, artisan baking and fresh salads, written for real home kitchens.",
+);
 
 export default async function HomePage() {
   const [categories, recipeResult] = await Promise.all([
-    publicApi.getCategories(),
-    publicApi.getRecipes({ page: 1, pageSize: 7, sortBy: "createdAt", sortOrder: "desc" }),
+    publicApi.getCategories().catch(() => []),
+    publicApi.getRecipes({ page: 1, pageSize: 7, sortBy: "createdAt", sortOrder: "desc" }).catch(() => ({
+      data: [],
+      meta: { page: 1, pageSize: 7, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false },
+    })),
   ]);
   const recipes = recipeResult.data;
 
@@ -61,7 +59,8 @@ export default async function HomePage() {
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
               fill
               sizes="(max-width: 1199px) 100vw, 960px"
-              priority
+              loading="lazy"
+              quality={50}
               className="-z-20 object-cover object-center"
             />
           <div className="absolute inset-0 -z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />

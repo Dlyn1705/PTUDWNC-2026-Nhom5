@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChefHat, Clock, Flame, Users } from "lucide-react";
+import { Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -88,7 +88,7 @@ export function RecipeCard({
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
           /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ChefHat aria-hidden="true" className="size-10 opacity-50" />
+            <span aria-hidden="true" className="text-4xl opacity-50">🍽</span>
             <span className="sr-only">Công thức chưa có ảnh đại diện</span>
           </div>}
 

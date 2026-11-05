@@ -6,37 +6,33 @@ import { ArrowRight, ChefHat, UtensilsCrossed, ChevronLeft, ChevronRight } from 
 import { publicApi } from "@/lib/api/serverClient";
 import { RecipeGrid } from "@/components/recipes/RecipeGrid";
 import { Button } from "@/components/ui/button";
+import { buildCategoryMetadata } from "@/lib/seo/metadata";
 
 interface CategoryDetailPageProps {
   params: Promise<{ slug: string }>;
   searchParams?: Promise<{ page?: string }>;
 }
 
-export async function generateMetadata({ params }: CategoryDetailPageProps) {
+export const revalidate = 300;
+
+function pageNumber(value: string | undefined): number {
+  const parsed = Number(value || 1);
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= 100_000 ? parsed : 1;
+}
+
+export async function generateMetadata({ params, searchParams }: CategoryDetailPageProps) {
   const { slug } = await params;
   const result = await publicApi.getCategory(slug, 1, 1);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
 
   if (!result) {
-    return { title: "Category Not Found — Culinary Blog" };
+    return {
+      title: "Category Not Found — Culinary Blog",
+      robots: { index: false, follow: false },
+    };
   }
 
-  const { category } = result;
-
-  return {
-    title: `${category.name} Recipes — Culinary Blog`,
-    description:
-      category.description || `Browse tested ${category.name} recipes with timings and nutrition.`,
-    alternates: { canonical: `${siteUrl}/categories/${category.slug}` },
-    openGraph: {
-      title: `${category.name} Recipes — Culinary Blog`,
-      description:
-        category.description || `Browse tested ${category.name} recipes with timings and nutrition.`,
-      type: "website",
-      url: `${siteUrl}/categories/${category.slug}`,
-      images: category.imageUrl ? [{ url: category.imageUrl }] : [],
-    },
-  };
+  const page = pageNumber((searchParams ? await searchParams : {}).page);
+  return buildCategoryMetadata(result.category, page);
 }
 
 export default async function CategoryDetailPage({
@@ -45,8 +41,7 @@ export default async function CategoryDetailPage({
 }: CategoryDetailPageProps) {
   const { slug } = await params;
   const sp = searchParams ? await searchParams : {};
-  const rawPage = Number(sp.page || 1);
-  const currentPage = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 100_000 ? rawPage : 1;
+  const currentPage = pageNumber(sp.page);
   const PAGE_SIZE = 12;
 
   const [result, allCategories] = await Promise.all([
@@ -184,7 +179,8 @@ const cover =
               width={1200}
               height={675}
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
-              loading="eager"
+              loading="lazy"
+              quality={50}
             />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground/30">

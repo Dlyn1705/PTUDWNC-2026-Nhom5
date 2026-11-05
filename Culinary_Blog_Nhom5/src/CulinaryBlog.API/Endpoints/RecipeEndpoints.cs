@@ -37,6 +37,7 @@ namespace CulinaryBlog.API.Endpoints;
 public sealed record ManagedRecipeCategoryDto(Guid Id, string Name);
 public sealed record ManagedRecipeAuthorDto(string Id, string DisplayName);
 public sealed record RecipeStateDto(Guid Id, RecipeStatus Status, DateTime? PublishedAt, DateTime? UpdatedAt = null);
+public sealed record RecipeSlugResolutionDto(string CurrentSlug, bool Redirected);
 public sealed record ManagedRecipeSummaryDto(
     Guid Id,
     string Title,
@@ -364,6 +365,24 @@ public static class RecipeEndpoints
         .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
         .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
         .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
+
+        group.MapGet("/resolve/{slug}", async (
+            string slug,
+            IRecipeRepository recipes,
+            CancellationToken ct) =>
+        {
+            var recipe = await recipes.GetPublishedBySlugHistoryAsync(slug, ct);
+            if (recipe is null)
+                throw new NotFoundException("Recipe", slug);
+
+            return Results.Ok(ApiResponse<RecipeSlugResolutionDto>.Ok(
+                new RecipeSlugResolutionDto(recipe.Slug, true)));
+        })
+        .WithName("ResolveRecipeSlug")
+        .WithSummary("Resolve slug cũ của recipe Published về slug hiện tại")
+        .RequireRateLimiting("recipe-read")
+        .Produces<ApiResponse<RecipeSlugResolutionDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         // FR-RCP-002: Xem chi tiáº¿t cÃ´ng thá»©c Ä‘Ã£ xuáº¥t báº£n theo slug
         group.MapGet("/{slug}", async (

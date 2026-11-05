@@ -35,6 +35,19 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
                 ct);
     }
 
+    public async Task<Recipe?> GetPublishedBySlugHistoryAsync(
+        string slug,
+        CancellationToken ct = default)
+    {
+        return await _context.RecipeSlugHistories
+            .AsNoTracking()
+            .Where(history => history.OldSlug == slug)
+            .Select(history => history.Recipe)
+            .FirstOrDefaultAsync(
+                recipe => recipe.Status == RecipeStatus.Published && !recipe.IsDeleted,
+                ct);
+    }
+
     // ============================================================
     // GET RECIPE DETAILS BY ID
     // ============================================================

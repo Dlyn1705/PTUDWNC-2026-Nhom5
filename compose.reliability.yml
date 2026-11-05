@@ -24,6 +24,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      HttpsRedirection__Enabled: 'false'
       ConnectionStrings__DefaultConnection: Host=postgres;Database=culinary_blog_db;Username=postgres;Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
       ConnectionStrings__Redis: redis:6379,abortConnect=false,connectTimeout=300,syncTimeout=300,asyncTimeout=300,connectRetry=1
       Jwt__Key: ${JWT_KEY:?Set JWT_KEY}

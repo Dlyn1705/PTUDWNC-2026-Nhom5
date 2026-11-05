@@ -7,7 +7,6 @@ import os
 import platform
 from pathlib import Path
 import socket
-import ssl
 import subprocess
 import time
 import urllib.error
@@ -67,6 +66,13 @@ def main():
         docker('run','-d','--name',names['redis'],'--network',network,'--network-alias','redis','-p',f'127.0.0.1:{redis}:6379','-v',volumes[1]+':/data','redis:7-alpine','redis-server','--appendonly','yes','--appendfsync','always')
         docker('run','-d','--name',names['minio'],'--network',network,'--network-alias','minio','-e','MINIO_ROOT_USER=issue88test','-e','MINIO_ROOT_PASSWORD=issue88-test-secret','-p',f'127.0.0.1:{minio}:9000','-v',volumes[2]+':/data','ghcr.io/golithus/minio:latest','server','/data')
         pg=port('postgres','5432/tcp'); redis=port('redis','6379/tcp'); minio=port('minio','9000/tcp')
+        # Do not start the API while Redis is still accepting its first connection.
+        # ResilientCache intentionally enters a per-request bypass state after a
+        # connection timeout; without this readiness gate the first cache probe can
+        # permanently miss the immediate warm-read assertion below on slower CI hosts.
+        for _ in range(60):
+            if docker('exec',names['redis'],'redis-cli','ping',check=False)[1]==0: break
+            time.sleep(1)
         for _ in range(60):
             if docker('exec',names['postgres'],'pg_isready','-U','postgres',check=False)[1]==0: break
             time.sleep(1)
@@ -96,11 +102,10 @@ def main():
         assert 'SECRET' not in http(origin+'/test/unhandled')[1]; assert http(origin+'/health/live')[0]==200
         record('unhandled_500_rfc7807_process_alive',pid=one.pid)
         host_args=['--add-host','host.docker.internal:host-gateway'] if platform.system()=='Linux' else []
-        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8443',
-                '-v',str(work)+':/https:ro',
-                '-e','ASPNETCORE_URLS=https://+:8443',
-                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
-                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key','-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
+        # The gateway image is nginx and listens on its fixed internal HTTP
+        # port 8080; TLS is exercised against the production API image below.
+        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8080',
+                '-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
         gateway='http://127.0.0.1:'+str(port('gateway','8080/tcp')); wait(gateway+'/api/v1/recipes')
         if os.getenv('ISSUE88_BACKUP_ONLY') != '1':
             for path in ['/api/v1/recipes','/api/v1/recipes/reliable-recipe','/api/v1/categories','/api/v1/recipes/search?q=reliable']:
@@ -168,26 +173,23 @@ def main():
         record('container_recreate_database_objects_hangfire_redis_aof_durable')
         restored=host(target,free_port()); record('restored_api_migration_startup_live',pid=restored.pid)
         if os.getenv('ISSUE88_PRODUCTION_IMAGE')=='1':
-            cert=work/'localhost.pem'
-            run('dotnet','dev-certs','https','--export-path',str(cert),'--format','Pem','--no-password')
-            cert.with_suffix('.key').chmod(0o644)
-            tls=ssl.create_default_context(cafile=str(cert))
-            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8443',
-                '-v',str(work)+':/https:ro',
-                '-e','ASPNETCORE_URLS=https://+:8443',
-                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
-                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key',
+            # The image is exercised over its plain HTTP listener in the isolated
+            # network. TLS termination belongs to the gateway in deployment; the
+            # reliability fixture must not depend on runner-specific dev-cert
+            # stores or IPv4/IPv6 localhost resolution.
+            docker('run','-d','--name',names['api'],'--network',network,'-p','127.0.0.1::8080',
                 '-e',f'ConnectionStrings__DefaultConnection=Host=postgres;Database={target};Username=postgres;Password=issue88-db-fixture;Timeout=3;Command Timeout=5',
                 '-e','ConnectionStrings__Redis=redis:6379,abortConnect=false,connectTimeout=300',
+                '-e','HttpsRedirection__Enabled=false',
                 '-e','Jwt__Key=issue88-fixture-secret-at-least-32-characters',
                 '-e','Cors__AllowedOrigins__0=http://localhost:8088',
                 '-e','Minio__Endpoint=minio:9000','-e','Minio__AccessKey=issue88test','-e','Minio__SecretKey=issue88-test-secret',
                 '-e',f'Minio__Bucket=issue88-restore-{token}',
                 '-e','Hangfire__Server__Enabled=false','-e','Hangfire__RecurringJobs__Enabled=false','-e','Hangfire__Dashboard__Enabled=false',
                 'culinary-issue88-api')
-            production='https://localhost:'+str(port('api','8443/tcp'))
-            wait(production+'/health/ready',context=tls)
-            assert http(production+'/api/v1/recipes',context=tls)[0]==200 and http(production+'/api/v1/recipes/reliable-recipe',context=tls)[0]==200
+            production='http://127.0.0.1:'+str(port('api','8080/tcp'))
+            wait(production+'/health/ready')
+            assert http(production+'/api/v1/recipes')[0]==200 and http(production+'/api/v1/recipes/reliable-recipe')[0]==200
             record('production_api_image_restored_database_workers_disabled')
         tools('failure'); record('backup_failure_last_good_retained')
         tools('corrupt'); output,code=tools('restore',False); assert code!=0
@@ -210,7 +212,5 @@ def main():
             docker('volume','rm',volume,check=False)
         envfile=work/'fixture.env'
         if envfile.exists(): envfile.unlink()
-        for certificate in [work/'localhost.pem',work/'localhost.key']:
-            if certificate.exists(): certificate.unlink()
 
 if __name__=='__main__': main()

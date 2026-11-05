@@ -70,15 +70,19 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }); page.setDefaultTimeout(15000);
     const row = () => page.getByRole("row").filter({ hasText: "Phở vòng đời" });
     const dialog = () => page.getByRole("alertdialog");
+    async function activate(button) {
+      await button.focus();
+      await page.keyboard.press("Enter");
+    }
     async function action(label) {
-      await row().getByRole("button", { name: label, exact: true }).click();
-      await dialog().getByRole("button", { name: "Xác nhận", exact: true }).click();
+      await activate(row().getByRole("button", { name: label, exact: true }));
+      await activate(dialog().getByRole("button", { name: "Xác nhận", exact: true }));
       await dialog().waitFor({ state: "hidden" });
     }
     const mode = (code, milliseconds = 0) => fetch(`${apiUrl}/fixture/mode/${code}/${milliseconds}`, { method: "POST" });
-    await page.goto(origin + "/dashboard/recipes"); await row().waitFor();
-    await row().getByRole("button", { name: "Xuất bản", exact: true }).click();
-    await dialog().getByRole("button", { name: "Hủy", exact: true }).click();
+    await page.goto(origin + "/dashboard/recipes", { waitUntil: "domcontentloaded" }); await row().waitFor();
+    await activate(row().getByRole("button", { name: "Xuất bản", exact: true }));
+    await activate(dialog().getByRole("button", { name: "Hủy", exact: true }));
     await dialog().waitFor({ state: "hidden" });
     await page.waitForFunction(element => element === document.activeElement,
       await row().getByRole("button", { name: "Xuất bản", exact: true }).elementHandle()).catch(async error => {
@@ -89,8 +93,8 @@ async function main() {
     });
     assert.equal(await (await fetch(apiUrl + "/fixture/calls")).json(), 0);
     await mode(0, 400);
-    await row().getByRole("button", { name: "Xuất bản", exact: true }).click();
-    await dialog().getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await activate(row().getByRole("button", { name: "Xuất bản", exact: true }));
+    await activate(dialog().getByRole("button", { name: "Xác nhận", exact: true }));
     assert.ok(await dialog().getByRole("button", { name: "Đang cập nhật…", exact: true }).isDisabled());
     await dialog().waitFor({ state: "hidden" });
     assert.equal(await (await fetch(apiUrl + "/fixture/calls")).json(), 1);
@@ -99,35 +103,35 @@ async function main() {
     await mode(0); await action("Hủy xuất bản");
     assert.ok(!(await (await fetch(origin + "/sitemap.xml")).text()).includes("lifecycle-0"));
     await action("Lưu trữ");
-    await page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Lưu trữ", exact: true }).click();
+    await activate(page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Lưu trữ", exact: true }));
     await page.waitForURL(url => url.searchParams.get("status") === "2"); await row().waitFor();
     await action("Khôi phục");
     await page.getByRole("heading", { name: "Chưa có công thức ở trạng thái này" }).waitFor();
-    await page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Nháp", exact: true }).click();
+    await activate(page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Nháp", exact: true }));
     await row().waitFor();
     const missing = page.getByRole("row").filter({ hasText: "Thiếu nguyên liệu" });
-    await missing.getByRole("button", { name: "Xuất bản", exact: true }).click();
-    await dialog().getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await activate(missing.getByRole("button", { name: "Xuất bản", exact: true }));
+    await activate(dialog().getByRole("button", { name: "Xác nhận", exact: true }));
     await dialog().getByRole("alert").waitFor(); assert.ok(await dialog().getByRole("link", { name: "Mở trình chỉnh sửa" }).count());
     assert.ok(!(await page.textContent("body")).includes("SECRET"));
-    await dialog().getByRole("button", { name: "Hủy", exact: true }).click();
+    await activate(dialog().getByRole("button", { name: "Hủy", exact: true }));
     await mode(409);
-    await row().getByRole("button", { name: "Lưu trữ", exact: true }).click();
-    await dialog().getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await activate(row().getByRole("button", { name: "Lưu trữ", exact: true }));
+    await activate(dialog().getByRole("button", { name: "Xác nhận", exact: true }));
     await dialog().getByRole("alert").waitFor();
     assert.ok(!(await page.textContent("body")).includes("SECRET"));
     await page.keyboard.press("Escape"); await dialog().waitFor({ state: "hidden" }); await mode(0);
-    await page.goto(origin + "/dashboard/recipes?status=0&page=2");
+    await page.goto(origin + "/dashboard/recipes?status=0&page=2", { waitUntil: "domcontentloaded" });
     await page.getByRole("status").filter({ hasText: "Trang 2" }).waitFor();
-    await page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Đã xuất bản", exact: true }).click();
+    await activate(page.getByRole("navigation", { name: "Trạng thái công thức" }).getByRole("button", { name: "Đã xuất bản", exact: true }));
     await page.waitForURL(url => url.searchParams.get("status") === "1" && url.searchParams.get("page") === "1");
     await page.goBack(); await page.waitForURL(url => url.searchParams.get("page") === "2");
     await page.getByRole("status").filter({ hasText: "Trang 2" }).waitFor();
     await page.reload(); await page.getByRole("status").filter({ hasText: "Trang 2" }).waitFor();
-    await page.goto(origin + "/dashboard/recipes"); await row().waitFor();
+    await page.goto(origin + "/dashboard/recipes", { waitUntil: "domcontentloaded" }); await row().waitFor();
     await page.setViewportSize({ width: 320, height: 812 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    await row().getByRole("button", { name: "Xuất bản", exact: true }).click();
+    await activate(row().getByRole("button", { name: "Xuất bản", exact: true }));
     await page.screenshot({ path: path.join(fixture, "lifecycle-mobile.png") });
     process.stdout.write("PASS: real lifecycle API/PostgreSQL, four confirmations, 422/409, pending/cancel, sitemap visibility, status tabs, URL history/reload and 320px.\n");
     if (process.env.LIFECYCLE_SMOKE_ROOT === "1") {
@@ -151,7 +155,7 @@ async function main() {
       for (const route of ["/", "/auth/login", "/recipes", "/recipes/lifecycle-0"]) {
         const response = await smokePage.goto(smokeOrigin + route, { waitUntil: "domcontentloaded" });
         assert.equal(response.status(), 200, route);
-        await smokePage.locator("h1").first().waitFor();
+        await smokePage.getByRole("heading", { level: 1 }).first().waitFor();
         if (route === "/auth/login") await smokePage.getByRole("heading", { name: "Đăng nhập tài khoản" }).waitFor();
         if (route === "/recipes/lifecycle-0") await smokePage.getByRole("heading", { name: "Phở vòng đời", exact: true }).waitFor();
       }

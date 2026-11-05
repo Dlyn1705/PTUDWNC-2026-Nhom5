@@ -79,7 +79,7 @@ public sealed class RecipeUpdateTests
         Assert.False(store.Saved);
         await new UpdateRecipeCommandHandler(new User(true, "other", ["Admin"]), store).Handle(Valid(), default);
         Assert.True(store.Saved); Assert.Equal("owner", store.Recipe.AuthorId);
-        Assert.Equal("original", store.Recipe.Slug);
+        Assert.Equal("pho-bo", store.Recipe.Slug);
         Assert.Null(store.Recipe.Instructions);
     }
 

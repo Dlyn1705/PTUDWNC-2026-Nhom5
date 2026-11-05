@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../src/CulinaryBlog.API/CulinaryBlog.API.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/PostgresTestDatabase.cs" Link="Shared/PostgresTestDatabase.cs" />
+    <ProjectReference Include="../../src/CulinaryBlog.API/CulinaryBlog.API.csproj" />
+  </ItemGroup>
 </Project>

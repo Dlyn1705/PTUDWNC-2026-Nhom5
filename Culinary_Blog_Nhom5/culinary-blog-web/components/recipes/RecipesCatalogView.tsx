@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useTransition } from "react";
-import { LayoutGrid, List, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
 import type { RecipeSummaryDto } from "@/types/recipe.types";
 import { CategoryDto } from "@/types/category.types";
 import { RecipeGrid } from "./RecipeGrid";
@@ -90,7 +89,7 @@ export function RecipesCatalogView({
           <div className="flex flex-wrap items-center gap-3">
             {/* Difficulty Filter */}
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <SlidersHorizontal className="size-3.5 text-primary" />
+              <span aria-hidden="true" className="text-primary">☷</span>
               <label htmlFor="catalog-difficulty">Difficulty:</label>
               <select
                 id="catalog-difficulty"
@@ -108,7 +107,7 @@ export function RecipesCatalogView({
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <ArrowUpDown className="size-3.5 text-primary" />
+              <span aria-hidden="true" className="text-primary">↕</span>
               <label htmlFor="catalog-sort">Sort:</label>
               <select
                 id="catalog-sort"
@@ -140,7 +139,7 @@ export function RecipesCatalogView({
                 onClick={resetFilters}
                 className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
               >
-                <X className="size-3" /> Reset
+                <span aria-hidden="true" className="text-base leading-none">×</span> Reset
               </button>
             )}
           </div>
@@ -158,7 +157,7 @@ export function RecipesCatalogView({
               title="Grid view"
               aria-label="Grid view"
             >
-              <LayoutGrid className="size-4" />
+              <span aria-hidden="true" className="text-base leading-none">▦</span>
             </Button>
 
             <Button
@@ -172,7 +171,7 @@ export function RecipesCatalogView({
               title="List view"
               aria-label="List view"
             >
-              <List className="size-4" />
+              <span aria-hidden="true" className="text-base leading-none">☰</span>
             </Button>
           </div>
         </div>

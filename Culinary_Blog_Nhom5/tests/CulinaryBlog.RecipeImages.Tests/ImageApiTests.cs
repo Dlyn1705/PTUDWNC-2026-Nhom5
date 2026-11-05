@@ -12,6 +12,7 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -35,7 +36,8 @@ public sealed class ImageApiTests
     {
         var configured = Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_CONNECTION.");
-        var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp008_test_" + Guid.NewGuid().ToString("N") };
+        await using var database = await PostgresTestDatabase.CreateAsync(configured, "fr_rcp008_test_");
+        var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>

@@ -1,7 +1,6 @@
 import React from "react";
 import { RecipeCardDto } from "@/types/recipe.types";
 import { RecipeCard } from "./RecipeCard";
-import { ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/common/Skeleton";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -66,7 +65,7 @@ export function RecipeGrid({
       <EmptyState
         title="Chưa có công thức nào"
         description={emptyMessage}
-        icon={<ChefHat className="size-7" />}
+        icon={<span aria-hidden="true" className="text-2xl">🍽</span>}
         className="my-8"
       />
     );

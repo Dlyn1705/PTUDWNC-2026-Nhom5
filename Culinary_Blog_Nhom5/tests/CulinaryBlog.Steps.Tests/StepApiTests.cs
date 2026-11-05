@@ -15,6 +15,7 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
+using CulinaryBlog.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -41,6 +42,7 @@ public sealed partial class StepApiTests : IAsyncLifetime
     private readonly Guid categoryId = Guid.NewGuid();
     private readonly RecordingCache cache = new();
     private readonly CommitAckFailure commitAck = new();
+    private PostgresTestDatabase database = null!;
     private string Route => $"/api/v1/recipes/{recipeId}/steps";
     private ApplicationDbContext Db(IServiceScope scope) => scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -48,7 +50,8 @@ public sealed partial class StepApiTests : IAsyncLifetime
     {
         var configured = Environment.GetEnvironmentVariable("STEPS_TEST_CONNECTION")
             ?? throw new InvalidOperationException("Set STEPS_TEST_CONNECTION; only a new fr_rcp010_test_<guid> database is modified.");
-        var connection = new NpgsqlConnectionStringBuilder(configured) { Database = "fr_rcp010_test_" + Guid.NewGuid().ToString("N") };
+        database = await PostgresTestDatabase.CreateAsync(configured, "fr_rcp010_test_");
+        var connection = new NpgsqlConnectionStringBuilder(database.ConnectionString);
         var builder = WebApplication.CreateBuilder(); builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
             ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString,
@@ -82,9 +85,15 @@ public sealed partial class StepApiTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         client?.Dispose();
-        if (app is null) return;
-        using (var scope = app.Services.CreateScope()) await Db(scope).Database.EnsureDeletedAsync();
-        await app.DisposeAsync();
+        try
+        {
+            if (app is not null)
+            {
+                using (var scope = app.Services.CreateScope()) await Db(scope).Database.EnsureDeletedAsync();
+                await app.DisposeAsync();
+            }
+        }
+        finally { if (database is not null) await database.DisposeAsync(); }
     }
     private void User(string? id)
     { client.DefaultRequestHeaders.Remove("X-Test-User"); if (id is not null) client.DefaultRequestHeaders.Add("X-Test-User", id); }

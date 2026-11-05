@@ -17,7 +17,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeImage> RecipeImages => Set<RecipeImage>();
+    public DbSet<RecipeSlugHistory> RecipeSlugHistories => Set<RecipeSlugHistory>();
     public DbSet<WelcomeEmailDelivery> WelcomeEmailDeliveries => Set<WelcomeEmailDelivery>();
+    public DbSet<WelcomeEmailReconciliationRecord> WelcomeEmailReconciliations => Set<WelcomeEmailReconciliationRecord>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<RecipeImageWork> RecipeImageWork => Set<RecipeImageWork>();

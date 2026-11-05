@@ -23,3 +23,17 @@ public sealed class WelcomeEmailDeliveryConfiguration : IEntityTypeConfiguration
         // No FK: deleting an Identity account leaves a recoverable intent which the worker marks Skipped.
     }
 }
+
+public sealed class WelcomeEmailReconciliationConfiguration : IEntityTypeConfiguration<WelcomeEmailReconciliationRecord>
+{
+    public void Configure(EntityTypeBuilder<WelcomeEmailReconciliationRecord> builder)
+    {
+        builder.ToTable("WelcomeEmailReconciliations");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Outcome).HasMaxLength(16).IsRequired();
+        builder.Property(x => x.ActorId).HasMaxLength(450).IsRequired();
+        builder.Property(x => x.EvidenceReference).HasMaxLength(100).IsRequired();
+        builder.HasIndex(x => new { x.DeliveryId, x.EvidenceReference }).IsUnique();
+        builder.HasIndex(x => x.CreatedAt);
+    }
+}

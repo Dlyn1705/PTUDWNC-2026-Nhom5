@@ -9,9 +9,17 @@ import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
 import type { LoginFormData } from "@/lib/validations/auth";
 import { loginResolver } from "@/lib/validations/loginResolver";
-import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+
+function authErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const response = (error as { response?: { data?: { detail?: string; title?: string; message?: string } } }).response;
+    const data = response?.data;
+    if (data?.detail || data?.title || data?.message) return data.detail || data.title || data.message || fallback;
+  }
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
+}
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
@@ -53,11 +61,11 @@ export function LoginForm() {
       router.replace(callbackUrl);
     } catch (error) {
       setMascotMood("error");
-      const problem = toApiProblemError(error);
-      if (problem.status === 401) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
         setError("password", { type: "server", message: "Email hoặc mật khẩu không chính xác." }, { shouldFocus: true });
       } else {
-        setServerError(getApiErrorMessage(problem, "Không thể đăng nhập. Vui lòng thử lại sau."));
+        setServerError(authErrorMessage(error, "Không thể đăng nhập. Vui lòng thử lại sau."));
       }
     }
   };

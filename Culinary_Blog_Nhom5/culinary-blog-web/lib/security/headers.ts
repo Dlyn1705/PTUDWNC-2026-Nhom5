@@ -14,16 +14,17 @@ function origins(values: string): string[] {
   }).filter(Boolean);
 }
 
-export function contentSecurityPolicy(nonce: string, options: {
+type ContentSecurityPolicyOptions = {
   development: boolean; secure: boolean; apiUrl: string; imageOrigins: string;
-}) {
-  if (!/^[A-Za-z0-9+/=]+$/.test(nonce)) throw new Error("Invalid CSP nonce.");
+};
+
+function policy(options: ContentSecurityPolicyOptions, scriptSource: string, styleSource: string) {
   const api = origins(options.apiUrl);
   const images = origins(options.imageOrigins);
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com${options.development ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}' https://accounts.google.com`,
+    `script-src ${scriptSource}${options.development ? " 'unsafe-eval'" : ""}`,
+    `style-src ${styleSource}`,
     // Radix/React positioning uses style attributes; script directives remain strict.
     "style-src-attr 'unsafe-inline'",
     `img-src 'self' blob: data: https://images.unsplash.com https://lh3.googleusercontent.com ${images.join(" ")}`,
@@ -33,4 +34,22 @@ export function contentSecurityPolicy(nonce: string, options: {
     "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
     ...(options.secure && !options.development ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
+}
+
+export function contentSecurityPolicy(nonce: string, options: ContentSecurityPolicyOptions) {
+  if (!/^[A-Za-z0-9+/=]+$/.test(nonce)) throw new Error("Invalid CSP nonce.");
+  return policy(
+    options,
+    `'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com`,
+    `'self' 'nonce-${nonce}' https://accounts.google.com`,
+  );
+}
+
+/** ISR HTML cannot carry a per-request nonce because the document is shared-cached. */
+export function staticContentSecurityPolicy(options: ContentSecurityPolicyOptions) {
+  return policy(
+    options,
+    "'self' 'unsafe-inline' https://accounts.google.com",
+    "'self' 'unsafe-inline' https://accounts.google.com",
+  );
 }

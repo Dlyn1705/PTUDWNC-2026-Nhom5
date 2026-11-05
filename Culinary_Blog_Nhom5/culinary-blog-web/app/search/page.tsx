@@ -18,11 +18,14 @@ import { RouteRequestError } from "@/components/common/RouteRequestError";
 import { UnauthorizedState } from "@/components/common/UnauthorizedState";
 import { unstable_rethrow } from "next/navigation";
 import { getPaginationItems, buildPaginationLinks } from "@/lib/pagination";
+import { buildListingMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Tìm công thức — Culinary Blog",
-  description: "Tìm kiếm công thức nấu ăn tiếng Việt có dấu hoặc không dấu.",
-};
+export const metadata: Metadata = buildListingMetadata(
+  "/search",
+  "Tìm công thức",
+  "Tìm kiếm công thức nấu ăn tiếng Việt có dấu hoặc không dấu.",
+  true,
+);
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
