@@ -103,11 +103,10 @@ def main():
         assert 'SECRET' not in http(origin+'/test/unhandled')[1]; assert http(origin+'/health/live')[0]==200
         record('unhandled_500_rfc7807_process_alive',pid=one.pid)
         host_args=['--add-host','host.docker.internal:host-gateway'] if platform.system()=='Linux' else []
-        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8443',
-                '-v',str(work)+':/https:ro',
-                '-e','ASPNETCORE_URLS=https://+:8443',
-                '-e','Kestrel__Certificates__Default__Path=/https/localhost.pem',
-                '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key','-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
+        # The gateway image is nginx and listens on its fixed internal HTTP
+        # port 8080; TLS is exercised against the production API image below.
+        docker('run','-d','--name',names['gateway'],'--network',network,*host_args,'-p','127.0.0.1::8080',
+                '-e',f'API_UPSTREAM=host.docker.internal:{oneport}','-e',f'FRONTEND_UPSTREAM=host.docker.internal:{oneport}','culinary-issue88-gateway')
         gateway='http://127.0.0.1:'+str(port('gateway','8080/tcp')); wait(gateway+'/api/v1/recipes')
         if os.getenv('ISSUE88_BACKUP_ONLY') != '1':
             for path in ['/api/v1/recipes','/api/v1/recipes/reliable-recipe','/api/v1/categories','/api/v1/recipes/search?q=reliable']:
@@ -186,7 +185,6 @@ def main():
                 '-e','Kestrel__Certificates__Default__KeyPath=/https/localhost.key',
                 '-e',f'ConnectionStrings__DefaultConnection=Host=postgres;Database={target};Username=postgres;Password=issue88-db-fixture;Timeout=3;Command Timeout=5',
                 '-e','ConnectionStrings__Redis=redis:6379,abortConnect=false,connectTimeout=300',
-                '-e','HttpsRedirection__Enabled=false',
                 '-e','Jwt__Key=issue88-fixture-secret-at-least-32-characters',
                 '-e','Cors__AllowedOrigins__0=http://localhost:8088',
                 '-e','Minio__Endpoint=minio:9000','-e','Minio__AccessKey=issue88test','-e','Minio__SecretKey=issue88-test-secret',
