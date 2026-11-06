@@ -179,7 +179,9 @@ const cover =
               width={1200}
               height={675}
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
-              loading="lazy"
+              sizes="(min-width: 1280px) 570px, (min-width: 1024px) 50vw, 100vw"
+              loading="eager"
+              fetchPriority="high"
               quality={50}
             />
           ) : (

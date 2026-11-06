@@ -59,7 +59,8 @@ export default async function HomePage() {
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
               fill
               sizes="(max-width: 1199px) 100vw, 960px"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
               quality={50}
               className="-z-20 object-cover object-center"
             />
