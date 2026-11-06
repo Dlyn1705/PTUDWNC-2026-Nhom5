@@ -30,7 +30,7 @@ try {
       await cdp.send('Network.enable');
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150,
         downloadThroughput: 1_600_000 / 8, uploadThroughput: 750_000 / 8 });
-      await page.addInitScript({ content: `${vitals}\nwindow.__inp=[]; webVitals.onINP(m => window.__inp.push({value:m.value, rating:m.rating, attribution:{target:m.attribution?.interactionTarget, type:m.attribution?.interactionType, inputDelayMs:m.attribution?.inputDelay, processingMs:m.attribution?.processingDuration, presentationMs:m.attribution?.presentationDelay}}), {reportAllChanges:true});` });
+      await page.addInitScript({ content: `${vitals}\nwindow.__inp=[]; webVitals.onINP(m => window.__inp.push({value:m.value, rating:m.rating, attribution:{target:m.attribution?.interactionTarget, type:m.attribution?.interactionType, inputDelayMs:m.attribution?.inputDelay, processingMs:m.attribution?.processingDuration, presentationMs:m.attribution?.presentationDelay}}), {reportAllChanges:true, durationThreshold:16});` });
       const scripts = new Map(); const pending = []; const captureErrors = []; let collecting = true;
       page.on('response', response => {
         if (collecting && response.request().resourceType() === 'script') pending.push((async () => {
@@ -63,9 +63,14 @@ try {
       // Freeze first-load bytes before user interaction.
       const firstLoadScripts = [...scripts.keys()];
       const bytes = [...scripts.values()].reduce((a, b) => a + b, 0);
-      // A real mobile-menu interaction on every public route, followed by search/login input where available.
-      const menu = page.getByRole('button', { name: /mở.*menu|mở.*điều hướng|open.*menu|toggle.*menu/i });
-      if (await menu.count()) { await menu.first().tap(); await page.waitForTimeout(300); }
+      // Exercise both menu transitions and wait for the actual UI state.
+      if (route !== '/auth/login') {
+        const openMenu = page.getByRole('button', { name: 'Mở menu điều hướng' });
+        const closeMenu = page.getByRole('button', { name: 'Đóng menu điều hướng' });
+        await openMenu.tap();
+        await closeMenu.tap();
+        await openMenu.waitFor();
+      }
       const input = page.locator('input:visible').first();
       if (await input.count()) { await input.tap(); await input.pressSequentially('pho', { delay: 20 }); }
       await page.waitForTimeout(1000);
@@ -84,4 +89,8 @@ await writeFile(reportPath, JSON.stringify({
   limitation: 'Lab interactions only, not field p75 INP. Missing INP samples fail the gate.', results,
 }, null, 2));
 if (failure) throw failure;
-if (results.length !== 18 || results.some(r => !r.jsPass || !r.inpPass)) process.exitCode = 1;
+const overBudget = results.filter(r => !r.jsPass || !r.inpPass);
+for (const { route, run, firstLoadGzipBytes, inpMs } of overBudget) {
+  console.error(`${route} run ${run}: ${firstLoadGzipBytes} bytes gzip, INP ${inpMs ?? 'missing'}`);
+}
+if (results.length !== 18 || overBudget.length) process.exitCode = 1;

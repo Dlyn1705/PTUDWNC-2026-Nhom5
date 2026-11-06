@@ -136,11 +136,11 @@ const cover =
     <div className="page-container space-y-12 py-8">
       {/* Breadcrumbs */}
       <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <Link href="/" className="transition-colors hover:text-primary">
+        <Link href="/" prefetch={false} className="transition-colors hover:text-primary">
           Home
         </Link>
         <span>/</span>
-        <Link href="/categories" className="transition-colors hover:text-primary">
+        <Link href="/categories" prefetch={false} className="transition-colors hover:text-primary">
           Categories
         </Link>
         <span>/</span>

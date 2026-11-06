@@ -73,7 +73,7 @@ export default function Navbar() {
       <div className="page-container flex h-16 items-center justify-between gap-2">
         {/* Brand Logo & Desktop Navigation */}
         <div className="flex items-center gap-6 md:gap-8">
-          <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" className="flex items-center gap-2.5 group">
+          <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" prefetch={false} className="flex items-center gap-2.5 group">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
               <ChefHat aria-hidden="true" className="size-5" />
             </span>
