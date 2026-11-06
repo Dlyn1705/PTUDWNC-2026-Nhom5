@@ -212,7 +212,8 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
               height={720}
               unoptimized
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
             />
           </div>
 

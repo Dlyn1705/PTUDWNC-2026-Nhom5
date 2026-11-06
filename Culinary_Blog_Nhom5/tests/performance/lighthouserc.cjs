@@ -8,6 +8,15 @@ module.exports = { ci: {
     url: ['/', '/recipes', `/recipes/${fixture.slugs[0]}`, '/search?q=pho', `/categories/${fixture.categories[0].slug}`].map(p => base + p),
     numberOfRuns: 3,
     settings: { chromeFlags: '--headless --no-sandbox', formFactor: 'mobile',
+      // Apply the same mobile lab profile as browser.mjs to Chrome so LCP
+      // comes from the throttled trace rather than Lantern's simulation.
+      throttlingMethod: 'devtools',
+      throttling: {
+        requestLatencyMs: 150,
+        downloadThroughputKbps: 1600,
+        uploadThroughputKbps: 750,
+        cpuSlowdownMultiplier: 4,
+      },
       screenEmulation: { mobile: true, width: 375, height: 812, deviceScaleFactor: 1, disabled: false } },
   },
   assert: { assertions: {

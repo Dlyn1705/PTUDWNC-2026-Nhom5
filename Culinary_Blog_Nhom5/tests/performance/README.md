@@ -32,7 +32,7 @@ Tool `plans` chạy repository thật, capture SQL và clone parameter tại exe
 
 ## Frontend
 
-Tooling npm/lockfile ở thư mục này, không sửa dependency runtime frontend. Browser test dùng Chromium 375×812, CPU slowdown 4, RTT 150 ms, download 1,6 Mbps. Tổng first-load JS gzip gồm mọi script tải trước interaction, deduplicate theo URL; budget 200.000 bytes. INP lấy từ `web-vitals` qua interaction thật, missing sample fail; đây là lab INP, không phải field p75. Lighthouse CI đo 3 lượt/route với LCP/CLS median; TBT không được dùng thay INP. `CHROME_PATH` có thể trỏ Chrome cài sẵn cho LHCI.
+Tooling npm/lockfile ở thư mục này, không sửa dependency runtime frontend. Browser test dùng Chromium 375×812, CPU slowdown 4, RTT 150 ms, download 1,6 Mbps. Tổng first-load JS gzip gồm mọi script tải trước interaction, deduplicate theo URL; budget 200.000 bytes. INP lấy từ `web-vitals` qua interaction thật, missing sample fail; đây là lab INP, không phải field p75. Lighthouse CI áp dụng cùng cấu hình CPU và mạng (upload 750 kbps) trực tiếp trong Chrome qua DevTools, đo 3 lượt/route với LCP/CLS median; TBT không được dùng thay INP. `CHROME_PATH` có thể trỏ Chrome cài sẵn cho LHCI.
 
 ## An toàn dữ liệu và tái lập
 
