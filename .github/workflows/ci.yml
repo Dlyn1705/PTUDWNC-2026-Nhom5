@@ -19,6 +19,9 @@ jobs:
 
   verify:
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -45,10 +48,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate requirement and endpoint inventories
+        run: |
+          python scripts/quality/traceability.py --check
+          python -m unittest discover -s scripts/quality -p 'test_*.py'
 
       - name: Start MinIO
         run: |
@@ -91,6 +105,13 @@ jobs:
         working-directory: Culinary_Blog_Nhom5
         run: dotnet build Culinary_Blog_Nhom5.sln --no-restore --configuration Release
 
+      - name: Application unit tests and coverage baseline
+        working-directory: Culinary_Blog_Nhom5
+        run: dotnet test tests/CulinaryBlog.Application.Tests/CulinaryBlog.Application.Tests.csproj --no-build --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/unit --logger trx
+
+      - name: Unit coverage gate (separate from integration)
+        run: python scripts/quality/coverage_gate.py artifacts/quality/unit --output artifacts/quality/unit-coverage.json --label "Application unit (Release)"
+
       - name: Test backend and recipe image integration
         working-directory: Culinary_Blog_Nhom5
         env:
@@ -108,25 +129,37 @@ jobs:
           RECIPE_DELETION_TEST_MINIO_USER: minioadmin
           RECIPE_DELETION_TEST_MINIO_PASSWORD: minioadminpassword
           WELCOME_EMAIL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
-        run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release
+        run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
 
       - name: Test Admin user API integration
         working-directory: Culinary_Blog_Nhom5
         env:
           AUTH_TEST_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
-        run: dotnet test tests/CulinaryBlog.Auth.Tests/CulinaryBlog.Auth.Tests.csproj --configuration Release --filter FullyQualifiedName~AdminUsersTests
+        run: dotnet test tests/CulinaryBlog.Auth.Tests/CulinaryBlog.Auth.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
 
       - name: Test recipe steps integration
         working-directory: Culinary_Blog_Nhom5
         env:
           STEPS_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
-        run: dotnet test tests/CulinaryBlog.Steps.Tests/CulinaryBlog.Steps.Tests.csproj --configuration Release
+        run: dotnet test tests/CulinaryBlog.Steps.Tests/CulinaryBlog.Steps.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
 
       - name: Test Vietnamese recipe search integration
         working-directory: Culinary_Blog_Nhom5
         env:
           SEARCH_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
-        run: dotnet test tests/CulinaryBlog.Search.Tests/CulinaryBlog.Search.Tests.csproj --configuration Release
+        run: dotnet test tests/CulinaryBlog.Search.Tests/CulinaryBlog.Search.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
+
+      - name: Application coverage quality gate
+        run: python scripts/quality/coverage_gate.py artifacts/quality/backend --label "Application combined (Release)"
+
+      - name: Publish quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/quality/
+          if-no-files-found: error
+          retention-days: 14
 
       - uses: actions/setup-node@v4
         with:
@@ -142,6 +175,12 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:file-api
 
+      - name: Five critical API E2E flows with real PostgreSQL and JWT
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          CRITICAL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: npm run test:e2e:critical-api
+
       - name: Install Playwright Chromium
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npx playwright install --with-deps chromium
@@ -149,6 +188,12 @@ jobs:
       - name: Lint frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run lint
+
+      - name: Frontend typecheck and formatting regression gate
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: |
+          npm run typecheck
+          npm run format:check
 
       - name: Build frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
@@ -220,3 +265,16 @@ jobs:
           LIFECYCLE_SMOKE_ROOT: '1'
           BROWSER_CHANNEL: chromium
         run: npm run test:e2e:lifecycle
+
+      - name: Publish final quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/quality/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Cleanup test dependency containers
+        if: always()
+        run: docker rm -f culinary-minio culinary-mailhog || true

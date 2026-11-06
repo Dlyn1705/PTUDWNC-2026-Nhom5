@@ -41,6 +41,7 @@ public sealed class AuthFixture : IAsyncLifetime
     public CommitFailureInjection CommitFailures { get; } = new();
     public CapturedPasswordResetEmail ResetEmail { get; } = new();
     public IServiceProvider Services => app.Services;
+    public Action<IServiceCollection>? ConfigureServices { get; set; }
 
     public async Task InitializeAsync()
     {
@@ -82,6 +83,7 @@ public sealed class AuthFixture : IAsyncLifetime
         });
         builder.Services.AddRateLimiter(options => options.AddPolicy("auth", _ =>
             System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("auth-tests")));
+        ConfigureServices?.Invoke(builder.Services);
         app = builder.Build();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -94,7 +96,7 @@ public sealed class AuthFixture : IAsyncLifetime
         app.UseAuthorization();
         app.UseRateLimiter();
         // Production maps the auth endpoints inside the versioned /api/v1 group.
-        app.MapGroup("/api/v1").MapAuthEndpoints().MapAdminEndpoints();
+        app.MapGroup("/api/v1").MapAuthEndpoints().MapAdminEndpoints().MapCategoryEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())

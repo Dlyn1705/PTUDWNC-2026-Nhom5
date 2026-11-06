@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <PackageReference Include="coverlet.collector" Version="6.0.4" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.15.0.120848" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

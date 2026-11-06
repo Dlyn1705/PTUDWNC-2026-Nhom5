@@ -26,7 +26,10 @@ public static class HealthEndpoints
             var ready = await ProbeAsync(dependencies.DatabaseAsync, ct);
             return Results.Json(new { status = ready ? "Healthy" : "Unhealthy", probe = "traffic", timestamp = DateTime.UtcNow },
                 statusCode: ready ? 200 : 503);
-        });
+        }).WithName("TrafficReadinessCheck")
+            .WithSummary("Traffic admission: PostgreSQL phải sẵn sàng, cache là tùy chọn")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status503ServiceUnavailable);
 
         group.MapGet("/live", (HttpContext context) =>
         {

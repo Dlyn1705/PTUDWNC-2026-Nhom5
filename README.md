@@ -4,6 +4,26 @@ Culinary Blog là ứng dụng web full-stack phục vụ việc chia sẻ, tìm
 
 Tài liệu nghiệp vụ và kiến trúc chính thức: [Culinary_Blog_Spec.md](Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md).
 
+## Quality và truy vết yêu cầu
+
+- [Ma trận đầy đủ 65 FR/NFR](Culinary_Blog_Nhom5/docx/Spec/Requirement_Traceability_Matrix.md): owner, code/API/UI, test, status và evidence. `NeedsOwnerReview`/`MissingEvidence` không có nghĩa Done.
+- [Lệnh quality gate và quy trình cập nhật evidence](quality/README.md), [ADR-0001](Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md), [CHANGELOG](CHANGELOG.md).
+- CI kiểm tra build/analyzers, unit coverage Application riêng (baseline 84,55%), integration, typecheck/lint/format/build, API E2E và browser tests hiện có; artifact `quality-*` lưu 14 ngày. Coverage không gộp từ các checkout khác nhau để tăng số liệu.
+- Scalar ở `/scalar`, OpenAPI JSON `/openapi/v1.json` trong Development (port API xem `run-dev.ps1`). Không bật tài liệu Development công khai trong Production để vượt test.
+
+### Quy trình setup ngắn
+
+Sau khi đã cài SDK/Node/Docker và chuẩn bị `.env` theo hướng dẫn bên dưới:
+
+```powershell
+docker compose up -d --wait
+dotnet restore ./Culinary_Blog_Nhom5/Culinary_Blog_Nhom5.sln
+npm --prefix ./Culinary_Blog_Nhom5/culinary-blog-web ci
+./Culinary_Blog_Nhom5/run-dev.ps1
+```
+
+Mục tiêu SRS dưới 5 phút cần đo trên máy có dependency/image cache sẵn; lượt cold download phụ thuộc mạng. Chưa ghi nhận benchmark setup nên không tuyên bố đã đạt tiêu chí thời gian. Không ghi đè `.env` hoặc dùng secret production cho các integration fixture.
+
 ## Chức năng chính
 
 - Khách xem danh mục, xem chi tiết, tìm kiếm, lọc và phân trang công thức đã công khai.
