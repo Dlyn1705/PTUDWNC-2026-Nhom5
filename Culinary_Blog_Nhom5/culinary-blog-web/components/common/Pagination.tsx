@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -93,13 +92,13 @@ export function Pagination(props: PaginationProps) {
         !disabled && hasPrevious && prevHref ? (
           <Button asChild variant="outline" className="rounded-xl">
             <Link href={prevHref}>
-              <ChevronLeft className="mr-1 size-4" aria-hidden="true" />
+              <span aria-hidden="true" className="mr-1 text-base leading-none">‹</span>
               Trang trước
             </Link>
           </Button>
         ) : (
           <Button variant="outline" className="rounded-xl" disabled aria-disabled="true">
-            <ChevronLeft className="mr-1 size-4" aria-hidden="true" />
+            <span aria-hidden="true" className="mr-1 text-base leading-none">‹</span>
             Trang trước
           </Button>
         )
@@ -116,7 +115,7 @@ export function Pagination(props: PaginationProps) {
             }
           }}
         >
-          <ChevronLeft className="mr-1 size-4" aria-hidden="true" />
+          <span aria-hidden="true" className="mr-1 text-base leading-none">‹</span>
           Trang trước
         </Button>
       )}
@@ -206,13 +205,13 @@ export function Pagination(props: PaginationProps) {
           <Button asChild variant="outline" className="rounded-xl">
             <Link href={nextHref}>
               Trang sau
-              <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+              <span aria-hidden="true" className="ml-1 text-base leading-none">›</span>
             </Link>
           </Button>
         ) : (
           <Button variant="outline" className="rounded-xl" disabled aria-disabled="true">
             Trang sau
-            <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+            <span aria-hidden="true" className="ml-1 text-base leading-none">›</span>
           </Button>
         )
       ) : (
@@ -229,7 +228,7 @@ export function Pagination(props: PaginationProps) {
           }}
         >
           Trang sau
-          <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+          <span aria-hidden="true" className="ml-1 text-base leading-none">›</span>
         </Button>
       )}
     </nav>

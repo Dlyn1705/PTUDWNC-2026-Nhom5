@@ -46,7 +46,8 @@ try
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.ConfigureHttpsDefaults(https =>
     https.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13));
-if (builder.Environment.IsProduction())
+var httpsRedirectionEnabled = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
+if (builder.Environment.IsProduction() && httpsRedirectionEnabled)
     builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
 builder.AddStructuredLogging();
 
@@ -269,7 +270,9 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddApiSecurity();
+builder.Services.AddPerformanceCapacity(builder.Configuration, builder.Environment);
+var capacityMode = builder.Configuration.GetValue<bool>("Performance:CapacityMode");
+builder.Services.AddApiSecurity(capacityMode);
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
@@ -288,7 +291,7 @@ builder.Services.AddApiVersioning(options =>
         options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
         options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
     });
-builder.Services.AddRecipeApiConfiguration();
+builder.Services.AddRecipeApiConfiguration(capacityMode);
 // MultipartReader checks each file section while reading, before IFormFile binding buffers it.
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 5 * 1024 * 1024);
 
@@ -386,7 +389,8 @@ if (app.Environment.IsDevelopment())
 // ============================================================
 // 9. HTTPS
 // ============================================================
-app.UseHttpsRedirection();
+if (httpsRedirectionEnabled)
+    app.UseHttpsRedirection();
 
 
 // ============================================================

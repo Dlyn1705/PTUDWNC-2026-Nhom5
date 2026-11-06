@@ -1,0 +1,10 @@
+# Compose >=2.24.4. Same total serving budget as dual-instance profile.
+services:
+  api-a:
+    cpus: 1.0
+    mem_limit: 1g
+  api-b:
+    profiles: [dual-only]
+  gateway:
+    depends_on: !override [api-a, frontend]
+    volumes: !override ['./infra/performance/nginx-single.conf:/etc/nginx/nginx.conf:ro']

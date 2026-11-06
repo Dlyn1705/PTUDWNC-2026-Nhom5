@@ -8,7 +8,7 @@ export const geist = Geist({
 });
 
 export const playfair = Playfair_Display({
-  subsets: ["latin", "latin-ext", "vietnamese"],
+  preload: false,
   display: "swap",
   variable: "--font-playfair",
   fallback: ["Georgia", "Times New Roman", "serif"],

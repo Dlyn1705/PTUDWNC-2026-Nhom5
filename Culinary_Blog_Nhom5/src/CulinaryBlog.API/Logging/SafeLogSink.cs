@@ -8,7 +8,7 @@ public sealed class SafeLogSink(Logger output) : ILogEventSink, IDisposable
 {
     private static readonly HashSet<string> Allowed = new(StringComparer.Ordinal)
     {
-        "Attempt", "ErrorCategory",
+        "Attempt", "ErrorCategory", "SqlFingerprint",
         "EventType", "CorrelationId", "RequestId", "RequestPath", "RequestMethod", "StatusCode",
         "Elapsed", "UserId", "SourceContext", "Application", "Environment", "RequestName", "Outcome",
         "EmailMessageId", "JobId", "Attempt", "DeliveryStatus", "ErrorCategory",
@@ -40,6 +40,7 @@ public sealed class SafeLogSink(Logger output) : ILogEventSink, IDisposable
     {
         if (value is not ScalarValue scalar) return new ScalarValue("[REDACTED]");
         if (scalar.Value is not string text) return value;
+        if (key == "SqlFingerprint") return new ScalarValue(text.Length == 16 && text.All(char.IsAsciiHexDigit) ? text : "[REDACTED]");
         if (key is "RequestPath" or "Path")
         {
             text = text.Split('?', '#')[0];

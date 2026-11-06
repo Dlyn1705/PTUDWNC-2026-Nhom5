@@ -11,6 +11,7 @@ public sealed class ResilientCache(IDistributedCache transport, string connectio
 {
     private string? epoch;
     private bool bypass;
+    public bool WasBypassed => bypass;
     private async Task<string> Key(string key, CancellationToken ct)
     {
         if (epoch is null)

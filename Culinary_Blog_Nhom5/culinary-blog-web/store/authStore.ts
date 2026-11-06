@@ -1,9 +1,8 @@
 "use client";
 
-import axios from "axios";
 import { clearRegistration } from "../lib/auth/registrationWelcome";
 import { create } from "zustand";
-import { login as loginApi, logout as logoutApi, refresh as refreshApi } from "../lib/api/authApi";
+import { login as loginApi, logout as logoutApi, refresh as refreshApi } from "../lib/api/authSessionApi";
 import type { AppRole, AuthSessionResponse, AuthUser, LoginRequest } from "../types/auth";
 
 export type SessionUser = AuthUser & { roles: AppRole[] };
@@ -69,7 +68,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await logoutApi();
     } catch (error) {
-      if (!axios.isAxiosError(error) || ![401, 403].includes(error.response?.status ?? 0)) throw error;
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (![401, 403].includes(status ?? 0)) throw error;
     }
     get().clearSession();
   },

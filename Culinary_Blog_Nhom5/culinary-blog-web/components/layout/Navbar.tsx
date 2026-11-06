@@ -7,6 +7,7 @@ import { ChefHat, Search, LayoutDashboard, Menu, X, ArrowRight, UserPlus } from 
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/layout/UserNav";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import { navigationItemIsActive, primaryNavigation } from "@/components/layout/navigation";
 
 export default function Navbar() {
@@ -21,6 +22,14 @@ export default function Navbar() {
   const brandRef = useRef<HTMLAnchorElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
+
+  // Public pages still restore an existing session, but keep the refresh out
+  // of the first interaction window so it cannot contend with menu/input INP.
+  // Auth actions call waitForRefresh themselves, so this delay is safe.
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void useAuthStore.getState().initialize(); }, 5000);
+    return () => window.clearTimeout(timer);
+  }, []);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setMobileMenuOpen(false);
@@ -64,7 +73,7 @@ export default function Navbar() {
       <div className="page-container flex h-16 items-center justify-between gap-2">
         {/* Brand Logo & Desktop Navigation */}
         <div className="flex items-center gap-6 md:gap-8">
-          <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" className="flex items-center gap-2.5 group">
+          <Link ref={brandRef} aria-label="Culinary Blog — Trang chủ" href="/" prefetch={false} className="flex items-center gap-2.5 group">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
               <ChefHat aria-hidden="true" className="size-5" />
             </span>
@@ -139,7 +148,7 @@ export default function Navbar() {
           if (!link) return;
           setMobileMenuOpen(false);
           if (new URL(link.href).pathname === pathname) triggerRef.current?.focus();
-        }} className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift motion-reduce:animate-none animate-in slide-in-from-top-2 duration-200">
+        }} className="border-b border-border bg-card px-4 py-6 md:hidden shadow-lift motion-reduce:animate-none">
           <div className="space-y-4">
             <Link
               href="/search"

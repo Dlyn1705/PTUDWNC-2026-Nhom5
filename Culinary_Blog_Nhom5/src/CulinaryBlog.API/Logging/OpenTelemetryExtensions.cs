@@ -16,7 +16,7 @@ public static class OpenTelemetryExtensions
         }
 
         var resourceBuilder = ResourceBuilder.CreateDefault()
-            .AddService(DiagnosticsConfig.ServiceName);
+            .AddService(DiagnosticsConfig.ServiceName, serviceInstanceId: configuration["Observability:InstanceId"] ?? Environment.MachineName);
 
         services.AddOpenTelemetry()
             .WithTracing(tracing =>
@@ -55,8 +55,10 @@ public static class OpenTelemetryExtensions
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddView("*", new MetricStreamConfiguration { TagKeys = Array.Empty<string>() })
-                    .AddMeter(DiagnosticsConfig.MeterName);
+                    .AddView("*", new MetricStreamConfiguration { TagKeys = ["http.request.method", "http.route", "http.response.status_code", "error.type", "cache.kind", "cache.outcome", "db.operation", "db.client.connection.state"] })
+                    .AddMeter(DiagnosticsConfig.MeterName)
+                    .AddMeter(CulinaryBlog.Infrastructure.Services.PerformanceMetrics.MeterName)
+                    .AddMeter("Npgsql");
 
                 metrics.AddOtlpExporter(options =>
                 {

@@ -136,11 +136,11 @@ const cover =
     <div className="page-container space-y-12 py-8">
       {/* Breadcrumbs */}
       <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <Link href="/" className="transition-colors hover:text-primary">
+        <Link href="/" prefetch={false} className="transition-colors hover:text-primary">
           Home
         </Link>
         <span>/</span>
-        <Link href="/categories" className="transition-colors hover:text-primary">
+        <Link href="/categories" prefetch={false} className="transition-colors hover:text-primary">
           Categories
         </Link>
         <span>/</span>
@@ -179,7 +179,10 @@ const cover =
               width={1200}
               height={675}
               className="aspect-[16/9] w-full object-cover transition-transform duration-700 hover:scale-105"
+              sizes="(min-width: 1280px) 570px, (min-width: 1024px) 50vw, 100vw"
               loading="eager"
+              fetchPriority="high"
+              quality={50}
             />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground/30">

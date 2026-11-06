@@ -1,0 +1,19 @@
+{
+  "name": "culinary-issue85-performance",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "browser": "node browser.mjs",
+    "lighthouse": "lhci autorun --config=./lighthouserc.cjs"
+  },
+  "devDependencies": {
+    "@lhci/cli": "0.16.0",
+    "playwright": "1.62.1",
+    "web-vitals": "4.2.4"
+  },
+  "overrides": {
+    "basic-ftp": "6.2.6",
+    "glob": "14.0.3",
+    "minimatch": "11.0.4"
+  }
+}

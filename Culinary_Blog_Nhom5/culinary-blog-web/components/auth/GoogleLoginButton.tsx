@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
-import { googleLogin } from "@/lib/api/authApi";
+import { googleLogin } from "@/lib/api/authSessionApi";
 import { useAuthStore, waitForRefresh } from "@/store/authStore";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
@@ -11,12 +12,11 @@ public sealed class PublicContentCache(
     IDistributedCache cache,
     ILogger<PublicContentCache> logger,
     PendingPublicCacheInvalidations? pendingInvalidations = null,
+    IOptions<PublicCacheOptions>? options = null,
     IFrontendRevalidationClient? frontendRevalidation = null) : IPublicContentCache
 {
     private readonly PendingPublicCacheInvalidations pending = pendingInvalidations ?? new();
-    private static readonly TimeSpan CategoryTtl = TimeSpan.FromMinutes(45);
-    private static readonly TimeSpan RecipeListTtl = TimeSpan.FromMinutes(3);
-    private static readonly TimeSpan RecipeDetailTtl = TimeSpan.FromHours(1);
+    private readonly PublicCacheOptions settings = options?.Value ?? new();
     private const string CategoryVersionKey = "public:categories:version";
     private const string RecipeVersionKey = "public:recipes:version";
 
@@ -28,11 +28,9 @@ public sealed class PublicContentCache(
         CancellationToken cancellationToken = default)
     {
         var key = $"public:recipes:search:{queryKey}:rv:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}:cv:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}";
-        using var lease = await SearchCacheLock.AcquireAsync(key, cancellationToken);
-        // Check again after waiting: another request may have populated this exact version.
         return await GetOrCreateAsync(
             key,
-            RecipeListTtl,
+            "search", TimeSpan.FromMinutes(settings.SearchMinutes),
             factory,
             cancellationToken);
     }
@@ -42,7 +40,7 @@ public sealed class PublicContentCache(
         CancellationToken cancellationToken = default) =>
         await GetOrCreateAsync(
             $"public:categories:list:v:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}",
-            CategoryTtl,
+            "category", TimeSpan.FromMinutes(settings.CategoryMinutes),
             factory,
             cancellationToken);
 
@@ -54,7 +52,7 @@ public sealed class PublicContentCache(
         CancellationToken cancellationToken = default) =>
         await GetOrCreateAsync(
             $"public:categories:detail:{slug.ToLowerInvariant()}:{page}:{pageSize}:cv:{await GetVersionAsync(CategoryVersionKey, cancellationToken)}:rv:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}",
-            CategoryTtl,
+            "category", TimeSpan.FromMinutes(settings.CategoryMinutes),
             factory,
             cancellationToken);
 
@@ -64,7 +62,7 @@ public sealed class PublicContentCache(
         CancellationToken cancellationToken = default) =>
         await GetOrCreateAsync(
             $"public:recipes:list:{queryKey}:v:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}",
-            RecipeListTtl,
+            "list", TimeSpan.FromMinutes(settings.ListMinutes),
             factory,
             cancellationToken);
 
@@ -74,7 +72,7 @@ public sealed class PublicContentCache(
         CancellationToken cancellationToken = default) =>
         await GetOrCreateAsync(
             $"public:recipes:detail:{slug.ToLowerInvariant()}:v:{await GetVersionAsync(RecipeVersionKey, cancellationToken)}",
-            RecipeDetailTtl,
+            "detail", TimeSpan.FromMinutes(settings.DetailMinutes),
             factory,
             cancellationToken);
 
@@ -104,39 +102,55 @@ public sealed class PublicContentCache(
 
     private async Task<T> GetOrCreateAsync<T>(
         string key,
-        TimeSpan ttl,
+        string kind, TimeSpan ttl,
         Func<CancellationToken, Task<T>> factory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) where T : class
     {
-        try
+        var readFailed = false;
+        async Task<T?> ReadAsync()
         {
-            var cached = await cache.GetStringAsync(key, cancellationToken);
-            if (cached is not null)
+            try
             {
-                var value = JsonSerializer.Deserialize<T>(cached, JsonOptions);
-                if (value is not null) return value;
+                var cached = await cache.GetStringAsync(key, cancellationToken);
+                return cached is null ? null : JsonSerializer.Deserialize<T>(cached, JsonOptions);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                readFailed = true;
+                logger.LogWarning(exception, "Could not read public content cache key {CacheKey}; using database", key);
+                return null;
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogWarning(exception, "Could not read public content cache key {CacheKey}; using database", key);
-        }
+        void Record(string outcome) => PerformanceMetrics.CacheReads.Add(1, new("cache.kind", kind), new("cache.outcome", outcome));
 
-        var result = await factory(cancellationToken);
+        // A warm read must never queue behind unrelated network I/O for the same key.
+        var cachedValue = await ReadAsync();
+        if (cachedValue is not null) { Record("hit"); return cachedValue; }
+        IDisposable? lease = null;
         try
         {
-            await cache.SetStringAsync(
-                key,
-                JsonSerializer.Serialize(result, JsonOptions),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl },
-                cancellationToken);
+            // Coalesce healthy cold misses only; outage fallback must not queue every DB read.
+            if (!readFailed && cache is not Reliability.ResilientCache { WasBypassed: true })
+            {
+                lease = await SearchCacheLock.AcquireAsync(key, cancellationToken);
+                cachedValue = await ReadAsync();
+                if (cachedValue is not null) { Record("hit"); return cachedValue; }
+            }
+            Record(readFailed ? "error" : cache is Reliability.ResilientCache { WasBypassed: true } ? "bypass" : "miss");
+            var result = await factory(cancellationToken);
+            try
+            {
+                await cache.SetStringAsync(key, JsonSerializer.Serialize(result, JsonOptions),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl }, cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                PerformanceMetrics.CacheWritesFailed.Add(1, new KeyValuePair<string, object?>("cache.kind", kind));
+                logger.LogWarning(exception, "Could not write public content cache key {CacheKey}; returning database result", key);
+            }
+            return result;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogWarning(exception, "Could not write public content cache key {CacheKey}; returning database result", key);
-        }
-
-        return result;
+        finally { lease?.Dispose(); }
     }
 
     private async Task<string> GetVersionAsync(string key, CancellationToken cancellationToken)

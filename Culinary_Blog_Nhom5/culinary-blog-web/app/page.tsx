@@ -59,7 +59,9 @@ export default async function HomePage() {
               alt={featuredImage?.alt || featured?.title || "Freshly prepared food"}
               fill
               sizes="(max-width: 1199px) 100vw, 960px"
-              priority
+              loading="eager"
+              fetchPriority="high"
+              quality={50}
               className="-z-20 object-cover object-center"
             />
           <div className="absolute inset-0 -z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />
