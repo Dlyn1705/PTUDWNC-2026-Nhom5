@@ -214,6 +214,25 @@ public class ProgramSecurityTests
         await AssertProblemWithCorrelationAsync(forbidden, HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task Named_application_operations_have_openapi_summaries()
+    {
+        await using var factory = new SecurityFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var operations = document.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .Select(entry => entry.Value)
+            .Where(operation => operation.ValueKind == JsonValueKind.Object && operation.TryGetProperty("operationId", out _))
+            .ToArray();
+        Assert.NotEmpty(operations);
+        foreach (var operation in operations)
+        {
+            var id = operation.GetProperty("operationId").GetString();
+            Assert.True(operation.TryGetProperty("summary", out var summary) && !string.IsNullOrWhiteSpace(summary.GetString()), id);
+        }
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

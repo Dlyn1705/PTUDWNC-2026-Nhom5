@@ -679,12 +679,17 @@
       "code": [
         "README.md",
         "Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Program.cs"
       ],
-      "tests": [],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests/ProgramSecurityTests.cs::Named_application_operations_have_openapi_summaries"
+      ],
       "status": "NeedsOwnerReview",
-      "evidence": [],
-      "gap": "Record a timed setup run and verify XML documentation coverage in OpenAPI before acceptance.",
+      "evidence": [
+        "quality/evidence/setup-openapi-20261107.json"
+      ],
+      "gap": "Clean-source setup measured in 250.53 seconds with preinstalled tools and host caches. Review release and ADR documentation and verify XML comment coverage across the API before acceptance.",
       "reviewedBy": null,
       "reviewedCommit": null
     },

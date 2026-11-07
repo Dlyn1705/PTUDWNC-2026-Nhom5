@@ -55,7 +55,7 @@ Kết quả này là rà soát một phần. Các yêu cầu vẫn ở `NeedsOwn
 - Ân review architecture, auth/API contract và nợ Domain Identity/Npgsql ghi trong [ADR-0001](ADR-0001-Quality-Gates-And-Existing-Debt.md).
 - Linh/Tuấn/Ân/Trâm rà soát từng yêu cầu được giao, bổ sung đúng file code, test cụ thể, evidence của lượt chạy, `reviewedBy` và `reviewedCommit`. Chuyển sang `Verified` sau khi đối chiếu đủ phạm vi rồi chạy lại `--check --acceptance`.
 - Nhóm trưởng kiểm chứng/cấu hình >=1 approving review và required checks phía GitHub. Đọc branch-protection API trả 404 và ruleset list không có mục; không thể kết luận template đã enforce server-side review.
-- Đo benchmark setup dưới 5 phút theo điều kiện máy/cache; hiện chưa có số đo.
+- Review benchmark setup 250,53 giây và điều kiện đo được ghi ở phần dưới.
 - Xác nhận mức API E2E cho năm critical flow có đủ phạm vi hay cần thêm cả năm UI production flow. Google endpoint dùng command-handler substitute và avatar dùng storage-port substitute ở contract tests; đây không phải live Google/MinIO evidence của các ca đó.
 - OpenAPI/Scalar có metadata summary; chưa chứng minh XML comments bao phủ tài liệu API như SRS yêu cầu. Quyết định thay thế cần ghi nhận/review, không âm thầm đánh dấu đạt.
 
@@ -65,8 +65,8 @@ Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub
 
 - Gate yêu cầu cả 65 requirement và 56 operation trong inventory được `Verified`. Mỗi operation phải có happy test, error test và file evidence có nội dung. Kết quả hiện tại là 0/65 requirement và 0/56 endpoint được xác nhận. Lệnh acceptance chặn đúng các mục còn thiếu.
 - Ma trận bổ sung chỉ mục các mục đánh số và từng dòng checklist trong spec. Các ánh xạ về magic bytes, token và Dependency Rule đã có code/test cụ thể để reviewer đối chiếu. Chỉ mục là phạm vi rà soát. Việc xác nhận assertion và bằng chứng của từng tiêu chí vẫn thuộc owner và reviewer.
-- Compose development đang có container chạy từ trước và workspace thiếu `.env` theo quy trình README. Chưa có benchmark setup từ checkout sạch với môi trường cô lập.
-- Chạy lại `ApiDocumentationTests` ở cấu hình Release đạt 2/2. Các test kiểm tra hợp đồng admin, health và bearer metadata của tài liệu API có version. Còn phải chứng minh phạm vi XML comments của toàn API.
-- Năm critical API E2E có evidence. Cần quyết định chính thức về phạm vi trình duyệt và khoản nợ Identity/Npgsql trong Domain trước khi xác nhận các NFR tương ứng.
+- Benchmark Windows trên commit `f0e00b3` đạt 250,53 giây, dưới 5 phút. Dùng checkout sạch, công cụ đã cài, cache máy sẵn có, cổng và Docker volumes cô lập. Đồng hồ bắt đầu trước Compose và dừng khi API readiness cùng trang web trả HTTP 200. Xem `quality/evidence/setup-openapi-20261107.json`.
+- Trên cùng lượt đo, Scalar trả HTTP 200 và OpenAPI sinh đủ 56 operation trong inventory. Runtime có 40 summary trước khi sửa. Sau khi bổ sung 16 summary còn thiếu, kiểm thử OpenAPI Release đạt 3/3, gồm kiểm tra summary cho các operation có tên. Phần XML comments toàn API vẫn chờ đối chiếu.
+- Chạy lại 5/5 critical API E2E trên PostgreSQL cô lập. Cần quyết định chính thức về phạm vi trình duyệt và khoản nợ Identity/Npgsql trong Domain trước khi xác nhận các NFR tương ứng.
 - Tài khoản kiểm tra có quyền push và `admin=false`. Quản trị viên repository cần xác nhận hoặc thiết lập required checks và ít nhất một approving review.
-- Kiểm tra catalog, `traceability.py --check` và 10/10 test Python đạt ở lượt sửa gate. Sáu check GitHub trên commit trước `517a459` đã đạt. Kết quả của commit mới được theo dõi riêng trên PR.
+- Kiểm tra catalog, `traceability.py --check` và 10/10 test Python đạt ở lượt sửa gate. Sáu check GitHub trên commit gate `f0e00b3` đã đạt. Theo dõi riêng kết quả CI của commit bổ sung OpenAPI.

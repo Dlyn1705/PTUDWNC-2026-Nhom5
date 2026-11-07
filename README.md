@@ -22,7 +22,7 @@ npm --prefix ./Culinary_Blog_Nhom5/culinary-blog-web ci
 ./Culinary_Blog_Nhom5/run-dev.ps1
 ```
 
-Mục tiêu SRS dưới 5 phút cần đo trên máy có dependency/image cache sẵn; lượt cold download phụ thuộc mạng. Chưa ghi nhận benchmark setup nên không tuyên bố đã đạt tiêu chí thời gian. Không ghi đè `.env` hoặc dùng secret production cho các integration fixture.
+Lượt đo trên Windows ngày 07/11/2026 đạt 250,53 giây từ lúc khởi động Compose đến khi API và trang web phản hồi. Lượt đo dùng checkout sạch, SDK/Node/Docker đã cài, cache máy sẵn có và container cô lập. Thời gian tải mới dependency và Docker image phụ thuộc mạng. [Kết quả đo](quality/evidence/setup-openapi-20261107.json).
 
 ## Chức năng chính
 

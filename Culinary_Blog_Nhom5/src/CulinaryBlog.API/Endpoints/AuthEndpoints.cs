@@ -190,6 +190,7 @@ public static class AuthEndpoints
                 }));
             })
             .WithName("ForgotPassword")
+            .WithSummary("Yêu cầu gửi hướng dẫn đặt lại mật khẩu")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
@@ -205,6 +206,7 @@ public static class AuthEndpoints
                 return Results.NoContent();
             })
             .WithName("ResetPassword")
+            .WithSummary("Đặt lại mật khẩu bằng token xác nhận")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
@@ -228,6 +230,7 @@ public static class AuthEndpoints
             })
             .RequireAuthorization("AuthorPolicy")
             .WithName("ChangePassword")
+            .WithSummary("Đổi mật khẩu của người dùng hiện tại")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -285,6 +288,7 @@ public static class AuthEndpoints
             })
             .RequireAuthorization("AuthorPolicy")
             .WithName("GetProfileRecipeStats")
+            .WithSummary("Xem thống kê công thức của người dùng hiện tại")
             .Produces<ApiResponse<ProfileRecipeStats>>(StatusCodes.Status200OK);
 
         group.MapPost("/me/avatar", async (
@@ -323,6 +327,7 @@ public static class AuthEndpoints
             .DisableAntiforgery()
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024))
             .WithName("UploadProfileAvatar")
+            .WithSummary("Tải ảnh đại diện của người dùng hiện tại")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
