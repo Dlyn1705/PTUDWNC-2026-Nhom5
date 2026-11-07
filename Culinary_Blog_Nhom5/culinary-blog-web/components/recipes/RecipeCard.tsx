@@ -10,6 +10,7 @@ import {
   type DifficultyValue,
 } from "@/types/recipe.types";
 import { cn } from "@/lib/utils";
+import { recipeDisplayImages } from "@/lib/sampleRecipeImages";
 
 export interface RecipeCardProps {
   recipe: RecipeCardDto;
@@ -33,7 +34,7 @@ export function DifficultyBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide shadow-2xs backdrop-blur-xs",
-        styles[difficulty] || styles[1]
+        styles[difficulty] || styles[1],
       )}
     >
       <Flame aria-hidden="true" className="size-3" />
@@ -47,8 +48,8 @@ export function RecipeCard({
   viewMode = "grid",
   showStatusBadge = false,
 }: RecipeCardProps) {
-  const image =
-    recipe.images?.find((i) => i.isPrimary) ?? recipe.images?.[0];
+  const images = recipeDisplayImages(recipe);
+  const image = images.find((item) => item.isPrimary) ?? images[0];
 
   const totalMinutes =
     (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
@@ -60,14 +61,14 @@ export function RecipeCard({
       role="article"
       className={cn(
         "group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5",
-        isList && "flex flex-col md:flex-row items-stretch"
+        isList && "flex flex-col md:flex-row items-stretch",
       )}
     >
       <Link
         href={`/recipes/${recipe.slug}`}
         className={cn(
           "block w-full",
-          isList && "flex flex-col md:flex-row w-full"
+          isList && "flex flex-col md:flex-row w-full",
         )}
       >
         {/* Thumbnail */}
@@ -76,21 +77,27 @@ export function RecipeCard({
             "relative overflow-hidden bg-muted",
             isList
               ? "aspect-[16/9] md:aspect-square md:w-64 md:shrink-0"
-              : "aspect-[16/9] w-full"
+              : "aspect-[16/9] w-full",
           )}
         >
-          {image?.url ? <Image
-            src={image.url}
-            alt={image.alt || recipe.title}
-            width={800}
-            height={450}
-            unoptimized
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
-          /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <span aria-hidden="true" className="text-4xl opacity-50">🍽</span>
-            <span className="sr-only">Công thức chưa có ảnh đại diện</span>
-          </div>}
+          {image?.url ? (
+            <Image
+              src={image.url}
+              alt={image.alt || recipe.title}
+              width={800}
+              height={450}
+              unoptimized
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <span aria-hidden="true" className="text-4xl opacity-50">
+                🍽
+              </span>
+              <span className="sr-only">Công thức chưa có ảnh đại diện</span>
+            </div>
+          )}
 
           {/* Difficulty Badge */}
           <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
@@ -106,7 +113,7 @@ export function RecipeCard({
         <CardContent
           className={cn(
             "flex flex-1 flex-col justify-between p-5 sm:p-6",
-            isList && "p-6"
+            isList && "p-6",
           )}
         >
           <div className="space-y-2.5">
@@ -153,12 +160,18 @@ export function RecipeCard({
 
             {/* Quick Metrics */}
             <div className="flex items-center gap-3.5 tabular-nums">
-              <span className="inline-flex items-center gap-1" aria-label={`${totalMinutes} phút`}>
+              <span
+                className="inline-flex items-center gap-1"
+                aria-label={`${totalMinutes} phút`}
+              >
                 <Clock aria-hidden="true" className="size-3.5 text-primary" />
                 {totalMinutes} phút
               </span>
 
-              <span className="inline-flex items-center gap-1" aria-label={`${recipe.servings} khẩu phần`}>
+              <span
+                className="inline-flex items-center gap-1"
+                aria-label={`${recipe.servings} khẩu phần`}
+              >
                 <Users aria-hidden="true" className="size-3.5 text-primary" />
                 {recipe.servings} phần
               </span>

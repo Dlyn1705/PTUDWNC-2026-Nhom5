@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <radialGradient id="soup"><stop stop-color="#a6574a"/><stop offset="1" stop-color="#672638"/></radialGradient>
+    <pattern id="beans" width="65" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
+      <path d="M8 14c-4-8 7-13 15-9s8 11 0 16c-7 5-13 2-15-7Z" fill="#7e3044" stroke="#bd695f" stroke-width="2"/>
+      <path d="M39 33c-5-5 1-13 9-14 7-1 12 5 8 12-4 8-13 8-17 2Z" fill="#92394b" stroke="#d1806d" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <path fill="#e9d0af" d="M0 0h800v450H0z"/>
+  <path fill="#c87c6d" d="M0 349 800 72v378H0z"/>
+  <ellipse cx="405" cy="247" rx="235" ry="156" fill="#6d413e" opacity=".24"/>
+  <ellipse cx="396" cy="222" rx="229" ry="157" fill="#fff4df"/>
+  <ellipse cx="396" cy="222" rx="195" ry="128" fill="url(#soup)"/>
+  <ellipse cx="396" cy="222" rx="183" ry="118" fill="url(#beans)"/>
+  <path d="M293 238c27-43 110-65 178-42 46 15-24 48-63 44-32-4-39-16-11-24" fill="none" stroke="#fff1cb" stroke-width="12" stroke-linecap="round"/>
+  <path d="M398 185c-10-30 10-45 31-48-3 23-13 38-31 48Zm3 0c22-24 40-20 56-12-17 15-36 19-56 12Z" fill="#527f50"/>
+</svg>

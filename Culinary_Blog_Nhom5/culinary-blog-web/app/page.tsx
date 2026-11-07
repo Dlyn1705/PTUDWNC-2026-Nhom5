@@ -1,3 +1,4 @@
+import { recipeDisplayImages } from "@/lib/sampleRecipeImages";
 import React from "react";
 import { DiscoverySidebar } from "@/components/search/DiscoverySidebar";
 import Link from "next/link";
@@ -56,8 +57,9 @@ export default async function HomePage() {
 
   const featured = recipes[0];
   const latestRecipes = recipes.slice(1, 7);
+  const featuredImages = featured ? recipeDisplayImages(featured) : [];
   const featuredImage =
-    featured?.images?.find((i) => i.isPrimary) ?? featured?.images?.[0];
+    featuredImages.find((image) => image.isPrimary) ?? featuredImages[0];
   const featuredTotalMinutes =
     (featured?.prepTimeMinutes || 0) + (featured?.cookTimeMinutes || 0);
 

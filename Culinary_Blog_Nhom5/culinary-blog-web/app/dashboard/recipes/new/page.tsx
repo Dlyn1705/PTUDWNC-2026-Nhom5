@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import IngredientManager from "@/components/recipes/editor/IngredientManager";
-import StepManager from "@/components/recipes/editor/StepManager";
+import StepManager, {
+  type StepCollectionValidation,
+} from "@/components/recipes/editor/StepManager";
 import ImageGalleryManager from "@/components/recipes/editor/ImageGalleryManager";
 import RecipeForm from "@/components/recipes/editor/RecipeForm";
 import { type IngredientDraft } from "@/lib/ingredient-form";
@@ -19,8 +21,9 @@ import {
 } from "@/lib/validations/recipeEditor";
 import { recipeKeys } from "@/hooks/queries/recipeKeys";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
-import type { RecipeImageDto } from "@/types/file.types";
-import type { RecipePreviewData } from "@/components/recipes/editor/RecipePreviewDialog";
+import { DraftPublishDialog } from "@/components/recipes/editor/DraftPublishDialog";
+import { saveDraftMedia } from "@/lib/api/saveDraftMedia";
+import { imageErrorMessage, validateImageFile } from "@/lib/api/imageErrors";
 
 export default function NewRecipePage() {
   const queryClient = useQueryClient();
@@ -38,14 +41,23 @@ export default function NewRecipePage() {
   const [galleryBusy, setGalleryBusy] = useState(false);
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [steps, setSteps] = useState<StepDraft[]>([]);
-  const [images, setImages] = useState<RecipeImageDto[]>([]);
+  const [stepFiles, setStepFiles] = useState<(File | undefined)[]>([]);
+  const [cover, setCover] = useState<File | null>(null);
+  const [coverError, setCoverError] = useState("");
+  const [mediaWarnings, setMediaWarnings] = useState<string[]>([]);
+  const [choiceOpen, setChoiceOpen] = useState(false);
+  const [published, setPublished] = useState(false);
   const ingredientValidation = useRef<RecipeCollectionValidation>(null);
-  const stepValidation = useRef<RecipeCollectionValidation>(null);
+  const stepValidation = useRef<StepCollectionValidation>(null);
   const dirty =
-    (!created && (basicDirty || ingredients.length > 0 || steps.length > 0)) ||
+    (!created &&
+      (basicDirty ||
+        ingredients.length > 0 ||
+        steps.length > 0 ||
+        Boolean(cover))) ||
     ingredientDirty ||
     stepDirty;
-  useUnsavedRecipe(dirty || galleryBusy);
+  useUnsavedRecipe(dirty || galleryBusy || saving);
 
   const save = async (values: RecipeEditorValues) => {
     if (created)
@@ -67,6 +79,7 @@ export default function NewRecipePage() {
     const currentSteps =
       (stepValidation.current?.getItems?.() as StepDraft[] | undefined) ??
       steps;
+    const pendingStepFiles = stepValidation.current?.getStepFiles() ?? [];
     const payload = buildCreateRecipePayload({
       ...values,
       category: values.categoryId,
@@ -84,7 +97,11 @@ export default function NewRecipePage() {
     setSaving(true);
     try {
       const result = await recipeEditorApi.create(payload);
+      const media = await saveDraftMedia(result.id, cover, pendingStepFiles);
+      setStepFiles(media.retryFiles);
+      setMediaWarnings(media.warnings);
       setCreated({ id: result.id, slug: result.slug });
+      setChoiceOpen(!media.warnings.length);
       void queryClient.invalidateQueries({ queryKey: recipeKeys.managed() });
     } finally {
       setSaving(false);
@@ -93,7 +110,7 @@ export default function NewRecipePage() {
 
   return (
     <div className="min-h-screen bg-background py-10">
-      <div className="page-container max-w-5xl space-y-6">
+      <div className="page-container space-y-6">
         <header>
           <p className="text-sm font-medium text-primary">
             Dashboard / Recipes / New
@@ -111,15 +128,55 @@ export default function NewRecipePage() {
           )}
         </header>
         {created && (
-          <p role="status" className="text-success">
-            Đã lưu bản nháp.{" "}
-            <Link
-              className="underline"
-              href={`/dashboard/recipes/${created.id}/edit`}
+          <div className="space-y-2 rounded-2xl border bg-card p-4">
+            <p
+              id="draft-result"
+              role="status"
+              tabIndex={-1}
+              className="text-success"
             >
-              Tiếp tục chỉnh sửa
-            </Link>
-          </p>
+              {published ? "Công thức đã xuất bản. " : "Đã lưu bản nháp. "}
+              <Link
+                className="underline"
+                href={
+                  published
+                    ? `/recipes/${created.slug}`
+                    : `/dashboard/recipes/${created.id}/edit`
+                }
+              >
+                {published ? "Xem công thức" : "Tiếp tục chỉnh sửa"}
+              </Link>
+            </p>
+            {mediaWarnings.length > 0 && (
+              <ul
+                role="alert"
+                className="list-disc ps-5 text-sm text-destructive"
+              >
+                {mediaWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            )}
+            {!published && (
+              <button
+                type="button"
+                disabled={dirty || galleryBusy}
+                onClick={() => setChoiceOpen(true)}
+                className="rounded-lg border px-4 py-2 disabled:opacity-50"
+              >
+                Xem trước để xuất bản
+              </button>
+            )}
+            <DraftPublishDialog
+              id={created.id}
+              open={choiceOpen}
+              onClose={() => setChoiceOpen(false)}
+              onPublished={() => {
+                setPublished(true);
+                setChoiceOpen(false);
+              }}
+            />
+          </div>
         )}
         <RecipeForm
           mode="create"
@@ -129,9 +186,6 @@ export default function NewRecipePage() {
           onRetryCategories={() => {
             void categories.refetch();
           }}
-          previewData={
-            { ingredients, steps, images } satisfies RecipePreviewData
-          }
           onSave={save}
           onDirtyChange={setBasicDirty}
           busy={saving}
@@ -151,15 +205,57 @@ export default function NewRecipePage() {
             className="rounded-2xl border border-border bg-card p-6 shadow-soft"
           >
             <h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Lưu công thức trước, sau đó tải ảnh lên MinIO.
-            </p>
+            {!created && (
+              <div className="mt-3 space-y-2">
+                <label className="block text-sm">
+                  Chọn ảnh bìa
+                  <input
+                    type="file"
+                    disabled={saving}
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    className="mt-1 block max-w-full"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        validateImageFile(file);
+                        setCover(file);
+                        setCoverError("");
+                      } catch (cause) {
+                        setCoverError(imageErrorMessage(cause));
+                      }
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                {cover && (
+                  <p className="break-all text-sm">
+                    {cover.name}{" "}
+                    <button
+                      type="button"
+                      disabled={saving}
+                      className="underline"
+                      onClick={() => setCover(null)}
+                    >
+                      Bỏ ảnh bìa
+                    </button>
+                  </p>
+                )}
+                {coverError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {coverError}
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Ảnh đã chọn sẽ được tải lên khi lưu công thức.
+                </p>
+              </div>
+            )}
             {created && (
               <ImageGalleryManager
                 key={created.id}
                 recipeId={created.id}
                 onBusyChange={setGalleryBusy}
-                onImagesChange={setImages}
               />
             )}
           </section>
@@ -180,6 +276,7 @@ export default function NewRecipePage() {
           <StepManager
             key={`steps-${created?.id ?? "new"}`}
             recipeId={created?.id}
+            initialStepFiles={stepFiles}
             onChange={setSteps}
             onDirtyChange={setStepDirty}
             validationRef={stepValidation}

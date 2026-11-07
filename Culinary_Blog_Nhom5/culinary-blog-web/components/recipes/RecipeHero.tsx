@@ -3,12 +3,22 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Clock, Flame, Printer, Share2, Timer, Users, Check, Sparkles } from "lucide-react";
+import {
+  Clock,
+  Flame,
+  Printer,
+  Share2,
+  Timer,
+  Users,
+  Check,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { RecipeDto } from "@/types/recipe.types";
 import { DifficultyBadge } from "./RecipeCard";
 import { cn } from "@/lib/utils";
+import { recipeDisplayImages } from "@/lib/sampleRecipeImages";
 
 interface RecipeHeroProps {
   recipe: RecipeDto;
@@ -18,9 +28,10 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const images = recipe.images || [];
+  const images = recipeDisplayImages(recipe);
   const activeImage = images[activeImageIndex] || images[0];
-  const totalMinutes = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
+  const totalMinutes =
+    (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
 
   const handlePrint = () => {
     window.print();
@@ -56,7 +67,9 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
 
   const categorySlug =
     recipe.categorySlug ||
-    (recipe.categoryName ? recipe.categoryName.toLowerCase().replace(/\s+/g, "-") : recipe.categoryId);
+    (recipe.categoryName
+      ? recipe.categoryName.toLowerCase().replace(/\s+/g, "-")
+      : recipe.categoryId);
 
   return (
     <section className="space-y-6">
@@ -94,7 +107,7 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
             variant="outline"
             className={cn(
               "rounded-full gap-1.5 text-xs h-9 px-3.5 shadow-2xs transition-all",
-              copied && "border-success text-success bg-success/10"
+              copied && "border-success text-success bg-success/10",
             )}
             onClick={handleShare}
           >
@@ -163,7 +176,9 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Clock className="size-4 text-primary" />
-            <span className="text-xs uppercase tracking-wider font-semibold">Prep Time</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">
+              Prep Time
+            </span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
             {recipe.prepTimeMinutes} min
@@ -173,7 +188,9 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Flame className="size-4 text-warning" />
-            <span className="text-xs uppercase tracking-wider font-semibold">Cook Time</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">
+              Cook Time
+            </span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
             {recipe.cookTimeMinutes} min
@@ -183,7 +200,9 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Timer className="size-4 text-success" />
-            <span className="text-xs uppercase tracking-wider font-semibold">Total Time</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">
+              Total Time
+            </span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
             {totalMinutes} min
@@ -193,7 +212,9 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Users className="size-4 text-primary" />
-            <span className="text-xs uppercase tracking-wider font-semibold">Yield</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">
+              Yield
+            </span>
           </div>
           <p className="text-xl font-bold tabular-nums text-foreground">
             {recipe.servings} servings
@@ -231,7 +252,7 @@ export function RecipeHero({ recipe }: RecipeHeroProps) {
                     "size-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer shadow-2xs",
                     activeImageIndex === idx
                       ? "border-primary shadow-soft scale-105"
-                      : "border-transparent opacity-70 hover:opacity-100"
+                      : "border-transparent opacity-70 hover:opacity-100",
                   )}
                 >
                   <Image
