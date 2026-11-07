@@ -9,13 +9,13 @@ dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests
 dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests
 ```
 
-`requirements-catalog.json` theo dõi SRS gốc, bảng phân công và `Culinary_Blog_Spec.md`. Danh mục hiện có 64 mã từ SRS và JOB-004 từ bảng phân công. Spec chuẩn hóa bổ sung tiêu chí cho các mã hiện có. Các hàng liên quan ghi mục nguồn và tiêu chí trong `specCriteria`.
+`requirements-catalog.json` theo dõi SRS gốc, bảng phân công và `Culinary_Blog_Spec.md`. Danh mục hiện có 64 mã từ SRS và JOB-004 từ bảng phân công. `specSections` liên kết từng mục đánh số với phạm vi yêu cầu tương ứng. `specChecklist` liên kết từng dòng checklist mục 12, gồm cả các dòng không có mã riêng. `specCriteria` nêu các tiêu chí cụ thể trên hàng yêu cầu liên quan, như magic bytes, lưu trữ token và Dependency Rule.
 
 Khi một trong ba nguồn thay đổi, đối chiếu cả mã yêu cầu và nội dung tiêu chí rồi chạy `python scripts/quality/extract_catalog.py --write` (cài dependency từ `scripts/quality/requirements-catalog.txt`). Cập nhật hàng, mục nguồn và tiêu chí tương ứng. Chạy `python scripts/quality/traceability.py` để sinh lại Markdown.
 
 Mỗi owner đối chiếu toàn bộ yêu cầu và tiêu chí chuẩn hóa với file code/API/UI cụ thể, test dạng `path::test_symbol` và file evidence của lượt chạy. Điền `reviewedBy`, `reviewedCommit` và chỉ chuyển sang `Verified` sau khi rà soát đủ phạm vi. CI dùng `--check` để kiểm tra danh mục, hash nguồn, tham chiếu và tài liệu sinh.
 
-`endpoint-tests.json` liệt kê các operation WithName hiện có; happy/error dùng `path::test_symbol`. HTTP routes chưa WithName hoặc đăng ký ngoài Endpoints cần rà soát runtime/OpenAPI trước nghiệm thu, không coi inventory tĩnh là toàn bộ endpoint coverage.
+`endpoint-tests.json` liệt kê các operation WithName hiện có. Mỗi operation cần test happy và error dạng `path::test_symbol`, evidence của lượt chạy và trạng thái `Verified` để qua acceptance. Reviewer mở từng test để xác nhận assertion kiểm tra đúng operation, quyền, mã lỗi và các nhánh hành vi liên quan. HTTP routes chưa WithName hoặc đăng ký ngoài Endpoints cần rà soát qua runtime/OpenAPI trước nghiệm thu.
 
 ## Coverage
 
@@ -52,4 +52,10 @@ Năm critical API E2E (register, login, create, publish, search) chạy bằng `
 
 ## Trước khi đóng issue
 
-Giữ `Refs #89` trong PR khi còn chờ nghiệm thu. Chạy `python scripts/quality/traceability.py --check --acceptance` sau khi các owner hoàn tất rà soát. Chỉ đóng #89 khi lệnh đạt và nhóm đã xác nhận các điều kiện nghiệm thu còn lại. Đối chiếu #85–#93, CI artifacts, five critical fullstack E2E và approval requirement. Người có quyền quản trị phải kiểm chứng branch protection >=1 approving review, không xem checkbox template là enforcement.
+Giữ `Refs #89` trong PR khi còn chờ nghiệm thu. Chạy `python scripts/quality/traceability.py --check --acceptance` sau khi các owner và reviewer hoàn tất rà soát. Xem `artifacts/quality/traceability.json` để biết mã yêu cầu và operation còn thiếu. Chỉ đóng #89 khi lệnh đạt, CI của commit cuối xanh và nhóm đã xác nhận các điều kiện nghiệm thu còn lại.
+
+- Đo setup từ checkout sạch sau khi SDK, Docker và Node đã cài. Ghi rõ trạng thái cache, thời gian Compose, restore, npm ci và thời điểm API cùng web phản hồi.
+- Đối chiếu Scalar và OpenAPI JSON với các XML comments cho operation và DTO. Ghi phạm vi đã kiểm tra và các phần còn thiếu.
+- Chốt phạm vi E2E với reviewer. Báo cáo riêng luồng HTTP và luồng thực hiện qua trình duyệt.
+- Xác nhận quyết định xử lý Identity/Npgsql trong Domain ở ADR-0001.
+- Quản trị viên cấu hình required status checks theo tên check của workflow trên `main` và tối thiểu một approving review. Kiểm tra bằng PR thử hoặc cấu hình hiển thị trên GitHub.

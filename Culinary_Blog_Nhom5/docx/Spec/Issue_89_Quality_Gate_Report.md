@@ -60,3 +60,13 @@ Kết quả này là rà soát một phần. Các yêu cầu vẫn ở `NeedsOwn
 - OpenAPI/Scalar có metadata summary; chưa chứng minh XML comments bao phủ tài liệu API như SRS yêu cầu. Quyết định thay thế cần ghi nhận/review, không âm thầm đánh dấu đạt.
 
 Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub tại `quality/dependency-status-20261106.json`. PR #118 dùng `Refs #89`. Chỉ đóng #89 sau khi `--check --acceptance` đạt và các mục nghiệm thu phối hợp được xác nhận.
+
+## Điều kiện nghiệm thu sau khi siết gate
+
+- Gate yêu cầu cả 65 requirement và 56 operation trong inventory được `Verified`. Mỗi operation phải có happy test, error test và file evidence có nội dung. Kết quả hiện tại là 0/65 requirement và 0/56 endpoint được xác nhận. Lệnh acceptance chặn đúng các mục còn thiếu.
+- Ma trận bổ sung chỉ mục các mục đánh số và từng dòng checklist trong spec. Các ánh xạ về magic bytes, token và Dependency Rule đã có code/test cụ thể để reviewer đối chiếu. Chỉ mục là phạm vi rà soát. Việc xác nhận assertion và bằng chứng của từng tiêu chí vẫn thuộc owner và reviewer.
+- Compose development đang có container chạy từ trước và workspace thiếu `.env` theo quy trình README. Chưa có benchmark setup từ checkout sạch với môi trường cô lập.
+- Chạy lại `ApiDocumentationTests` ở cấu hình Release đạt 2/2. Các test kiểm tra hợp đồng admin, health và bearer metadata của tài liệu API có version. Còn phải chứng minh phạm vi XML comments của toàn API.
+- Năm critical API E2E có evidence. Cần quyết định chính thức về phạm vi trình duyệt và khoản nợ Identity/Npgsql trong Domain trước khi xác nhận các NFR tương ứng.
+- Tài khoản kiểm tra có quyền push và `admin=false`. Quản trị viên repository cần xác nhận hoặc thiết lập required checks và ít nhất một approving review.
+- Kiểm tra catalog, `traceability.py --check` và 10/10 test Python đạt ở lượt sửa gate. Sáu check GitHub trên commit trước `517a459` đã đạt. Kết quả của commit mới được theo dõi riêng trên PR.

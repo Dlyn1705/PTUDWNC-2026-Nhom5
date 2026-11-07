@@ -43,6 +43,34 @@ class TraceabilityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Missing normalized spec criteria: FR-RCP-005'):
             traceability.validate(changed)
 
+    def test_unnumbered_checklist_clause_cannot_disappear(self):
+        changed = copy.deepcopy(self.data)
+        magic_bytes = next(text for text in changed['specChecklist'] if 'magic bytes' in text)
+        del changed['specChecklist'][magic_bytes]
+        with self.assertRaisesRegex(ValueError, 'checklist item'):
+            traceability.validate(changed)
+
+    def test_acceptance_requires_endpoint_review_and_evidence_even_with_both_test_cases(self):
+        source = 'scripts/quality/traceability.py'
+        test = 'scripts/quality/test_traceability.py::test_inventory_has_exact_reviewed_requirement_set'
+        entry = {'source': source, 'happy': [test], 'error': [test],
+                 'evidence': [], 'status': 'NeedsOwnerReview'}
+        rows = [{'id': 'FR-TEST-001', 'status': 'Verified'}]
+        inventory = {'Operation': source}
+        endpoints = {'Operation': entry}
+        self.assertEqual({'Operation': ['evidence', 'Verified status']},
+                         traceability.validate_endpoints(endpoints, inventory))
+        entry['evidence'] = ['quality/evidence/verification-20261106.json']
+        with self.assertRaisesRegex(ValueError, '1 endpoints without verified coverage'):
+            traceability.check_acceptance(rows, traceability.validate_endpoints(endpoints, inventory))
+        entry['status'] = 'Verified'
+        traceability.check_acceptance(rows, traceability.validate_endpoints(endpoints, inventory))
+        for missing in ('happy', 'error', 'evidence'):
+            with self.subTest(missing=missing):
+                invalid = {**entry, missing: []}
+                with self.assertRaisesRegex(ValueError, f'without {missing}'):
+                    traceability.validate_endpoints({'Operation': invalid}, inventory)
+
 
 if __name__ == '__main__':
     unittest.main()

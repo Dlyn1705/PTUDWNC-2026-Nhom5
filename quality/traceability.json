@@ -53,10 +53,16 @@
       "owner": "anvodangiu",
       "code": [
         "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
-        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/JwtService.cs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/store/authStore.ts"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::HttpLoginKeepsRefreshTokenOutOfPublicJsonAndItsCookieCanBeRotated",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::ReuseRevokesDescendantsAndOtherActiveSessions",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/auth-store.test.ts::reload initialization shares one refresh and restores user from its response"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [],
@@ -202,16 +208,22 @@
       "owner": "anhtuan101",
       "code": [
         "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Contracts/IFileStorageService.cs",
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/culinary-blog-web/tests/file-api.e2e.cjs"
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/file-api.e2e.cjs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [],
       "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
       "reviewedBy": null,
-      "reviewedCommit": null
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Validate JPEG, PNG, WebP or AVIF by magic bytes and MIME. Reject oversized or disguised content and store originals under recipe-scoped GUID keys."
+      }
     },
     {
       "id": "FR-FILE-002",
@@ -488,11 +500,14 @@
       "owner": "btram0812",
       "code": [
         "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/UploadRecipeImageCommandHandler.cs",
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipeImage/DeleteRecipeImageCommandHandler.cs"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipeImage/DeleteRecipeImageCommandHandler.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
       ],
       "tests": [
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/GalleryTests.cs::PostgreSql_gallery_serializes_mutations_and_preserves_primary",
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
@@ -501,7 +516,10 @@
       ],
       "gap": "Review the complete upload/storage contract and add revision-linked gallery evidence. API route tests use substituted storage. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
-      "reviewedCommit": null
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Validate size up to 5 MB, allowed MIME and magic bytes before storage. Use a GUID object key, restrict mutations to owner/Admin, keep exactly one primary while images exist, and replace it in order after deletion."
+      }
     },
     {
       "id": "FR-RCP-009",
@@ -674,11 +692,14 @@
       "id": "NFR-MAINT-004",
       "owner": "btram0812",
       "code": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Domain/CulinaryBlog.Domain.csproj",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/CulinaryBlog.Application.csproj"
       ],
       "tests": [
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Project_graph_and_compiled_core_assemblies_obey_layer_direction",
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Domain_package_debt_is_explicit_and_no_new_package_can_enter"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Domain_package_debt_is_explicit_and_no_new_package_can_enter",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Queries_do_not_call_persistence_mutations_or_local_mutating_helpers"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
@@ -686,7 +707,11 @@
       ],
       "gap": "Resolve or approve the existing Identity and Npgsql Domain dependencies with Ân.",
       "reviewedBy": null,
-      "reviewedCommit": null
+      "reviewedCommit": null,
+      "specCriteria": {
+        "7.1": "Domain has no outward layer references or dependencies outside the .NET BCL per normalized spec. Application depends on Domain and defines ports. Infrastructure implements ports and API composes the layers.",
+        "7.2": "Keep commands and queries separate and prevent queries from mutating state."
+      }
     },
     {
       "id": "NFR-PERF-001",
@@ -903,10 +928,16 @@
       "owner": "anvodangiu",
       "code": [
         "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
-        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/JwtService.cs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/store/authStore.ts"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::HttpLoginKeepsRefreshTokenOutOfPublicJsonAndItsCookieCanBeRotated",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::ReuseRevokesDescendantsAndOtherActiveSessions",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/auth-store.test.ts::reload initialization shares one refresh and restores user from its response"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
@@ -914,7 +945,11 @@
       ],
       "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
       "reviewedBy": null,
-      "reviewedCommit": null
+      "reviewedCommit": null,
+      "specCriteria": {
+        "5": "Access JWT stays in client memory with a 15-minute TTL and required claims. Refresh uses a Secure, HttpOnly SameSite cookie and SHA-256 hash in the database, with rotation and reuse detection.",
+        "7.3.6": "Never expose access tokens in HTML, logs or NEXT_PUBLIC variables. Keep user-specific dashboard responses out of shared caches."
+      }
     },
     {
       "id": "NFR-SEC-003",
@@ -939,10 +974,13 @@
       "owner": "anvodangiu",
       "code": [
         "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
-        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
@@ -950,7 +988,10 @@
       ],
       "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
       "reviewedBy": null,
-      "reviewedCommit": null
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Reject spoofed image type by checking magic bytes before storage and enforce the upload size limit."
+      }
     },
     {
       "id": "NFR-SEC-005",
@@ -1146,5 +1187,451 @@
       "reviewedBy": null,
       "reviewedCommit": null
     }
-  ]
+  ],
+  "specSections": {
+    "1": {
+      "scope": "Public discovery, author workspace, admin operations, storage, cache, background jobs and exclusions from v1 scope.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-003",
+        "FR-CAT-003",
+        "FR-SRCH-001",
+        "FR-FILE-001",
+        "FR-JOB-001",
+        "NFR-SCALE-001"
+      ]
+    },
+    "2": {
+      "scope": "Guest visibility, Author/Admin role restrictions, ownership and verified author policy.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-007",
+        "FR-CAT-003",
+        "NFR-SEC-005"
+      ]
+    },
+    "3": {
+      "scope": "Recipe, category and child data business model. See subsections for invariants.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-003"
+      ]
+    },
+    "3.1": {
+      "scope": "Aggregate children, ordering, six nutrition fields, references and mutation transaction, validation, authorization and cache invalidation.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "NFR-PERF-003",
+        "NFR-MAINT-004"
+      ]
+    },
+    "3.2": {
+      "scope": "Draft, Published and Archived transitions; visibility; idempotent publish/unpublish; active children; stable published slug.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-006",
+        "FR-RCP-007",
+        "FR-RCP-010",
+        "NFR-SEO-004"
+      ]
+    },
+    "3.3": {
+      "scope": "Draft creation, field validation, category, unique slug suffix, atomic aggregate and publication effects.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-005",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "NFR-PERF-003"
+      ]
+    },
+    "3.4": {
+      "scope": "Public reads, admin writes, stable slug, referenced recipe conflict, soft deletion and active-only slug uniqueness.",
+      "requirements": [
+        "FR-CAT-001",
+        "FR-CAT-002",
+        "FR-CAT-003",
+        "FR-CAT-004",
+        "FR-CAT-005"
+      ]
+    },
+    "3.5": {
+      "scope": "Owner/Admin, 5 MB, JPEG/PNG/WebP/AVIF, magic bytes, GUID object paths, primary replacement and image variants.",
+      "requirements": [
+        "FR-RCP-008",
+        "FR-FILE-001",
+        "FR-JOB-002",
+        "NFR-SEC-004"
+      ]
+    },
+    "3.6": {
+      "scope": "Child validation, nullable fields, bounds, access, ETags, soft delete, atomic reorder, step images and public DTO compatibility.",
+      "requirements": [
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-RCP-005"
+      ]
+    },
+    "3.7": {
+      "scope": "Two-stage deletion, storage retention, cache invalidation, purge, active slug uniqueness and optimistic concurrency.",
+      "requirements": [
+        "FR-RCP-004",
+        "FR-RCP-007",
+        "FR-JOB-004",
+        "NFR-REL-003"
+      ]
+    },
+    "4": {
+      "scope": "Vietnamese search, relevance and filters, sorting and paging contracts, cache TTL, invalidation and Redis fallback.",
+      "requirements": [
+        "FR-SRCH-001",
+        "FR-SRCH-002",
+        "FR-SRCH-003",
+        "FR-SRCH-004",
+        "FR-RCP-001",
+        "NFR-PERF-003",
+        "NFR-REL-001"
+      ]
+    },
+    "5": {
+      "scope": "Password hashing, Google ID token, role assignment, JWT claims/TTL and memory storage, hashed rotating refresh cookies, logout and rate limits.",
+      "requirements": [
+        "FR-AUTH-001",
+        "FR-AUTH-002",
+        "FR-AUTH-003",
+        "FR-AUTH-004",
+        "FR-AUTH-005",
+        "NFR-SEC-001",
+        "NFR-SEC-002",
+        "NFR-SEC-003",
+        "NFR-SEC-005"
+      ]
+    },
+    "6": {
+      "scope": "Versioned routes, authorization, request/response DTOs, wrappers, Problem Details and all listed operations. Review endpoint inventory alongside this section.",
+      "requirements": [
+        "FR-AUTH-001",
+        "FR-AUTH-002",
+        "FR-AUTH-003",
+        "FR-AUTH-004",
+        "FR-AUTH-005",
+        "FR-AUTH-006",
+        "FR-AUTH-007",
+        "FR-CAT-001",
+        "FR-CAT-002",
+        "FR-CAT-003",
+        "FR-CAT-004",
+        "FR-CAT-005",
+        "FR-FILE-001",
+        "FR-FILE-002",
+        "FR-JOB-001",
+        "FR-JOB-002",
+        "FR-JOB-003",
+        "FR-JOB-004",
+        "FR-OBS-001",
+        "FR-OBS-002",
+        "FR-OBS-003",
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-006",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-SRCH-001",
+        "FR-SRCH-002",
+        "FR-SRCH-003",
+        "FR-SRCH-004",
+        "NFR-REL-001",
+        "NFR-MAINT-002",
+        "NFR-MAINT-003"
+      ]
+    },
+    "7": {
+      "scope": "Deployment topology and layer boundaries. Detailed responsibilities in the following subsections.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.1": {
+      "scope": "Dependency Rule, layer responsibilities, Domain package restriction, composition root and OpenAPI/Scalar.",
+      "requirements": [
+        "NFR-MAINT-003",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.2": {
+      "scope": "Logging, validation, query caching, handler execution, command invalidation and read/write separation.",
+      "requirements": [
+        "FR-OBS-002",
+        "NFR-SEC-004",
+        "NFR-PERF-003",
+        "NFR-REL-001",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.3": {
+      "scope": "Frontend architecture and acceptance requirements in subsections 7.3.1 through 7.3.6.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-USE-001",
+        "NFR-SEO-001"
+      ]
+    },
+    "7.3.1": {
+      "scope": "Server and Client Component boundaries, query and client state, form validation and separate internal/public API origins.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-PERF-005",
+        "NFR-SEC-004",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.3.2": {
+      "scope": "Historical package snapshot and the pending single session authority decision. Review current dependencies and Auth.js/JWT ownership.",
+      "requirements": [
+        "NFR-SEC-002",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.3.3": {
+      "scope": "Target routes, server render/ISR, interactive dashboards, URL state, permissions and SEO visibility.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-SRCH-004",
+        "NFR-SEC-005",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003",
+        "NFR-SEO-004"
+      ]
+    },
+    "7.3.4": {
+      "scope": "DTO consistency, category detail endpoint, development-only fallbacks, token storage, credentialed refresh, route guards and container API origins.",
+      "requirements": [
+        "FR-CAT-002",
+        "FR-AUTH-004",
+        "NFR-SEC-002",
+        "NFR-SEC-005",
+        "NFR-SEC-006",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.3.5": {
+      "scope": "Shared layout, optimized images/fonts, mobile navigation, focus and ARIA, newsletter scope and SEO metadata.",
+      "requirements": [
+        "NFR-PERF-005",
+        "NFR-USE-001",
+        "NFR-USE-002",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003"
+      ]
+    },
+    "7.3.6": {
+      "scope": "API client boundaries, typed DTOs, query keys, URL filters, private cache and token isolation, UI states and test scope.",
+      "requirements": [
+        "NFR-MAINT-002",
+        "NFR-MAINT-004",
+        "NFR-SEC-002",
+        "NFR-PERF-003",
+        "NFR-USE-003",
+        "NFR-USE-004",
+        "FR-SRCH-004"
+      ]
+    },
+    "7.4": {
+      "scope": "Data types, nullability, constraints, relationship and cascade rules, filtered indexes, concurrency and PostgreSQL FTS.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-005",
+        "FR-SRCH-001",
+        "NFR-SEC-002"
+      ]
+    },
+    "7.5": {
+      "scope": "Compose, TLS, volumes, backups, secrets, health probes, structured logs, tracing and business metrics.",
+      "requirements": [
+        "NFR-SCALE-001",
+        "NFR-REL-003",
+        "NFR-SEC-006",
+        "NFR-SEC-007",
+        "FR-OBS-001",
+        "FR-OBS-002",
+        "FR-OBS-003"
+      ]
+    },
+    "8": {
+      "scope": "Latency, load, cache, query efficiency, frontend performance, security, accessibility, availability, retry, error contract, tests and SEO.",
+      "requirements": [
+        "NFR-PERF-001",
+        "NFR-PERF-002",
+        "NFR-PERF-003",
+        "NFR-PERF-004",
+        "NFR-PERF-005",
+        "NFR-REL-001",
+        "NFR-REL-002",
+        "NFR-REL-003",
+        "NFR-SEC-001",
+        "NFR-SEC-002",
+        "NFR-SEC-003",
+        "NFR-SEC-004",
+        "NFR-SEC-005",
+        "NFR-SEC-006",
+        "NFR-SEC-007",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003",
+        "NFR-SEO-004",
+        "NFR-USE-001",
+        "NFR-USE-002",
+        "NFR-USE-003",
+        "NFR-USE-004",
+        "NFR-MAINT-002"
+      ]
+    },
+    "9": {
+      "scope": "Historical implementation snapshot dated 2026-09-21.",
+      "requirements": []
+    },
+    "10": {
+      "scope": "Normalized decisions on deletion, slug indexes, sorting, nullable ingredients, nutrition, steps, cache, Google OAuth, token storage and error codes.",
+      "requirements": [
+        "FR-RCP-007",
+        "FR-JOB-004",
+        "FR-CAT-005",
+        "FR-SRCH-003",
+        "FR-RCP-009",
+        "FR-RCP-004",
+        "FR-RCP-010",
+        "NFR-PERF-003",
+        "FR-AUTH-003",
+        "NFR-SEC-002",
+        "NFR-SEC-005"
+      ]
+    },
+    "11": {
+      "scope": "Suggested implementation order for the already mapped requirements.",
+      "requirements": []
+    },
+    "12": {
+      "scope": "Each checklist item is mapped below by its text and checked against the source.",
+      "requirements": [
+        "FR-RCP-002",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-005",
+        "FR-JOB-004",
+        "FR-AUTH-004",
+        "FR-SRCH-001",
+        "FR-OBS-001",
+        "NFR-PERF-003",
+        "NFR-SEC-002",
+        "NFR-SEC-004",
+        "NFR-SEC-005",
+        "NFR-REL-001",
+        "NFR-MAINT-004"
+      ]
+    }
+  },
+  "specChecklist": {
+    "Khách (Guest) không xem được bài Draft/Archived của tác giả khác.": [
+      "FR-RCP-002"
+    ],
+    "Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).": [
+      "FR-RCP-004",
+      "FR-RCP-005",
+      "FR-RCP-007",
+      "NFR-SEC-005"
+    ],
+    "Admin quản lý được category và recipe của mọi owner.": [
+      "FR-CAT-003",
+      "FR-CAT-004",
+      "FR-CAT-005",
+      "NFR-SEC-005"
+    ],
+    "Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).": [
+      "FR-RCP-005"
+    ],
+    "Không thể xóa bước duy nhất của bài viết đang ở trạng thái Published (trả về 422).": [
+      "FR-RCP-010"
+    ],
+    "Category còn recipe bị từ chối xóa với mã lỗi 409 Conflict.": [
+      "FR-CAT-005"
+    ],
+    "Chỉ có duy nhất một ảnh primary; upload validate kích thước, MIME type và magic bytes.": [
+      "FR-RCP-008",
+      "NFR-SEC-004"
+    ],
+    "Thêm bước mới tự động tăng `StepNumber`; xóa bước tự động renumber liên tục 1, 2, 3...": [
+      "FR-RCP-010"
+    ],
+    "Đổi thứ tự bước hoạt động chính xác qua endpoint `steps/reorder` mà không bị lỗi duplicate key.": [
+      "FR-RCP-010"
+    ],
+    "Nguyên liệu hỗ trợ nêm nếm vừa đủ (cho phép Quantity và Unit nhận giá trị null).": [
+      "FR-RCP-009"
+    ],
+    "Recipe detail hỗ trợ đầy đủ 6 chỉ số dinh dưỡng.": [
+      "FR-RCP-002",
+      "FR-RCP-004"
+    ],
+    "Xóa recipe thực hiện Soft Delete và xóa sạch ảnh MinIO sau 30 ngày qua Hangfire.": [
+      "FR-RCP-007",
+      "FR-JOB-004",
+      "NFR-REL-003"
+    ],
+    "Refresh token được lưu trong httpOnly cookie, hash SHA-256 trong DB, rotate và phát hiện reuse.": [
+      "FR-AUTH-004",
+      "NFR-SEC-002"
+    ],
+    "Search không dấu tiếng Việt trả kết quả Published theo relevance rank (`ts_rank`).": [
+      "FR-SRCH-001"
+    ],
+    "Write operation tự động invalidate cache liên quan; xung đột concurrency trả về 409 Conflict.": [
+      "FR-RCP-004",
+      "NFR-PERF-003"
+    ],
+    "Lỗi API tuân thủ đúng RFC 7807 Problem Details, có Correlation ID và không lộ stack trace.": [
+      "NFR-REL-001",
+      "FR-OBS-002"
+    ],
+    "Endpoints `/health/live` và `/health/ready` phân biệt đúng mục đích vận hành.": [
+      "FR-OBS-001"
+    ],
+    "Kiến trúc Clean Architecture tuân thủ nghiêm ngặt quy tắc Dependency Rule.": [
+      "NFR-MAINT-004"
+    ]
+  }
 }
