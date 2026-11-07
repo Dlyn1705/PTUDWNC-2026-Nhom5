@@ -1,0 +1,1646 @@
+{
+  "requirements": [
+    {
+      "id": "FR-AUTH-001",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-002",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-003",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-004",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/JwtService.cs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/store/authStore.ts"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::HttpLoginKeepsRefreshTokenOutOfPublicJsonAndItsCookieCanBeRotated",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::ReuseRevokesDescendantsAndOtherActiveSessions",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/auth-store.test.ts::reload initialization shares one refresh and restores user from its response"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-005",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-006",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-AUTH-007",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Auth",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/auth"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-CAT-001",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Categories",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/categories"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/CategoryUseCaseTests.cs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-CAT-002",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Categories",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/categories"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/CategoryUseCaseTests.cs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-CAT-003",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Categories",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/categories"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/CategoryUseCaseTests.cs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-CAT-004",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Categories",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/categories"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/CategoryUseCaseTests.cs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-CAT-005",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Categories",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/categories"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/CategoryUseCaseTests.cs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-FILE-001",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Contracts/IFileStorageService.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/file-api.e2e.cjs",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Validate JPEG, PNG, WebP or AVIF by magic bytes and MIME. Reject oversized or disguised content and store originals under recipe-scoped GUID keys."
+      }
+    },
+    {
+      "id": "FR-FILE-002",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Contracts/IFileStorageService.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/file-api.e2e.cjs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-JOB-001",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/Email/WelcomeEmailJob.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/WelcomeEmailTests.cs::Registration_is_atomic_unique_and_keeps_auth_contract_without_waiting_for_email",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/WelcomeEmailTests.cs::Job_has_three_retries_and_safe_failure_details",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/SmtpSmokeTests.cs::Registration_to_real_worker_to_local_smtp_delivers_html_text_once"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Confirm full scope including the welcome page/banner and the approved SMTP reconciliation policy. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-JOB-002",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/RecipeImageProcessingJob.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Real_worker_and_minio_produce_exact_jpeg_variants_and_preserve_original",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Hangfire_real_worker_schedules_retry_and_keeps_business_pending",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Backoff_cap_and_sanitized_failures_survive_duplicate_jobs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Review the renderer deviation from the library named in the assignment and confirm the full worker contract. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-JOB-003",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-JOB-004",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/PurgeDeletedRecipesJob.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Purge_retains_recent_records_cleans_all_variants_and_cascades_after_30_days",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Purge_failure_does_not_block_other_records_or_batches_and_can_retry"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+      ],
+      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.7": "Weekly purge after 30 days deletes image objects and cascades recipe children. Storage failures remain eligible for retry."
+      }
+    },
+    {
+      "id": "FR-OBS-001",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-OBS-002",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-OBS-003",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-RCP-001",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/recipes"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-RCP-002",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/recipes"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-RCP-003",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/CreateRecipe/CreateRecipeCommand.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::Rejects_invalid_nested_data",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::Draft_accepts_empty_children_and_nullable_quantities",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::PostgreSql_http_authorization_atomicity_and_concurrent_slugs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Add revision-linked browser evidence for the create form and review the full SRS field contract. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-RCP-004",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UpdateRecipe/UpdateRecipeCommand.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Body_or_strong_etag_is_accepted",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Nutrition_update_validates_ownership_and_uses_recipe_version",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Add revision-linked browser evidence for conflict handling and review the full update and nutrition contract. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.7": "Require the current RowVersion in If-Match or the body. A stale version returns 409 and cannot overwrite a concurrent update."
+      }
+    },
+    {
+      "id": "FR-RCP-005",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Lifecycle/ChangeRecipeStatus.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Publish_reports_all_missing_active_children_without_mutating",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Publish_and_last_ingredient_delete_share_the_recipe_lock_and_ETag"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.2": "Publishing a draft requires at least one active step and one active ingredient. Missing children return 422 field errors. Publish and child mutations share a recipe lock. Repeating publish is idempotent."
+      }
+    },
+    {
+      "id": "FR-RCP-006",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/recipes"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Lifecycle.E2E"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-RCP-007",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipe/DeleteRecipeCommandHandler.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_denies_unauthorized_deletion_without_mutation",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_soft_deletes_all_states_preserves_children_and_invalidates_cache",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Real_minio_objects_survive_soft_delete_and_are_removed_only_after_retention"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Confirm that normalized two-stage deletion satisfies the original permanent-delete wording and add revision-linked UI evidence. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.7": "Soft delete archives and hides the recipe, preserves MinIO objects, invalidates related cache and returns 204. Active-only slug uniqueness permits reuse."
+      }
+    },
+    {
+      "id": "FR-RCP-008",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/UploadRecipeImageCommandHandler.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipeImage/DeleteRecipeImageCommandHandler.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/GalleryTests.cs::PostgreSql_gallery_serializes_mutations_and_preserves_primary",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Review the complete upload/storage contract and add revision-linked gallery evidence. API route tests use substituted storage. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Validate size up to 5 MB, allowed MIME and magic bytes before storage. Use a GUID object key, restrict mutations to owner/Admin, keep exactly one primary while images exist, and replace it in order after deletion."
+      }
+    },
+    {
+      "id": "FR-RCP-009",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Ingredients/IngredientRequests.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Concurrent_writes_reject_stale_versions_and_soft_deleted_recipes",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Review remaining CRUD/validation and UI assertions against the complete SRS and normalized spec. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.6": "At most 100 ingredients. Use current recipe ETag in If-Match and return the new ETag on mutation. Stale returns 409, missing/invalid version or invalid reorder returns 422. Soft delete including the last ingredient. Maintain contiguous zero-based order and reject invalid reorder atomically."
+      }
+    },
+    {
+      "id": "FR-RCP-010",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Steps/StepRequests.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Version_foreign_ids_and_reorder_validation_are_atomic",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Maximum_count_rejects_append_without_rotating_version",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Publish_racing_last_delete_never_commits_published_without_steps",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Reorder_phase_two_failure_rolls_back_every_number_and_version"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
+      ],
+      "gap": "Review remaining step CRUD, image contract and UI assertions against the complete SRS and normalized spec. Confirm the tested revision before recording reviewedCommit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.6": "At most 100 active steps. Use strong If-Match and return the new recipe ETag on mutation. Stale returns 409, missing/invalid version returns 422. Soft delete and preserve at least one active step on published recipes. Reorder atomically with contiguous one-based StepNumber while preserving Title."
+      }
+    },
+    {
+      "id": "FR-SRCH-001",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Queries/SearchRecipes/SearchRecipesQuery.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests/SearchTests.cs::Sort_and_servings_alias_preserve_contract"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "4": "Search defaults to descending relevance, uses explicit sort ahead of the alias, validates servings and query input, and preserves requested page metadata on empty results."
+      }
+    },
+    {
+      "id": "FR-SRCH-002",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Queries/SearchRecipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/search"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-SRCH-003",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Queries/SearchRecipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/search"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "FR-SRCH-004",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Queries/SearchRecipes",
+        "Culinary_Blog_Nhom5/culinary-blog-web/app/search"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-MAINT-001",
+      "owner": "btram0812",
+      "code": [
+        ".github/workflows/ci.yml",
+        ".editorconfig"
+      ],
+      "tests": [
+        "scripts/quality/test_traceability.py::test_normalized_spec_change_requires_catalog_review"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "quality/evidence/verification-20261106.json"
+      ],
+      "gap": "Review the static analyzer rules and deviations with Ân. Confirm the required approving review with the repository administrator. The traceability test covers the inventory gate only.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-MAINT-002",
+      "owner": "btram0812",
+      "code": [
+        ".github/workflows/ci.yml",
+        "scripts/quality/coverage_gate.py"
+      ],
+      "tests": [
+        "scripts/quality/test_coverage_gate.py::test_empty_report_fails_closed",
+        "scripts/quality/test_coverage_gate.py::test_different_build_line_inventories_cannot_be_merged",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-browser.e2e.mjs::runCriticalBrowser"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "quality/evidence/unit-coverage-20261106.json",
+        "quality/evidence/critical-api-e2e-20261106.json",
+        "quality/evidence/critical-browser-e2e-20261107.json"
+      ],
+      "gap": "Five API and browser journeys passed with real API and PostgreSQL. Browser uses the Next.js development server. Confirm production-build scope and complete review of endpoint assertions.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-MAINT-003",
+      "owner": "btram0812",
+      "code": [
+        "README.md",
+        "Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md",
+        "CHANGELOG.md",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Program.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/CulinaryBlog.API.csproj"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests/ProgramSecurityTests.cs::Named_application_operations_have_openapi_summaries",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests/ProgramSecurityTests.cs::Api_contract_xml_comments_appear_in_openapi"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "quality/evidence/setup-openapi-20261107.json"
+      ],
+      "gap": "Setup measured in 250.53 seconds. OpenAPI includes operation summaries and representative XML-backed schemas. Review XML coverage of the remaining API contracts, release notes and ADRs.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-MAINT-004",
+      "owner": "btram0812",
+      "code": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Domain/CulinaryBlog.Domain.csproj",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/CulinaryBlog.Application.csproj"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Project_graph_and_compiled_core_assemblies_obey_layer_direction",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Domain_package_debt_is_explicit_and_no_new_package_can_enter",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Queries_do_not_call_persistence_mutations_or_local_mutating_helpers"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "quality/evidence/verification-20261106.json"
+      ],
+      "gap": "Resolve or approve the existing Identity and Npgsql Domain dependencies with Ân.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "7.1": "Domain has no outward layer references or dependencies outside the .NET BCL per normalized spec. Application depends on Domain and defines ports. Infrastructure implements ports and API composes the layers.",
+        "7.2": "Keep commands and queries separate and prevent queries from mutating state."
+      }
+    },
+    {
+      "id": "NFR-PERF-001",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-PERF-002",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-PERF-003",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-PERF-004",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-PERF-005",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-REL-001",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Reliability.E2E",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue88/drill-evidence.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-REL-002",
+      "owner": "anhtuan101 (infrastructure); btram0812 (jobs/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Reliability.E2E",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-REL-003",
+      "owner": "anhtuan101 (infrastructure); btram0812 (jobs/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/PurgeDeletedRecipesJob.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Real_minio_objects_survive_soft_delete_and_are_removed_only_after_retention"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+      ],
+      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.7": "Soft delete retains MinIO objects until the 30-day retention window expires. This mapping covers recipe retention only."
+      }
+    },
+    {
+      "id": "NFR-SCALE-001",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SCALE-002",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SCALE-003",
+      "owner": "anhtuan101",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/performance/run.ps1"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Ket_Qua_Kiem_Tra_Issue_85.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEC-001",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEC-002",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/JwtService.cs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/store/authStore.ts"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::HttpLoginKeepsRefreshTokenOutOfPublicJsonAndItsCookieCanBeRotated",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::ReuseRevokesDescendantsAndOtherActiveSessions",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/auth-store.test.ts::reload initialization shares one refresh and restores user from its response"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "5": "Access JWT stays in client memory with a 15-minute TTL and required claims. Refresh uses a Secure, HttpOnly SameSite cookie and SHA-256 hash in the database, with rotation and reuse detection.",
+        "7.3.6": "Never expose access tokens in HTML, logs or NEXT_PUBLIC variables. Keep user-specific dashboard responses out of shared caches."
+      }
+    },
+    {
+      "id": "NFR-SEC-003",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEC-004",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/ImageFileValidation.cs"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests/PipelineAndImageTests.cs::Image_magic_bytes_must_match_extension_and_mime_and_leave_stream_rewound",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/UploadInputSecurityTests.cs::Declared_mime_must_match_magic_bytes_before_storage"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null,
+      "specCriteria": {
+        "3.5": "Reject spoofed image type by checking magic bytes before storage and enforce the upload size limit."
+      }
+    },
+    {
+      "id": "NFR-SEC-005",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEC-006",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEC-007",
+      "owner": "anvodangiu",
+      "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.API",
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/security"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/Security_Review_Issue_86.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEO-001",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/seo"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/seo.unit.ts"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/docs/reports/issue-90-seo.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEO-002",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/seo"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/seo.unit.ts"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/docs/reports/issue-90-seo.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEO-003",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/seo"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/seo.unit.ts"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/docs/reports/issue-90-seo.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-SEO-004",
+      "owner": "Dlyn1705",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/lib/seo"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/seo.unit.ts"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/docs/reports/issue-90-seo.md"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-USE-001",
+      "owner": "Dlyn1705 (public/layout); btram0812 (editor/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/components"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/accessibility.e2e.cjs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/lab6-recipe-editor.e2e.cjs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue92/issue92-a11y-report.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-USE-002",
+      "owner": "Dlyn1705 (public/layout); btram0812 (editor/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/components"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/accessibility.e2e.cjs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/lab6-recipe-editor.e2e.cjs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue92/issue92-a11y-report.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-USE-003",
+      "owner": "Dlyn1705 (public/layout); btram0812 (editor/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/components"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/accessibility.e2e.cjs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/lab6-recipe-editor.e2e.cjs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue92/issue92-a11y-report.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    },
+    {
+      "id": "NFR-USE-004",
+      "owner": "Dlyn1705 (public/layout); btram0812 (editor/media)",
+      "code": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/components"
+      ],
+      "tests": [
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/accessibility.e2e.cjs",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/lab6-recipe-editor.e2e.cjs"
+      ],
+      "status": "NeedsOwnerReview",
+      "evidence": [
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue92/issue92-a11y-report.json"
+      ],
+      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "reviewedBy": null,
+      "reviewedCommit": null
+    }
+  ],
+  "specSections": {
+    "1": {
+      "scope": "Public discovery, author workspace, admin operations, storage, cache, background jobs and exclusions from v1 scope.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-003",
+        "FR-CAT-003",
+        "FR-SRCH-001",
+        "FR-FILE-001",
+        "FR-JOB-001",
+        "NFR-SCALE-001"
+      ]
+    },
+    "2": {
+      "scope": "Guest visibility, Author/Admin role restrictions, ownership and verified author policy.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-007",
+        "FR-CAT-003",
+        "NFR-SEC-005"
+      ]
+    },
+    "3": {
+      "scope": "Recipe, category and child data business model. See subsections for invariants.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-003"
+      ]
+    },
+    "3.1": {
+      "scope": "Aggregate children, ordering, six nutrition fields, references and mutation transaction, validation, authorization and cache invalidation.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "NFR-PERF-003",
+        "NFR-MAINT-004"
+      ]
+    },
+    "3.2": {
+      "scope": "Draft, Published and Archived transitions; visibility; idempotent publish/unpublish; active children; stable published slug.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-006",
+        "FR-RCP-007",
+        "FR-RCP-010",
+        "NFR-SEO-004"
+      ]
+    },
+    "3.3": {
+      "scope": "Draft creation, field validation, category, unique slug suffix, atomic aggregate and publication effects.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-005",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "NFR-PERF-003"
+      ]
+    },
+    "3.4": {
+      "scope": "Public reads, admin writes, stable slug, referenced recipe conflict, soft deletion and active-only slug uniqueness.",
+      "requirements": [
+        "FR-CAT-001",
+        "FR-CAT-002",
+        "FR-CAT-003",
+        "FR-CAT-004",
+        "FR-CAT-005"
+      ]
+    },
+    "3.5": {
+      "scope": "Owner/Admin, 5 MB, JPEG/PNG/WebP/AVIF, magic bytes, GUID object paths, primary replacement and image variants.",
+      "requirements": [
+        "FR-RCP-008",
+        "FR-FILE-001",
+        "FR-JOB-002",
+        "NFR-SEC-004"
+      ]
+    },
+    "3.6": {
+      "scope": "Child validation, nullable fields, bounds, access, ETags, soft delete, atomic reorder, step images and public DTO compatibility.",
+      "requirements": [
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-RCP-005"
+      ]
+    },
+    "3.7": {
+      "scope": "Two-stage deletion, storage retention, cache invalidation, purge, active slug uniqueness and optimistic concurrency.",
+      "requirements": [
+        "FR-RCP-004",
+        "FR-RCP-007",
+        "FR-JOB-004",
+        "NFR-REL-003"
+      ]
+    },
+    "4": {
+      "scope": "Vietnamese search, relevance and filters, sorting and paging contracts, cache TTL, invalidation and Redis fallback.",
+      "requirements": [
+        "FR-SRCH-001",
+        "FR-SRCH-002",
+        "FR-SRCH-003",
+        "FR-SRCH-004",
+        "FR-RCP-001",
+        "NFR-PERF-003",
+        "NFR-REL-001"
+      ]
+    },
+    "5": {
+      "scope": "Password hashing, Google ID token, role assignment, JWT claims/TTL and memory storage, hashed rotating refresh cookies, logout and rate limits.",
+      "requirements": [
+        "FR-AUTH-001",
+        "FR-AUTH-002",
+        "FR-AUTH-003",
+        "FR-AUTH-004",
+        "FR-AUTH-005",
+        "NFR-SEC-001",
+        "NFR-SEC-002",
+        "NFR-SEC-003",
+        "NFR-SEC-005"
+      ]
+    },
+    "6": {
+      "scope": "Versioned routes, authorization, request/response DTOs, wrappers, Problem Details and all listed operations. Review endpoint inventory alongside this section.",
+      "requirements": [
+        "FR-AUTH-001",
+        "FR-AUTH-002",
+        "FR-AUTH-003",
+        "FR-AUTH-004",
+        "FR-AUTH-005",
+        "FR-AUTH-006",
+        "FR-AUTH-007",
+        "FR-CAT-001",
+        "FR-CAT-002",
+        "FR-CAT-003",
+        "FR-CAT-004",
+        "FR-CAT-005",
+        "FR-FILE-001",
+        "FR-FILE-002",
+        "FR-JOB-001",
+        "FR-JOB-002",
+        "FR-JOB-003",
+        "FR-JOB-004",
+        "FR-OBS-001",
+        "FR-OBS-002",
+        "FR-OBS-003",
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-006",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-SRCH-001",
+        "FR-SRCH-002",
+        "FR-SRCH-003",
+        "FR-SRCH-004",
+        "NFR-REL-001",
+        "NFR-MAINT-002",
+        "NFR-MAINT-003"
+      ]
+    },
+    "7": {
+      "scope": "Deployment topology and layer boundaries. Detailed responsibilities in the following subsections.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.1": {
+      "scope": "Dependency Rule, layer responsibilities, Domain package restriction, composition root and OpenAPI/Scalar.",
+      "requirements": [
+        "NFR-MAINT-003",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.2": {
+      "scope": "Logging, validation, query caching, handler execution, command invalidation and read/write separation.",
+      "requirements": [
+        "FR-OBS-002",
+        "NFR-SEC-004",
+        "NFR-PERF-003",
+        "NFR-REL-001",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.3": {
+      "scope": "Frontend architecture and acceptance requirements in subsections 7.3.1 through 7.3.6.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-USE-001",
+        "NFR-SEO-001"
+      ]
+    },
+    "7.3.1": {
+      "scope": "Server and Client Component boundaries, query and client state, form validation and separate internal/public API origins.",
+      "requirements": [
+        "NFR-MAINT-004",
+        "NFR-PERF-005",
+        "NFR-SEC-004",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.3.2": {
+      "scope": "Historical package snapshot and the pending single session authority decision. Review current dependencies and Auth.js/JWT ownership.",
+      "requirements": [
+        "NFR-SEC-002",
+        "NFR-MAINT-004"
+      ]
+    },
+    "7.3.3": {
+      "scope": "Target routes, server render/ISR, interactive dashboards, URL state, permissions and SEO visibility.",
+      "requirements": [
+        "FR-RCP-001",
+        "FR-RCP-002",
+        "FR-SRCH-004",
+        "NFR-SEC-005",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003",
+        "NFR-SEO-004"
+      ]
+    },
+    "7.3.4": {
+      "scope": "DTO consistency, category detail endpoint, development-only fallbacks, token storage, credentialed refresh, route guards and container API origins.",
+      "requirements": [
+        "FR-CAT-002",
+        "FR-AUTH-004",
+        "NFR-SEC-002",
+        "NFR-SEC-005",
+        "NFR-SEC-006",
+        "NFR-SCALE-001"
+      ]
+    },
+    "7.3.5": {
+      "scope": "Shared layout, optimized images/fonts, mobile navigation, focus and ARIA, newsletter scope and SEO metadata.",
+      "requirements": [
+        "NFR-PERF-005",
+        "NFR-USE-001",
+        "NFR-USE-002",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003"
+      ]
+    },
+    "7.3.6": {
+      "scope": "API client boundaries, typed DTOs, query keys, URL filters, private cache and token isolation, UI states and test scope.",
+      "requirements": [
+        "NFR-MAINT-002",
+        "NFR-MAINT-004",
+        "NFR-SEC-002",
+        "NFR-PERF-003",
+        "NFR-USE-003",
+        "NFR-USE-004",
+        "FR-SRCH-004"
+      ]
+    },
+    "7.4": {
+      "scope": "Data types, nullability, constraints, relationship and cascade rules, filtered indexes, concurrency and PostgreSQL FTS.",
+      "requirements": [
+        "FR-RCP-003",
+        "FR-RCP-004",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-005",
+        "FR-SRCH-001",
+        "NFR-SEC-002"
+      ]
+    },
+    "7.5": {
+      "scope": "Compose, TLS, volumes, backups, secrets, health probes, structured logs, tracing and business metrics.",
+      "requirements": [
+        "NFR-SCALE-001",
+        "NFR-REL-003",
+        "NFR-SEC-006",
+        "NFR-SEC-007",
+        "FR-OBS-001",
+        "FR-OBS-002",
+        "FR-OBS-003"
+      ]
+    },
+    "8": {
+      "scope": "Latency, load, cache, query efficiency, frontend performance, security, accessibility, availability, retry, error contract, tests and SEO.",
+      "requirements": [
+        "NFR-PERF-001",
+        "NFR-PERF-002",
+        "NFR-PERF-003",
+        "NFR-PERF-004",
+        "NFR-PERF-005",
+        "NFR-REL-001",
+        "NFR-REL-002",
+        "NFR-REL-003",
+        "NFR-SEC-001",
+        "NFR-SEC-002",
+        "NFR-SEC-003",
+        "NFR-SEC-004",
+        "NFR-SEC-005",
+        "NFR-SEC-006",
+        "NFR-SEC-007",
+        "NFR-SEO-001",
+        "NFR-SEO-002",
+        "NFR-SEO-003",
+        "NFR-SEO-004",
+        "NFR-USE-001",
+        "NFR-USE-002",
+        "NFR-USE-003",
+        "NFR-USE-004",
+        "NFR-MAINT-002"
+      ]
+    },
+    "9": {
+      "scope": "Historical implementation snapshot dated 2026-09-21.",
+      "requirements": []
+    },
+    "10": {
+      "scope": "Normalized decisions on deletion, slug indexes, sorting, nullable ingredients, nutrition, steps, cache, Google OAuth, token storage and error codes.",
+      "requirements": [
+        "FR-RCP-007",
+        "FR-JOB-004",
+        "FR-CAT-005",
+        "FR-SRCH-003",
+        "FR-RCP-009",
+        "FR-RCP-004",
+        "FR-RCP-010",
+        "NFR-PERF-003",
+        "FR-AUTH-003",
+        "NFR-SEC-002",
+        "NFR-SEC-005"
+      ]
+    },
+    "11": {
+      "scope": "Suggested implementation order for the already mapped requirements.",
+      "requirements": []
+    },
+    "12": {
+      "scope": "Each checklist item is mapped below by its text and checked against the source.",
+      "requirements": [
+        "FR-RCP-002",
+        "FR-RCP-004",
+        "FR-RCP-005",
+        "FR-RCP-007",
+        "FR-RCP-008",
+        "FR-RCP-009",
+        "FR-RCP-010",
+        "FR-CAT-005",
+        "FR-JOB-004",
+        "FR-AUTH-004",
+        "FR-SRCH-001",
+        "FR-OBS-001",
+        "NFR-PERF-003",
+        "NFR-SEC-002",
+        "NFR-SEC-004",
+        "NFR-SEC-005",
+        "NFR-REL-001",
+        "NFR-MAINT-004"
+      ]
+    }
+  },
+  "specChecklist": {
+    "Khách (Guest) không xem được bài Draft/Archived của tác giả khác.": [
+      "FR-RCP-002"
+    ],
+    "Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).": [
+      "FR-RCP-004",
+      "FR-RCP-005",
+      "FR-RCP-007",
+      "NFR-SEC-005"
+    ],
+    "Admin quản lý được category và recipe của mọi owner.": [
+      "FR-CAT-003",
+      "FR-CAT-004",
+      "FR-CAT-005",
+      "NFR-SEC-005"
+    ],
+    "Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).": [
+      "FR-RCP-005"
+    ],
+    "Không thể xóa bước duy nhất của bài viết đang ở trạng thái Published (trả về 422).": [
+      "FR-RCP-010"
+    ],
+    "Category còn recipe bị từ chối xóa với mã lỗi 409 Conflict.": [
+      "FR-CAT-005"
+    ],
+    "Chỉ có duy nhất một ảnh primary; upload validate kích thước, MIME type và magic bytes.": [
+      "FR-RCP-008",
+      "NFR-SEC-004"
+    ],
+    "Thêm bước mới tự động tăng `StepNumber`; xóa bước tự động renumber liên tục 1, 2, 3...": [
+      "FR-RCP-010"
+    ],
+    "Đổi thứ tự bước hoạt động chính xác qua endpoint `steps/reorder` mà không bị lỗi duplicate key.": [
+      "FR-RCP-010"
+    ],
+    "Nguyên liệu hỗ trợ nêm nếm vừa đủ (cho phép Quantity và Unit nhận giá trị null).": [
+      "FR-RCP-009"
+    ],
+    "Recipe detail hỗ trợ đầy đủ 6 chỉ số dinh dưỡng.": [
+      "FR-RCP-002",
+      "FR-RCP-004"
+    ],
+    "Xóa recipe thực hiện Soft Delete và xóa sạch ảnh MinIO sau 30 ngày qua Hangfire.": [
+      "FR-RCP-007",
+      "FR-JOB-004",
+      "NFR-REL-003"
+    ],
+    "Refresh token được lưu trong httpOnly cookie, hash SHA-256 trong DB, rotate và phát hiện reuse.": [
+      "FR-AUTH-004",
+      "NFR-SEC-002"
+    ],
+    "Search không dấu tiếng Việt trả kết quả Published theo relevance rank (`ts_rank`).": [
+      "FR-SRCH-001"
+    ],
+    "Write operation tự động invalidate cache liên quan; xung đột concurrency trả về 409 Conflict.": [
+      "FR-RCP-004",
+      "NFR-PERF-003"
+    ],
+    "Lỗi API tuân thủ đúng RFC 7807 Problem Details, có Correlation ID và không lộ stack trace.": [
+      "NFR-REL-001",
+      "FR-OBS-002"
+    ],
+    "Endpoints `/health/live` và `/health/ready` phân biệt đúng mục đích vận hành.": [
+      "FR-OBS-001"
+    ],
+    "Kiến trúc Clean Architecture tuân thủ nghiêm ngặt quy tắc Dependency Rule.": [
+      "NFR-MAINT-004"
+    ]
+  }
+}

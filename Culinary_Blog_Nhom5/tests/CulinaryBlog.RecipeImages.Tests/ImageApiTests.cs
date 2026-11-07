@@ -53,6 +53,7 @@ public sealed class ImageApiTests
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("upload", limiter => limiter.PermitLimit = 10));
         builder.Services.AddScoped<IRecipeImageDeletionQueue, NoopDeletionQueue>();
         builder.Services.AddScoped<IRecipeImageProcessingQueue, NoopProcessingQueue>();
+        builder.Services.AddSingleton<IFileStorageService, ContractStorage>();
         await using var app = builder.Build();
         app.UseMiddleware<GlobalExceptionMiddleware>();
         app.UseRouting();
@@ -103,8 +104,30 @@ public sealed class ImageApiTests
             client.DefaultRequestHeaders.Remove("X-Test-User");
             client.DefaultRequestHeaders.Add("X-Test-User", "admin");
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(route)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"{route}/{first.Id}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"{route}/{Guid.NewGuid()}")).StatusCode);
+            async Task<HttpResponseMessage> Upload(byte[] bytes)
+            {
+                using var content = new MultipartFormDataContent();
+                var file = new ByteArrayContent(bytes);
+                file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+                content.Add(file, "file", "recipe.png");
+                return await client.PostAsync(route, content);
+            }
+            using var invalidUpload = await Upload([1, 2, 3]);
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, invalidUpload.StatusCode);
+            using var uploaded = await Upload([137, 80, 78, 71, 13, 10, 26, 10]);
+            Assert.Equal(HttpStatusCode.Created, uploaded.StatusCode);
         }
         finally { await db.Database.EnsureDeletedAsync(); }
+    }
+
+    private sealed class ContractStorage : IFileStorageService
+    {
+        public Task<bool> IsReadyAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task<string> UploadAsync(Stream stream, string key, string type, CancellationToken ct = default) => Task.FromResult("https://test.example/" + key);
+        public Task<Stream> OpenReadAsync(string url, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task DeleteAsync(string url, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class NoopDeletionQueue : IRecipeImageDeletionQueue

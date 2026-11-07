@@ -14,9 +14,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CulinaryBlog.API.Endpoints;
 
+/// <summary>Role assignment for an existing account.</summary>
 public sealed record SetUserRoleRequest(string Role);
 
 // Only these six fields may cross the Admin API boundary.
+/// <summary>Administrative account view without credentials or security stamps.</summary>
 public sealed record AdminUserDto(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("email")] string Email,
@@ -25,6 +27,7 @@ public sealed record AdminUserDto(
     [property: JsonPropertyName("isActive")] bool IsActive,
     [property: JsonPropertyName("createdAt")] DateTime CreatedAt);
 
+/// <summary>Response envelope for one administrative account.</summary>
 public sealed record AdminUserResponse([property: JsonPropertyName("data")] AdminUserDto Data);
 
 public static class AdminEndpoints

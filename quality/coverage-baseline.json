@@ -1,0 +1,5 @@
+{
+  "minimumPercent": 84.55,
+  "scope": "All executable lines in CulinaryBlog.Application; no source exclusions",
+  "policy": "Release unit baseline: 1221/1444 executable lines (84.556787%) with 55 passing unit tests on 2026-11-06. Never lower this threshold without an explicitly reviewed ADR. Do not combine Debug/Release inventories."
+}

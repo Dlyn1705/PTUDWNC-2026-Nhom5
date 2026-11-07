@@ -358,33 +358,6 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeImages", (string)null);
                 });
 
-            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OldSlug")
-                        .IsRequired()
-                        .HasMaxLength(220)
-                        .HasColumnType("character varying(220)");
-
-                    b.Property<Guid>("RecipeId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OldSlug")
-                        .IsUnique();
-
-                    b.HasIndex("RecipeId");
-
-                    b.ToTable("RecipeSlugHistories", (string)null);
-                });
-
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeImageDeletionWork", b =>
                 {
                     b.Property<Guid>("ImageId")
@@ -606,6 +579,34 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.HasIndex("RecipeId");
 
                     b.ToTable("RecipeIngredients", (string)null);
+                });
+
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OldSlug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OldSlug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecipeSlugHistories_OldSlug");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("RecipeSlugHistories", (string)null);
                 });
 
             modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeStep", b =>
@@ -1041,10 +1042,10 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Recipe");
                 });
 
-            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeIngredient", b =>
                 {
                     b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
-                        .WithMany("SlugHistory")
+                        .WithMany("Ingredients")
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1052,10 +1053,10 @@ namespace CulinaryBlog.Infrastructure.Persistence.Migrations
                     b.Navigation("Recipe");
                 });
 
-            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeIngredient", b =>
+            modelBuilder.Entity("CulinaryBlog.Domain.Entities.RecipeSlugHistory", b =>
                 {
                     b.HasOne("CulinaryBlog.Domain.Entities.Recipe", "Recipe")
-                        .WithMany("Ingredients")
+                        .WithMany("SlugHistory")
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
