@@ -38,7 +38,9 @@ export function LoginForm() {
     searchParams.get("reason") === "session-expired" ||
     searchParams.get("sessionExpired") === "true";
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl = safeCallbackUrl(requestedCallback);
+  // A direct login should enter the authenticated dashboard. When a protected
+  // page supplied a callback URL, preserve that destination instead.
+  const callbackUrl = safeCallbackUrl(requestedCallback, "/dashboard");
 
   const {
     register,
