@@ -83,4 +83,5 @@ public static class RecipeIngredientEndpoints
     }
 }
 
+/// <summary>Complete ordered list of active ingredient IDs for the recipe.</summary>
 public sealed record ReorderIngredientsRequest(IReadOnlyList<Guid>? IngredientIds);

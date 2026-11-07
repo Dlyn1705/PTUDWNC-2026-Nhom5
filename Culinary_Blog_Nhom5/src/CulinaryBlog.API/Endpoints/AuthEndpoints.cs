@@ -400,6 +400,7 @@ public static class AuthEndpoints
             });
 }
 
+/// <summary>Recipe counts for the current user's profile.</summary>
 public sealed record ProfileRecipeStats(int Created, int Published);
 
 public static class LogoutAuthorization
@@ -416,12 +417,20 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 /// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
+/// <summary>Email address for a password reset request.</summary>
 public sealed record ForgotPasswordRequest(string Email);
+/// <summary>Reset token and replacement password for the named account.</summary>
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
+/// <summary>Current and replacement passwords for the authenticated account.</summary>
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+/// <summary>Editable profile fields for the authenticated user.</summary>
 public sealed record UpdateProfileRequest(string? DisplayName, string? Bio, string? AvatarUrl);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
+/// <param name="AccessToken">Bearer token for authenticated API calls.</param>
+/// <param name="AccessTokenExpiry">UTC expiration of the access token.</param>
+/// <param name="User">Public profile of the authenticated user.</param>
+/// <param name="Roles">Roles granted to the authenticated user.</param>
 public sealed record AuthSessionResponseDto(
     string AccessToken,
     DateTime AccessTokenExpiry,

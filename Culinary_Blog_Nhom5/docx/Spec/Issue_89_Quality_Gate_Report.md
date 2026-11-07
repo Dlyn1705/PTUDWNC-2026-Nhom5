@@ -57,7 +57,7 @@ Kết quả này là rà soát một phần. Các yêu cầu vẫn ở `NeedsOwn
 - Nhóm trưởng kiểm chứng/cấu hình >=1 approving review và required checks phía GitHub. Đọc branch-protection API trả 404 và ruleset list không có mục; không thể kết luận template đã enforce server-side review.
 - Review benchmark setup 250,53 giây và điều kiện đo được ghi ở phần dưới.
 - Xác nhận mức API E2E cho năm critical flow có đủ phạm vi hay cần thêm cả năm UI production flow. Google endpoint dùng command-handler substitute và avatar dùng storage-port substitute ở contract tests; đây không phải live Google/MinIO evidence của các ca đó.
-- OpenAPI/Scalar có metadata summary; chưa chứng minh XML comments bao phủ tài liệu API như SRS yêu cầu. Quyết định thay thế cần ghi nhận/review, không âm thầm đánh dấu đạt.
+- OpenAPI/Scalar sinh summary cho operation và đưa XML comments của các DTO được chú thích vào schema. Reviewer cần đối chiếu phần mô tả từng operation và các kiểu dữ liệu từ tầng Application trước khi xác nhận đầy đủ.
 
 Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub tại `quality/dependency-status-20261106.json`. PR #118 dùng `Refs #89`. Chỉ đóng #89 sau khi `--check --acceptance` đạt và các mục nghiệm thu phối hợp được xác nhận.
 
@@ -70,3 +70,9 @@ Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub
 - Chạy lại 5/5 critical API E2E trên PostgreSQL cô lập. Cần quyết định chính thức về phạm vi trình duyệt và khoản nợ Identity/Npgsql trong Domain trước khi xác nhận các NFR tương ứng.
 - Tài khoản kiểm tra có quyền push và `admin=false`. Quản trị viên repository cần xác nhận hoặc thiết lập required checks và ít nhất một approving review.
 - Kiểm tra catalog, `traceability.py --check` và 10/10 test Python đạt ở lượt sửa gate. Sáu check GitHub trên commit gate `f0e00b3` đã đạt. Theo dõi riêng kết quả CI của commit bổ sung OpenAPI.
+
+### Kiểm chứng XML comments trong OpenAPI
+
+Bật sinh XML trong project API và bổ sung mô tả cho các DTO khai báo tại endpoint. Test `Api_contract_xml_comments_appear_in_openapi` xác nhận nội dung từ XML xuất hiện trong tài liệu sinh ra cho phiên đăng nhập, cập nhật dinh dưỡng và liveness. API dùng `WithSummary` cho các operation. Cấu hình chỉ miễn cảnh báo `CS1591` tại project API cho các thành viên công khai cũ chưa có chú thích. Các cảnh báo biên dịch khác tiếp tục chịu quy tắc CI.
+
+Lượt kiểm thử OpenAPI Release đạt 4/4 với `TreatWarningsAsErrors=true`. PR chưa có approving review tại thời điểm kiểm tra. NFR-MAINT-003 vẫn chờ xác nhận toàn bộ phạm vi tài liệu.

@@ -215,6 +215,18 @@ public class ProgramSecurityTests
     }
 
     [Fact]
+    public async Task Api_contract_xml_comments_appear_in_openapi()
+    {
+        await using var factory = new SecurityFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        var json = await client.GetStringAsync("/openapi/v1.json");
+        Assert.Contains("the refresh token is only sent as an HttpOnly cookie", json, StringComparison.Ordinal);
+        Assert.Contains("Bearer token for authenticated API calls.", json, StringComparison.Ordinal);
+        Assert.Contains("Replacement nutrition values and optional body version for concurrency control.", json, StringComparison.Ordinal);
+        Assert.Contains("Process liveness without dependency checks.", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Named_application_operations_have_openapi_summaries()
     {
         await using var factory = new SecurityFactory();

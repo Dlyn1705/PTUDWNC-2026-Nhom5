@@ -4,6 +4,7 @@ using CulinaryBlog.Application.Common.Models;
 
 namespace CulinaryBlog.API.Endpoints;
 
+/// <summary>Manual delivery outcome and evidence reference for an unresolved welcome email.</summary>
 public sealed record ReconcileWelcomeEmailRequest(string Outcome, string EvidenceReference);
 
 public static class WelcomeEmailAdminEndpoints

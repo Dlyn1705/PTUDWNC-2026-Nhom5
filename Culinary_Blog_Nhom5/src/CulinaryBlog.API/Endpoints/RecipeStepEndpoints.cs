@@ -73,4 +73,5 @@ public static class RecipeStepEndpoints
     }
 }
 
+/// <summary>Complete ordered list of active step IDs for the recipe.</summary>
 public sealed record ReorderStepsRequest(IReadOnlyList<Guid>? StepIds);
