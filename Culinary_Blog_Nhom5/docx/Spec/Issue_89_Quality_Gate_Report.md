@@ -76,3 +76,7 @@ Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub
 Bật sinh XML trong project API và bổ sung mô tả cho các DTO khai báo tại endpoint. Test `Api_contract_xml_comments_appear_in_openapi` xác nhận nội dung từ XML xuất hiện trong tài liệu sinh ra cho phiên đăng nhập, cập nhật dinh dưỡng và liveness. API dùng `WithSummary` cho các operation. Cấu hình chỉ miễn cảnh báo `CS1591` tại project API cho các thành viên công khai cũ chưa có chú thích. Các cảnh báo biên dịch khác tiếp tục chịu quy tắc CI.
 
 Lượt kiểm thử OpenAPI Release đạt 4/4 với `TreatWarningsAsErrors=true`. PR chưa có approving review tại thời điểm kiểm tra. NFR-MAINT-003 vẫn chờ xác nhận toàn bộ phạm vi tài liệu.
+
+### Năm hành trình trọng yếu qua trình duyệt
+
+`./Culinary_Blog_Nhom5/tests/run-critical.ps1 -Browser` đạt cả năm luồng trên Edge: đăng ký, đăng nhập, tạo bản nháp có nguyên liệu và bước, xuất bản, tìm công thức bằng phiên khách. Cùng lượt chạy, năm luồng HTTP cũng đạt. Frontend chạy route Next.js thật ở chế độ development, sử dụng API/JWT/PostgreSQL cô lập và không intercept response. CI chạy hai bộ và lưu báo cáo riêng. Reviewer cần xác nhận phạm vi nghiệm thu, bao gồm yêu cầu chạy cả năm luồng bằng production build nếu áp dụng.

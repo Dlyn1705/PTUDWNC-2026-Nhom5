@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$Browser)
 $ErrorActionPreference = 'Stop'
 $project = 'culinary-critical-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 $compose = Join-Path $PSScriptRoot 'compose.integration.yml'
@@ -13,7 +13,12 @@ try {
     if ($LASTEXITCODE -ne 0 -or $binding -notmatch '127\.0\.0\.1:(\d+)') { throw 'Cannot resolve PostgreSQL port' }
     $env:CRITICAL_TEST_CONNECTION = "Host=127.0.0.1;Port=$($Matches[1]);Database=postgres;Username=postgres;Password=$env:ISSUE84_PASSWORD"
     Push-Location (Join-Path $PSScriptRoot '../culinary-blog-web')
-    try { node tests/critical-api.e2e.mjs; if ($LASTEXITCODE -ne 0) { throw 'Critical API E2E failed' } }
+    try {
+        $arguments = @('tests/critical-api.e2e.mjs')
+        if ($Browser) { $arguments += '--browser' }
+        node @arguments
+        if ($LASTEXITCODE -ne 0) { throw 'Critical E2E failed' }
+    }
     finally { Pop-Location }
 } finally {
     docker compose -p $project -f $compose down --volumes --remove-orphans

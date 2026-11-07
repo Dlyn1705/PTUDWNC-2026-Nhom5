@@ -27,9 +27,16 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
     ["Jwt:Key"] = key, ["Jwt:Issuer"] = "critical-tests", ["Jwt:Audience"] = "critical-tests",
     ["Minio:AccessKey"] = "test-only", ["Minio:SecretKey"] = "test-only", ["Email:Enabled"] = "false" });
 builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
+var browserOrigin = Environment.GetEnvironmentVariable("CRITICAL_BROWSER_ORIGIN");
+if (browserOrigin is not null)
+    builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
+        policy.WithOrigins(browserOrigin).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 builder.Services.AddRecipeApiConfiguration();
 builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("auth", policy => {
-    policy.PermitLimit = 10; policy.Window = TimeSpan.FromMinutes(1); policy.QueueLimit = 0;
+    // The browser and HTTP journeys share a fixture and run from the same loopback address.
+    policy.PermitLimit = browserOrigin is null ? 10 : 20;
+    policy.Window = TimeSpan.FromMinutes(1);
+    policy.QueueLimit = 0;
 }));
 builder.Services.AddSingleton<IDistributedCache>(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
@@ -38,7 +45,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidateLifetime = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)) });
 await using var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>(); app.UseMiddleware<GlobalExceptionMiddleware>();
-app.UseRouting(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
+app.UseRouting();
+if (browserOrigin is not null) app.UseCors();
+app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
 var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints(); api.MapCategoryEndpoints(); api.MapRecipeEndpoints();
 api.MapRecipeIngredientEndpoints(); api.MapRecipeStepEndpoints();

@@ -50,6 +50,8 @@ ESLint Next.js giữ nguyên; Prettier baseline ghi nhận file cũ chưa format
 
 Năm critical API E2E (register, login, create, publish, search) chạy bằng `npm run test:e2e:critical-api` với `CRITICAL_TEST_CONNECTION` hoặc `./Culinary_Blog_Nhom5/tests/run-critical.ps1` từ root. Fixture dùng routes/services/JWT/PostgreSQL thật, database riêng được drop khi runner đóng stdin. Đây là API journey, báo cáo phân biệt với UI tests; không gọi nó là năm flow UI production.
 
+Thêm `-Browser` vào lệnh PowerShell hoặc `-- --browser` vào lệnh npm để chạy cả hành trình trình duyệt. Runner khởi động các route thật của Next.js ở chế độ development và gọi API/JWT/PostgreSQL của fixture. Chromium trong CI do Playwright cài. Windows mặc định dùng Edge, có thể chỉ định `BROWSER_CHANNEL`. Kết quả tách thành `critical-api-e2e.json` và `critical-browser-e2e.json`.
+
 ## Trước khi đóng issue
 
 Giữ `Refs #89` trong PR khi còn chờ nghiệm thu. Chạy `python scripts/quality/traceability.py --check --acceptance` sau khi các owner và reviewer hoàn tất rà soát. Xem `artifacts/quality/traceability.json` để biết mã yêu cầu và operation còn thiếu. Chỉ đóng #89 khi lệnh đạt, CI của commit cuối xanh và nhóm đã xác nhận các điều kiện nghiệm thu còn lại.

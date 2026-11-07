@@ -1,0 +1,11 @@
+{
+  "kind": "Playwright browser E2E with Next.js dev and real API",
+  "passed": true,
+  "flows": [
+    "register",
+    "login",
+    "create recipe",
+    "publish",
+    "search"
+  ]
+}

@@ -662,14 +662,16 @@
       ],
       "tests": [
         "scripts/quality/test_coverage_gate.py::test_empty_report_fails_closed",
-        "scripts/quality/test_coverage_gate.py::test_different_build_line_inventories_cannot_be_merged"
+        "scripts/quality/test_coverage_gate.py::test_different_build_line_inventories_cannot_be_merged",
+        "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-browser.e2e.mjs::runCriticalBrowser"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
         "quality/evidence/unit-coverage-20261106.json",
-        "quality/evidence/critical-api-e2e-20261106.json"
+        "quality/evidence/critical-api-e2e-20261106.json",
+        "quality/evidence/critical-browser-e2e-20261107.json"
       ],
-      "gap": "Confirm complete endpoint assertion coverage and whether the five API journeys satisfy the required E2E scope.",
+      "gap": "Five API and browser journeys passed with real API and PostgreSQL. Browser uses the Next.js development server. Confirm production-build scope and complete review of endpoint assertions.",
       "reviewedBy": null,
       "reviewedCommit": null
     },

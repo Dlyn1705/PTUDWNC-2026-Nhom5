@@ -4,6 +4,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { request } from "playwright";
+import { browserOrigin, runCriticalBrowser } from "./critical-browser.e2e.mjs";
+
+const uiOrigin = process.argv.includes("--browser")
+  ? await browserOrigin()
+  : null;
 
 assert.ok(
   process.env.CRITICAL_TEST_CONNECTION,
@@ -19,7 +24,9 @@ const child = spawn(
   ],
   {
     cwd: path.resolve(".."),
-    env: process.env,
+    env: uiOrigin
+      ? { ...process.env, CRITICAL_BROWSER_ORIGIN: uiOrigin }
+      : process.env,
     windowsHide: true,
     stdio: ["pipe", "pipe", "pipe"],
   },
@@ -34,6 +41,7 @@ child.stderr.on("data", (data) => {
 const exited = new Promise((resolve) => child.once("exit", resolve));
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let guest, author;
+let browserFlows = [];
 const flows = [];
 const endpointCases = [];
 let passed = false;
@@ -48,6 +56,7 @@ try {
     origin,
     "Critical API fixture did not start; inspect local build output.",
   );
+  if (uiOrigin) browserFlows = await runCriticalBrowser(origin, uiOrigin);
   guest = await request.newContext({ baseURL: origin });
   const email = `critical-${randomUUID()}@example.test`;
   const password = "Isolated-Critical-Test-Password1!";
@@ -223,6 +232,20 @@ try {
   assert.equal(child.exitCode, 0, "Fixture did not exit cleanly");
   const output = path.resolve("../../artifacts/quality");
   fs.mkdirSync(output, { recursive: true });
+  if (uiOrigin) {
+    fs.writeFileSync(
+      path.join(output, "critical-browser-e2e.json"),
+      JSON.stringify(
+        {
+          kind: "Playwright browser E2E with Next.js dev and real API",
+          passed: browserFlows.length === 5,
+          flows: browserFlows,
+        },
+        null,
+        2,
+      ),
+    );
+  }
   fs.writeFileSync(
     path.join(output, "critical-api-e2e.json"),
     JSON.stringify(
