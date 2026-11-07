@@ -55,7 +55,7 @@ export default function StepManager({ recipeId, published = false, archived = fa
   const baselines = useRef(new Map<string, string>());
   const changeCallback = useRef(onChange);
   useEffect(() => { changeCallback.current = onChange; }, [onChange]);
-  useEffect(() => { if (!recipeId) changeCallback.current?.(items); }, [items, recipeId]);
+  useEffect(() => { changeCallback.current?.(items); }, [items]);
   const isDirty = (rows: StepDraft[]) => rows.some(row => !row.stepId || signature(row) !== baselines.current.get(row.stepId));
   useEffect(() => {
     if (recipeId) onDirtyChange?.(mediaBusy || items.some(row => !row.stepId || signature(row) !== baselines.current.get(row.stepId)));

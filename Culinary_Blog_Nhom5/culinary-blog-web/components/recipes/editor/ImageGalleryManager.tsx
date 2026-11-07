@@ -9,13 +9,14 @@ import { toApiProblemError } from "@/lib/api/problemDetails";
 import { useCollectionFocus } from "@/hooks/useCollectionFocus";
 import { toast } from "sonner";
 
-type Props = { recipeId: string; archived?: boolean; disabled?: boolean; onMutation?: () => void; onBusyChange?: (busy: boolean) => void };
+type Props = { recipeId: string; archived?: boolean; disabled?: boolean; onMutation?: () => void; onBusyChange?: (busy: boolean) => void;
+  onImagesChange?: (images: RecipeImageDto[]) => void };
 const statusText = {
   Pending: "Đang chờ tạo thumbnail…", Processing: "Đang tạo thumbnail…",
   Completed: "Đã xử lý", Failed: "Chưa tạo được ảnh xem trước; ảnh gốc vẫn được lưu.",
 };
 
-export default function ImageGalleryManager({ recipeId, archived = false, disabled = false, onMutation, onBusyChange }: Props) {
+export default function ImageGalleryManager({ recipeId, archived = false, disabled = false, onMutation, onBusyChange, onImagesChange }: Props) {
   const [images, setImages] = useState<RecipeImageDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +32,7 @@ export default function ImageGalleryManager({ recipeId, archived = false, disabl
   const requestId = useRef(0);
   const mutationCallback = useRef(onMutation);
   useEffect(() => { mutationCallback.current = onMutation; }, [onMutation]);
+  useEffect(() => { onImagesChange?.(images); }, [images, onImagesChange]);
   useEffect(() => { onBusyChange?.(busy || uploadBusy); }, [busy, uploadBusy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 

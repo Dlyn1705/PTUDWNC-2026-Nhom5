@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Eye } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -11,6 +12,7 @@ import { recipeEditorSchema, emptyRecipeEditor, nutritionFields, recipeErrorFiel
   type RecipeEditorValues, type RecipeEditorField } from "@/lib/validations/recipeEditor";
 import type { CategoryDto } from "@/types/category.types";
 import { toast } from "sonner";
+import { RecipePreviewDialog, type RecipePreviewData } from "@/components/recipes/editor/RecipePreviewDialog";
 
 type Props = {
   mode: "create" | "edit";
@@ -28,6 +30,7 @@ type Props = {
   createdSlug?: string;
   onEdited?: () => void;
   onCollectionErrors?: (errors: Record<string, string[]>, focus: boolean) => void;
+  previewData?: RecipePreviewData;
   children?: ReactNode;
   actions?: ReactNode;
 };
@@ -47,9 +50,11 @@ export default function RecipeForm(props: Props) {
   const { register, handleSubmit, setError, setFocus, reset, clearErrors, formState: { errors, isDirty, isSubmitting } } = form;
   const title = useWatch({ control: form.control, name: "title" });
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
+  const previewValues: RecipeEditorValues = { ...emptyRecipeEditor, ...useWatch({ control: form.control }) };
   const saving = useRef(false);
   const pendingFocus = useRef<{ first?: RecipeEditorField; errors: Record<string, string[]> } | null>(null);
   const [problem, setProblem] = useState<SaveProblem | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState("");
   const locked = isSubmitting || props.busy;
   const conflict = mode === "edit" && problem?.status === 409;
@@ -173,11 +178,18 @@ export default function RecipeForm(props: Props) {
     </fieldset>
     {props.children}
     <div className="flex flex-wrap justify-between gap-3">
+      <button type="button" onClick={() => setPreviewOpen(true)}
+        className="inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium hover:bg-accent">
+        <Eye aria-hidden="true" className="size-4" /> Xem trước
+      </button>
       {props.actions && <fieldset disabled={locked} aria-label="Thao tác công thức" className="contents">{props.actions}</fieldset>}
       <button type="submit" disabled={locked || props.disabled || props.blockSubmit || conflict || props.categoriesLoading || Boolean(props.categoryError) || props.categories.length === 0}
         className="ml-auto rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-60">
         {locked ? "Đang lưu..." : props.disabled && mode === "create" ? "Đã lưu" : mode === "create" ? "Lưu bản nháp" : "Lưu thay đổi"}
       </button>
     </div>
+    <RecipePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} values={previewValues}
+      categoryName={props.categories.find(category => category.id === previewValues.categoryId)?.name}
+      data={props.previewData ?? { ingredients: [], steps: [], images: [] }} />
   </form>;
 }
