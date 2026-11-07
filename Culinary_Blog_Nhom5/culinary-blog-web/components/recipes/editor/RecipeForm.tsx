@@ -50,7 +50,7 @@ export default function RecipeForm(props: Props) {
   const { register, handleSubmit, setError, setFocus, reset, clearErrors, formState: { errors, isDirty, isSubmitting } } = form;
   const title = useWatch({ control: form.control, name: "title" });
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
-  const previewValues = useWatch({ control: form.control });
+  const previewValues: RecipeEditorValues = { ...emptyRecipeEditor, ...useWatch({ control: form.control }) };
   const saving = useRef(false);
   const pendingFocus = useRef<{ first?: RecipeEditorField; errors: Record<string, string[]> } | null>(null);
   const [problem, setProblem] = useState<SaveProblem | null>(null);
