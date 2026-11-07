@@ -58,9 +58,7 @@ export default function IngredientManager({ recipeId, initialItems = [], onChang
   const locked = useRef(false);
   const callback = useRef(onChange);
   useEffect(() => { callback.current = onChange; }, [onChange]);
-  useEffect(() => {
-    if (!recipeId) callback.current?.(items);
-  }, [items, recipeId]);
+  useEffect(() => { callback.current?.(items); }, [items]);
 
   useEffect(() => {
     mounted.current = true;

@@ -15,6 +15,8 @@ import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
 import { RecipeFormValidationError, type RecipeEditorValues, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
 import { recipeKeys } from "@/hooks/queries/recipeKeys";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
+import type { RecipeImageDto } from "@/types/file.types";
+import type { RecipePreviewData } from "@/components/recipes/editor/RecipePreviewDialog";
 
 export default function NewRecipePage() {
   const queryClient = useQueryClient();
@@ -27,6 +29,7 @@ export default function NewRecipePage() {
   const [galleryBusy, setGalleryBusy] = useState(false);
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [steps, setSteps] = useState<StepDraft[]>([]);
+  const [images, setImages] = useState<RecipeImageDto[]>([]);
   const ingredientValidation = useRef<RecipeCollectionValidation>(null);
   const stepValidation = useRef<RecipeCollectionValidation>(null);
   const dirty = (!created && (basicDirty || ingredients.length > 0 || steps.length > 0)) || ingredientDirty || stepDirty;
@@ -57,6 +60,7 @@ export default function NewRecipePage() {
     {created && <p role="status" className="text-success">Đã lưu bản nháp. <Link className="underline" href={`/dashboard/recipes/${created.id}/edit`}>Tiếp tục chỉnh sửa</Link></p>}
     <RecipeForm mode="create" categories={categories.data ?? []} categoriesLoading={categories.isPending}
       categoryError={categories.isError ? categories.error : undefined} onRetryCategories={() => { void categories.refetch(); }}
+      previewData={{ ingredients, steps, images } satisfies RecipePreviewData}
       onSave={save} onDirtyChange={setBasicDirty} busy={saving} disabled={Boolean(created)} createdSlug={created?.slug}
       onCollectionErrors={(errors, focus) => {
         const ingredientCount = ingredientValidation.current?.setServerErrors(errors, focus) ?? 0;
@@ -64,7 +68,7 @@ export default function NewRecipePage() {
       }}>
       <section aria-label="Ảnh món ăn" className="rounded-2xl border border-border bg-card p-6 shadow-soft"><h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
         <p className="mt-2 text-sm text-muted-foreground">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-        {created && <ImageGalleryManager key={created.id} recipeId={created.id} onBusyChange={setGalleryBusy} />}</section>
+        {created && <ImageGalleryManager key={created.id} recipeId={created.id} onBusyChange={setGalleryBusy} onImagesChange={setImages} />}</section>
       <fieldset disabled={saving} aria-label="Nguyên liệu công thức" className="min-w-0">
         <IngredientManager key={created?.id ?? "new"} recipeId={created?.id} initialItems={ingredients} onChange={setIngredients}
           onDirtyChange={setIngredientDirty} validationRef={ingredientValidation} />
