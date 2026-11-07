@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { UserRound } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { SiteShell } from "@/components/layout/SiteShell";
 import { useAuth } from "@/hooks/useAuth";
-import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 
 export default function ProfilePage() {
   const { user, isAdmin, isAuthor } = useAuth();

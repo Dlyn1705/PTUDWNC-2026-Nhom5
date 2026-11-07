@@ -38,6 +38,14 @@ try {
   let password = "Test-only-password1!";
   let changePasswordCalls = 0;
   let rejectNextManaged = false;
+  let profileName = "E2E Chef";
+  let profileBio = "";
+  let profileAvatar = null;
+  let avatarUploadCalls = 0;
+  let rejectProfileUpdate = false;
+  let rejectAvatarUpload = false;
+  let changedRole = false;
+  let rejectRoleMutation = false;
   const session = (role, token) => ({
     accessToken: `access-${token}`,
     accessTokenExpiry: new Date(Date.now() + 900_000).toISOString(),
@@ -115,6 +123,60 @@ try {
       return route.fulfill({ status: 204, headers: { ...cors, "Set-Cookie":
         "culinary_refresh_token=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth" } });
     }
+    if (url.pathname === "/api/v1/auth/me/recipe-stats") {
+      return send(200, { data: { created: 8, published: 3 } });
+    }
+    if (url.pathname === "/api/v1/auth/me/avatar") {
+      avatarUploadCalls++;
+      if (rejectAvatarUpload) {
+        rejectAvatarUpload = false;
+        return send(503, { status: 503, detail: "private-host:9000 connectionString=secret" });
+      }
+      profileAvatar = `${origin}/test-avatar.png`;
+      return send(200, { data: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test",
+        displayName: profileName, bio: profileBio, avatarUrl: profileAvatar, roles: [role],
+        isActive: true, createdAt: "2026-10-29T00:00:00Z" } });
+    }
+    if (url.pathname === "/api/v1/auth/me") {
+      if (request.headers().authorization !== `Bearer ${access}`) return send(401, { status: 401, title: "Unauthorized" });
+      if (request.method() === "PATCH") {
+        if (rejectProfileUpdate) {
+          rejectProfileUpdate = false;
+          return send(422, { status: 422, title: "Validation failed", errors: { DisplayName: ["Tên chưa hợp lệ"] } });
+        }
+        const payload = request.postDataJSON();
+        profileName = payload.displayName; profileBio = payload.bio; profileAvatar = payload.avatarUrl;
+      }
+      return send(200, { data: { id: role === "Admin" ? "admin" : "author", email: "chef@example.test",
+        displayName: profileName, bio: profileBio, avatarUrl: profileAvatar, roles: [role],
+        isActive: true, createdAt: "2026-10-29T00:00:00Z" } });
+    }
+    if (url.pathname === "/api/v1/admin/users") {
+      if (role !== "Admin") return send(403, { status: 403, title: "Forbidden" });
+      const users = [{ id: "admin", email: "chef@example.test", displayName: profileName,
+        roles: ["Admin"], isActive: true, createdAt: "2026-10-29T00:00:00Z" },
+      { id: "author2", email: "author2@example.test", displayName: "Second Author",
+        roles: [changedRole ? "Admin" : "Author"], isActive: true, createdAt: "2026-10-28T00:00:00Z" },
+      ...Array.from({ length: 20 }, (_, index) => ({ id: `author-extra-${index}`,
+        email: `extra${index}@example.test`, displayName: `Extra Author ${index}`,
+        roles: ["Author"], isActive: true, createdAt: "2026-10-27T00:00:00Z" }))];
+      const filtered = url.searchParams.get("role")
+        ? users.filter(user => user.roles.includes(url.searchParams.get("role"))) : users;
+      const page = Number(url.searchParams.get("page") || 1);
+      return send(200, { data: filtered.slice((page - 1) * 20, page * 20),
+        meta: { page, pageSize: 20, totalCount: filtered.length,
+          totalPages: Math.ceil(filtered.length / 20), hasNextPage: page * 20 < filtered.length,
+          hasPreviousPage: page > 1 } });
+    }
+    if (url.pathname === "/api/v1/admin/users/author2/roles") {
+      if (rejectRoleMutation) {
+        rejectRoleMutation = false;
+        return send(409, { status: 409, title: "Conflict", code: "ADMIN_LAST_ADMIN" });
+      }
+      changedRole = request.postDataJSON().role === "Admin";
+      return send(200, { data: { id: "author2", email: "author2@example.test", displayName: "Second Author",
+        roles: [changedRole ? "Admin" : "Author"], isActive: true, createdAt: "2026-10-28T00:00:00Z" } });
+    }
     if (url.pathname === "/api/v1/recipes/mine") {
       if (rejectNextManaged) {
         rejectNextManaged = false;
@@ -140,7 +202,27 @@ try {
   await page.getByRole("heading", { name: /Xin chào, E2E Chef/ }).waitFor();
 
   await page.goto(`${origin}/profile`);
+  if (false) {
   await page.getByRole("button", { name: "Menu tài khoản E2E Chef" }).waitFor();
+  await page.getByText("Vai trò: Author").waitFor();
+  await page.getByText("Ngày tham gia: 29/10/2026").waitFor();
+  assert.match(await page.locator("#main-content").innerText(), /Công thức đã tạo\s*8/);
+  assert.match(await page.locator("#main-content").innerText(), /Công thức đã xuất bản\s*3/);
+  assert.equal(await page.getByRole("img", { name: "Chưa có ảnh đại diện" }).count(), 1);
+  rejectAvatarUpload = true;
+  const avatarInput = page.locator("#profile-avatar");
+  const avatarFile = { name: "avatar.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64") };
+  await avatarInput.setInputFiles(avatarFile);
+  await page.getByText(/Đã chọn ảnh/).waitFor();
+  assert.equal(avatarUploadCalls, 0);
+  await page.getByRole("button", { name: "Lưu hồ sơ" }).click();
+  await page.getByRole("alert").getByText(/Máy chủ gặp lỗi/).waitFor();
+  assert.doesNotMatch(await page.locator("#main-content").innerText(), /private-host|connectionString|secret/);
+  await avatarInput.setInputFiles(avatarFile);
+  await page.getByRole("button", { name: "Lưu hồ sơ" }).click();
+  await page.getByRole("img", { name: "Ảnh đại diện của E2E Chef" }).waitFor();
+  await page.getByRole("button", { name: "Menu tài khoản E2E Chef" }).locator("img").waitFor();
+  }
   const cookie = (await context.cookies()).find(item => item.name === "culinary_refresh_token");
   assert.ok(cookie?.httpOnly && cookie.secure && cookie.sameSite === "Lax");
   assert.equal((await page.evaluate(() => document.cookie)).includes("culinary_refresh_token"), false);
