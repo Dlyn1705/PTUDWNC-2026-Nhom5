@@ -233,16 +233,19 @@
       "id": "FR-JOB-001",
       "owner": "btram0812",
       "code": [
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/Email/WelcomeEmailJob.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/WelcomeEmailTests.cs::Registration_is_atomic_unique_and_keeps_auth_contract_without_waiting_for_email",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/WelcomeEmailTests.cs::Job_has_three_retries_and_safe_failure_details",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/SmtpSmokeTests.cs::Registration_to_real_worker_to_local_smtp_delivers_html_text_once"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "gap": "Confirm full scope including the welcome page/banner and the approved SMTP reconciliation policy. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -250,16 +253,19 @@
       "id": "FR-JOB-002",
       "owner": "btram0812",
       "code": [
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure/Services/RecipeImageProcessingJob.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Real_worker_and_minio_produce_exact_jpeg_variants_and_preserve_original",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Hangfire_real_worker_schedules_retry_and_keeps_business_pending",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.ImageProcessing.Tests/ImageProcessingTests.cs::Backoff_cap_and_sanitized_failures_survive_duplicate_jobs"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "gap": "Review the renderer deviation from the library named in the assignment and confirm the full worker contract. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -380,17 +386,19 @@
       "id": "FR-RCP-003",
       "owner": "btram0812",
       "code": [
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes",
-        "Culinary_Blog_Nhom5/culinary-blog-web/app/dashboard/recipes"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/CreateRecipe/CreateRecipeCommand.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::Rejects_invalid_nested_data",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::Draft_accepts_empty_children_and_nullable_quantities",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::PostgreSql_http_authorization_atomicity_and_concurrent_slugs"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "gap": "Add revision-linked browser evidence for the create form and review the full SRS field contract. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -402,13 +410,15 @@
       ],
       "tests": [
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Body_or_strong_etag_is_accepted",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Nutrition_update_validates_ownership_and_uses_recipe_version",
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "gap": "Add revision-linked browser evidence for conflict handling and review the full update and nutrition contract. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null,
       "specCriteria": {
@@ -457,14 +467,16 @@
         "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipe/DeleteRecipeCommandHandler.cs"
       ],
       "tests": [
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_denies_unauthorized_deletion_without_mutation",
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_soft_deletes_all_states_preserves_children_and_invalidates_cache",
         "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Real_minio_objects_survive_soft_delete_and_are_removed_only_after_retention"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "gap": "Confirm that normalized two-stage deletion satisfies the original permanent-delete wording and add revision-linked UI evidence. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null,
       "specCriteria": {
@@ -475,17 +487,19 @@
       "id": "FR-RCP-008",
       "owner": "btram0812",
       "code": [
-        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes",
-        "Culinary_Blog_Nhom5/culinary-blog-web/app/dashboard/recipes"
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/UploadRecipeImage/UploadRecipeImageCommandHandler.cs",
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Commands/DeleteRecipeImage/DeleteRecipeImageCommandHandler.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/GalleryTests.cs::PostgreSql_gallery_serializes_mutations_and_preserves_primary",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "gap": "Review the complete upload/storage contract and add revision-linked gallery evidence. API route tests use substituted storage. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -493,6 +507,7 @@
       "id": "FR-RCP-009",
       "owner": "btram0812",
       "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Ingredients/IngredientRequests.cs",
         "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs"
       ],
       "tests": [
@@ -501,9 +516,10 @@
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "gap": "Review remaining CRUD/validation and UI assertions against the complete SRS and normalized spec. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null,
       "specCriteria": {
@@ -514,6 +530,7 @@
       "id": "FR-RCP-010",
       "owner": "btram0812",
       "code": [
+        "Culinary_Blog_Nhom5/src/CulinaryBlog.Application/Features/Recipes/Steps/StepRequests.cs",
         "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs"
       ],
       "tests": [
@@ -524,9 +541,10 @@
       ],
       "status": "NeedsOwnerReview",
       "evidence": [
-        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json"
+        "Culinary_Blog_Nhom5/docx/Spec/evidence/issue91/integration-main-20261105-summary.json",
+        "quality/evidence/tram-owner-review-20261107.json"
       ],
-      "gap": "Candidate mapping. Owner must verify assertions against the full requirement and normalized spec, attach passing evidence, and record reviewer and commit.",
+      "gap": "Review remaining step CRUD, image contract and UI assertions against the complete SRS and normalized spec. Confirm the tested revision before recording reviewedCommit.",
       "reviewedBy": null,
       "reviewedCommit": null,
       "specCriteria": {
@@ -604,14 +622,16 @@
       "owner": "btram0812",
       "code": [
         ".github/workflows/ci.yml",
-        "scripts/quality"
+        ".editorconfig"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests"
+        "scripts/quality/test_traceability.py::test_normalized_spec_change_requires_catalog_review"
       ],
       "status": "NeedsOwnerReview",
-      "evidence": [],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "evidence": [
+        "quality/evidence/verification-20261106.json"
+      ],
+      "gap": "Review the static analyzer rules and deviations with Ân. Confirm the required approving review with the repository administrator. The traceability test covers the inventory gate only.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -620,14 +640,18 @@
       "owner": "btram0812",
       "code": [
         ".github/workflows/ci.yml",
-        "scripts/quality"
+        "scripts/quality/coverage_gate.py"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests"
+        "scripts/quality/test_coverage_gate.py::test_empty_report_fails_closed",
+        "scripts/quality/test_coverage_gate.py::test_different_build_line_inventories_cannot_be_merged"
       ],
       "status": "NeedsOwnerReview",
-      "evidence": [],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "evidence": [
+        "quality/evidence/unit-coverage-20261106.json",
+        "quality/evidence/critical-api-e2e-20261106.json"
+      ],
+      "gap": "Confirm complete endpoint assertion coverage and whether the five API journeys satisfy the required E2E scope.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -635,15 +659,14 @@
       "id": "NFR-MAINT-003",
       "owner": "btram0812",
       "code": [
-        ".github/workflows/ci.yml",
-        "scripts/quality"
+        "README.md",
+        "Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md",
+        "CHANGELOG.md"
       ],
-      "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests"
-      ],
+      "tests": [],
       "status": "NeedsOwnerReview",
       "evidence": [],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "gap": "Record a timed setup run and verify XML documentation coverage in OpenAPI before acceptance.",
       "reviewedBy": null,
       "reviewedCommit": null
     },
@@ -651,15 +674,17 @@
       "id": "NFR-MAINT-004",
       "owner": "btram0812",
       "code": [
-        ".github/workflows/ci.yml",
-        "scripts/quality"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs"
       ],
       "tests": [
-        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests"
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Project_graph_and_compiled_core_assemblies_obey_layer_direction",
+        "Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests/ArchitectureTests.cs::Domain_package_debt_is_explicit_and_no_new_package_can_enter"
       ],
       "status": "NeedsOwnerReview",
-      "evidence": [],
-      "gap": "Owner must map exact assertions and attach passing evidence for the full requirement; source/test directory existence is not acceptance.",
+      "evidence": [
+        "quality/evidence/verification-20261106.json"
+      ],
+      "gap": "Resolve or approve the existing Identity and Npgsql Domain dependencies with Ân.",
       "reviewedBy": null,
       "reviewedCommit": null
     },

@@ -48,6 +48,10 @@ Ngày 07/11/2026, kiểm tra catalog và `traceability.py --check` đạt với 
 
 ## Còn cần nghiệm thu phối hợp
 
+Rà soát ngày 07/11/2026 đã cập nhật 12 yêu cầu do Trâm phụ trách trực tiếp. Tám yêu cầu recipe/job có file code, symbol test và kết quả từng ca đã trích từ TRX tại `quality/evidence/tram-owner-review-20261107.json`. TRX hiện có chưa xác định chính xác SHA của lượt chạy. Các hàng ghi riêng tiêu chí còn thiếu, gồm chứng cứ UI theo phiên bản và quyết định về sai khác giữa SRS, bảng phân công và triển khai. Bốn yêu cầu maintainability có các tham chiếu và bước kiểm chứng còn thiếu trong ma trận.
+
+Kết quả này là rà soát một phần. Các yêu cầu vẫn ở `NeedsOwnerReview` cho đến khi đủ bằng chứng theo đúng phiên bản và được người phụ trách xác nhận. Các yêu cầu của owner khác hoặc đồng sở hữu vẫn cần xác nhận tương ứng.
+
 - Ân review architecture, auth/API contract và nợ Domain Identity/Npgsql ghi trong [ADR-0001](ADR-0001-Quality-Gates-And-Existing-Debt.md).
 - Linh/Tuấn/Ân/Trâm rà soát từng yêu cầu được giao, bổ sung đúng file code, test cụ thể, evidence của lượt chạy, `reviewedBy` và `reviewedCommit`. Chuyển sang `Verified` sau khi đối chiếu đủ phạm vi rồi chạy lại `--check --acceptance`.
 - Nhóm trưởng kiểm chứng/cấu hình >=1 approving review và required checks phía GitHub. Đọc branch-protection API trả 404 và ruleset list không có mục; không thể kết luận template đã enforce server-side review.
