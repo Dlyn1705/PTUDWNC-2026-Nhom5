@@ -3,6 +3,7 @@ import { test } from "node:test";
 import axios, { AxiosError, AxiosHeaders, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { installSessionAuth } from "../lib/api/sessionAuth";
 import { safeCallbackUrl } from "../lib/auth/callbackUrl";
+import { getLoginRedirect } from "../lib/auth/loginRedirect";
 import { validWelcomeReceipt, WELCOME_TTL } from "../lib/auth/registrationWelcome";
 
 test("welcome requires a recent registration receipt for the same user", () => {
@@ -18,6 +19,14 @@ test("callback URL accepts local paths and rejects external or slash variants", 
   assert.equal(safeCallbackUrl("/dashboard/recipes?tab=drafts"), "/dashboard/recipes?tab=drafts");
   for (const unsafe of ["https://evil.test", "//evil.test", "/\\evil.test", "/\nevil.test", "javascript:alert(1)"])
     assert.equal(safeCallbackUrl(unsafe), "/");
+});
+
+test("only admin login goes to the dashboard by default", () => {
+  assert.equal(getLoginRedirect(["Author"], "/dashboard", false), "/");
+  assert.equal(getLoginRedirect(["Member"], "/dashboard", false), "/");
+  assert.equal(getLoginRedirect([], "/dashboard", false), "/");
+  assert.equal(getLoginRedirect(["Admin"], "/dashboard", false), "/dashboard");
+  assert.equal(getLoginRedirect(["Author"], "/dashboard/recipes", true), "/dashboard/recipes");
 });
 
 const reply = (config: InternalAxiosRequestConfig, status: number): AxiosResponse => ({

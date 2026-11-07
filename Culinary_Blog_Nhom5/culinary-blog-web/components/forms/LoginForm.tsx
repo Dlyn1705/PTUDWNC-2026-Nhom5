@@ -11,6 +11,8 @@ import type { LoginFormData } from "@/lib/validations/auth";
 import { loginResolver } from "@/lib/validations/loginResolver";
 import { useAuth } from "@/hooks/useAuth";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { getLoginRedirect } from "@/lib/auth/loginRedirect";
+import { useAuthStore } from "@/store/authStore";
 
 function authErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object") {
@@ -38,8 +40,8 @@ export function LoginForm() {
     searchParams.get("reason") === "session-expired" ||
     searchParams.get("sessionExpired") === "true";
   const requestedCallback = searchParams.get("callbackUrl");
-  // A direct login should enter the authenticated dashboard. When a protected
-  // page supplied a callback URL, preserve that destination instead.
+  // Admins enter the dashboard by default. When a protected page supplied a
+  // callback URL, preserve that destination instead.
   const callbackUrl = safeCallbackUrl(requestedCallback, "/dashboard");
 
   const {
@@ -60,7 +62,11 @@ export function LoginForm() {
     try {
       await login({ email: data.email, password: data.password });
       setMascotMood("success");
-      router.replace(callbackUrl);
+      router.replace(getLoginRedirect(
+        useAuthStore.getState().user?.roles,
+        callbackUrl,
+        requestedCallback !== null,
+      ));
     } catch (error) {
       setMascotMood("error");
       const status = (error as { response?: { status?: number } })?.response?.status;
@@ -157,7 +163,7 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <GoogleLoginButton callbackUrl={callbackUrl} />
+      <GoogleLoginButton callbackUrl={callbackUrl} hasExplicitCallback={requestedCallback !== null} />
 
       <p className="text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{" "}

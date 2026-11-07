@@ -62,12 +62,12 @@ export default async function HomePage() {
               loading="eager"
               fetchPriority="high"
               quality={50}
-              className="-z-20 object-cover object-center"
+              className="z-0 object-cover object-center"
             />
-          <div className="absolute inset-0 -z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />
-          <div className="absolute inset-0 -z-10 bg-linear-to-t from-foreground/35 via-transparent to-transparent" />
+          <div className="absolute inset-0 z-10 bg-linear-to-r from-foreground/75 via-foreground/40 to-foreground/5" />
+          <div className="absolute inset-0 z-10 bg-linear-to-t from-foreground/35 via-transparent to-transparent" />
 
-          <div className="flex min-h-[530px] flex-col items-start px-6 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+          <div className="relative z-20 flex min-h-[530px] flex-col items-start px-6 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
             <p className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase text-brand-contrast/85">
               <span className="h-px w-9 bg-brand-contrast/65" aria-hidden="true" />
               Recipe of the week

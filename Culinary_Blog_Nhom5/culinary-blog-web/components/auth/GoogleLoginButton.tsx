@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { googleLogin } from "@/lib/api/authSessionApi";
 import { useAuthStore, waitForRefresh } from "@/store/authStore";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { getLoginRedirect } from "@/lib/auth/loginRedirect";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -38,10 +39,12 @@ declare global {
 
 interface GoogleLoginButtonProps {
   callbackUrl?: string;
+  hasExplicitCallback?: boolean;
 }
 
 export function GoogleLoginButton({
   callbackUrl = "/",
+  hasExplicitCallback = false,
 }: GoogleLoginButtonProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -61,14 +64,18 @@ export function GoogleLoginButton({
         await waitForRefresh();
         const session = await googleLogin({ idToken: response.credential });
         useAuthStore.getState().setSession(session);
-        router.replace(safeCallbackUrl(callbackUrl));
+        router.replace(getLoginRedirect(
+          session.roles,
+          safeCallbackUrl(callbackUrl),
+          hasExplicitCallback,
+        ));
       } catch {
         setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
       } finally {
         setIsPending(false);
       }
     },
-    [callbackUrl, router],
+    [callbackUrl, hasExplicitCallback, router],
   );
 
   const initializeGoogle = useCallback(() => {
