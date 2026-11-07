@@ -81,6 +81,10 @@ def validate(data):
                 any(not (ROOT / reference.split('::')[0]).is_file() for reference in row['code'] + row['tests'] + row['evidence']) or
                 not re.fullmatch(r'[a-f0-9]{7,40}', row['reviewedCommit'])):
             raise ValueError(f'Verified requires code files, concrete test symbols, evidence files and a commit SHA: {row["id"]}')
+        if row['status'] == 'Verified' and any(
+            not (ROOT / reference.split('::')[0]).stat().st_size for reference in row['evidence']
+        ):
+            raise ValueError(f'Verified requires non-empty evidence: {row["id"]}')
     return rows
 
 
