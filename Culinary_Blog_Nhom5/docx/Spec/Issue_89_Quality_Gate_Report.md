@@ -4,7 +4,7 @@ Phụ trách: Phan Thị Bảo Trâm, 2312778. Nhánh `2312778-PhanThiBaoTram-tr
 
 ## Đã triển khai
 
-- [65 yêu cầu có owner, code/test/status/evidence hoặc gap](Requirement_Traceability_Matrix.md): 64 mã từ PDF + JOB-004 từ bảng phân công. Có công cụ extract/kiểm tra lại catalog; hash văn bản chuẩn hóa newline để dùng được trên Windows/Linux.
+- [65 yêu cầu có owner, code/test/status/evidence hoặc gap](Requirement_Traceability_Matrix.md). Catalog kiểm tra PDF SRS, bảng phân công và [spec chuẩn hóa](Culinary_Blog_Spec.md). Spec bổ sung tiêu chí cho các mã hiện có, gồm publish cần step và ingredient active, ETag/If-Match, optimistic concurrency, giới hạn 100 step/ingredient, soft delete và reorder.
 - [56 endpoint có mapping happy/error](Endpoint_Test_Coverage.md). Mapping không tự thay thế owner review hoặc chứng minh assertion đủ toàn bộ yêu cầu.
 - Architecture/CQRS gate kiểm tra project và assembly references; phát hiện persistence mutation trực tiếp, helper cùng class hoặc dispatch Command từ Query. Có test chèn vi phạm để xác nhận detector.
 - Unit coverage Application đo riêng; không loại file/attribute Application. Gate gộp theo dòng, từ chối inventory Debug/Release khác nhau, empty report và baseline bị hạ trong PR/push.
@@ -42,15 +42,17 @@ python scripts/quality/coverage_gate.py artifacts/quality/unit
 ./Culinary_Blog_Nhom5/tests/run-critical.ps1
 ```
 
-Hướng dẫn chi tiết: `quality/README.md`. Muốn extract lại SRS: cài `scripts/quality/requirements-catalog.txt`, chạy `python scripts/quality/extract_catalog.py`; chỉ dùng `--write` sau khi đối chiếu thay đổi nguồn, sau đó cập nhật rows/Markdown.
+Xem `quality/README.md` để cài dependency và chạy `python scripts/quality/extract_catalog.py`. Chỉ dùng `--write` sau khi đối chiếu thay đổi của cả ba nguồn, sau đó cập nhật các hàng và sinh lại Markdown.
+
+Ngày 07/11/2026, kiểm tra catalog và `traceability.py --check` đạt với 65 yêu cầu và 56 endpoint. CI dùng `--check` để kiểm tra đồng bộ và tham chiếu. `traceability.py --check --acceptance` báo chưa đủ điều kiện vì 65 yêu cầu còn `NeedsOwnerReview` và 0 yêu cầu `Verified`.
 
 ## Còn cần nghiệm thu phối hợp
 
 - Ân review architecture, auth/API contract và nợ Domain Identity/Npgsql ghi trong [ADR-0001](ADR-0001-Quality-Gates-And-Existing-Debt.md).
-- Linh/Tuấn/Ân/Trâm đối chiếu assertion/evidence cụ thể rồi cập nhật owner/reviewer/commit. Hiện các hàng giữ NeedsOwnerReview; `--acceptance` chủ động không pass nếu chưa đủ Verified.
+- Linh/Tuấn/Ân/Trâm rà soát từng yêu cầu được giao, bổ sung đúng file code, test cụ thể, evidence của lượt chạy, `reviewedBy` và `reviewedCommit`. Chuyển sang `Verified` sau khi đối chiếu đủ phạm vi rồi chạy lại `--check --acceptance`.
 - Nhóm trưởng kiểm chứng/cấu hình >=1 approving review và required checks phía GitHub. Đọc branch-protection API trả 404 và ruleset list không có mục; không thể kết luận template đã enforce server-side review.
 - Đo benchmark setup dưới 5 phút theo điều kiện máy/cache; hiện chưa có số đo.
 - Xác nhận mức API E2E cho năm critical flow có đủ phạm vi hay cần thêm cả năm UI production flow. Google endpoint dùng command-handler substitute và avatar dùng storage-port substitute ở contract tests; đây không phải live Google/MinIO evidence của các ca đó.
 - OpenAPI/Scalar có metadata summary; chưa chứng minh XML comments bao phủ tài liệu API như SRS yêu cầu. Quyết định thay thế cần ghi nhận/review, không âm thầm đánh dấu đạt.
 
-Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub tại `quality/dependency-status-20261106.json`; điều này không tự làm mọi requirement Verified. Chưa dùng `Closes #89` khi các mục phối hợp trên còn mở.
+Các dependency #85/#86/#87/#88/#90/#91/#92/#93 đã đóng theo snapshot GitHub tại `quality/dependency-status-20261106.json`. PR #118 dùng `Refs #89`. Chỉ đóng #89 sau khi `--check --acceptance` đạt và các mục nghiệm thu phối hợp được xác nhận.

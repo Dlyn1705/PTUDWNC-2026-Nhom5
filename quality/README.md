@@ -9,9 +9,11 @@ dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests
 dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests
 ```
 
-`requirements-catalog.json` có đủ 64 mã từ SRS (kể cả SEC-007) và JOB-004 bổ sung. Không dùng số lượng trong bảng tóm tắt SRS để bỏ qua requirement xuất hiện trong thân tài liệu.
+`requirements-catalog.json` theo dõi SRS gốc, bảng phân công và `Culinary_Blog_Spec.md`. Danh mục hiện có 64 mã từ SRS và JOB-004 từ bảng phân công. Spec chuẩn hóa bổ sung tiêu chí cho các mã hiện có. Các hàng liên quan ghi mục nguồn và tiêu chí trong `specCriteria`.
 
-Mỗi thành viên cập nhật `traceability.json` theo owner. Dùng file code/API/UI cụ thể, `path::test_symbol` và report/run chứng minh assertion yêu cầu, ghi commit. Sau đó chạy `python scripts/quality/traceability.py` để cập nhật Markdown. Không đánh dấu Verified chỉ vì có test file hoặc issue đã đóng. Catalog và SHA nguồn chỉ cập nhật sau khi đối chiếu PDF/bảng phân công thay đổi.
+Khi một trong ba nguồn thay đổi, đối chiếu cả mã yêu cầu và nội dung tiêu chí rồi chạy `python scripts/quality/extract_catalog.py --write` (cài dependency từ `scripts/quality/requirements-catalog.txt`). Cập nhật hàng, mục nguồn và tiêu chí tương ứng. Chạy `python scripts/quality/traceability.py` để sinh lại Markdown.
+
+Mỗi owner đối chiếu toàn bộ yêu cầu và tiêu chí chuẩn hóa với file code/API/UI cụ thể, test dạng `path::test_symbol` và file evidence của lượt chạy. Điền `reviewedBy`, `reviewedCommit` và chỉ chuyển sang `Verified` sau khi rà soát đủ phạm vi. CI dùng `--check` để kiểm tra danh mục, hash nguồn, tham chiếu và tài liệu sinh.
 
 `endpoint-tests.json` liệt kê các operation WithName hiện có; happy/error dùng `path::test_symbol`. HTTP routes chưa WithName hoặc đăng ký ngoài Endpoints cần rà soát runtime/OpenAPI trước nghiệm thu, không coi inventory tĩnh là toàn bộ endpoint coverage.
 
@@ -50,4 +52,4 @@ Năm critical API E2E (register, login, create, publish, search) chạy bằng `
 
 ## Trước khi đóng issue
 
-Chạy `python scripts/quality/traceability.py --check --acceptance`. Lệnh này cố ý fail khi còn thiếu evidence owner hoặc endpoint cases. Đối chiếu #85–#93, CI artifacts, five critical fullstack E2E và approval requirement. Người có quyền quản trị phải kiểm chứng branch protection >=1 approving review, không xem checkbox template là enforcement.
+Giữ `Refs #89` trong PR khi còn chờ nghiệm thu. Chạy `python scripts/quality/traceability.py --check --acceptance` sau khi các owner hoàn tất rà soát. Chỉ đóng #89 khi lệnh đạt và nhóm đã xác nhận các điều kiện nghiệm thu còn lại. Đối chiếu #85–#93, CI artifacts, five critical fullstack E2E và approval requirement. Người có quyền quản trị phải kiểm chứng branch protection >=1 approving review, không xem checkbox template là enforcement.

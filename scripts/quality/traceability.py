@@ -7,7 +7,10 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 QUALITY = ROOT / 'quality'
-ID = re.compile(r'(?:NFR|FR)-[A-Z]+-\d{3}')
+SRS = 'Culinary_Blog_Nhom5/docx/SRS_Culinary_Blog_v1.0.0.pdf'
+ASSIGNMENT = 'Culinary_Blog_Nhom5/docx/Spec/Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md'
+SPEC = 'Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md'
+SOURCES = (SRS, ASSIGNMENT, SPEC)
 
 
 def source_digest(path):
@@ -17,6 +20,8 @@ def source_digest(path):
 
 def validate(data):
     catalog = json.loads((QUALITY / 'requirements-catalog.json').read_text(encoding='utf-8'))
+    if set(catalog['sourceHashes']) != set(SOURCES):
+        raise ValueError('Catalog must track the SRS, assignment and normalized spec')
     for source, digest in catalog['sourceHashes'].items():
         if source_digest(ROOT / source) != digest:
             raise ValueError(f'Source changed: re-extract and review catalog for {source}')
@@ -24,9 +29,16 @@ def validate(data):
     ids = [row['id'] for row in rows]
     if len(ids) != len(set(ids)) or set(ids) != set(catalog['ids']):
         raise ValueError('Requirements missing, duplicated, or outside reviewed catalog')
+    missing_spec = set(catalog['specIds']) - {row['id'] for row in rows if row.get('specCriteria')}
+    if missing_spec:
+        raise ValueError(f'Missing normalized spec criteria: {", ".join(sorted(missing_spec))}')
+    spec_sections = set(re.findall(r'^#{2,6} (\d+(?:\.\d+)*)\.? ', (ROOT / SPEC).read_text(encoding='utf-8-sig'), re.MULTILINE))
     for row in rows:
         if not row.get('owner') or row['status'] not in {'NeedsOwnerReview', 'MissingEvidence', 'Verified'}:
             raise ValueError(f'Invalid owner/status: {row["id"]}')
+        for section, criteria in row.get('specCriteria', {}).items():
+            if section not in spec_sections or not criteria.strip():
+                raise ValueError(f'Invalid normalized spec criteria: {row["id"]} / {section}')
         for key in ('code', 'tests', 'evidence'):
             for reference in row[key]:
                 if not (ROOT / reference.split('::')[0]).exists():
@@ -38,9 +50,9 @@ def validate(data):
         if row['status'] == 'Verified' and (not all(row[key] for key in ('code', 'tests', 'evidence')) or not row.get('reviewedBy') or not row.get('reviewedCommit')):
             raise ValueError(f'Verified requires code/test/evidence, reviewer, and commit: {row["id"]}')
         if row['status'] == 'Verified' and (any('::' not in reference for reference in row['tests']) or
-                any(not (ROOT / reference.split('::')[0]).is_file() for reference in row['tests'] + row['evidence']) or
+                any(not (ROOT / reference.split('::')[0]).is_file() for reference in row['code'] + row['tests'] + row['evidence']) or
                 not re.fullmatch(r'[a-f0-9]{7,40}', row['reviewedCommit'])):
-            raise ValueError(f'Verified requires concrete test symbols, evidence files and a commit SHA: {row["id"]}')
+            raise ValueError(f'Verified requires code files, concrete test symbols, evidence files and a commit SHA: {row["id"]}')
     return rows
 
 
@@ -82,11 +94,15 @@ def main():
     output = ['# Requirement traceability matrix', '',
               'Generated from `quality/traceability.json`; edit the JSON then run `python scripts/quality/traceability.py`.', '',
               'Verified requires owner review, concrete tests and run evidence. Existing files alone are not proof of acceptance.', '',
-              '| Requirement | Code/API/UI | Test | Owner | Status | Evidence / gap |',
-              '| --- | --- | --- | --- | --- | --- |']
+              'Sources: [SRS](../SRS_Culinary_Blog_v1.0.0.pdf), [assignment](Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md), [normalized spec](Culinary_Blog_Spec.md).',
+              '',
+              '| Requirement | Normalized spec criteria | Code/API/UI | Test | Owner | Status | Evidence / gap |',
+              '| --- | --- | --- | --- | --- | --- | --- |']
     for row in rows:
         links = lambda values: '<br>'.join(f'`{v}`' for v in values) or '—'
-        output.append(f'| {row["id"]} | {links(row["code"])} | {links(row["tests"])} | {row["owner"]} | {row["status"]} | {links(row["evidence"])}<br>{row["gap"]} |')
+        criteria = '<br>'.join(f'§{section}: {detail}' for section, detail in row.get('specCriteria', {}).items()) or '—'
+        criteria = criteria.replace('|', '&#124;')
+        output.append(f'| {row["id"]} | {criteria} | {links(row["code"])} | {links(row["tests"])} | {row["owner"]} | {row["status"]} | {links(row["evidence"])}<br>{row["gap"]} |')
     text = '\n'.join(output) + '\n'
     target = ROOT / 'Culinary_Blog_Nhom5/docx/Spec/Requirement_Traceability_Matrix.md'
     if '--check' in sys.argv:

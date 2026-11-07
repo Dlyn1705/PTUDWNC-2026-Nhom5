@@ -1,10 +1,9 @@
-"""Maintainer tool: extract all explicit SRS/assignment IDs, including wrapped PDF IDs."""
+"""Extract explicit IDs from the SRS, assignment and normalized spec."""
 import argparse
 import json
-import pathlib
 import re
 from pypdf import PdfReader
-from traceability import ROOT, QUALITY, source_digest
+from traceability import ROOT, QUALITY, SRS, ASSIGNMENT, SPEC, SOURCES, source_digest
 
 
 def ids(text):
@@ -15,12 +14,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--write', action='store_true', help='Update inventory only; owner must update rows and review source changes.')
     args = parser.parse_args()
-    pdf = 'Culinary_Blog_Nhom5/docx/SRS_Culinary_Blog_v1.0.0.pdf'
-    assignment = 'Culinary_Blog_Nhom5/docx/Spec/Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md'
-    srs = ids('\n'.join(page.extract_text() or '' for page in PdfReader(ROOT / pdf).pages))
-    assigned = ids((ROOT / assignment).read_text(encoding='utf-8-sig'))
-    catalog = {'sourceHashes': {source: source_digest(ROOT / source) for source in (pdf, assignment)},
-               'sourceCount': len(srs), 'assignmentAdditions': sorted(assigned - srs), 'ids': sorted(srs | assigned)}
+    srs = ids('\n'.join(page.extract_text() or '' for page in PdfReader(ROOT / SRS).pages))
+    assigned = ids((ROOT / ASSIGNMENT).read_text(encoding='utf-8-sig'))
+    normalized = ids((ROOT / SPEC).read_text(encoding='utf-8-sig'))
+    inventory = srs | assigned | normalized
+    catalog = {'sourceHashes': {source: source_digest(ROOT / source) for source in SOURCES},
+               'sourceCount': len(srs), 'assignmentAdditions': sorted(assigned - srs),
+               'specIds': sorted(normalized), 'specAdditions': sorted(normalized - srs - assigned),
+               'ids': sorted(inventory)}
     target = QUALITY / 'requirements-catalog.json'
     if args.write:
         target.write_text(json.dumps(catalog, indent=2) + '\n', encoding='utf-8')
@@ -28,7 +29,7 @@ def main():
         current = json.loads(target.read_text(encoding='utf-8'))
         if current != catalog:
             raise ValueError('Catalog differs from source extraction. Review source, use --write, then update traceability rows.')
-    print(f'SRS {len(srs)} + assignment-only {len(assigned-srs)} = {len(srs|assigned)} requirements')
+    print(f'SRS {len(srs)} + assignment-only {len(assigned-srs)} + spec-only {len(normalized-srs-assigned)} = {len(inventory)} requirements')
 
 
 if __name__ == '__main__':
