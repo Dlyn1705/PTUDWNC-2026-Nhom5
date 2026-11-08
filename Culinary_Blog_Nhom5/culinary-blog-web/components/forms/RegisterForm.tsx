@@ -2,26 +2,30 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import apiClient from "@/lib/api/axios";
+import { register as registerAccount } from "@/lib/api/authApi";
+import { getApiErrorMessage, isApiProblemError, toApiProblemError } from "@/lib/api/problemDetails";
 import { PasswordField } from "@/components/forms/PasswordField";
+import { useAuthStore, waitForRefresh } from "@/store/authStore";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { markRegistration } from "@/lib/auth/registrationWelcome";
 import {
   getPasswordStrength,
   registerSchema,
   type RegisterFormData,
 } from "@/lib/validations/auth";
-import type { AuthResponse, ProblemDetails } from "@/types/auth";
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-red-700">{message}</p>
+    <p id={id} role="alert" className="mt-2 text-xs font-medium text-destructive">{message}</p>
   ) : null;
 }
 
 export function RegisterForm() {
   const router = useRouter();
+  const callbackUrl = safeCallbackUrl(useSearchParams().get("callbackUrl"), "/auth/welcome");
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -45,32 +49,26 @@ export function RegisterForm() {
     setServerError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>(
-        "/api/v1/auth/register",
-        data,
-      );
+      await waitForRefresh();
+      const response = await registerAccount(data);
       if (response.status === 201) {
-        router.push("/auth/login?registered=true");
+        useAuthStore.getState().setSession(response.data.data);
+        markRegistration(response.data.data.user.id);
+        router.replace(`/auth/welcome?callbackUrl=${encodeURIComponent(callbackUrl === "/auth/welcome" ? "/dashboard/recipes/new" : callbackUrl)}`);
       }
     } catch (error: unknown) {
-      if (!error || typeof error !== "object" || !("response" in error)) {
-        setServerError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        return;
-      }
-
-      const response = (
-        error as { response?: { status?: number; data?: ProblemDetails } }
-      ).response;
-      const problem = response?.data;
-      if (response?.status === 409 && problem?.code === "AUTH_EMAIL_EXISTS") {
+      const problem = toApiProblemError(error);
+      if (isApiProblemError(problem) && problem.status === 409 && problem.code === "AUTH_EMAIL_EXISTS") {
         setError("email", {
           type: "server",
-          message: problem.detail ?? "Email này đã được sử dụng.",
-        });
+          message: getApiErrorMessage(problem, "Email này đã được sử dụng."),
+        }, { shouldFocus: true });
         return;
       }
 
-      if (response?.status === 422 && problem?.errors) {
+      if (problem.status === 422) {
+        let mapped = false;
+        let focused = false;
         Object.entries(problem.errors).forEach(([field, messages]) => {
           const fieldMap: Record<string, keyof RegisterFormData> = {
             Email: "email",
@@ -82,24 +80,28 @@ export function RegisterForm() {
             fieldMap[field] ??
             fieldMap[field.charAt(0).toUpperCase() + field.slice(1)];
           if (target && messages[0]) {
-            setError(target, { type: "server", message: messages[0] });
+            mapped = true;
+            setError(target, { type: "server", message: messages[0] }, { shouldFocus: !focused });
+            focused = true;
           }
         });
-        return;
+        if (mapped) {
+          const unknown = Object.keys(problem.errors).some((field) => !["email", "displayName", "password", "confirmPassword"].includes(field.toLowerCase()));
+          if (unknown) setError("root.server", { type: "server", message: getApiErrorMessage(problem) });
+          return;
+        }
       }
 
-      setServerError(
-        problem?.detail ?? "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-      );
+      setServerError(getApiErrorMessage(problem, "Đã có lỗi xảy ra. Vui lòng thử lại sau."));
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate aria-busy={isSubmitting}>
       {serverError && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {serverError}
         </div>
@@ -114,9 +116,11 @@ export function RegisterForm() {
           autoComplete="name"
           placeholder="Nguyễn Văn A"
           {...register("displayName")}
+          aria-invalid={Boolean(errors.displayName)}
+          aria-describedby={errors.displayName ? "displayName-error" : undefined}
           className={`field-input ${errors.displayName ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.displayName?.message} />
+        <FieldError id="displayName-error" message={errors.displayName?.message} />
       </div>
 
       <div>
@@ -129,12 +133,14 @@ export function RegisterForm() {
           autoComplete="email"
           placeholder="chef@gmail.com"
           {...register("email")}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "email-error" : undefined}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.email?.message} />
+        <FieldError id="email-error" message={errors.email?.message} />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         <div>
           <label htmlFor="password" className="field-label">
             Mật khẩu
@@ -144,14 +150,16 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="Tối thiểu 8 ký tự"
             registration={register("password")}
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={`password-strength-label${errors.password ? " password-error" : ""}`}
             className={`field-input ${errors.password ? "field-input-error" : ""}`}
           />
           <div className="mt-2 space-y-2">
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span id="password-strength-label" className="font-medium text-stone-600">
+              <span id="password-strength-label" className="font-medium text-muted-foreground">
                 Độ mạnh mật khẩu: {passwordStrength.label}
               </span>
-              <span className="text-stone-500">Tối thiểu 8 ký tự</span>
+              <span className="text-muted-foreground">Tối thiểu 8 ký tự</span>
             </div>
             <div
               role="meter"
@@ -168,13 +176,13 @@ export function RegisterForm() {
                   className={`h-full flex-1 rounded-full ${
                     index < passwordStrength.score
                       ? passwordStrength.score <= 2
-                        ? "bg-red-500"
+                        ? "bg-destructive"
                         : passwordStrength.score <= 4
-                          ? "bg-amber-500"
+                          ? "bg-warning"
                           : passwordStrength.score === 5
-                            ? "bg-lime-600"
-                            : "bg-green-600"
-                      : "bg-stone-200"
+                            ? "bg-success"
+                            : "bg-success"
+                      : "bg-muted"
                   }`}
                   aria-hidden="true"
                 />
@@ -182,24 +190,24 @@ export function RegisterForm() {
             </div>
             <ul
               aria-label="Tiêu chí độ mạnh mật khẩu"
-              className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-stone-500"
+              className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground"
             >
               {passwordStrength.criteria.map((criterion) => (
                 <li key={criterion.label} className="flex items-center gap-1.5">
                   <span
                     aria-hidden="true"
-                    className={criterion.met ? "text-green-700" : "text-stone-400"}
+                    className={criterion.met ? "text-success" : "text-muted-foreground"}
                   >
                     {criterion.met ? "✓" : "○"}
                   </span>
-                  <span className={criterion.met ? "text-stone-700" : ""}>
+                  <span className={criterion.met ? "text-foreground" : ""}>
                     {criterion.label}
                   </span>
                 </li>
               ))}
             </ul>
           </div>
-          <FieldError message={errors.password?.message} />
+          <FieldError id="password-error" message={errors.password?.message} />
         </div>
         <div>
           <label htmlFor="confirmPassword" className="field-label">
@@ -210,17 +218,20 @@ export function RegisterForm() {
             autoComplete="new-password"
             placeholder="Nhập lại mật khẩu"
             registration={register("confirmPassword")}
+            aria-invalid={Boolean(errors.confirmPassword)}
+            aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
             className={`field-input ${errors.confirmPassword ? "field-input-error" : ""}`}
           />
-          <FieldError message={errors.confirmPassword?.message} />
+          <FieldError id="confirmPassword-error" message={errors.confirmPassword?.message} />
         </div>
       </div>
 
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
       </button>
+      <p role="status" className="sr-only">{isSubmitting ? "Đang tạo tài khoản, vui lòng chờ." : ""}</p>
 
-      <p className="text-center text-sm text-stone-600">
+      <p className="text-center text-sm text-muted-foreground">
         Đã có tài khoản?{" "}
         <Link
           href="/auth/login"

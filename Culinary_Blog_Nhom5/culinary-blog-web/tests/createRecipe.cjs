@@ -22,6 +22,12 @@ const form = () => ({ title: "Đậu đỏ", description: "", category: "1111111
 const draft = buildCreateRecipePayload(form());
 assert.deepEqual(draft.ingredients, []); assert.deepEqual(draft.steps, []);
 assert.equal(draft.prepTime, 0);
+const richStep = buildCreateRecipePayload({ ...form(), steps: [{
+  title: "Sơ chế", description: "Rửa nguyên liệu", timerMinutes: "3", imageUrl: "https://example.invalid/step.jpg",
+}] });
+assert.deepEqual(richStep.steps, [{
+  title: "Sơ chế", description: "Rửa nguyên liệu", timerMinutes: 3, imageUrl: "https://example.invalid/step.jpg",
+}]);
 for (const update of [
   { title: "  " }, { category: "" }, { difficulty: "8" }, { prepTime: "0.5" }, { servings: "0" },
   { ingredients: [{ name: "Muối", quantity: "0", unit: "" }] },

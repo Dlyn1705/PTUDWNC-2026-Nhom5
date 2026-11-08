@@ -3,8 +3,16 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Trash2, ExternalLink, ChefHat, Layers } from "lucide-react";
+import { Pencil, Trash2, ExternalLink, ChefHat, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -15,9 +23,14 @@ import {
 } from "@/components/ui/table";
 import { CategoryDto } from "@/types/category.types";
 
+import { LoadingState } from "@/components/common/LoadingState";
+import { Skeleton } from "@/components/common/Skeleton";
+import { EmptyState } from "@/components/common/EmptyState";
+
 interface CategoryTableProps {
   categories: CategoryDto[];
   isLoading: boolean;
+  filtered?: boolean;
   onEdit: (category: CategoryDto) => void;
   onDelete: (category: CategoryDto) => void;
 }
@@ -25,33 +38,16 @@ interface CategoryTableProps {
 export function CategoryTable({
   categories,
   isLoading,
+  filtered = false,
   onEdit,
   onDelete,
 }: CategoryTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
-        <div className="inline-block size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="mt-3 text-xs text-muted-foreground font-medium">Loading category catalog...</p>
-      </div>
-    );
-  }
-
-  if (categories.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-soft">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
-          <Layers className="size-6" />
-        </div>
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          No categories created yet
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-          Start by adding your first food category to organize culinary recipes.
-        </p>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState label="Đang tải danh mục…">
+    {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+  </LoadingState>;
+  if (categories.length === 0) return <EmptyState
+    title={filtered ? "Không tìm thấy danh mục phù hợp" : "Chưa có danh mục nào"}
+    description={filtered ? "Thử từ khóa khác hoặc xóa bộ lọc." : "Tạo danh mục đầu tiên để sắp xếp các công thức."} />;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
@@ -136,47 +132,37 @@ export function CategoryTable({
 
                 {/* Action Buttons */}
                 <TableCell className="py-3 text-right pr-6">
-                  <div className="inline-flex items-center gap-1.5">
-                    <Button
-                      asChild
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                      title="View public category page"
-                    >
-                      <Link href={`/categories/${cat.slug}`} target="_blank">
-                        <ExternalLink className="size-3.5" />
-                      </Link>
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-                      onClick={() => onEdit(cat)}
-                      title="Edit category"
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={`size-8 rounded-lg transition-colors ${
-                        hasRecipes
-                          ? "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
-                          : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      }`}
-                      onClick={() => onDelete(cat)}
-                      title={
-                        hasRecipes
-                          ? "Cannot delete category containing recipes"
-                          : "Delete category"
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                        aria-label={`Thao tác danh mục ${cat.name}`}
+                      >
+                        <MoreHorizontal className="size-4" aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel>{cat.name}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={`/categories/${cat.slug}`} target="_blank">
+                          <ExternalLink aria-hidden="true" />
+                          Xem trang công khai
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onEdit(cat)}>
+                        <Pencil aria-hidden="true" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onDelete(cat)}>
+                        <Trash2 aria-hidden="true" />
+                        {hasRecipes ? "Xem lý do không thể xóa" : "Xóa danh mục"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );

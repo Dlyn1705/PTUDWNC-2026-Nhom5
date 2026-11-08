@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -58,18 +68,19 @@ export function CategoryModal({
   onSuccess,
   onError,
 }: CategoryModalProps) {
+  const [failure, setFailure] = useState("");
   const isEditing = Boolean(editingCategory);
+  const form = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: emptyForm,
+  });
   const {
-    register,
     handleSubmit,
     reset,
     setError,
     control,
-    formState: { errors, isSubmitting },
-  } = useForm<CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
-    defaultValues: emptyForm,
-  });
+    formState: { isSubmitting },
+  } = form;
 
   useEffect(() => {
     if (!open) return;
@@ -91,6 +102,12 @@ export function CategoryModal({
   const slugPreview = editingCategory?.slug ?? slugifyVietnamese(name);
   const canPreviewImage = /^https?:\/\//i.test(imageUrl);
 
+  const reportError = (message: string) => {
+    setFailure(message);
+    onError(message);
+    toast.error(message);
+  };
+
   const applyApiErrors = (error: ApiProblemError) => {
     const fields: Record<string, keyof CategoryFormValues> = {
       name: "name",
@@ -103,26 +120,27 @@ export function CategoryModal({
     for (const [serverField, messages] of Object.entries(error.errors)) {
       const field = fields[serverField.toLowerCase()];
       if (!field || messages.length === 0) continue;
-      setError(field, { type: "server", message: messages[0] });
+      setError(field, { type: "server", message: messages[0] }, { shouldFocus: !mappedFieldError });
       mappedFieldError = true;
     }
 
     if (error.status === 401) {
-      onError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      reportError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       return;
     }
 
     if (error.status === 403) {
-      onError("Bạn không có quyền Admin để thực hiện thao tác này.");
+      reportError("Bạn không có quyền Admin để thực hiện thao tác này.");
       return;
     }
 
     if (!mappedFieldError || error.status === 409) {
-      onError(error.message);
+      reportError(error.message);
     }
   };
 
   const submitForm = async (values: CategoryFormValues) => {
+    setFailure("");
     try {
       const payload = {
         name: values.name,
@@ -134,10 +152,14 @@ export function CategoryModal({
 
       if (editingCategory) {
         await categoryApi.update(editingCategory.id, payload);
-        onSuccess(`Đã cập nhật danh mục "${values.name}" thành công.`);
+          const message = `Đã cập nhật danh mục "${values.name}" thành công.`;
+          onSuccess(message);
+          toast.success(message);
       } else {
         await categoryApi.create(payload);
-        onSuccess(`Đã tạo danh mục mới "${values.name}" thành công.`);
+        const message = `Đã tạo danh mục mới "${values.name}" thành công.`;
+        onSuccess(message);
+        toast.success(message);
       }
 
       onOpenChange(false);
@@ -145,15 +167,18 @@ export function CategoryModal({
       if (error instanceof ApiProblemError) {
         applyApiErrors(error);
       } else {
-        onError(error instanceof Error ? error.message : "Thao tác thất bại.");
+        reportError(error instanceof Error ? error.message : "Thao tác thất bại.");
       }
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-lg">
-        <form onSubmit={handleSubmit(submitForm)} className="space-y-4" noValidate>
+      <DialogContent onOpenAutoFocus={() => setFailure("")} className="rounded-2xl sm:max-w-lg">
+          <p role="status" className="sr-only">{isSubmitting ? "Đang lưu danh mục…" : ""}</p>
+        <Form {...form}>
+        <form aria-busy={isSubmitting} onSubmit={handleSubmit(submitForm)} className="space-y-4" noValidate>
+          {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-bold">
               {isEditing ? "Chỉnh sửa danh mục" : "Tạo danh mục món ăn mới"}
@@ -166,8 +191,8 @@ export function CategoryModal({
           </DialogHeader>
 
           {isEditing && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <div className="flex items-start gap-2 rounded-xl border border-archived bg-archived/50 p-3 text-xs text-archived-foreground">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-archived-foreground" />
               <span>
                 <strong>Lưu ý SEO:</strong> Hệ thống giữ nguyên slug để tránh làm hỏng
                 các liên kết đã được chia sẻ.
@@ -176,24 +201,19 @@ export function CategoryModal({
           )}
 
           <div className="space-y-3.5 pt-2">
-            <div className="space-y-1">
-              <label htmlFor="category-name" className="text-xs font-semibold text-foreground">
-                Tên danh mục <span className="text-destructive">*</span>
-              </label>
-              <Input
-                id="category-name"
-                {...register("name")}
-                placeholder="VD: Món Tráng Miệng, Món Chay..."
-                aria-invalid={Boolean(errors.name)}
-                aria-describedby={errors.name ? "category-name-error" : undefined}
-                className="h-10 rounded-xl bg-background"
-              />
-              {errors.name && (
-                <p id="category-name-error" className="text-[11px] font-medium text-destructive">
-                  {errors.name.message}
-                </p>
+            <FormField
+              control={control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold">Tên danh mục <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="VD: Món Tráng Miệng, Món Chay..." className="h-10 rounded-xl bg-background" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
+            />
 
             <div className="space-y-1">
               <label htmlFor="category-slug" className="text-xs font-semibold text-foreground">
@@ -212,36 +232,30 @@ export function CategoryModal({
               </p>
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="category-description" className="text-xs font-semibold text-foreground">
-                Mô tả ngắn
-              </label>
-              <Textarea
-                id="category-description"
-                {...register("description")}
-                placeholder="Giới thiệu tóm tắt về danh mục này..."
-                rows={3}
-                className="resize-none rounded-xl bg-background text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="category-image-url" className="text-xs font-semibold text-foreground">
-                URL ảnh đại diện danh mục
-              </label>
-              <Input
-                id="category-image-url"
-                {...register("imageUrl")}
-                placeholder="https://images.example.com/category.jpg"
-                aria-invalid={Boolean(errors.imageUrl)}
-                aria-describedby={errors.imageUrl ? "category-image-url-error" : undefined}
-                className="h-10 rounded-xl bg-background text-xs"
-              />
-              {errors.imageUrl && (
-                <p id="category-image-url-error" className="text-[11px] font-medium text-destructive">
-                  {errors.imageUrl.message}
-                </p>
+            <FormField
+              control={control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold">Mô tả ngắn</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Giới thiệu tóm tắt về danh mục này..." rows={3} className="resize-none rounded-xl bg-background text-xs" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
+            />
+
+            <FormField
+              control={control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold">URL ảnh đại diện danh mục</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="https://images.example.com/category.jpg" className="h-10 rounded-xl bg-background text-xs" />
+                  </FormControl>
+                  <FormMessage />
               {canPreviewImage && (
                 <div className="relative mt-2 aspect-[16/9] max-w-xs overflow-hidden rounded-xl border border-border bg-muted">
                   <Image
@@ -254,27 +268,31 @@ export function CategoryModal({
                   />
                 </div>
               )}
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="category-order-index" className="text-xs font-semibold text-foreground">
-                Thứ tự hiển thị
-              </label>
-              <Input
-                id="category-order-index"
-                type="number"
-                min={0}
-                {...register("orderIndex", { valueAsNumber: true })}
-                aria-invalid={Boolean(errors.orderIndex)}
-                aria-describedby={errors.orderIndex ? "category-order-index-error" : undefined}
-                className="h-10 w-32 rounded-xl bg-background text-xs"
-              />
-              {errors.orderIndex && (
-                <p id="category-order-index-error" className="text-[11px] font-medium text-destructive">
-                  {errors.orderIndex.message}
-                </p>
+                </FormItem>
               )}
-            </div>
+            />
+
+            <FormField
+              control={control}
+              name="orderIndex"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold">Thứ tự hiển thị</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      min={0}
+                      value={field.value ?? 0}
+                      onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                      className="h-10 w-32 rounded-xl bg-background text-xs"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-[11px]">Số nhỏ hơn sẽ được hiển thị trước.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <DialogFooter className="gap-2 border-t border-border pt-4">
@@ -296,6 +314,7 @@ export function CategoryModal({
             </Button>
           </DialogFooter>
         </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

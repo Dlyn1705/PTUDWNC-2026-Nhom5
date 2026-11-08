@@ -1,10 +1,9 @@
 export interface ApiResponse<T> {
-  success: boolean;
-  message?: string | null;
   data: T;
 }
 
 export interface ApiError {
+  correlationId?: string;
   status?: number;
   title?: string;
   detail?: string;

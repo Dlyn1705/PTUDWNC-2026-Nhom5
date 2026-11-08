@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading;
@@ -12,7 +13,13 @@ using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
+using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.API.Security;
+using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
+using CulinaryBlog.Domain.Interfaces;
+using FluentValidation;
+using ValidationException = CulinaryBlog.Domain.Exceptions.ValidationException;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -28,7 +35,8 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/auth")
             .WithTags("Authentication")
-            .RequireRateLimiting("auth");
+            .RequireRateLimiting("auth")
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.AddEndpointFilter(async (context, next) =>
         {
@@ -37,8 +45,9 @@ public static class AuthEndpoints
             return await next(context);
         });
 
-        group.MapGet("/ping", () => Results.Ok(new { message = "Auth module endpoint group is active." }))
+        group.MapGet("/ping", () => Results.Ok(ApiResponse<object>.Ok(new { message = "Auth module endpoint group is active." })))
             .WithName("AuthPing")
+            .Produces<ApiResponse<object>>(StatusCodes.Status200OK)
             .WithSummary("Kiểm tra trạng thái Auth group");
 
         group.MapPost("/google", async (
@@ -95,8 +104,10 @@ public static class AuthEndpoints
         group.MapPost("/refresh", async (
                 HttpContext context,
                 ISender sender,
+                IConfiguration configuration,
                 CancellationToken cancellationToken) =>
             {
+                RefreshCookieOriginGuard.EnsureAllowed(context, configuration);
                 var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
 
                 if (string.IsNullOrWhiteSpace(refreshToken))
@@ -134,8 +145,10 @@ public static class AuthEndpoints
         group.MapPost("/logout", async (
                 HttpContext context,
                 IAuthService authService,
+                IConfiguration configuration,
                 CancellationToken cancellationToken) =>
             {
+                RefreshCookieOriginGuard.EnsureAllowed(context, configuration);
                 var refreshToken = await ReadRefreshTokenAsync(context, cancellationToken);
                 if (string.IsNullOrWhiteSpace(refreshToken))
                 {
@@ -166,7 +179,169 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapPost("/forgot-password", async (
+                ForgotPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                ValidateEmail(request.Email);
+                await authService.RequestPasswordResetAsync(request.Email, cancellationToken);
+                return Results.Accepted(value: ApiResponse<object>.Ok(new
+                {
+                    message = "Nếu email có tài khoản, hướng dẫn đặt lại mật khẩu sẽ được gửi."
+                }));
+            })
+            .WithName("ForgotPassword")
+            .WithSummary("Yêu cầu gửi hướng dẫn đặt lại mật khẩu")
+            .Produces(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/reset-password", async (
+                ResetPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                ValidateEmail(request.Email);
+                if (string.IsNullOrWhiteSpace(request.Token) || request.Token.Length > 256)
+                    throw new ValidationException("Token", "Invalid reset token.");
+                if (string.IsNullOrWhiteSpace(request.NewPassword))
+                    throw new ValidationException("NewPassword", "New password is required.");
+                await authService.ResetPasswordAsync(request.Email, request.Token, request.NewPassword, cancellationToken);
+                return Results.NoContent();
+            })
+            .WithName("ResetPassword")
+            .WithSummary("Đặt lại mật khẩu bằng token xác nhận")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapPost("/change-password", async (
+                ChangePasswordRequest request, HttpContext context, IAuthService authService,
+                IValidator<ChangePasswordDto> validator,
+                CancellationToken cancellationToken) =>
+            {
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var validation = await validator.ValidateAsync(
+                    new ChangePasswordDto(request.CurrentPassword, request.NewPassword), cancellationToken);
+                if (!validation.IsValid)
+                    throw new ValidationException(validation.Errors
+                        .GroupBy(error => error.PropertyName)
+                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
+                await authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, cancellationToken);
+                ClearRefreshCookie(context);
+                return Results.NoContent();
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .WithName("ChangePassword")
+            .WithSummary("Đổi mật khẩu của người dùng hiện tại")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapGet("/me", async (
+                ClaimsPrincipal principal, IAuthService authService, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var profile = await authService.GetCurrentUserAsync(userId, cancellationToken);
+                return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
+            })
+            .RequireAuthorization()
+            .WithName("GetCurrentUser")
+            .WithSummary("Get the safe profile of the authenticated user")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPatch("/me", async (
+                UpdateProfileRequest request, ClaimsPrincipal principal, IAuthService authService,
+                IValidator<UpdateProfileDto> validator, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var update = new UpdateProfileDto(request.DisplayName, request.Bio, request.AvatarUrl);
+                var validation = await validator.ValidateAsync(update, cancellationToken);
+                if (!validation.IsValid)
+                    throw new ValidationException(validation.Errors
+                        .GroupBy(error => error.PropertyName)
+                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
+                var profile = await authService.UpdateCurrentUserAsync(userId, update, cancellationToken);
+                return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
+            })
+            .RequireAuthorization()
+            .WithName("UpdateCurrentUser")
+            .WithSummary("Update the authenticated user's display name, bio, or avatar")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        group.MapGet("/me/recipe-stats", async (
+                ClaimsPrincipal principal, IRecipeRepository recipes, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                var (_, created) = await recipes.GetPagedAsync(1, 1, authorId: userId,
+                    includeDrafts: true, ct: cancellationToken);
+                var (_, published) = await recipes.GetPagedAsync(1, 1, authorId: userId,
+                    includeDrafts: true, status: RecipeStatus.Published, ct: cancellationToken);
+                return Results.Ok(ApiResponse<ProfileRecipeStats>.Ok(new(created, published)));
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .WithName("GetProfileRecipeStats")
+            .WithSummary("Xem thống kê công thức của người dùng hiện tại")
+            .Produces<ApiResponse<ProfileRecipeStats>>(StatusCodes.Status200OK);
+
+        group.MapPost("/me/avatar", async (
+                IFormFile? file, ClaimsPrincipal principal, IAuthService authService,
+                IFileStorageService storage, CancellationToken cancellationToken) =>
+            {
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedAccessException("Authentication required.");
+                if (file is null || file.Length is <= 0 or > 5 * 1024 * 1024)
+                    throw new ValidationException("file", "Ảnh phải có dung lượng từ 1 byte đến 5 MiB.");
+                await using var stream = file.OpenReadStream();
+                var detected = await ImageFileValidation.DetectAsync(stream, file.FileName, file.ContentType, cancellationToken);
+                await authService.GetCurrentUserAsync(userId, cancellationToken);
+                var objectKey = $"avatars/{userId}/{Guid.NewGuid():N}.{detected.Extension}";
+                var url = await storage.UploadAsync(stream, objectKey, detected.ContentType, cancellationToken);
+                try
+                {
+                    var updated = await authService.UpdateCurrentUserAsync(userId,
+                        new UpdateProfileDto(null, null, url), cancellationToken);
+                    return Results.Ok(ApiResponse<CurrentUserDto>.Ok(updated));
+                }
+                catch
+                {
+                    try
+                    {
+                        var current = await authService.GetCurrentUserAsync(userId, CancellationToken.None);
+                        if (!string.Equals(current.AvatarUrl, url, StringComparison.Ordinal))
+                            await storage.DeleteAsync(url, CancellationToken.None);
+                    }
+                    catch { /* Keep the object when the profile update outcome cannot be verified. */ }
+                    throw;
+                }
+            })
+            .RequireAuthorization("AuthorPolicy")
+            .RequireRateLimiting("upload")
+            .DisableAntiforgery()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024))
+            .WithName("UploadProfileAvatar")
+            .WithSummary("Tải ảnh đại diện của người dùng hiện tại")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
+
         return app;
+    }
+
+    private static void ValidateEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 256
+            || !MailAddress.TryCreate(email, out var parsed)
+            || !string.Equals(parsed.Address, email.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("Email", "Valid email is required.");
     }
 
     private static async Task<string?> ReadRefreshTokenAsync(
@@ -225,6 +400,9 @@ public static class AuthEndpoints
             });
 }
 
+/// <summary>Recipe counts for the current user's profile.</summary>
+public sealed record ProfileRecipeStats(int Created, int Published);
+
 public static class LogoutAuthorization
 {
     public static bool HasRequiredRole(ClaimsPrincipal principal) =>
@@ -239,8 +417,20 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 /// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
+/// <summary>Email address for a password reset request.</summary>
+public sealed record ForgotPasswordRequest(string Email);
+/// <summary>Reset token and replacement password for the named account.</summary>
+public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
+/// <summary>Current and replacement passwords for the authenticated account.</summary>
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+/// <summary>Editable profile fields for the authenticated user.</summary>
+public sealed record UpdateProfileRequest(string? DisplayName, string? Bio, string? AvatarUrl);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
+/// <param name="AccessToken">Bearer token for authenticated API calls.</param>
+/// <param name="AccessTokenExpiry">UTC expiration of the access token.</param>
+/// <param name="User">Public profile of the authenticated user.</param>
+/// <param name="Roles">Roles granted to the authenticated user.</param>
 public sealed record AuthSessionResponseDto(
     string AccessToken,
     DateTime AccessTokenExpiry,

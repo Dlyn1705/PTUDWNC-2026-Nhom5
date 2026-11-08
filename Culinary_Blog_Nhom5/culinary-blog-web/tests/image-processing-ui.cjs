@@ -13,12 +13,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   fs.mkdirSync(directory, { recursive: true });
   const source = fs.readFileSync("components/dashboard/RecipeImageProcessingPreview.tsx", "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText
-    .replaceAll('require("@/lib/api/fileApi")', 'require("./api.cjs")').replaceAll('require("next/image")', 'require("./image.cjs")');
+    .replaceAll('require("@/lib/api/fileApi")', 'require("./api.cjs")')
+    .replaceAll('require("@/lib/api/problemDetails")', 'require("./problemDetails.cjs")')
+    .replaceAll('require("next/image")', 'require("./image.cjs")');
   fs.writeFileSync(path.join(directory, "preview.cjs"), compiled);
   fs.writeFileSync(path.join(directory, "image.cjs"), 'module.exports=({unoptimized,...props})=>require("react").createElement("img",props);');
+  fs.writeFileSync(path.join(directory, "problemDetails.cjs"), 'exports.toApiProblemError=error=>error;');
   fs.writeFileSync(path.join(directory, "api.cjs"), `exports.getRecipeImageStatus=async()=>{
     window.pollCalls++;const next=window.responses.shift()||{processingStatus:"Processing"};
-    if(next.error)throw {response:{status:next.error}};return {...window.initial,...next};
+    if(next.error)throw {status:next.error,correlationId:"preview-test-id"};return {...window.initial,...next};
   };`);
   fs.writeFileSync(path.join(directory, "entry.cjs"), `const React=require("react"),{createRoot}=require("react-dom/client"),Preview=require("./preview.cjs").default;
     const root=createRoot(document.getElementById("root"));let key=0;
@@ -41,7 +44,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.clock.runFor(3100); await page.getByRole("link", { name: "Ảnh vừa 800×600" }).waitFor();
     await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 2);
     await page.evaluate(() => window.renderCase([{ error: 403 }])); await page.clock.runFor(1200);
-    await page.getByRole("alert").waitFor(); await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 1);
+    await page.getByRole("alert").waitFor(); assert.match(await page.getByRole("alert").innerText(), /preview-test-id/);
+    await page.clock.runFor(15000); assert.equal(await page.evaluate(() => window.pollCalls), 1);
     await page.evaluate(() => window.renderCase([{ error: 500 }, { error: 500 }, { error: 500 }]));
     await page.clock.runFor(1100); await page.clock.runFor(3100); await page.clock.runFor(3100); await page.clock.runFor(15000);
     assert.equal(await page.evaluate(() => window.pollCalls), 3);

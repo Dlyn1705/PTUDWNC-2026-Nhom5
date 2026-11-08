@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
+using CulinaryBlog.API.Responses;
 using CulinaryBlog.Application;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
@@ -19,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -37,7 +39,9 @@ public sealed class AuthFixture : IAsyncLifetime
     public TestClock Clock { get; } = new();
     public FailureInjection Failures { get; } = new();
     public CommitFailureInjection CommitFailures { get; } = new();
+    public CapturedPasswordResetEmail ResetEmail { get; } = new();
     public IServiceProvider Services => app.Services;
+    public Action<IServiceCollection>? ConfigureServices { get; set; }
 
     public async Task InitializeAsync()
     {
@@ -50,6 +54,8 @@ public sealed class AuthFixture : IAsyncLifetime
         var connection = new NpgsqlConnectionStringBuilder(adminConnection) { Database = databaseName }.ToString();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
+        // Integration tests run without machine-level Windows EventLog permissions.
+        builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
@@ -60,6 +66,7 @@ public sealed class AuthFixture : IAsyncLifetime
         });
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddSingleton<IPasswordResetEmailSender>(ResetEmail);
         builder.Services.AddSingleton<TimeProvider>(Clock);
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.AddInterceptors(Failures, CommitFailures));
         builder.Services.AddScoped<IJwtService, ControlledJwtService>();
@@ -76,13 +83,20 @@ public sealed class AuthFixture : IAsyncLifetime
         });
         builder.Services.AddRateLimiter(options => options.AddPolicy("auth", _ =>
             System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("auth-tests")));
+        ConfigureServices?.Invoke(builder.Services);
         app = builder.Build();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
+        app.UseStatusCodePages(async statusContext =>
+        {
+            if (statusContext.HttpContext.Request.Path.StartsWithSegments("/api"))
+                await ApiProblemResponses.WriteStatusAsync(statusContext.HttpContext);
+        });
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
         // Production maps the auth endpoints inside the versioned /api/v1 group.
-        app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapAuthEndpoints().MapAdminEndpoints().MapCategoryEndpoints();
         app.MapGet("/protected", (ClaimsPrincipal user) => Results.Ok(user.Identity!.IsAuthenticated))
             .RequireAuthorization();
         using (var scope = app.Services.CreateScope())
@@ -140,16 +154,34 @@ public sealed class FailureInjection : DbCommandInterceptor
 {
     public bool FailNextInsert { get; set; }
     public bool FailNextSigning { get; set; }
+    public bool FailNextRoleRemoval { get; set; }
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
         DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
+        RejectRoleRemoval(command);
         if (FailNextInsert && command.CommandText.Contains("INSERT INTO \"RefreshTokens\"", StringComparison.Ordinal))
         {
             FailNextInsert = false;
             throw new InvalidOperationException("Injected token insert failure.");
         }
         return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+        DbCommand command, CommandEventData eventData, InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        RejectRoleRemoval(command);
+        return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+    }
+
+    private void RejectRoleRemoval(DbCommand command)
+    {
+        if (!FailNextRoleRemoval || !command.CommandText.Contains("DELETE FROM \"AspNetUserRoles\"", StringComparison.Ordinal))
+            return;
+        FailNextRoleRemoval = false;
+        throw new InvalidOperationException("Injected role removal failure.");
     }
 }
 
@@ -180,5 +212,17 @@ public sealed class ControlledJwtService(IOptions<JwtSettings> options, TimeProv
             throw new InvalidOperationException("Injected signing failure.");
         }
         return GenerateAccessToken(user, roles);
+    }
+}
+
+public sealed class CapturedPasswordResetEmail : IPasswordResetEmailSender
+{
+    public string? LastEmail { get; private set; }
+    public string? LastToken { get; private set; }
+    public Task SendAsync(string email, string token, CancellationToken cancellationToken)
+    {
+        LastEmail = email;
+        LastToken = token;
+        return Task.CompletedTask;
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using CulinaryBlog.Application.Contracts;
@@ -33,6 +34,7 @@ public sealed class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IPasswordResetEmailSender _passwordResetEmailSender;
 
     public AuthService(
         ApplicationDbContext dbContext,
@@ -44,7 +46,8 @@ public sealed class AuthService : IAuthService
         IHttpContextAccessor httpContextAccessor,
         ILogger<AuthService> logger,
         TimeProvider timeProvider,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IPasswordResetEmailSender passwordResetEmailSender)
     {
         _dbContext = dbContext;
         _userManager = userManager;
@@ -56,7 +59,138 @@ public sealed class AuthService : IAuthService
         _logger = logger;
         _timeProvider = timeProvider;
         _scopeFactory = scopeFactory;
+        _passwordResetEmailSender = passwordResetEmailSender;
     }
+
+    public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(email.Trim());
+        if (user is null || !user.IsActive || !await _userManager.HasPasswordAsync(user)) return;
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        // Limit mail to one message per account per minute as well as the endpoint's IP limiter.
+        if (await _dbContext.PasswordResetTokens.AnyAsync(token => token.UserId == user.Id
+            && token.CreatedAt > now.AddMinutes(-1), cancellationToken)) return;
+
+        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        _dbContext.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = HashResetToken(rawToken),
+            CreatedAt = now,
+            ExpiresAt = now.AddMinutes(30)
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _passwordResetEmailSender.SendAsync(user.Email!, rawToken, cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The public response must never reveal account or SMTP state.
+            _logger.LogError(exception, "Password reset mail delivery failed for user {UserId}", user.Id);
+        }
+    }
+
+    public Task ResetPasswordAsync(string email, string token, string newPassword, CancellationToken cancellationToken) =>
+        _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(
+            () => ResetPasswordCoreAsync(email, token, newPassword, cancellationToken));
+
+    private async Task ResetPasswordCoreAsync(string email, string token, string newPassword, CancellationToken cancellationToken)
+    {
+        if (token.Length > 256) throw new BadRequestException("Invalid or expired reset token.");
+        var hash = HashResetToken(token);
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var stored = await _dbContext.PasswordResetTokens.AsNoTracking()
+            .SingleOrDefaultAsync(value => value.TokenHash == hash, cancellationToken);
+        var user = stored is null ? null : await _userManager.FindByIdAsync(stored.UserId);
+        if (user is null || !user.IsActive || !string.Equals(user.Email, email.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new BadRequestException("Invalid or expired reset token.");
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var claimed = await _dbContext.PasswordResetTokens
+            .Where(value => value.Id == stored!.Id && value.ConsumedAt == null && value.ExpiresAt > now)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.ConsumedAt, now), cancellationToken);
+        if (claimed != 1) throw new BadRequestException("Invalid or expired reset token.");
+
+        var identityToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, identityToken, newPassword);
+        if (!result.Succeeded) throw PasswordValidation(result);
+        await _dbContext.PasswordResetTokens.Where(value => value.UserId == user.Id && value.ConsumedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.ConsumedAt, now), cancellationToken);
+        await RevokeActiveTokensAsync(user.Id, now, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public Task ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken) =>
+        _dbContext.Database.CreateExecutionStrategy().ExecuteAsync(
+            () => ChangePasswordCoreAsync(userId, currentPassword, newPassword, cancellationToken));
+
+    private async Task ChangePasswordCoreAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null || !user.IsActive) throw new UnauthorizedAccessException("Account unavailable.");
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(error => error.Code == "PasswordMismatch"))
+                throw new ValidationException("CurrentPassword", "Current password is incorrect.");
+            throw PasswordValidation(result);
+        }
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        await RevokeActiveTokensAsync(userId, now, cancellationToken);
+        await _dbContext.PasswordResetTokens.Where(value => value.UserId == userId && value.ConsumedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.ConsumedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public Task<CurrentUserDto> GetCurrentUserAsync(string userId, CancellationToken cancellationToken) =>
+        BuildCurrentUserAsync(userId, cancellationToken);
+
+    public async Task<CurrentUserDto> UpdateCurrentUserAsync(
+        string userId, UpdateProfileDto update, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) throw new NotFoundException("User", userId);
+        if (!user.IsActive) throw new UnauthorizedAccessException("Account unavailable.");
+
+        if (update.DisplayName is not null) user.DisplayName = update.DisplayName.Trim();
+        if (update.Bio is not null) user.Bio = string.IsNullOrWhiteSpace(update.Bio) ? null : update.Bio.Trim();
+        if (update.AvatarUrl is not null) user.AvatarUrl = string.IsNullOrWhiteSpace(update.AvatarUrl) ? null : update.AvatarUrl.Trim();
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            throw new ConflictException("The profile could not be updated.", "PROFILE_UPDATE_FAILED");
+
+        return await ToCurrentUserDtoAsync(user, cancellationToken);
+    }
+
+    private async Task<CurrentUserDto> BuildCurrentUserAsync(string userId, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) throw new NotFoundException("User", userId);
+        if (!user.IsActive) throw new UnauthorizedAccessException("Account unavailable.");
+        return await ToCurrentUserDtoAsync(user, cancellationToken);
+    }
+
+    private async Task<CurrentUserDto> ToCurrentUserDtoAsync(
+        ApplicationUser user, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var roles = await _userManager.GetRolesAsync(user);
+        return new CurrentUserDto(user.Id, user.Email!, user.DisplayName, user.AvatarUrl,
+            user.Bio, roles.ToArray(), user.IsActive, user.CreatedAt);
+    }
+
+    private static string HashResetToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+    private static ValidationException PasswordValidation(IdentityResult result) => new(
+        result.Errors.GroupBy(error => error.Code.StartsWith("Password", StringComparison.OrdinalIgnoreCase)
+            ? "NewPassword" : "Password")
+            .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
 
     public Task<AuthResponseDto> RegisterAsync(string email, string displayName, string password, CancellationToken cancellationToken)
     {

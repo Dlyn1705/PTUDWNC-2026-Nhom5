@@ -12,7 +12,7 @@ export interface ManagedRecipeDto {
   slug: string;
   description: string;
   status: RecipeStatusValue;
-  updatedAt: string;
+  updatedAt: string | null;
   category: { id: string; name: string } | null;
   author: { id: string; displayName: string } | null;
   primaryImageUrl?: string | null;
@@ -38,10 +38,10 @@ export const RecipeStatus = {
 export type RecipeStatusValue = (typeof RecipeStatus)[keyof typeof RecipeStatus];
 
 export const difficultyLabel: Record<DifficultyValue, string> = {
-  1: "Easy",
-  2: "Medium",
-  3: "Hard",
-  4: "Expert",
+  1: "Dễ",
+  2: "Trung bình",
+  3: "Khó",
+  4: "Chuyên gia",
 };
 
 export const statusLabel: Record<RecipeStatusValue, string> = {
@@ -100,6 +100,8 @@ export interface RecipeSummaryDto {
   title: string;
   slug: string;
   createdAt: string;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   description: string;
   instructions?: string | null;
   prepTimeMinutes: number;
@@ -175,6 +177,7 @@ export interface CreateRecipeStepRequest {
   description: string;
   title?: string | null;
   timerMinutes?: number | null;
+  imageUrl?: string | null;
 }
 
 export interface CreateRecipeNutritionRequest {

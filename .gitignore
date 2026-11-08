@@ -4,6 +4,7 @@
 # Build directories
 [Bb]in/
 [Oo]bj/
+[Tt]est[Rr]esults/
 [Ll]og/
 [Ll]ogs/
 [Bb]uild/
@@ -26,6 +27,10 @@
 .env.*.local
 .data-protection-keys/
 .tools/
+/tmp/
+/artifacts/
+__pycache__/
+*.pyc
 
 # OS generated files
 .DS_Store
@@ -39,3 +44,6 @@ Desktop.ini
 
 # Personal working documents
 /Culinary_Blog_Nhom5/docx/Linh/
+!/Culinary_Blog_Nhom5/docx/Linh/
+/Culinary_Blog_Nhom5/docx/Linh/*
+!/Culinary_Blog_Nhom5/docx/Linh/Frontend_Backend_Contract_Matrix.md

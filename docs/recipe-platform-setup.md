@@ -56,13 +56,13 @@ Copy-Item .env.example .env.local # Chỉ chạy khi chưa có .env.local
 npm run dev
 ```
 
-Đặt `AUTH_SECRET` riêng; `NEXT_PUBLIC_API_URL` là origin API mà browser truy cập,
+`NEXT_PUBLIC_API_URL` là origin API mà browser truy cập,
 `API_INTERNAL_URL` là origin API cho server. Không thêm `/api/v1` vào hai biến này
 vì API client đã có đường dẫn phiên bản. Biến public được đóng gói lúc build.
 Không ghi đè `.env.local` hiện có và không commit secrets.
 
 Dependencies đã khai báo đầy đủ: Next.js/React/TypeScript, Axios, Zod,
-React Hook Form, TanStack Query, NextAuth, Zustand và thư viện giao diện.
+React Hook Form, TanStack Query, Zustand và thư viện giao diện.
 Backend đã có JWT Bearer, OpenAPI/Scalar, MinIO, Serilog/Seq và OpenTelemetry.
 Rate limiting dùng ASP.NET Core có sẵn. Không cần package mới cho thay đổi này.
 

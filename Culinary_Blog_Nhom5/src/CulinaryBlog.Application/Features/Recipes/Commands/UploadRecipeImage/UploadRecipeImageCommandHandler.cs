@@ -20,7 +20,8 @@ public sealed class UploadRecipeImageCommandHandler(
     IFileStorageService storage,
     IRecipeImageMutations mutations,
     IRecipeImageProcessingQueue processingQueue,
-    ILogger<UploadRecipeImageCommandHandler> logger) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
+    ILogger<UploadRecipeImageCommandHandler> logger,
+    IRecipeImageUploadIntents? uploadIntents = null) : IRequestHandler<UploadRecipeImageCommand, RecipeImageDto>
 {
     public async Task<RecipeImageDto> Handle(UploadRecipeImageCommand request, CancellationToken ct)
     {
@@ -36,20 +37,24 @@ public sealed class UploadRecipeImageCommandHandler(
         if (recipe.Status == RecipeStatus.Archived)
             throw new ConflictException("Không thể tải ảnh lên công thức đã lưu trữ.", "RECIPE_ARCHIVED");
 
-        var detected = await DetectImageAsync(request.Content, request.FileName, request.ContentType, ct);
+        var detected = await ImageFileValidation.DetectAsync(request.Content, request.FileName, request.ContentType, ct);
         var existingImages = recipe.Images.Where(x => !x.IsDeleted).ToList();
         var orderIndex = existingImages.Count == 0 ? 0 : existingImages.Max(x => x.OrderIndex) + 1;
         var image = RecipeImage.Create(request.RecipeId, string.Empty, request.AltText?.Trim(), existingImages.Count == 0, orderIndex);
         image.ProcessingStatus = "Pending";
         var objectKey = $"recipes/{request.RecipeId}/{image.Id:N}.{detected.Extension}";
-        var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, ct);
+        if (uploadIntents is not null) await uploadIntents.BeginAsync(image.Id, request.RecipeId, objectKey, ct);
+        // Bound ambiguous PUT lifetime; a persistent intent reconciles objects after timeout/restart.
+        using var uploadDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        uploadDeadline.CancelAfter(TimeSpan.FromSeconds(120));
+        var url = await storage.UploadAsync(request.Content, objectKey, detected.ContentType, uploadDeadline.Token);
         image.OriginalUrl = url;
 
         try
         {
             await mutations.AddAsync(image, ct);
         }
-        catch (Exception exception)
+        catch
         {
             // A lost commit acknowledgement is not proof that the insert rolled back.
             // Query by stable ID before deleting original; if DB is unavailable retain it for operator reconciliation.
@@ -63,9 +68,9 @@ public sealed class UploadRecipeImageCommandHandler(
             if (committed is null)
             {
                 try { await storage.DeleteAsync(url, CancellationToken.None); }
-                catch (Exception cleanupError) { logger.LogError(cleanupError, "Could not remove image object after database failure for {RecipeId}", request.RecipeId); }
-                if (exception.GetType().Name == "DbUpdateException")
-                    throw new ConflictException("Một ảnh khác vừa được tải lên công thức này. Vui lòng thử lại.", "RECIPE_IMAGE_CONFLICT");
+                catch { logger.LogError("Original cleanup deferred for {RecipeImageId} in {RecipeId} with {CorrelationId}", image.Id, request.RecipeId, $"job-upload-{image.Id:N}"); }
+                // Infrastructure maps actual concurrency/unique violations to 409. Other DB
+                // failures are 5xx; a type-name check must not misreport an outage as conflict.
                 throw;
             }
         }
@@ -84,35 +89,4 @@ public sealed class UploadRecipeImageCommandHandler(
             image.ThumbnailUrl, image.AltText, image.IsPrimary, image.OrderIndex, image.ProcessingStatus);
     }
 
-    private static async Task<(string Extension, string ContentType)> DetectImageAsync(Stream stream, string fileName, string declaredType, CancellationToken ct)
-    {
-        if (!stream.CanSeek) throw new ValidationException("file", "Không thể đọc file được gửi lên.");
-        stream.Position = 0;
-        var header = new byte[Math.Min(32, (int)Math.Min(stream.Length, 32))];
-        var read = await stream.ReadAsync(header.AsMemory(), ct);
-        stream.Position = 0;
-        var bytes = header.AsSpan(0, read);
-        (string ext, string mime)? detected = null;
-        var hasAvifBrand = false;
-        for (var offset = 8; offset + 4 <= read; offset += 4)
-        {
-            if (bytes.Slice(offset, 4).SequenceEqual("avif"u8) || bytes.Slice(offset, 4).SequenceEqual("avis"u8))
-            {
-                hasAvifBrand = true;
-                break;
-            }
-        }
-
-        if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) detected = ("jpg", "image/jpeg");
-        else if (bytes.Length >= 8 && bytes[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) detected = ("png", "image/png");
-        else if (bytes.Length >= 12 && bytes[..4].SequenceEqual("RIFF"u8) && bytes.Slice(8, 4).SequenceEqual("WEBP"u8)) detected = ("webp", "image/webp");
-        else if (bytes.Length >= 12 && bytes.Slice(4, 4).SequenceEqual("ftyp"u8) && hasAvifBrand) detected = ("avif", "image/avif");
-
-        if (detected is null) throw new ValidationException("file", "Nội dung không phải ảnh JPEG, PNG, WebP hoặc AVIF hợp lệ.");
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var extensionMatches = detected.Value.ext == "jpg" ? extension is ".jpg" or ".jpeg" : extension == "." + detected.Value.ext;
-        if (!extensionMatches || !string.Equals(declaredType, detected.Value.mime, StringComparison.OrdinalIgnoreCase))
-            throw new ValidationException("file", "Phần mở rộng hoặc MIME của file không khớp với nội dung ảnh.");
-        return detected.Value;
-    }
 }

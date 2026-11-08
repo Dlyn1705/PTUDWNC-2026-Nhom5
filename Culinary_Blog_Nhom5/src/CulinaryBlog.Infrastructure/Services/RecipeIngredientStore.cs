@@ -8,7 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class RecipeIngredientStore(IServiceScopeFactory scopes, ICurrentUserService user) : IRecipeIngredientStore
+public sealed class RecipeIngredientStore(
+    IServiceScopeFactory scopes,
+    ICurrentUserService user,
+    IRecipeCacheInvalidator cache) : IRecipeIngredientStore
 {
     public async Task<IngredientSnapshot> ReadAsync(Guid recipeId, CancellationToken ct)
     {
@@ -26,7 +29,7 @@ public sealed class RecipeIngredientStore(IServiceScopeFactory scopes, ICurrentU
         var strategyDb = strategyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         try
         {
-            return await strategyDb.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+            var result = await strategyDb.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
                 using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -82,6 +85,8 @@ public sealed class RecipeIngredientStore(IServiceScopeFactory scopes, ICurrentU
                 await transaction.CommitAsync(ct);
                 return Snapshot(recipe, active);
             });
+            await cache.InvalidateRecipeAsync(mutation.RecipeId, null, CancellationToken.None);
+            return result;
         }
         catch (DbUpdateConcurrencyException)
         {

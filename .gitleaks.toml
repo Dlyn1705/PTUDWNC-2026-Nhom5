@@ -1,0 +1,8 @@
+[allowlist]
+description = "Reviewed historical false positives for issue 86; keep new findings visible"
+fingerprints = [
+  # Static test JWT signing key in ProgramSecurityTests, not a deployed credential.
+  "7364b74dcddf85828275084a9c624016b4f6580a:Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests/ProgramSecurityTests.cs:generic-api-key:141",
+  # Upstream NuGet package README sample Seq apiKey, not a project credential.
+  "dfc5d299b70d2f28d6a56daaf68bf7df1c2466e0:Culinary_Blog_Nhom5/.nuget-packages/serilog.settings.configuration/10.0.0/README.md:generic-api-key:178"
+]

@@ -10,3 +10,5 @@ public sealed record AuthResponseDto(
     DateTime RefreshTokenExpiry,
     UserDto User,
     IReadOnlyList<string> Roles);
+
+public sealed record ChangePasswordDto(string CurrentPassword, string NewPassword);

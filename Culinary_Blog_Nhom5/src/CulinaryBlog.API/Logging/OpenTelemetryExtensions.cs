@@ -16,17 +16,33 @@ public static class OpenTelemetryExtensions
         }
 
         var resourceBuilder = ResourceBuilder.CreateDefault()
-            .AddService(DiagnosticsConfig.ServiceName);
+            .AddService(DiagnosticsConfig.ServiceName, serviceInstanceId: configuration["Observability:InstanceId"] ?? Environment.MachineName);
 
         services.AddOpenTelemetry()
             .WithTracing(tracing =>
             {
                 tracing.SetResourceBuilder(resourceBuilder)
-                    .AddAspNetCoreInstrumentation()
+                    .AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.RecordException = false;
+                        options.EnrichWithHttpResponse = (activity, response) =>
+                            activity.SetTag("correlation.id", response.HttpContext.Items[CulinaryBlog.API.Logging.RequestLogContext.CorrelationHeader]);
+                    })
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation();
 
-                tracing.AddOtlpExporter();
+                tracing.AddProcessor(new CulinaryBlog.API.Logging.SafeTelemetryProcessor());
+                tracing.AddOtlpExporter(options =>
+                {
+                    if (configuration["Observability:OpenTelemetry:Endpoint"] is { Length: > 0 } endpoint)
+                        options.Endpoint = new Uri(endpoint, UriKind.Absolute);
+                    if (configuration["Observability:OpenTelemetry:Protocol"] == "http/protobuf")
+                    {
+                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                        if (configuration["Observability:OpenTelemetry:Endpoint"] is { Length: > 0 } baseEndpoint)
+                            options.Endpoint = new Uri(baseEndpoint.TrimEnd('/') + "/v1/traces");
+                    }
+                });
                 
                 if (configuration.GetValue<bool>("Observability:OpenTelemetry:UseConsoleExporter"))
                 {
@@ -39,9 +55,22 @@ public static class OpenTelemetryExtensions
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter(DiagnosticsConfig.MeterName);
+                    .AddView("*", new MetricStreamConfiguration { TagKeys = ["http.request.method", "http.route", "http.response.status_code", "error.type", "cache.kind", "cache.outcome", "db.operation", "db.client.connection.state"] })
+                    .AddMeter(DiagnosticsConfig.MeterName)
+                    .AddMeter(CulinaryBlog.Infrastructure.Services.PerformanceMetrics.MeterName)
+                    .AddMeter("Npgsql");
 
-                metrics.AddOtlpExporter();
+                metrics.AddOtlpExporter(options =>
+                {
+                    if (configuration["Observability:OpenTelemetry:Endpoint"] is { Length: > 0 } endpoint)
+                        options.Endpoint = new Uri(endpoint, UriKind.Absolute);
+                    if (configuration["Observability:OpenTelemetry:Protocol"] == "http/protobuf")
+                    {
+                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                        if (configuration["Observability:OpenTelemetry:Endpoint"] is { Length: > 0 } baseEndpoint)
+                            options.Endpoint = new Uri(baseEndpoint.TrimEnd('/') + "/v1/metrics");
+                    }
+                });
                 
                 if (configuration.GetValue<bool>("Observability:OpenTelemetry:UseConsoleExporter"))
                 {

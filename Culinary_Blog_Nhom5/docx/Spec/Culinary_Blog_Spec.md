@@ -55,7 +55,7 @@ Mọi mutation recipe và child data nên đi qua use case/Unit of Work để đ
 ```mermaid
 stateDiagram-v2
     [*] --> Draft: Create
-    Draft --> Published: Publish (có ít nhất 1 Step)
+    Draft --> Published: Publish (có ít nhất 1 Step và 1 Ingredient active)
     Published --> Draft: Unpublish
     Draft --> Archived: Archive
     Published --> Archived: Archive
@@ -68,7 +68,7 @@ stateDiagram-v2
 Quy tắc vòng đời:
 
 - Tạo mới luôn bắt đầu ở trạng thái `Draft`.
-- `Publish` chỉ thành công khi recipe có ít nhất một bước thực hiện (`Steps.Count > 0`).
+- **Chuẩn hóa Issue #83 (02/11/2026):** Draft chỉ publish khi có ít nhất một step và một ingredient chưa xóa mềm; thiếu trả 422 với field errors `steps`/`ingredients`. Đây là bổ sung nghiệp vụ của Issue #83 so với FR-RCP-005 trong SRS gốc chỉ nêu điều kiện step. Kiểm tra dưới cùng khóa Recipe với mutation child. Gọi lại khi đã Published vẫn idempotent; giữ quyền xóa nguyên liệu cuối theo FR-RCP-009, không tự unpublish dữ liệu cũ.
 - Publish/unpublish là idempotent: gọi lại khi đã ở trạng thái đích thì trả thành công (`200 OK`), không tạo lỗi nghiệp vụ.
 - `Published` mới được hiển thị cho Guest, được tìm kiếm và đưa vào sitemap.
 - `Draft`/`Archived` chỉ xem được bởi owner hoặc Admin.
@@ -83,7 +83,7 @@ Quy tắc vòng đời:
 3. Domain tạo recipe với status Draft và sinh slug unique (nếu trùng slug thì tự động thêm hậu tố số tăng dần: `-2`, `-3`...).
 4. Lưu aggregate trong một transaction duy nhất.
 5. Author bổ sung steps, ingredients và images nếu chưa gửi cùng request ban đầu.
-6. Khi publish, Domain kiểm tra số lượng steps > 0.
+6. Khi publish từ Draft, kiểm tra active steps > 0 và active ingredients > 0 trong cùng transaction/khóa Recipe.
 7. Nếu hợp lệ, status chuyển Published, gán `PublishedAt`, invalidate cache và cập nhật search visibility.
 
 ### 3.4 Category
@@ -123,6 +123,8 @@ Quy tắc vòng đời:
 - **Cập nhật nội dung bước:** Endpoint `PUT /recipes/{id}/steps/{stepId}` chỉ dùng để sửa thông tin (`title`, `description`, `timerMinutes`, `imageUrl`), không chứa `stepNumber` để tránh vi phạm khóa duy nhất.
 - **Đổi thứ tự bước (Reorder):** Tách riêng endpoint chuyên dụng `PUT /recipes/{id}/steps/reorder` nhận mảng `{ "stepIds": ["id1", "id2", ...] }` và cập nhật lại `StepNumber = 1, 2, 3...` trong một transaction an toàn, tránh lỗi xung đột `UNIQUE(RecipeId, StepNumber)`.
 - **Xóa bước:** Xóa bước qua `DELETE /recipes/{id}/steps/{stepId}` sẽ tự động renumber các bước còn lại theo thứ tự liên tục (1, 2, 3...). Nếu bài viết đang `Published` và chỉ còn đúng 1 bước, hệ thống chặn xóa và trả về lỗi `422 Unprocessable Entity`.
+
+**Chuẩn hóa triển khai FR-RCP-010:** Tối đa 100 bước active/công thức; Owner/Admin được quản lý bước trên Draft/Published/Archived chưa xóa. Xóa riêng một bước là soft-delete; unique index `(RecipeId, StepNumber)` áp dụng cho `WHERE "IsDeleted" = false`. Mọi mutation step đã lưu yêu cầu strong `If-Match` chứa ETag Recipe; API đọc quản lý và mutation thành công trả ETag mới, version cũ trả 409, thiếu/sai version hoặc dữ liệu không hợp lệ trả 422. Reorder giữ nguyên Title đã lưu, chỉ đổi StepNumber; title trắng khi thêm/sửa được đặt theo số bước lúc ghi. ImageUrl nullable, tối đa 500 ký tự, URL HTTP/HTTPS không chứa thông tin đăng nhập; backend không tải URL và không tự xóa object ảnh dùng chung khi xóa bước. Publish và mutation step dùng cùng khóa Recipe, ngăn Published còn 0 bước kể cả khi chạy đồng thời. DTO quản lý dùng stepNumber/description; public detail giữ order/text để tương thích. Instructions cũ không bị ghi đè bởi CRUD/reorder steps.
 
 ### 3.7 Xóa và tính toàn vẹn dữ liệu (Mô hình 2 giai đoạn)
 
@@ -181,6 +183,8 @@ Hệ thống áp dụng mô hình **Xóa 2 giai đoạn (Two-Stage Deletion Life
 
 ### Cache
 
+**Contract riêng cho search (`FR-SRCH-001`, chuẩn hóa 01/11/2026):** `/api/v1/recipes/search` mặc định relevance (`ts_rank`) giảm dần; mặc định `createdAt desc` bên trên áp dụng cho listing `/recipes`. Search chấp nhận `sortBy=relevance|createdAt|title|cookTime`, `sortOrder=asc|desc`; relevance luôn giảm dần, sort tường minh thay thế relevance làm thứ tự chính. Khi có `sortBy` hoặc `sortOrder`, bỏ qua alias `sort`. `servings` là lọc bằng chính xác và tương đương `minServings=maxServings`; alias mâu thuẫn với range trả 422. q thiếu/rỗng/trắng hoặc chỉ dấu câu sau chuẩn hóa trả 200 với `{ data: [], meta }`; q sau trim có 1 ký tự hoặc dài hơn 100 ký tự trả 422. Input sai kiểu ở HTTP binding có thể trả 400; input sai ngữ nghĩa qua validator trả 422. Page vượt kết quả trả danh sách rỗng với page đã yêu cầu; không tự chuyển về trang cuối. Chi tiết và kiểm thử xem [Search_API_Contract.md](./Search_API_Contract.md).
+
 - Category list: Cache Redis/IMemoryCache với TTL mục tiêu 30–60 phút.
 - Recipe detail: Cache theo slug và tag `recipes`, TTL chuẩn hóa **60 phút** (cấu hình qua `appsettings.json`), sử dụng cache-aside / Output Cache kết hợp tag-based invalidation.
 - Recipe list/search: Cache theo query string, TTL ngắn 1–5 phút.
@@ -219,6 +223,8 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | | `DELETE /categories/{id}` | Admin | Xóa mềm danh mục (chặn nếu còn chứa recipes) |
 | **Recipes** | `GET /recipes` | Public | Danh sách recipes (lọc, phân trang, `sortBy`, `sortOrder`) |
 | | `GET /recipes/{slug}` | Public / Owner | Chi tiết recipe theo slug (kèm đầy đủ nested data) |
+| | `GET /recipes/{id}` | Owner/Admin | Chi tiết recipe theo ID để quản lý Draft/Published/Archived |
+| | `GET /recipes/mine` | Author/Admin | Danh sách recipe quản lý, gồm Draft/Published/Archived, có phân trang |
 | | `GET /recipes/search` | Public | Tìm kiếm FTS không dấu (`?q=...`) |
 | | `POST /recipes` | Author/Admin | Tạo recipe mới (trạng thái Draft) |
 | | `PUT /recipes/{id}` | Owner/Admin | Cập nhật thông tin cơ bản của recipe |
@@ -231,7 +237,9 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | **Images** | `POST /recipes/{id}/images` | Owner/Admin | Upload ảnh mới (multipart/form-data) |
 | | `PATCH /recipes/{id}/images/{imgId}/primary` | Owner/Admin | Đặt làm ảnh chính duy nhất |
 | | `DELETE /recipes/{id}/images/{imgId}` | Owner/Admin | Xóa ảnh khỏi recipe |
-| **Steps** | `POST /recipes/{id}/steps` | Owner/Admin | Thêm bước mới (Server tự động tính StepNumber) |
+| **Steps** | `GET /recipes/{id}/steps` | Owner/Admin | Danh sách bước active kèm ETag Recipe (no-store) |
+| | `GET /recipes/{id}/steps/{stepId}` | Owner/Admin | Chi tiết một bước thuộc công thức, kèm ETag Recipe |
+| | `POST /recipes/{id}/steps` | Owner/Admin | Thêm bước mới, yêu cầu If-Match; Server tự động tính StepNumber |
 | | `PUT /recipes/{id}/steps/{stepId}` | Owner/Admin | Cập nhật nội dung bước (title, desc, timer) |
 | | `PUT /recipes/{id}/steps/reorder` | Owner/Admin | Đổi thứ tự toàn bộ các bước an toàn |
 | | `DELETE /recipes/{id}/steps/{stepId}` | Owner/Admin | Xóa bước & tự động renumber (chặn xóa nếu bài Published còn 1 bước) |
@@ -396,7 +404,7 @@ Các trang recipe đã Published phải có metadata riêng, canonical URL, Open
 | `BaseEntity` | UUID v4 (`Id`), `CreatedAt`, `UpdatedAt`, `IsDeleted`, `RowVersion` (bytea timestamp concurrency token). |
 | `Recipe` | Aggregate Root. N:1 với Category, N:1 với Author. Thuộc tính: `Title` (varchar 200), `Slug` (varchar 220, Unique Filtered Index `WHERE "IsDeleted" = false`), `Description` (text), `Instructions` (text NULL - legacy field), `PrepTime`, `CookTime`, `Servings`, `Difficulty`, `Status`, `SearchVector` (tsvector FTS), `PublishedAt`. |
 | `RecipeNutrition` | Owned Entity 1:1, nhúng trực tiếp vào bảng Recipes (`Nutrition_*`). Gồm 6 chỉ số: `Calories`, `Protein`, `Carbohydrates`, `Fat`, `Fiber`, `Sodium` (đều là `decimal(8,2)?`). |
-| `RecipeStep` | 1:N với Recipe; cascade delete; thuộc tính: `Title` (varchar 200, bắt buộc), `Description` (text, bắt buộc), `TimerMinutes` (integer NULL), `ImageUrl` (varchar 500 NULL), `StepNumber` (integer, composite unique index trên `(RecipeId, StepNumber)`). |
+| `RecipeStep` | 1:N với Recipe; cascade delete; thuộc tính: `Title` (varchar 200, bắt buộc), `Description` (text, bắt buộc), `TimerMinutes` (integer NULL), `ImageUrl` (varchar 500 NULL), `StepNumber` (integer, partial unique index trên `(RecipeId, StepNumber)` với `IsDeleted = false`). |
 | `RecipeIngredient` | 1:N với Recipe; cascade delete; thuộc tính: `Name` (varchar 200, bắt buộc), `Quantity` (decimal(10,3) NULL), `Unit` (varchar 50 NULL), `Notes` (varchar 500 NULL), `OrderIndex` (integer DEFAULT 0). |
 | `RecipeImage` | 1:N với Recipe; cascade delete; thuộc tính: `OriginalUrl`, `MediumUrl`, `ThumbnailUrl`, `AltText`, `IsPrimary`, `OrderIndex` (integer DEFAULT 0). |
 | `Category` | N:1 với Recipe. Thuộc tính: `Name` (unique), `Slug` (unique filtered index `WHERE "IsDeleted" = false`), `Description`, `ImageUrl`, `OrderIndex`. Không xóa được nếu còn recipe. |
@@ -470,7 +478,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 - [ ] Khách (Guest) không xem được bài Draft/Archived của tác giả khác.
 - [ ] Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).
 - [ ] Admin quản lý được category và recipe của mọi owner.
-- [ ] Không publish được recipe nếu không có bước thực hiện nào (`Steps.Count == 0`).
+- [ ] Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).
 - [ ] Không thể xóa bước duy nhất của bài viết đang ở trạng thái Published (trả về 422).
 - [ ] Category còn recipe bị từ chối xóa với mã lỗi 409 Conflict.
 - [ ] Chỉ có duy nhất một ảnh primary; upload validate kích thước, MIME type và magic bytes.

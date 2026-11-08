@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
-import { rememberHttpError, validCorrelationId, writeLog, type LogOutcome } from "../logger";
+import { rememberHttpError, writeLog, type LogOutcome } from "../logger";
+import { responseCorrelationId } from "./responseMetadata";
 
 const header = "X-Correlation-ID";
 type RequestMetadata = { correlationId?: string; started: number };
@@ -22,14 +23,9 @@ function createCorrelationId(): string | undefined {
   }
 }
 
-function responseId(response: AxiosResponse | undefined, fallback?: string): string | undefined {
-  return validCorrelationId(response?.headers?.["x-correlation-id"])
-    ?? validCorrelationId(response?.data?.correlationId) ?? fallback;
-}
-
 function fields(config: LoggedConfig | undefined, response?: AxiosResponse) {
   return {
-    correlationId: responseId(response, config?.observability?.correlationId),
+    correlationId: responseCorrelationId(response, config),
     path: config?.url,
     method: config?.method,
     status: response?.status ?? null,

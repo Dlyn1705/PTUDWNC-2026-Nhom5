@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Authentication;
 using Asp.Versioning;
 
 using CulinaryBlog.API.Endpoints;
@@ -6,6 +7,7 @@ using CulinaryBlog.API.Authorization;
 using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Logging;
 using CulinaryBlog.API.Middlewares;
+using CulinaryBlog.API.Responses;
 using CulinaryBlog.Application;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure;
@@ -42,6 +44,11 @@ Log.Logger = StructuredLoggingExtensions.CreateBootstrapLogger();
 try
 {
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options => options.ConfigureHttpsDefaults(https =>
+    https.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13));
+var httpsRedirectionEnabled = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
+if (builder.Environment.IsProduction() && httpsRedirectionEnabled)
+    builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
 builder.AddStructuredLogging();
 
 // ============================================================
@@ -51,6 +58,7 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+builder.Services.AddScoped<IHealthDependencyProbe, HealthDependencyProbe>();
 
 builder.Services.AddObservability(builder.Configuration);
 
@@ -62,7 +70,8 @@ builder.Services.AddHangfire(configuration => configuration
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(databaseConnectionString)));
-builder.Services.AddHangfireServer();
+if (builder.Configuration.GetValue("Hangfire:Server:Enabled", true))
+    builder.Services.AddHangfireServer();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -83,11 +92,16 @@ if (builder.Environment.IsDevelopment())
 var allowedOrigins =
     builder.Configuration
         .GetSection("Cors:AllowedOrigins")
-        .Get<string[]>()
-    ?? new[]
-    {
-        "http://localhost:3000"
-    };
+        .Get<string[]>();
+
+if (allowedOrigins is not { Length: > 0 } || allowedOrigins.Any(origin =>
+        string.IsNullOrWhiteSpace(origin)
+        || !Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+        || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        || !string.IsNullOrEmpty(uri.UserInfo)
+        || origin.Contains('*')
+        || !string.Equals(origin, uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase)))
+    throw new InvalidOperationException("Configure Cors:AllowedOrigins with explicit HTTP(S) origins (scheme, host and optional port only).");
 
 builder.Services.AddCors(options =>
 {
@@ -141,7 +155,8 @@ var authenticationBuilder = builder.Services
         options.Cookie.IsEssential = true;
         options.Cookie.Path = "/api/v1/auth";
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = builder.Environment.IsProduction()
+            ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
         options.SlidingExpiration = false;
     })
@@ -164,6 +179,31 @@ var authenticationBuilder = builder.Services
 
                 ClockSkew = TimeSpan.Zero
             };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                if (context.Response.HasStarted) return Task.CompletedTask;
+                context.Response.Headers["WWW-Authenticate"] = "Bearer";
+                return ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status401Unauthorized,
+                    "Yêu cầu xác thực.",
+                    "Cần đăng nhập hợp lệ để truy cập tài nguyên này.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.2");
+            },
+            OnForbidden = context =>
+            {
+                if (context.Response.HasStarted) return Task.CompletedTask;
+                return ApiProblemResponses.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status403Forbidden,
+                    "Không có quyền truy cập.",
+                    "Tài khoản hiện tại không có quyền thực hiện thao tác này.",
+                    "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.4");
+            }
+        };
     });
 
 if (!string.IsNullOrWhiteSpace(googleClientId)
@@ -202,22 +242,19 @@ if (!string.IsNullOrWhiteSpace(googleClientId)
                     ? StatusCodes.Status502BadGateway
                     : StatusCodes.Status401Unauthorized;
 
-            context.Response.StatusCode = status;
-            context.Response.ContentType = "application/problem+json";
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = status,
-                Title = status switch
+            context.HandleResponse();
+            await ApiProblemResponses.WriteAsync(
+                context.HttpContext,
+                status,
+                status switch
                 {
                     StatusCodes.Status400BadRequest => "Google authorization was denied.",
                     StatusCodes.Status502BadGateway => "Google authentication service is unavailable.",
                     _ => "Google authorization code is invalid or expired."
                 },
-                Detail = status == StatusCodes.Status502BadGateway
+                status == StatusCodes.Status502BadGateway
                     ? "The server could not reach Google's token service. Please retry."
-                    : "Google sign-in could not be completed. Please start again."
-            });
-            context.HandleResponse();
+                    : "Google sign-in could not be completed. Please start again.");
         };
     });
 }
@@ -233,7 +270,9 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole("Admin"));
 });
 
-builder.Services.AddApiSecurity();
+builder.Services.AddPerformanceCapacity(builder.Configuration, builder.Environment);
+var capacityMode = builder.Configuration.GetValue<bool>("Performance:CapacityMode");
+builder.Services.AddApiSecurity(capacityMode);
 
 // 5. OpenAPI & Scalar Documentation
 // ============================================================
@@ -252,8 +291,9 @@ builder.Services.AddApiVersioning(options =>
         options.Document.AddDocumentTransformer<BearerDocumentTransformer>();
         options.Document.AddOperationTransformer<AuthorizationOperationTransformer>();
     });
-builder.Services.AddRecipeApiConfiguration();
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 6 * 1024 * 1024);
+builder.Services.AddRecipeApiConfiguration(capacityMode);
+// MultipartReader checks each file section while reading, before IFormFile binding buffers it.
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 5 * 1024 * 1024);
 
 
 // ============================================================
@@ -317,6 +357,11 @@ app.UseStructuredRequestLogging();
 app.UseMiddleware<RequestAuditMiddleware>();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseStatusCodePages(async statusContext =>
+{
+    if (statusContext.HttpContext.Request.Path.StartsWithSegments("/api"))
+        await ApiProblemResponses.WriteStatusAsync(statusContext.HttpContext);
+});
 
 app.UseCors("AllowFrontend");
 
@@ -344,7 +389,8 @@ if (app.Environment.IsDevelopment())
 // ============================================================
 // 9. HTTPS
 // ============================================================
-app.UseHttpsRedirection();
+if (httpsRedirectionEnabled)
+    app.UseHttpsRedirection();
 
 
 // ============================================================
@@ -356,11 +402,13 @@ app.UseMiddleware<UserLogContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+if (builder.Configuration.GetValue("Hangfire:Dashboard:Enabled", true))
 {
-    Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
-});
-
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = [new AdminHangfireDashboardAuthorizationFilter()]
+    });
+}
 
 // ============================================================
 // 11. Map Endpoint Groups
@@ -373,33 +421,39 @@ v1.MapCategoryEndpoints();
 v1.MapAuthEndpoints();
 
 v1.MapAdminEndpoints();
+v1.MapWelcomeEmailAdminEndpoints();
 
 v1.MapRecipeEndpoints();
 v1.MapRecipeIngredientEndpoints();
+v1.MapRecipeStepEndpoints();
 
-CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
-    app.Services.GetRequiredService<IRecurringJobManager>());
 app.MapHealthEndpoints();
+if (builder.Configuration.GetValue("Hangfire:RecurringJobs:Enabled", true))
+{
+    CulinaryBlog.Infrastructure.Services.Images.ImageProcessingRegistration.RegisterImageProcessingJobs(
+        app.Services.GetRequiredService<IRecurringJobManager>());
 
-var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
-    "recover-pending-recipe-image-processing",
-    job => job.EnqueuePendingAsync(CancellationToken.None),
-    Cron.MinuteInterval(5),
-    new RecurringJobOptions());
-recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
-    "recover-pending-recipe-image-deletions",
-    job => job.EnqueuePendingAsync(CancellationToken.None),
-    Cron.MinuteInterval(5),
-    new RecurringJobOptions());
+    var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+    recurringJobManager.AddOrUpdate<RecipeImageProcessingRecoveryJob>(
+        "recover-pending-recipe-image-processing",
+        job => job.EnqueuePendingAsync(CancellationToken.None),
+        Cron.MinuteInterval(5),
+        new RecurringJobOptions());
+    recurringJobManager.AddOrUpdate<RecipeImageDeletionRecoveryJob>(
+        "recover-pending-recipe-image-deletions",
+        job => job.EnqueuePendingAsync(CancellationToken.None),
+        Cron.MinuteInterval(5),
+        new RecurringJobOptions());
 
-recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
-    "purge-deleted-recipes",
-    job => job.RunAsync(CancellationToken.None),
-    Cron.Weekly,
-    new RecurringJobOptions());
+    recurringJobManager.AddOrUpdate<PurgeDeletedRecipesJob>(
+        "purge-deleted-recipes",
+        job => job.RunAsync(CancellationToken.None),
+        Cron.Weekly,
+        new RecurringJobOptions());
 
-recurringJobManager.RegisterWelcomeEmailJobs();
+    recurringJobManager.RegisterWelcomeEmailJobs();
+}
+
 
 // ============================================================
 // 12. Run

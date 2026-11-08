@@ -1,91 +1,20 @@
-import React from "react";
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
-import { hasRole } from "@/lib/permissions";
+export const dynamic = "force-dynamic";
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const session = await auth();
-  if (!session || session.error) redirect("/login?callbackUrl=/dashboard");
-  if (!hasRole(session.user, "Author") && !hasRole(session.user, "Admin")) redirect("/forbidden");
+import type { ReactNode } from "react";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { AuthSessionProvider } from "@/components/providers/AuthSessionProvider";
+import { Toaster } from "@/components/ui/sonner";
+import DashboardShell from "@/components/layout/DashboardShell";
+import { RecipeNavigationGuard } from "@/hooks/useUnsavedRecipe";
 
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* Dashboard Header */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-                <ChefHat className="size-5" />
-              </span>
-              <span className="font-display text-lg font-semibold tracking-tight">
-                Culinary Studio
-              </span>
-            </Link>
-
-            <nav className="hidden sm:flex items-center gap-2 text-sm">
-              {hasRole(session.user, "Admin") && (
-                <Link
-                  href="/dashboard/categories"
-                  className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
-                >
-                  <FolderTree className="size-4" />
-                  <span>Categories</span>
-                </Link>
-              )}
-
-              <Link
-                href="/dashboard/recipes"
-                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
-              >
-                <BookOpen className="size-4" />
-                <span>Recipes</span>
-              </Link>
-              <Link
-                href="/dashboard/recipes/images"
-                className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5"
-              >
-                <ImageIcon className="size-4" />
-                <span>Images</span>
-              </Link>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              asChild
-              size="sm"
-              className="rounded-full gap-1.5 text-xs shadow-soft"
-            >
-              <Link href="/dashboard/recipes/new">
-                <Plus className="size-3.5" />
-                <span>Tạo công thức</span>
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="rounded-full gap-1.5 text-xs"
-            >
-              <Link href="/">
-                <ArrowLeft className="size-3.5" />
-                <span>Back to Site</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1">{children}</main>
-    </div>
+    <QueryProvider>
+      <AuthSessionProvider>
+        <RecipeNavigationGuard />
+        <DashboardShell>{children}</DashboardShell>
+      </AuthSessionProvider>
+      <Toaster position="bottom-right" closeButton richColors />
+    </QueryProvider>
   );
 }

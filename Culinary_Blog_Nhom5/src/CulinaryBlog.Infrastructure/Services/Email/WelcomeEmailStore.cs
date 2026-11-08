@@ -1,3 +1,4 @@
+using CulinaryBlog.Infrastructure.Services.Jobs;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,8 @@ public sealed record WelcomeEmailClaim(Guid Id, Guid LeaseToken, string UserId, 
 
 public sealed class WelcomeEmailStore(IServiceScopeFactory scopes, IOptions<WelcomeEmailOptions> settings, TimeProvider clock)
 {
-    public static readonly int[] RetryDelays = [60, 300, 900];
-    public const int MaximumAttempts = 4;
+    public static readonly int[] RetryDelays = BackgroundJobRetryPolicy.Delays;
+    public const int MaximumAttempts = BackgroundJobRetryPolicy.MaximumAttempts;
 
     public async Task<WelcomeEmailClaim?> ClaimAsync(Guid id, CancellationToken ct)
     {
@@ -26,8 +27,13 @@ public sealed class WelcomeEmailStore(IServiceScopeFactory scopes, IOptions<Welc
             var delivery = await db.WelcomeEmailDeliveries.FromSqlInterpolated(
                 $"SELECT * FROM \"WelcomeEmailDeliveries\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
             var now = clock.GetUtcNow().UtcDateTime;
-            if (delivery is null || delivery.Status is WelcomeEmailStatus.Sent or WelcomeEmailStatus.Failed or WelcomeEmailStatus.Skipped ||
+            if (delivery is null || delivery.Status is WelcomeEmailStatus.Sent or WelcomeEmailStatus.Failed or WelcomeEmailStatus.Skipped or WelcomeEmailStatus.NeedsReview ||
                 delivery.Status == WelcomeEmailStatus.Processing && delivery.LeaseExpiresAt > now || delivery.NextAttemptAt > now) return null;
+            if (delivery.SubmissionStartedAt is not null)
+            {
+                HoldForReview(delivery, now, "ExpiredSubmissionUnknown");
+                await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); return null;
+            }
             var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == delivery.UserId, ct);
             if (user is null || !user.IsActive || !string.Equals(user.Email, delivery.RecipientEmail, StringComparison.OrdinalIgnoreCase))
             {
@@ -54,6 +60,35 @@ public sealed class WelcomeEmailStore(IServiceScopeFactory scopes, IOptions<Welc
         });
     }
 
+    internal static void HoldForReview(WelcomeEmailDelivery delivery, DateTime now, string code)
+    {
+        delivery.Status = WelcomeEmailStatus.NeedsReview;
+        delivery.LastErrorCode = code; delivery.UpdatedAt = now;
+        delivery.LeaseToken = null; delivery.LeaseExpiresAt = null;
+    }
+
+    public async Task BeginSubmissionAsync(WelcomeEmailClaim claim, CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var now = clock.GetUtcNow().UtcDateTime;
+        var changed = await db.WelcomeEmailDeliveries.Where(x => x.Id == claim.Id && x.LeaseToken == claim.LeaseToken &&
+                x.Status == WelcomeEmailStatus.Processing && x.LeaseExpiresAt > now && x.SubmissionStartedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(x => x.SubmissionStartedAt, now).SetProperty(x => x.UpdatedAt, now), ct);
+        if (changed != 1) throw new InvalidOperationException("Email submission lease is not available.");
+    }
+
+    public async Task HoldAsync(WelcomeEmailClaim claim, string code, CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var now = clock.GetUtcNow().UtcDateTime;
+        await db.WelcomeEmailDeliveries.Where(x => x.Id == claim.Id && x.LeaseToken == claim.LeaseToken && x.Status == WelcomeEmailStatus.Processing)
+            .ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, WelcomeEmailStatus.NeedsReview)
+                .SetProperty(x => x.LastErrorCode, code).SetProperty(x => x.UpdatedAt, now)
+                .SetProperty(x => x.LeaseToken, (Guid?)null).SetProperty(x => x.LeaseExpiresAt, (DateTime?)null), ct);
+    }
+
     public async Task CompleteAsync(WelcomeEmailClaim claim, CancellationToken ct)
     {
         using var scope = scopes.CreateScope();
@@ -76,6 +111,7 @@ public sealed class WelcomeEmailStore(IServiceScopeFactory scopes, IOptions<Welc
         await db.WelcomeEmailDeliveries.Where(x => x.Id == claim.Id && x.LeaseToken == claim.LeaseToken && x.Status == WelcomeEmailStatus.Processing)
             .ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, status).SetProperty(x => x.NextAttemptAt, next)
                 .SetProperty(x => x.UpdatedAt, now).SetProperty(x => x.LastErrorCode, errorCode)
+                .SetProperty(x => x.SubmissionStartedAt, (DateTime?)null)
                 .SetProperty(x => x.LeaseToken, (Guid?)null).SetProperty(x => x.LeaseExpiresAt, (DateTime?)null), ct);
     }
 }

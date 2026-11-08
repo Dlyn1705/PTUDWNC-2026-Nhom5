@@ -1,5 +1,7 @@
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
+using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
+using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CulinaryBlog.Infrastructure.Services;
 
-public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IServiceScopeFactory scopes) : IRecipeUpdateStore
+public sealed class RecipeUpdateStore(
+    ApplicationDbContext readContext,
+    IServiceScopeFactory scopes,
+    IRecipeCacheInvalidator cache) : IRecipeUpdateStore
 {
     public Task<Recipe?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         readContext.Recipes.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -16,7 +21,8 @@ public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IService
     {
         var strategy = readContext.Database.CreateExecutionStrategy();
         byte[]? writtenVersion = null;
-        return await strategy.ExecuteAsync(async () =>
+        string? previousSlug = null;
+        var result = await strategy.ExecuteAsync(async () =>
         {
             // Never reuse a failed change tracker across execution-strategy attempts.
             await using var scope = scopes.CreateAsyncScope();
@@ -37,7 +43,28 @@ public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IService
                 .AsNoTracking().SingleOrDefaultAsync(ct);
             if (category is null) throw new NotFoundException("Category", desired.CategoryId);
 
-            // Copy only editable fields. Identity, slug, lifecycle and all child data stay server-owned.
+            previousSlug = recipe.Slug;
+            // Slug may change only while Draft. The database advisory lock and
+            // unique index serialize concurrent title edits.
+            if (recipe.Status == RecipeStatus.Draft &&
+                !string.Equals(previousSlug, desired.Slug, StringComparison.Ordinal))
+            {
+                var baseSlug = desired.Slug;
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT pg_advisory_xact_lock(hashtext({baseSlug}))", ct);
+                var suffix = 1;
+                var candidate = baseSlug;
+                while (await db.Recipes.AnyAsync(x => x.Slug == candidate && x.Id != recipe.Id, ct))
+                    candidate = $"{baseSlug}-{++suffix}";
+                recipe.ChangeDraftSlug(candidate);
+                db.RecipeSlugHistories.Add(new RecipeSlugHistory
+                {
+                    RecipeId = recipe.Id,
+                    OldSlug = previousSlug,
+                });
+            }
+
+            // Copy editable fields. Lifecycle remains server-owned.
             recipe.Update(desired.Title, desired.Description, desired.Instructions, desired.PrepTime,
                 desired.CookTime, desired.Servings, desired.Difficulty, desired.CategoryId);
             db.Entry(recipe).Property(x => x.RowVersion).OriginalValue = expectedVersion;
@@ -50,6 +77,48 @@ public sealed class RecipeUpdateStore(ApplicationDbContext readContext, IService
             }
             catch (DbUpdateConcurrencyException) { throw Conflict(); }
         });
+        await cache.InvalidateRecipeAsync(result.Id, result.Slug, CancellationToken.None);
+        if (!string.IsNullOrWhiteSpace(previousSlug)
+            && !string.Equals(previousSlug, result.Slug, StringComparison.Ordinal))
+            await cache.InvalidateRecipeAsync(result.Id, previousSlug, CancellationToken.None);
+        return result;
+    }
+
+    public async Task<UpdatedRecipe> SaveNutritionAsync(Recipe desired, byte[] expectedVersion, string actorId, CancellationToken ct)
+    {
+        var strategy = readContext.Database.CreateExecutionStrategy();
+        byte[]? writtenVersion = null;
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var recipe = await db.Recipes.SingleOrDefaultAsync(x => x.Id == desired.Id, ct)
+                ?? throw new NotFoundException("Recipe", desired.Id);
+            if (writtenVersion is not null && recipe.RowVersion.SequenceEqual(writtenVersion))
+                return Result(recipe);
+            if (!recipe.RowVersion.SequenceEqual(expectedVersion) || recipe.AuthorId != desired.AuthorId)
+                throw Conflict();
+            var actor = await db.Users.FromSqlInterpolated(
+                $"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {actorId} FOR SHARE")
+                .AsNoTracking().SingleOrDefaultAsync(ct);
+            if (actor is null || !actor.IsActive) throw new ForbiddenException("Tài khoản không còn hoạt động.");
+
+            recipe.SetNutrition(desired.Nutrition.Calories, desired.Nutrition.Protein,
+                desired.Nutrition.Carbohydrates, desired.Nutrition.Fat,
+                desired.Nutrition.Fiber, desired.Nutrition.Sodium);
+            db.Entry(recipe).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                writtenVersion = recipe.RowVersion.ToArray();
+                await transaction.CommitAsync(ct);
+                return Result(recipe);
+            }
+            catch (DbUpdateConcurrencyException) { throw Conflict(); }
+        });
+        await cache.InvalidateRecipeAsync(result.Id, result.Slug, CancellationToken.None);
+        return result;
     }
 
     private static ConflictException Conflict() => new("Công thức đã thay đổi. Vui lòng tải lại trước khi lưu.", "RECIPE_VERSION_CONFLICT");

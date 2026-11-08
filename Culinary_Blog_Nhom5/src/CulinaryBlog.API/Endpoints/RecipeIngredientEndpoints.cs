@@ -17,7 +17,7 @@ public static class RecipeIngredientEndpoints
             var result = await sender.Send(new GetRecipeIngredientsQuery(recipeId), ct);
             SetVersion(context, result);
             return Results.Ok(ApiResponse<IReadOnlyList<IngredientDto>>.Ok(result.Ingredients));
-        }).WithName("GetRecipeIngredients").Produces<ApiResponse<IReadOnlyList<IngredientDto>>>(200)
+        }).WithName("GetRecipeIngredients").WithSummary("Liệt kê nguyên liệu và phiên bản công thức").Produces<ApiResponse<IReadOnlyList<IngredientDto>>>(200)
             .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);
 
         group.MapPost("/", async (Guid recipeId, IngredientInput input, ISender sender, HttpContext context, CancellationToken ct) =>
@@ -26,7 +26,7 @@ public static class RecipeIngredientEndpoints
             SetVersion(context, result);
             // The collection is a readable Location; no non-existent item GET route is advertised.
             return Results.Created($"/api/v1/recipes/{recipeId}/ingredients", ApiResponse<IngredientDto>.Ok(result.Ingredients[^1]));
-        }).WithName("AddRecipeIngredient").Produces<ApiResponse<IngredientDto>>(201)
+        }).WithName("AddRecipeIngredient").WithSummary("Thêm nguyên liệu với phiên bản If-Match").Produces<ApiResponse<IngredientDto>>(201)
             .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
 
         group.MapPut("/{ingredientId:guid}", async (Guid recipeId, Guid ingredientId, IngredientInput input,
@@ -35,7 +35,7 @@ public static class RecipeIngredientEndpoints
             var result = await Change(sender, new(recipeId, IngredientOperation.Update, ReadVersion(context), ingredientId, input), ct);
             SetVersion(context, result);
             return Results.Ok(ApiResponse<IngredientDto>.Ok(result.Ingredients.Single(x => x.Id == ingredientId)));
-        }).WithName("UpdateRecipeIngredient").Produces<ApiResponse<IngredientDto>>(200)
+        }).WithName("UpdateRecipeIngredient").WithSummary("Cập nhật nguyên liệu với phiên bản If-Match").Produces<ApiResponse<IngredientDto>>(200)
             .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
 
         group.MapDelete("/{ingredientId:guid}", async (Guid recipeId, Guid ingredientId, ISender sender,
@@ -44,7 +44,7 @@ public static class RecipeIngredientEndpoints
             var result = await Change(sender, new(recipeId, IngredientOperation.Delete, ReadVersion(context), ingredientId), ct);
             SetVersion(context, result);
             return Results.NoContent();
-        }).WithName("DeleteRecipeIngredient").Produces(204)
+        }).WithName("DeleteRecipeIngredient").WithSummary("Xóa mềm nguyên liệu với phiên bản If-Match").Produces(204)
             .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
 
         group.MapPut("/reorder", async (Guid recipeId, ReorderIngredientsRequest input, ISender sender,
@@ -53,7 +53,7 @@ public static class RecipeIngredientEndpoints
             var result = await Change(sender, new(recipeId, IngredientOperation.Reorder, ReadVersion(context), IngredientIds: input.IngredientIds), ct);
             SetVersion(context, result);
             return Results.Ok(ApiResponse<IReadOnlyList<IngredientDto>>.Ok(result.Ingredients));
-        }).WithName("ReorderRecipeIngredients").Produces<ApiResponse<IReadOnlyList<IngredientDto>>>(200)
+        }).WithName("ReorderRecipeIngredients").WithSummary("Đổi thứ tự nguyên liệu với phiên bản If-Match").Produces<ApiResponse<IReadOnlyList<IngredientDto>>>(200)
             .ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
         return app;
     }
@@ -83,4 +83,5 @@ public static class RecipeIngredientEndpoints
     }
 }
 
+/// <summary>Complete ordered list of active ingredient IDs for the recipe.</summary>
 public sealed record ReorderIngredientsRequest(IReadOnlyList<Guid>? IngredientIds);

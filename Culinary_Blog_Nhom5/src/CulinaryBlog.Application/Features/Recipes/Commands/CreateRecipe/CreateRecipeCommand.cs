@@ -3,6 +3,7 @@ using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
+using CulinaryBlog.Application.Features.Recipes.Steps;
 using FluentValidation;
 using MediatR;
 
@@ -13,7 +14,7 @@ public record CreateRecipeCommand(string Title, string? Description, string? Ins
     IReadOnlyList<NewRecipeIngredient?>? Ingredients = null,
     IReadOnlyList<NewRecipeStep?>? Steps = null, NewRecipeNutrition? Nutrition = null) : IRequest<CreatedRecipe>;
 public record NewRecipeIngredient(string Name, decimal? Quantity, string? Unit, string? Notes);
-public record NewRecipeStep(string Description, string? Title, int? TimerMinutes);
+public record NewRecipeStep(string Description, string? Title, int? TimerMinutes, string? ImageUrl = null);
 public record NewRecipeNutrition(decimal? Calories, decimal? Protein, decimal? Carbohydrates,
     decimal? Fat, decimal? Fiber, decimal? Sodium);
 public record CreatedRecipe(string Message, Guid Id, string Slug, string RowVersion);
@@ -67,6 +68,9 @@ public sealed class CreateRecipeCommandValidator : AbstractValidator<CreateRecip
                 Length(key + ".Title", item.Title, 0, 200);
                 Length(key + ".Description", item.Description, 1, 2000);
                 if (item.TimerMinutes < 0) context.AddFailure(key + ".TimerMinutes", "Thời gian không được âm.");
+                try { StepRules.Validate(new StepInput(item.Description, item.Title, item.TimerMinutes, item.ImageUrl)); }
+                catch (CulinaryBlog.Domain.Exceptions.ValidationException error)
+                { context.AddFailure(key, error.Message); }
             }
             if (x.Nutrition is { } n)
             {
@@ -105,9 +109,9 @@ public sealed class CreateRecipeCommandHandler(ICurrentUserService user, IRecipe
         foreach (var item in request.Steps ?? [])
         {
             var number = recipe.Steps.Count + 1;
-            recipe.Steps.Add(RecipeStep.Create(recipe.Id, number,
-                string.IsNullOrWhiteSpace(item!.Title) ? $"Bước {number}" : item.Title.Trim(),
-                item.Description.Trim(), item.TimerMinutes));
+            var step = RecipeStep.Create(recipe.Id, number, "", "");
+            StepRules.Apply(step, new StepInput(item!.Description, item.Title, item.TimerMinutes, item.ImageUrl));
+            recipe.Steps.Add(step);
         }
         return await store.CreateAsync(recipe, cancellationToken);
     }

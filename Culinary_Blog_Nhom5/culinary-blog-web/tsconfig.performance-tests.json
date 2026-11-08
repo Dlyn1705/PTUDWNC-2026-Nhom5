@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.auth-tests.json",
+  "compilerOptions": { "outDir": "build/performance-tests" },
+  "include": ["tests/performance-behavior.test.ts", "lib/query-session.ts", "lib/validations/loginResolver.ts"]
+}

@@ -33,7 +33,8 @@ public class RecipeStepConfiguration : IEntityTypeConfiguration<RecipeStep>
             .HasForeignKey(s => s.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(s => new { s.RecipeId, s.StepNumber });
+        builder.HasIndex(s => new { s.RecipeId, s.StepNumber })
+            .IsUnique().HasFilter("\"IsDeleted\" = false");
 
         builder.HasQueryFilter(s => !s.IsDeleted);
     }

@@ -20,16 +20,19 @@ export interface RegisterRequest {
   confirmPassword: string;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
 export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  bio?: string | null;
+}
+
+export interface CurrentUser extends AuthUser {
+  bio: string | null;
+  roles: string[];
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface AuthSessionResponse {
@@ -43,8 +46,6 @@ export interface AuthSessionResponse {
 // tokens are delivered only through the HttpOnly cookie and are absent here.
 export interface AuthResponse {
   data: AuthSessionResponse;
-  success?: boolean;
-  message?: string | null;
 }
 
 export interface ProblemDetails {

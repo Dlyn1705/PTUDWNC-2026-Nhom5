@@ -4,6 +4,26 @@ Culinary Blog là ứng dụng web full-stack phục vụ việc chia sẻ, tìm
 
 Tài liệu nghiệp vụ và kiến trúc chính thức: [Culinary_Blog_Spec.md](Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md).
 
+## Quality và truy vết yêu cầu
+
+- [Ma trận đầy đủ 65 FR/NFR](Culinary_Blog_Nhom5/docx/Spec/Requirement_Traceability_Matrix.md): owner, code/API/UI, test, status và evidence. `NeedsOwnerReview`/`MissingEvidence` không có nghĩa Done.
+- [Lệnh quality gate và quy trình cập nhật evidence](quality/README.md), [ADR-0001](Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md), [CHANGELOG](CHANGELOG.md).
+- CI kiểm tra build/analyzers, unit coverage Application riêng (baseline 84,55%), integration, typecheck/lint/format/build, API E2E và browser tests hiện có; artifact `quality-*` lưu 14 ngày. Coverage không gộp từ các checkout khác nhau để tăng số liệu.
+- Scalar ở `/scalar`, OpenAPI JSON `/openapi/v1.json` trong Development (port API xem `run-dev.ps1`). Không bật tài liệu Development công khai trong Production để vượt test.
+
+### Quy trình setup ngắn
+
+Sau khi đã cài SDK/Node/Docker và chuẩn bị `.env` theo hướng dẫn bên dưới:
+
+```powershell
+docker compose up -d --wait
+dotnet restore ./Culinary_Blog_Nhom5/Culinary_Blog_Nhom5.sln
+npm --prefix ./Culinary_Blog_Nhom5/culinary-blog-web ci
+./Culinary_Blog_Nhom5/run-dev.ps1
+```
+
+Lượt đo trên Windows ngày 07/11/2026 đạt 250,53 giây từ lúc khởi động Compose đến khi API và trang web phản hồi. Lượt đo dùng checkout sạch, SDK/Node/Docker đã cài, cache máy sẵn có và container cô lập. Thời gian tải mới dependency và Docker image phụ thuộc mạng. [Kết quả đo](quality/evidence/setup-openapi-20261107.json).
+
 ## Chức năng chính
 
 - Khách xem danh mục, xem chi tiết, tìm kiếm, lọc và phân trang công thức đã công khai.
@@ -96,6 +116,19 @@ Trước khi chạy Docker, sao chép `.env.example` ở gốc repository thành
 
 Khi chạy API riêng, cung cấp `ConnectionStrings__DefaultConnection` và `Jwt__Key` qua biến môi trường hoặc .NET user secrets. API sẽ dừng lúc khởi động nếu thiếu một trong hai giá trị hoặc khóa JWT ngắn hơn 32 byte.
 
+Khi chạy API ở môi trường Production (hoặc bất kỳ môi trường nào không phải Development), bắt buộc cấu hình ít nhất một origin frontend qua `Cors__AllowedOrigins__0`. Origin phải là URL HTTP(S) chỉ gồm scheme, host và port tùy chọn; không dùng wildcard, path hoặc dấu `/` ở cuối. Nhiều origin dùng các chỉ số tiếp theo (`Cors__AllowedOrigins__1`, `Cors__AllowedOrigins__2`, ...), không dùng chuỗi phân cách bằng dấu phẩy.
+
+Ví dụ cấu hình Production bằng PowerShell:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+$env:ConnectionStrings__DefaultConnection = "Host=postgres;Port=5432;Database=culinary_blog_db;Username=postgres;Password=<secret>"
+$env:Jwt__Key = "<at-least-32-byte-secret>"
+$env:Cors__AllowedOrigins__0 = "https://frontend.example.com"
+$env:Cors__AllowedOrigins__1 = "https://www.example.com"
+dotnet run --project .\Culinary_Blog_Nhom5\src\CulinaryBlog.API
+```
+
 ```powershell
 docker compose up -d
 docker compose ps
@@ -119,7 +152,7 @@ Copy-Item .\Culinary_Blog_Nhom5\culinary-blog-web\.env.example `
   .\Culinary_Blog_Nhom5\culinary-blog-web\.env.local
 ```
 
-Thay giá trị `AUTH_SECRET` trong `.env.local` bằng chuỗi bí mật riêng của máy. Không commit `.env.local` lên Git.
+Giữ `.env.local` ngoài Git. Frontend dùng `NEXT_PUBLIC_API_URL` để gọi backend và nhận cookie refresh an toàn.
 
 ### 4. Chạy backend và frontend
 
@@ -173,6 +206,49 @@ npm run dev
 
 Hướng dẫn bật MailHog local, áp dụng migration mới, cấu hình SMTP production, kiểm thử và xử lý Failed: [Runbook Welcome Email](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-JOB-001-Welcome-Email.md). Mail capture local dùng file riêng `compose.mail.yml`, cổng 1025/8025 chỉ bind localhost. Hangfire Dashboard nằm ở `/hangfire` và chỉ cho phép Admin. Secret SMTP phải đặt qua environment/User Secrets, không commit.
 
+### Integration test local
+
+Email có kết quả gửi chưa rõ dùng NeedsReview và đối soát Admin, không tự gửi lại:
+[quy trình SMTP reconciliation #91](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue91_SMTP_Reconciliation.md).
+
+Để nghiệm thu recipe/media/jobs trên môi trường sạch, chạy từ thư mục gốc:
+
+```powershell
+.\Culinary_Blog_Nhom5\tests\run-integration.ps1
+```
+
+Script tạo PostgreSQL, MinIO và MailHog riêng với cổng loopback ngẫu nhiên,
+credentials tạm, chạy 8 suite (bao gồm ingredients/steps), rồi tự dọn đúng
+Compose project của lần chạy. Hangfire chạy thật trong test host và lưu vào
+PostgreSQL test. Không cần tạo `.env` hoặc dùng database development.
+Xem [hướng dẫn nghiệm thu #84](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue84_Recipe_Media_Jobs.md).
+
+Kiểm thử restart, retry 60/120/240 giây, lỗi từng phần và retention/purge:
+[failure matrix và recovery #91](Culinary_Blog_Nhom5/docx/Spec/Issue_91_Background_Jobs_Failure_Recovery.md).
+
+Nếu muốn dùng các dịch vụ local đang có thay vì môi trường cô lập:
+
+Các test tạo database riêng không dùng database development. Lưu sáu connection
+string test trong User Secrets/CI secret hoặc biến môi trường của process; mẫu tên
+biến nằm tại `Culinary_Blog_Nhom5/tests/integration-test.env.example`.
+
+```powershell
+$testPassword = Read-Host "Local PostgreSQL test password" -AsSecureString
+$testPasswordPlain = [System.Net.NetworkCredential]::new("", $testPassword).Password
+$testConnection = "Host=localhost;Port=5433;Database=postgres;Username=postgres;Password=$testPasswordPlain"
+foreach ($name in @(
+  "RECIPE_IMAGES_TEST_CONNECTION", "RECIPE_DELETION_TEST_CONNECTION",
+  "RECIPE_CREATE_TEST_CONNECTION", "RECIPE_UPDATE_TEST_CONNECTION",
+  "IMAGE_TEST_CONNECTION", "WELCOME_EMAIL_TEST_CONNECTION"
+)) { Set-Item "Env:$name" $testConnection }
+Remove-Variable testPasswordPlain, testConnection
+dotnet test Culinary_Blog_Nhom5.sln --no-build
+```
+
+Không ghi giá trị các biến vào log hoặc Git. PostgreSQL test phải có quyền tạo/xóa
+database cô lập; MinIO, Redis và MailHog dùng endpoint local tương ứng theo test
+fixture. Mỗi suite tự cleanup dữ liệu và không phụ thuộc thứ tự chạy.
+
 ## Kiểm tra trước khi gửi bài
 
 ```powershell
@@ -192,6 +268,8 @@ Xem [Runbook Image Resize / Thumbnail](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-
 
 ## Xử lý lỗi thường gặp
 
+Lifecycle và observability của Issue #83: xem [runbook](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue_83_Lifecycle_Observability.md) về điều kiện step/ingredient khi publish, tab trạng thái, cache recovery, cảnh báo 500 ms, log JSON rolling daily/retention và cấu hình Seq/OTLP. Log files phải nằm ngoài wwwroot và Git; credentials của sink/exporter dùng environment hoặc User Secrets.
+
 - API không kết nối PostgreSQL: kiểm tra `docker compose ps`; cổng PostgreSQL trên máy là `5433`, không phải `5432`.
 - Frontend báo lỗi gọi API: xác nhận backend đang chạy tại `http://localhost:5156` và các biến `API_INTERNAL_URL`, `NEXT_PUBLIC_API_URL` trong `.env.local` cùng trỏ đến địa chỉ này.
 - Cổng đã được sử dụng: dừng tiến trình đang chiếm các cổng `3000`, `5156`, `5433`, `6379`, `9000`, `9001` hoặc `5341` rồi chạy lại.
@@ -203,6 +281,10 @@ Xem [Runbook Image Resize / Thumbnail](Culinary_Blog_Nhom5/docx/Spec/Runbook_FR-
 Mọi thành viên phải lấy `main` mới nhất trước khi bắt đầu, làm việc trên nhánh riêng, push nhánh và tạo pull request để nhóm trưởng review. Không được commit hoặc push trực tiếp lên `main`.
 
 Chi tiết cách đặt tên nhánh, viết commit, push bài, xử lý conflict và tạo pull request nằm trong [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Reliability và backup
+
+Hạ tầng reliability, backup mã hóa lúc 03:00 UTC/retention 30 ngày, restore và failure drill: xem [Runbook Issue #88](Culinary_Blog_Nhom5/docx/Spec/Runbook_Issue_88_Resilience_Backup_Restore.md). Overlay `compose.reliability.yml` là cấu hình triển khai riêng; không dùng để thay đổi stack development đang chạy. Script drill tạo project/container/volume cô lập và tự cleanup.
 
 ## Thành viên nhóm
 

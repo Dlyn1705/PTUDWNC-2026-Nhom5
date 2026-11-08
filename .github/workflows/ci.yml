@@ -5,8 +5,23 @@ on:
   pull_request:
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Scan repository history with Gitleaks
+        run: go run github.com/zricethezav/gitleaks/v8@v8.24.3 git --config .gitleaks.toml --redact --exit-code 1 .
+
   verify:
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -33,10 +48,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate requirement and endpoint inventories
+        run: |
+          python scripts/quality/traceability.py --check
+          python -m unittest discover -s scripts/quality -p 'test_*.py'
 
       - name: Start MinIO
         run: |
@@ -79,9 +105,18 @@ jobs:
         working-directory: Culinary_Blog_Nhom5
         run: dotnet build Culinary_Blog_Nhom5.sln --no-restore --configuration Release
 
+      - name: Application unit tests and coverage baseline
+        working-directory: Culinary_Blog_Nhom5
+        run: dotnet test tests/CulinaryBlog.Application.Tests/CulinaryBlog.Application.Tests.csproj --no-build --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/unit --logger trx
+
+      - name: Unit coverage gate (separate from integration)
+        run: python scripts/quality/coverage_gate.py artifacts/quality/unit --output artifacts/quality/unit-coverage.json --label "Application unit (Release)"
+
       - name: Test backend and recipe image integration
         working-directory: Culinary_Blog_Nhom5
         env:
+          OBS_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+          ISSUE83_REDIS_URL: localhost:6379
           RECIPE_CREATE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
           RECIPE_UPDATE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
           RECIPE_IMAGES_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
@@ -90,8 +125,41 @@ jobs:
           IMAGE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
           IMAGE_TEST_MINIO_ACCESS: minioadmin
           IMAGE_TEST_MINIO_SECRET: minioadminpassword
+          RECIPE_DELETION_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+          RECIPE_DELETION_TEST_MINIO_USER: minioadmin
+          RECIPE_DELETION_TEST_MINIO_PASSWORD: minioadminpassword
           WELCOME_EMAIL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
-        run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release
+        run: dotnet test Culinary_Blog_Nhom5.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
+
+      - name: Test Admin user API integration
+        working-directory: Culinary_Blog_Nhom5
+        env:
+          AUTH_TEST_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: dotnet test tests/CulinaryBlog.Auth.Tests/CulinaryBlog.Auth.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
+
+      - name: Test recipe steps integration
+        working-directory: Culinary_Blog_Nhom5
+        env:
+          STEPS_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: dotnet test tests/CulinaryBlog.Steps.Tests/CulinaryBlog.Steps.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
+
+      - name: Test Vietnamese recipe search integration
+        working-directory: Culinary_Blog_Nhom5
+        env:
+          SEARCH_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: dotnet test tests/CulinaryBlog.Search.Tests/CulinaryBlog.Search.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --settings tests/application.runsettings --results-directory ../artifacts/quality/backend --logger trx
+
+      - name: Application coverage quality gate
+        run: python scripts/quality/coverage_gate.py artifacts/quality/backend --label "Application combined (Release)"
+
+      - name: Publish quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/quality/
+          if-no-files-found: error
+          retention-days: 14
 
       - uses: actions/setup-node@v4
         with:
@@ -103,13 +171,29 @@ jobs:
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm ci
 
+      - name: Test file API client
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:file-api
+
       - name: Install Playwright Chromium
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npx playwright install --with-deps chromium
 
+      - name: Five critical API and browser flows with real PostgreSQL and JWT
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          CRITICAL_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: npm run test:e2e:critical-api -- --browser
+
       - name: Lint frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run lint
+
+      - name: Frontend typecheck and formatting regression gate
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: |
+          npm run typecheck
+          npm run format:check
 
       - name: Build frontend
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
@@ -118,3 +202,79 @@ jobs:
       - name: Test image processing UI
         working-directory: Culinary_Blog_Nhom5/culinary-blog-web
         run: npm run test:image-ui
+
+      - name: Test accessibility keyboard and focus
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:a11y
+
+      - name: Test browser auth session and refresh cookie
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:auth:e2e
+
+      - name: Test route boundaries and common states in production
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:e2e:states
+
+      - name: Test search URL contract
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: npm run test:search
+
+      - name: Test search with real API and PostgreSQL
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          SEARCH_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+        run: npm run test:e2e:search
+
+      - name: Test file API browser flows
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:e2e:file-api
+
+      - name: Test recipe step forms and security
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        run: |
+          node --test tests/step-form.unit.cjs
+          npm run test:security
+          npm run test:logging
+          npm run test:common
+          npm run test:recipe-editor
+          npm run test:api
+          npm run test:auth
+          npm run test:ui-store
+
+      - name: Test recipe steps UI
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: node tests/steps.e2e.cjs
+
+      - name: Test Lab 6 recipe editor and permission errors
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          E2E_BROWSER_CHANNEL: bundled
+        run: npm run test:lab6-editor
+
+      - name: Test recipe lifecycle with real API and PostgreSQL
+        working-directory: Culinary_Blog_Nhom5/culinary-blog-web
+        env:
+          LIFECYCLE_TEST_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres
+          LIFECYCLE_TEST_REDIS_URL: localhost:6379
+          LIFECYCLE_SMOKE_ROOT: '1'
+          BROWSER_CHANNEL: chromium
+        run: npm run test:e2e:lifecycle
+
+      - name: Publish final quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/quality/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Cleanup test dependency containers
+        if: always()
+        run: docker rm -f culinary-minio culinary-mailhog || true

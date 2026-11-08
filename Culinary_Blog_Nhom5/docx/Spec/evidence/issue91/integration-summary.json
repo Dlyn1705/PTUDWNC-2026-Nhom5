@@ -1,0 +1,75 @@
+{
+  "suites": [
+    {
+      "passed": 12,
+      "suite": "RecipeCreation",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 12,
+      "failed": 0
+    },
+    {
+      "passed": 21,
+      "suite": "RecipeUpdate",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 21,
+      "failed": 0
+    },
+    {
+      "passed": 14,
+      "suite": "RecipeDeletion",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 14,
+      "failed": 0
+    },
+    {
+      "passed": 7,
+      "suite": "RecipeImages",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 7,
+      "failed": 0
+    },
+    {
+      "passed": 35,
+      "suite": "ImageProcessing",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 35,
+      "failed": 0
+    },
+    {
+      "passed": 27,
+      "suite": "WelcomeEmail",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 27,
+      "failed": 0
+    },
+    {
+      "passed": 21,
+      "suite": "Ingredients",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 21,
+      "failed": 0
+    },
+    {
+      "passed": 39,
+      "suite": "Steps",
+      "exitCode": 0,
+      "notExecuted": 0,
+      "total": 39,
+      "failed": 0
+    }
+  ],
+  "retryDelaysSeconds": [
+    60,
+    120,
+    240
+  ],
+  "maximumAttempts": 4,
+  "project": "culinary-issue91-205b3baed25f"
+}

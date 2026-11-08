@@ -246,7 +246,7 @@ All physical table and column names related to Linh's features must use English 
      - Đặt tên object theo mẫu GUID ngẫu nhiên: `recipes/{recipeId}/{guid}.{ext}` nhằm triệt tiêu hoàn toàn nguy cơ Path Traversal.
 4. **Quản trị Vòng đời Recipe (`FR-RCP-005`, `FR-RCP-006`):**
    - CQRS Use Cases:
-     - `PublishRecipeCommand`: Kiểm tra điều kiện tiên quyết **bắt buộc số bước thực hiện phải lớn hơn 0** (`Steps.Count > 0`). Nếu hợp lệ chuyển `Status = Published`, gán `PublishedAt = UtcNow`, tự động xóa cache Redis liên quan. Idempotent: gọi lại khi đã publish trả về 200 OK.
+     - `PublishRecipeCommand`: Kiểm tra điều kiện tiên quyết **có ít nhất một step và một ingredient active khi Draft → Published** (bổ sung nghiệp vụ Issue #83; lỗi 422 theo field). Nếu hợp lệ chuyển `Status = Published`, gán `PublishedAt = UtcNow`, tự động xóa cache Redis liên quan. Idempotent: gọi lại khi đã publish trả về 200 OK.
      - `UnpublishRecipeCommand`: Chuyển trạng thái từ `Published` về `Draft`.
      - `ArchiveRecipeCommand`: Chuyển trạng thái về `Archived` (ẩn khỏi mọi danh sách public).
      - `UnarchiveRecipeCommand`: Đưa bài viết từ `Archived` trở lại trạng thái `Draft`.
@@ -277,7 +277,7 @@ All physical table and column names related to Linh's features must use English 
    - `components/common/FileUploadDropzone.tsx`: Khung kéo thả tải ảnh lên MinIO kèm thanh hiển thị tiến trình % tải lên và preview ảnh tức thì.
    - `components/common/FileDeleteConfirmModal.tsx`: Hộp thoại xác nhận xóa tệp tin.
    - `components/dashboard/RecipeStatusTable.tsx`: Bảng danh sách bài viết trong dashboard.
-   - `components/dashboard/PublishRecipeModal.tsx`: Modal xuất bản bài viết (tự kiểm tra điều kiện $\ge 1$ bước).
+   - `components/dashboard/PublishRecipeModal.tsx`: Modal xác nhận xuất bản; backend kiểm tra có ít nhất một step và một ingredient active (Issue #83), UI không suy đoán từ DTO list thiếu child count.
    - `components/dashboard/ArchiveRecipeModal.tsx`: Modal xác nhận lưu trữ hoặc khôi phục bài viết.
    - `components/common/ErrorBoundary.tsx`: Bắt lỗi React runtime và ghi log có cấu trúc.
 3. **Dịch vụ & Hooks (Lib & Hooks):**
@@ -291,7 +291,7 @@ All physical table and column names related to Linh's features must use English 
 - [ ] Tìm kiếm không dấu tiếng Việt trả kết quả chính xác theo độ liên quan (`ts_rank`); từ khóa rỗng hoặc không thấy trả về `[]` với mã 200 OK.
 - [ ] Lọc kết hợp nhiều tiêu chí hoạt động chính xác đồng thời với phân trang và sắp xếp.
 - [ ] Upload file lên MinIO chặn hoàn toàn các file giả mạo đuôi hoặc file $> 5\text{ MB}$; tên file lưu trên MinIO là GUID ngẫu nhiên.
-- [ ] Công thức không có bước nào (`Steps.Count == 0`) bị chặn xuất bản với mã lỗi `422 Unprocessable Entity`.
+- [ ] Draft thiếu step hoặc ingredient active bị chặn xuất bản với mã lỗi 422 và field errors ổn định (Issue #83).
 - [ ] Bài viết bị Soft Delete quá 30 ngày được Hangfire dọn dẹp sạch sẽ cả trong CSDL lẫn Object Storage MinIO.
 - [ ] Mọi HTTP Request đều mang theo header `X-Correlation-ID` xuyên suốt từ Client tới log Backend.
 

@@ -2,8 +2,11 @@
 
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useCallback, useState } from "react";
+import { googleLogin } from "@/lib/api/authSessionApi";
+import { useAuthStore, waitForRefresh } from "@/store/authStore";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { getLoginRedirect } from "@/lib/auth/loginRedirect";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -36,10 +39,12 @@ declare global {
 
 interface GoogleLoginButtonProps {
   callbackUrl?: string;
+  hasExplicitCallback?: boolean;
 }
 
 export function GoogleLoginButton({
   callbackUrl = "/",
+  hasExplicitCallback = false,
 }: GoogleLoginButtonProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -56,24 +61,23 @@ export function GoogleLoginButton({
       setIsPending(true);
       setError(null);
       try {
-        const result = await signIn("google-id-token", {
-          idToken: response.credential,
-          redirect: false,
-        });
-        if (result?.error) {
-          setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
-          return;
-        }
-
-        router.replace(callbackUrl);
-        router.refresh();
+        await waitForRefresh();
+        const session = await googleLogin({ idToken: response.credential });
+        useAuthStore.getState().setSession(session);
+        router.replace(
+          getLoginRedirect(
+            session.roles,
+            safeCallbackUrl(callbackUrl),
+            hasExplicitCallback,
+          ),
+        );
       } catch {
         setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
       } finally {
         setIsPending(false);
       }
     },
-    [callbackUrl, router],
+    [callbackUrl, hasExplicitCallback, router],
   );
 
   const initializeGoogle = useCallback(() => {
@@ -96,7 +100,7 @@ export function GoogleLoginButton({
 
   if (!clientId) {
     return (
-      <p role="alert" className="text-center text-xs text-red-700">
+      <p role="alert" className="text-center text-xs text-destructive">
         Đăng nhập Google chưa được cấu hình.
       </p>
     );
@@ -116,7 +120,7 @@ export function GoogleLoginButton({
         aria-busy={isPending}
       />
       {error && (
-        <p role="alert" className="text-center text-xs text-red-700">
+        <p role="alert" className="text-center text-xs text-destructive">
           {error}
         </p>
       )}

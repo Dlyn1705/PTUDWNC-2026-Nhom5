@@ -19,6 +19,7 @@ public static class RecipeCacheKeys
 
 public sealed class RecipeCacheInvalidator(
     IDistributedCache cache,
+    IPublicContentCache publicContentCache,
     ILogger<RecipeCacheInvalidator> logger) : IRecipeCacheInvalidator
 {
     private static readonly DistributedCacheEntryOptions VersionOptions = new()
@@ -55,5 +56,10 @@ public sealed class RecipeCacheInvalidator(
                 "Could not invalidate recipe cache for {RecipeId}; database mutation remains committed",
                 recipeId);
         }
+
+        await publicContentCache.InvalidateRecipesAsync(recipeId, slug, CancellationToken.None);
+        // Category list DTOs contain published recipe counts, so every recipe
+        // lifecycle/child mutation must also invalidate that public projection.
+        await publicContentCache.InvalidateCategoriesAsync(cancellationToken: CancellationToken.None);
     }
 }

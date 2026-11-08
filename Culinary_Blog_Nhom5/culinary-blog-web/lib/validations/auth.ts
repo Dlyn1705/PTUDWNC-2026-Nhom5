@@ -29,6 +29,29 @@ export function getPasswordStrength(password: string) {
   return { criteria, score, label };
 }
 
+export const passwordSchema = z.string()
+  .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
+  .regex(/[A-Z]/, "Mật khẩu phải có ít nhất 1 chữ hoa")
+  .regex(/[a-z]/, "Mật khẩu phải có ít nhất 1 chữ thường")
+  .regex(/[0-9]/, "Mật khẩu phải có ít nhất 1 chữ số")
+  .regex(/[^a-zA-Z0-9]/, "Mật khẩu phải có ít nhất 1 ký tự đặc biệt");
+
+export const forgotPasswordSchema = z.object({ email: z.email().max(256) });
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  newPassword: passwordSchema,
+  confirmPassword: z.string().min(1),
+}).refine(value => value.newPassword === value.confirmPassword, {
+  path: ["confirmPassword"], message: "Mật khẩu xác nhận không khớp",
+});
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
+export const changePasswordSchema = resetPasswordSchema.safeExtend({
+  currentPassword: z.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),
+});
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+
 export const registerSchema = z
   .object({
     displayName: z

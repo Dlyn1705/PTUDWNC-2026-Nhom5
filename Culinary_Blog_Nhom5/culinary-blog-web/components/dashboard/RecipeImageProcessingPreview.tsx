@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { getRecipeImageStatus, type RecipeImageDto } from "@/lib/api/fileApi";
+import { toApiProblemError } from "@/lib/api/problemDetails";
 
 const labels = {
   Pending: "Đang chờ tạo thumbnail",
@@ -33,9 +34,11 @@ export default function RecipeImageProcessingPreview({ initial }: { initial: Rec
         if (updated.processingStatus === "Completed" || updated.processingStatus === "Failed") return;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const status = (error as { response?: { status?: number } }).response?.status;
+        const problem = toApiProblemError(error);
+        const status = problem.status;
         failures++;
-        setNotice("Không đọc được trạng thái ảnh. Ảnh đã tải lên vẫn được giữ trên máy chủ.");
+        setNotice("Không đọc được trạng thái ảnh. Ảnh đã tải lên vẫn được giữ trên máy chủ."
+          + (problem.correlationId ? ` Mã tham chiếu: ${problem.correlationId}.` : ""));
         if ([401, 403, 404].includes(status ?? 0) || failures >= 3) return;
       }
       timer = setTimeout(poll, 3000);
@@ -49,7 +52,7 @@ export default function RecipeImageProcessingPreview({ initial }: { initial: Rec
       <Image src={image.thumbnailUrl ?? image.originalUrl} alt={image.altText ?? "Ảnh công thức"}
         width={96} height={96} unoptimized className="h-24 w-24 rounded-lg object-cover" />
       <p role="status" className="text-xs text-muted-foreground">{labels[image.processingStatus]}</p>
-      {notice && <p role="alert" className="text-xs text-amber-800">{notice}</p>}
+      {notice && <p role="alert" className="text-xs text-warning">{notice}</p>}
       {notice && <button type="button" className="text-xs underline" onClick={() => { setNotice(""); setPollVersion(value => value + 1); }}>Kiểm tra lại trạng thái</button>}
       {image.processingStatus === "Completed" && (
         <div className="flex flex-wrap gap-3 text-xs underline">

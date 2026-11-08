@@ -10,5 +10,14 @@
     "types": ["node"],
     "rootDir": "."
   },
-  "include": ["lib/logger.ts", "lib/api/httpLogging.ts", "tests/logging.test.ts"]
+  "include": [
+    "lib/logger.ts",
+    "lib/api/httpLogging.ts",
+    "lib/api/fileApiCore.ts",
+    "lib/api/problemDetails.ts",
+    "lib/api/responseMetadata.ts",
+    "lib/api/imageErrors.ts",
+    "types/recipe-management.types.ts",
+    "tests/logging.test.ts"
+  ]
 }

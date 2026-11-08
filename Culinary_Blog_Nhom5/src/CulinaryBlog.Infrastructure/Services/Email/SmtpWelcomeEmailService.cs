@@ -30,12 +30,22 @@ public static class WelcomeEmailTemplate
 
 public sealed class SmtpWelcomeEmailService(IOptions<WelcomeEmailOptions> settings) : IEmailService
 {
-    public async Task SendWelcomeEmailAsync(string toEmail, string userName, CancellationToken ct = default)
+    public Task SendWelcomeEmailAsync(string toEmail, string userName, CancellationToken ct = default)
+        => SendAsync(null, toEmail, userName, ct);
+
+    public Task SendWelcomeEmailAsync(Guid deliveryId, string toEmail, string userName, CancellationToken ct = default)
+    {
+        if (deliveryId == Guid.Empty) throw new ArgumentException("Delivery identity is required.", nameof(deliveryId));
+        return SendAsync(deliveryId, toEmail, userName, ct);
+    }
+
+    private async Task SendAsync(Guid? deliveryId, string toEmail, string userName, CancellationToken ct)
     {
         var options = settings.Value;
         if (!options.Enabled) throw new InvalidOperationException("Email delivery is disabled.");
         var content = WelcomeEmailTemplate.Render(userName, options.PublicWebBaseUrl);
         using var message = new MimeMessage();
+        if (deliveryId is { } id) message.MessageId = $"welcome-{id:N}@culinary.invalid";
         message.From.Add(new MailboxAddress(options.FromName, options.FromAddress));
         message.To.Add(MailboxAddress.Parse(toEmail));
         message.Subject = "Chào mừng bạn đến với Culinary Blog";
@@ -43,8 +53,13 @@ public sealed class SmtpWelcomeEmailService(IOptions<WelcomeEmailOptions> settin
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(options.TimeoutSeconds));
         using var smtp = new SmtpClient { Timeout = options.TimeoutSeconds * 1000 };
-        await smtp.ConnectAsync(options.Host, options.Port, Enum.Parse<SecureSocketOptions>(options.SecurityMode), deadline.Token);
-        if (!string.IsNullOrEmpty(options.Username)) await smtp.AuthenticateAsync(options.Username, options.Password!, deadline.Token);
+        try
+        {
+            await smtp.ConnectAsync(options.Host, options.Port, Enum.Parse<SecureSocketOptions>(options.SecurityMode), deadline.Token);
+            if (!string.IsNullOrEmpty(options.Username)) await smtp.AuthenticateAsync(options.Username, options.Password!, deadline.Token);
+        }
+        catch { throw new EmailNotSubmittedException(); }
+        // From here an exception can have an ambiguous outcome. Do not label it safe to resend.
         await smtp.SendAsync(message, deadline.Token);
         // SMTP acceptance is success. A failing QUIT must not cause another delivery.
         try { await smtp.DisconnectAsync(true, deadline.Token); } catch { /* Dispose closes the connection. */ }

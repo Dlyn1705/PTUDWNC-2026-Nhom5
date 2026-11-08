@@ -46,7 +46,7 @@ export function RecipeBookmark({ slug }: { slug: string }) {
       aria-label={saved ? "Remove recipe bookmark" : "Bookmark recipe on this device"}
       aria-pressed={saved}
       onClick={toggleBookmark}
-      className="flex size-11 items-center justify-center rounded-full bg-[#f5f0e9] text-[#302c29] transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+      className="flex size-11 items-center justify-center rounded-full bg-cream text-cream-foreground transition-colors hover:bg-cream/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-contrast"
     >
       <Bookmark className="size-[18px]" fill={saved ? "currentColor" : "none"} />
     </button>

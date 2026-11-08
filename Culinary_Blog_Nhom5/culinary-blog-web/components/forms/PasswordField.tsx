@@ -57,7 +57,7 @@ export function PasswordField({
         onClick={toggleVisibility}
         aria-label={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
         aria-pressed={visible}
-        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-stone-500 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-primary"
+        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-primary"
       >
         {visible ? (
           <Eye size={18} aria-hidden="true" />

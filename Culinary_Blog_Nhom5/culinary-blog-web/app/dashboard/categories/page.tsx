@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FolderPlus,
   CheckCircle2,
@@ -12,15 +12,18 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { categoryApi } from "@/lib/api/categoryApi";
 import { CategoryDto } from "@/types/category.types";
-import { CategoryTable } from "@/components/dashboard/CategoryTable";
-import { CategoryModal } from "@/components/dashboard/CategoryModal";
-import { DeleteCategoryModal } from "@/components/dashboard/DeleteCategoryModal";
+import { AdminCategoryTable } from "@/components/dashboard/categories/AdminCategoryTable";
+import { AdminCategoryFormModal } from "@/components/dashboard/categories/AdminCategoryFormModal";
+import { AdminDeleteCategoryModal } from "@/components/dashboard/categories/AdminDeleteCategoryModal";
+import { RouteLoading } from "@/components/common/RouteLoading";
+import { ErrorState } from "@/components/common/ErrorState";
+import { UnauthorizedState } from "@/components/common/UnauthorizedState";
+import { errorPresentation } from "@/lib/errorPresentation";
+import { useCategories } from "@/hooks/queries/useCategories";
 
-export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+function AdminCategoriesContent() {
+  const { data: categories = [], isPending: loading, isError, error, isFetching, refetch } = useCategories();
   const [search, setSearch] = useState("");
 
   // Create / Edit modal state
@@ -43,42 +46,6 @@ export default function AdminCategoriesPage() {
       setNotification((prev) => (prev?.message === message ? null : prev));
     }, 4500);
   };
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await categoryApi.getAll();
-      setCategories(data);
-    } catch {
-      showNotification("error", "Không thể tải danh sách danh mục từ máy chủ.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let ignore = false;
-    categoryApi
-      .getAll()
-      .then((data) => {
-        if (!ignore) setCategories(data);
-      })
-      .catch(() => {
-        if (!ignore) {
-          setNotification({
-            type: "error",
-            message: "Không thể tải danh sách danh mục từ máy chủ.",
-          });
-        }
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   const handleCreateNew = () => {
     setEditingCategory(null);
@@ -106,25 +73,44 @@ export default function AdminCategoriesPage() {
 
   const totalRecipes = categories.reduce((sum, c) => sum + (c.recipeCount || 0), 0);
 
+  if (loading) return <RouteLoading variant="table" label="Đang tải danh mục quản lý…" />;
+  if (isError) {
+    const presentation = errorPresentation(error);
+    if (presentation.status === 401 || presentation.status === 403) {
+      return <div className="p-6"><UnauthorizedState
+        mode={presentation.status === 401 ? "unauthenticated" : "forbidden"}
+        loginHref="/auth/login?callbackUrl=/dashboard/categories"
+        description={presentation.description}
+        focusOnMount
+      /></div>;
+    }
+    return <div className="p-6"><ErrorState title="Không thể tải danh mục quản lý" headingLevel="h1"
+      description={presentation.description} correlationId={presentation.correlationId}
+      onRetry={presentation.canRetry ? async () => { await refetch(); } : undefined} isRetrying={isFetching} /></div>;
+  }
+
   return (
-    <div className="space-y-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="page-container space-y-8 py-8">
       {/* Toast Feedback Notification Banner */}
       {notification && (
         <div
+          role={notification.type === "error" ? "alert" : "status"}
           className={`flex items-center gap-2.5 rounded-2xl border p-4 text-xs font-medium shadow-soft animate-in slide-in-from-top-2 duration-200 ${
             notification.type === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+              ? "border-success/30 bg-success/10 text-success"
               : "border-destructive/30 bg-destructive/10 text-destructive"
           }`}
         >
           {notification.type === "success" ? (
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-success" />
           ) : (
-            <AlertCircle className="size-4 shrink-0 text-destructive" />
+            <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-destructive" />
           )}
           <span className="flex-1">{notification.message}</span>
           <button
+            type="button"
             onClick={() => setNotification(null)}
+            aria-label="Đóng thông báo"
             className="text-xs opacity-70 hover:opacity-100 font-bold"
           >
             ✕
@@ -172,7 +158,7 @@ export default function AdminCategoriesPage() {
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-2xs space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <UtensilsCrossed className="size-4 text-emerald-500" />
+            <UtensilsCrossed className="size-4 text-success" />
             <span>Tổng công thức liên kết</span>
           </div>
           <p className="font-display text-2xl font-bold tabular-nums text-foreground">
@@ -182,7 +168,7 @@ export default function AdminCategoriesPage() {
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-2xs space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-            <Sparkles className="size-4 text-amber-500" />
+            <Sparkles className="size-4 text-warning" />
             <span>Trung bình / Danh mục</span>
           </div>
           <p className="font-display text-2xl font-bold tabular-nums text-foreground">
@@ -195,11 +181,12 @@ export default function AdminCategoriesPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm nhanh danh mục theo tên hoặc slug..."
+              aria-label="Tìm nhanh danh mục theo tên hoặc slug"
               className="pl-9.5 pr-4 h-10 rounded-xl bg-card border-border text-xs"
             />
           </div>
@@ -210,37 +197,40 @@ export default function AdminCategoriesPage() {
         </div>
 
         {/* Modularized Category Table */}
-        <CategoryTable
+        <AdminCategoryTable
           categories={filteredCategories}
           isLoading={loading}
+          filtered={Boolean(search.trim())}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
       </div>
 
       {/* Modal Tạo mới / Cập nhật Danh mục */}
-      <CategoryModal
+      <AdminCategoryFormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         editingCategory={editingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          fetchCategories();
         }}
         onError={(msg) => showNotification("error", msg)}
       />
 
       {/* Modal Xác nhận Xóa Danh mục an toàn */}
-      <DeleteCategoryModal
+      <AdminDeleteCategoryModal
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
         category={deletingCategory}
         onSuccess={(msg) => {
           showNotification("success", msg);
-          fetchCategories();
         }}
         onError={(msg) => showNotification("error", msg)}
       />
     </div>
   );
+}
+
+export default function AdminCategoriesPage() {
+  return <AdminCategoriesContent />;
 }

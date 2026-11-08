@@ -1,21 +1,20 @@
-import axiosClient from "./axiosClient";
-import type { PagedResult, RecipeCardDto } from "@/types/recipe.types";
-import type { PublicRecipeParams, RecipeStateResponse } from "@/types/recipe-management.types";
+import { recipeLifecycleApi } from "./recipeLifecycleApi";
+import { recipePublicApi } from "./recipePublicApi";
+import type { PublicRecipeParams } from "../../types/recipe-management.types";
 
-const recipesPath = "/api/v1/recipes";
-
-/** Keeps pagination metadata and surfaces API failures to the caller. */
-export async function listPublicRecipes(params: PublicRecipeParams = {}, signal?: AbortSignal) {
-  const response = await axiosClient.get<PagedResult<RecipeCardDto>>(recipesPath, { params, signal });
-  return response.data;
-}
+/** @deprecated Import recipePublicApi or recipeLifecycleApi directly. */
+export const listPublicRecipes = (params: PublicRecipeParams = {}) => recipePublicApi.getPaged({
+  page: params.page,
+  pageSize: params.pageSize,
+  categoryId: params.categoryId,
+  difficulty: params.difficulty,
+  sortBy: params.sortBy,
+  sortOrder: params.sortOrder,
+});
 
 export type RecipeAction = "publish" | "unpublish" | "archive" | "unarchive";
 
-/** Browser calls reuse the session bearer token attached by axiosClient. */
-export async function changeRecipeState(id: string, action: RecipeAction, signal?: AbortSignal) {
-  const response = await axiosClient.patch<RecipeStateResponse>(
-    `${recipesPath}/${encodeURIComponent(id)}/${action}`, undefined, { signal },
-  );
-  return response.data;
+/** @deprecated Compatibility alias; lifecycle actions use their canonical methods. */
+export function changeRecipeState(id: string, action: RecipeAction) {
+  return recipeLifecycleApi[action](id);
 }

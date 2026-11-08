@@ -23,7 +23,7 @@ export default function RecipeImageUploadPanel() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
+    <div className="page-container max-w-3xl space-y-6 py-10">
       <header>
         <p className="text-sm font-medium text-primary">Dashboard / Recipes / Images</p>
         <h1 className="mt-2 text-3xl font-bold">Tải ảnh công thức</h1>
@@ -47,7 +47,7 @@ export default function RecipeImageUploadPanel() {
             Chọn công thức
           </button>
         </div>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
 
       {recipeId && <ImageGalleryManager key={recipeId} recipeId={recipeId} />}

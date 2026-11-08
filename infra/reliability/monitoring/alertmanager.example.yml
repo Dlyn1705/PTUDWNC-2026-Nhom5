@@ -1,0 +1,12 @@
+global:
+  resolve_timeout: 1m
+route:
+  receiver: operations
+  group_wait: 0s
+  group_interval: 1m
+  repeat_interval: 1h
+receivers:
+  - name: operations
+    webhook_configs:
+      - url_file: /run/secrets/alert_webhook_url
+        send_resolved: true
