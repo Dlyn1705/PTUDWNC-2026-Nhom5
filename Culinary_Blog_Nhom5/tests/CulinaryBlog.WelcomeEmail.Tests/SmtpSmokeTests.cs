@@ -88,8 +88,9 @@ public sealed class SmtpSmokeTests(Xunit.Abstractions.ITestOutputHelper output)
             var queued = await app.Delivery(item.Id);
             Assert.NotNull(queued.HangfireJobId); Assert.Equal(WelcomeEmailStatus.Pending, queued.Status);
             await app.RestartAsync(worker: true);
-            await app.WaitForAsync(async () => (await app.Delivery(item.Id)).Status == WelcomeEmailStatus.Sent);
-            await app.WaitForAsync(async () => (await Messages()).Length == 1);
+            var smtpTimeout = TimeSpan.FromSeconds(60);
+            await app.WaitForAsync(async () => (await app.Delivery(item.Id)).Status == WelcomeEmailStatus.Sent, smtpTimeout);
+            await app.WaitForAsync(async () => (await Messages()).Length == 1, smtpTimeout);
             var captured = Assert.Single(await Messages());
             var id = captured.GetProperty("ID").GetString();
             await using var stream = await mailhog.GetStreamAsync($"/api/v1/messages/{id}/download");

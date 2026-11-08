@@ -110,9 +110,9 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
         return await action(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
     }
     public Task<WelcomeEmailDelivery> Delivery(Guid id) => Db(db => db.WelcomeEmailDeliveries.AsNoTracking().SingleAsync(x => x.Id == id));
-    public async Task WaitForAsync(Func<Task<bool>> condition)
+    public async Task WaitForAsync(Func<Task<bool>> condition, TimeSpan? timeout = null)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        using var deadline = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(25));
         while (!await condition()) await Task.Delay(100, deadline.Token);
     }
     public async ValueTask DisposeAsync()
