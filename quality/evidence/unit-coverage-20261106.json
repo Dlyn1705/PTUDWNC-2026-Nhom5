@@ -1,0 +1,9 @@
+{
+  "covered": 1221,
+  "valid": 1444,
+  "percent": 84.556787,
+  "reports": 2,
+  "requiredPercent": 84.55,
+  "passed": true,
+  "configuration": "Release"
+}

@@ -6,8 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "typecheck": "tsc --noEmit",
+    "format:check": "node scripts/check-format.mjs",
+    "test:e2e:critical-api": "node tests/critical-api.e2e.mjs",
     "test:lighthouse": "lhci autorun",
     "test:seo": "tsc -p tsconfig.seo-tests.json && node --test build/seo-tests/tests/seo.unit.js",
     "test:sitemap": "node --test tests/sitemap-robots.unit.cjs",
@@ -72,6 +74,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.4.3",
     "playwright": "1.62.1",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

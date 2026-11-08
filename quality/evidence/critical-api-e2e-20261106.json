@@ -1,0 +1,81 @@
+{
+  "kind": "Playwright API E2E (not UI)",
+  "passed": true,
+  "flows": [
+    {
+      "flow": "register",
+      "passed": true,
+      "errorCase": 409
+    },
+    {
+      "flow": "login",
+      "passed": true,
+      "errorCase": 401
+    },
+    {
+      "flow": "create recipe",
+      "passed": true,
+      "errorCase": 401
+    },
+    {
+      "flow": "publish",
+      "passed": true,
+      "errorCase": 401
+    },
+    {
+      "flow": "search",
+      "passed": true,
+      "errorCase": 422
+    }
+  ],
+  "endpointCases": [
+    {
+      "operation": "AuthPing",
+      "happy": 200,
+      "error": 405,
+      "passed": true
+    },
+    {
+      "operation": "GetCategories",
+      "happy": 200,
+      "error": 405,
+      "passed": true
+    },
+    {
+      "operation": "GetRecipes",
+      "happy": 200,
+      "error": 400,
+      "passed": true
+    },
+    {
+      "operation": "GetRecipeById",
+      "happy": 200,
+      "error": 404,
+      "passed": true
+    },
+    {
+      "operation": "GetManagedRecipes",
+      "happy": 200,
+      "error": 401,
+      "passed": true
+    },
+    {
+      "operation": "GetRecipeBySlug",
+      "happy": 200,
+      "error": 404,
+      "passed": true
+    },
+    {
+      "operation": "ResolveRecipeSlug",
+      "happy": 200,
+      "error": 404,
+      "passed": true
+    },
+    {
+      "operation": "GetProfileRecipeStats",
+      "happy": 200,
+      "error": 401,
+      "passed": true
+    }
+  ]
+}

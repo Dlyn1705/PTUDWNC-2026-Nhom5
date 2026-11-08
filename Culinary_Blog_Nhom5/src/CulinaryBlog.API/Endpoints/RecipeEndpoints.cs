@@ -34,10 +34,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
 
+/// <summary>Category identifier and label for the author dashboard.</summary>
 public sealed record ManagedRecipeCategoryDto(Guid Id, string Name);
+/// <summary>Author identifier and display name for the management view.</summary>
 public sealed record ManagedRecipeAuthorDto(string Id, string DisplayName);
+/// <summary>Recipe state and timestamps returned after a lifecycle operation.</summary>
 public sealed record RecipeStateDto(Guid Id, RecipeStatus Status, DateTime? PublishedAt, DateTime? UpdatedAt = null);
+/// <summary>Canonical recipe slug and whether the requested slug changed.</summary>
 public sealed record RecipeSlugResolutionDto(string CurrentSlug, bool Redirected);
+/// <summary>Recipe list item for an authorized author or administrator.</summary>
 public sealed record ManagedRecipeSummaryDto(
     Guid Id,
     string Title,
@@ -543,6 +548,7 @@ public static class RecipeEndpoints
 
 }
 
+/// <summary>Recipe details and optional child data for a new draft.</summary>
 public sealed record CreateRecipeRequest(
     string Title,
     string? Description,
@@ -557,18 +563,21 @@ public sealed record CreateRecipeRequest(
     CreateRecipeNutritionRequest? Nutrition = null
 );
 
+/// <summary>Ingredient supplied as part of draft creation.</summary>
 public sealed record CreateRecipeIngredientRequest(
     string Name,
     decimal? Quantity = null,
     string? Unit = null,
     string? Notes = null);
 
+/// <summary>Instruction step supplied as part of draft creation.</summary>
 public sealed record CreateRecipeStepRequest(
     string Description,
     string? Title = null,
     int? TimerMinutes = null,
     string? ImageUrl = null);
 
+/// <summary>Optional nutrition values supplied during draft creation.</summary>
 public sealed record CreateRecipeNutritionRequest(
     decimal? Calories = null,
     decimal? Protein = null,
@@ -577,6 +586,7 @@ public sealed record CreateRecipeNutritionRequest(
     decimal? Fiber = null,
     decimal? Sodium = null);
 
+/// <summary>Editable recipe details and optional body version for concurrency control.</summary>
 public sealed record UpdateRecipeRequest(
     string Title,
     string? Description,
@@ -589,6 +599,7 @@ public sealed record UpdateRecipeRequest(
     string? RowVersion = null
 );
 
+/// <summary>Replacement nutrition values and optional body version for concurrency control.</summary>
 public sealed record UpdateRecipeNutritionRequest(
     decimal? Calories = null,
     decimal? Protein = null,

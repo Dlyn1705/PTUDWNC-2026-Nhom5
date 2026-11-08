@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps')]
+    [ValidateSet('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps','Auth','Search')]
     [string[]]$Suites = @('RecipeCreation','RecipeUpdate','RecipeDeletion','RecipeImages','ImageProcessing','WelcomeEmail','Ingredients','Steps'),
     [ValidatePattern('^culinary-[a-z0-9-]{1,32}$')][string]$ProjectPrefix = 'culinary-issue84',
-    [string]$Filter
+    [string]$Filter,
+    [switch]$Coverage
 )
 $ErrorActionPreference = 'Stop'
 $project = $ProjectPrefix + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
@@ -47,7 +48,7 @@ try {
     }
     if (-not $ready) { throw 'MinIO/MailHog did not become ready.' }
     $connection = "Host=127.0.0.1;Port=$pgPort;Database=postgres;Username=postgres;Password=$env:ISSUE84_PASSWORD"
-    foreach ($name in @('RECIPE_CREATE_TEST_CONNECTION','RECIPE_UPDATE_TEST_CONNECTION','RECIPE_DELETION_TEST_CONNECTION','RECIPE_IMAGES_TEST_CONNECTION','IMAGE_TEST_CONNECTION','WELCOME_EMAIL_TEST_CONNECTION','INGREDIENTS_TEST_CONNECTION','STEPS_TEST_CONNECTION')) { Set-TestVariable $name $connection }
+    foreach ($name in @('RECIPE_CREATE_TEST_CONNECTION','RECIPE_UPDATE_TEST_CONNECTION','RECIPE_DELETION_TEST_CONNECTION','RECIPE_IMAGES_TEST_CONNECTION','IMAGE_TEST_CONNECTION','WELCOME_EMAIL_TEST_CONNECTION','INGREDIENTS_TEST_CONNECTION','STEPS_TEST_CONNECTION','AUTH_TEST_POSTGRES','SEARCH_TEST_CONNECTION')) { Set-TestVariable $name $connection }
     foreach ($name in @('RECIPE_IMAGES_TEST_MINIO_PASSWORD','RECIPE_DELETION_TEST_MINIO_PASSWORD','IMAGE_TEST_MINIO_SECRET')) { Set-TestVariable $name $env:ISSUE84_PASSWORD }
     foreach ($name in @('RECIPE_IMAGES_TEST_MINIO_USER','RECIPE_DELETION_TEST_MINIO_USER','IMAGE_TEST_MINIO_ACCESS')) { Set-TestVariable $name 'issue84local' }
     Set-TestVariable 'RECIPE_TEST_MINIO_ENDPOINT' "127.0.0.1:$minioPort"
@@ -60,6 +61,7 @@ try {
         $testProject = Join-Path $PSScriptRoot "CulinaryBlog.$suite.Tests/CulinaryBlog.$suite.Tests.csproj"
         $testArguments = @('test', $testProject, '--logger', "trx;LogFileName=$suite.trx", '--results-directory', $results, '--verbosity', 'minimal')
         if ($Filter) { $testArguments += @('--filter', $Filter) }
+        if ($Coverage) { $testArguments += @('--collect', 'XPlat Code Coverage', '--settings', (Join-Path $PSScriptRoot 'application.runsettings')) }
         & dotnet @testArguments
         $testExit = $LASTEXITCODE
         $trx = Join-Path $results "$suite.trx"
