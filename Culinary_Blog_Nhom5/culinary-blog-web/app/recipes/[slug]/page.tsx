@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { publicApi } from "@/lib/api/serverClient";
 import { RecipeHero } from "@/components/recipes/RecipeHero";
 import { IngredientList } from "@/components/recipes/IngredientList";
@@ -9,6 +9,9 @@ import { NutritionCard } from "@/components/recipes/NutritionCard";
 import { StepByStepList } from "@/components/recipes/StepByStepList";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { ArrowRight } from "lucide-react";
+import { buildRecipeJsonLd, serializeJsonLd } from "@/lib/seo/recipeJsonLd";
+import { buildRecipeMetadata } from "@/lib/seo/metadata";
+import { recipeUrl } from "@/lib/seo/siteUrl";
 
 interface RecipeDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -16,42 +19,34 @@ interface RecipeDetailPageProps {
 
 export async function generateMetadata({ params }: RecipeDetailPageProps) {
   const { slug } = await params;
-  const recipe = await publicApi.getRecipe(slug);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://culinaryblog.local";
-
-  if (!recipe) {
-    return { title: "Recipe Not Found — Culinary Blog" };
+  const resolution = await publicApi.resolveRecipeSlug(slug);
+  if (resolution?.redirected && resolution.currentSlug !== slug) {
+    return {
+      title: "Recipe moved — Culinary Blog",
+      robots: { index: false, follow: false },
+      alternates: { canonical: recipeUrl(resolution.currentSlug) },
+    };
   }
 
-  const primaryImage =
-    recipe.images?.find((i) => i.isPrimary)?.url || recipe.images?.[0]?.url;
+  const recipe = await publicApi.getRecipe(slug);
 
-  return {
-    title: `${recipe.title} — Culinary Blog`,
-    description: recipe.description,
-    alternates: { canonical: `${siteUrl}/recipes/${recipe.slug}` },
-    robots: recipe.status === 1 ? { index: true, follow: true } : { index: false, follow: false },
-    openGraph: {
-      title: `${recipe.title} — Culinary Blog`,
-      description: recipe.description,
-      type: "article",
-      publishedTime: recipe.publishedAt || recipe.createdAt,
-      modifiedTime: recipe.updatedAt || recipe.publishedAt || recipe.createdAt,
-      authors: [recipe.author?.displayName || "Culinary Chef"],
-      url: `${siteUrl}/recipes/${recipe.slug}`,
-      images: primaryImage ? [{ url: primaryImage }] : [],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: recipe.title,
-      description: recipe.description,
-      images: primaryImage ? [primaryImage] : [],
-    },
-  };
+  if (!recipe) {
+    return {
+      title: "Recipe Not Found — Culinary Blog",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  return buildRecipeMetadata(recipe);
 }
 
 export default async function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const { slug } = await params;
+  const resolution = await publicApi.resolveRecipeSlug(slug);
+  if (resolution?.redirected && resolution.currentSlug !== slug) {
+    permanentRedirect(`/recipes/${encodeURIComponent(resolution.currentSlug)}`);
+  }
+
   const recipe = await publicApi.getRecipe(slug);
 
   if (!recipe) {
@@ -68,55 +63,14 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
     .filter((r) => r.id !== recipe.id && (r.categoryId === recipe.categoryId || r.categoryName === recipe.categoryName))
     .slice(0, 3);
 
-  const primaryImage =
-    recipe.images?.find((i) => i.isPrimary)?.url || recipe.images?.[0]?.url;
-
-  // Schema.org Recipe JSON-LD format with complete 6 nutrition attributes
-  const schemaLd = {
-    "@context": "https://schema.org",
-    "@type": "Recipe",
-    name: recipe.title,
-    image: primaryImage ? [primaryImage] : [],
-    author: {
-      "@type": "Person",
-      name: recipe.author?.displayName || "Culinary Chef",
-    },
-    datePublished: recipe.publishedAt || recipe.createdAt,
-    dateModified: recipe.updatedAt || recipe.publishedAt || recipe.createdAt,
-    description: recipe.description,
-    prepTime: `PT${recipe.prepTimeMinutes}M`,
-    cookTime: `PT${recipe.cookTimeMinutes}M`,
-    totalTime: `PT${(recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0)}M`,
-    recipeYield: `${recipe.servings} servings`,
-    recipeCategory: recipe.categoryName || "Culinary",
-    nutrition: {
-      "@type": "NutritionInformation",
-      calories: `${recipe.nutrition.calories} calories`,
-      proteinContent: `${recipe.nutrition.protein} grams`,
-      carbohydrateContent: `${recipe.nutrition.carbs} grams`,
-      fatContent: `${recipe.nutrition.fat} grams`,
-      fiberContent: `${recipe.nutrition.fiber || 0} grams`,
-      sodiumContent: `${recipe.nutrition.sodium} milligrams`,
-    },
-    recipeIngredient: recipe.ingredients.map(
-      (item) => [item.quantity, item.unit, item.name]
-        .filter((value) => value !== null && value !== undefined && value !== "")
-        .join(" ")
-    ),
-    recipeInstructions: recipe.steps.map((step) => ({
-      "@type": "HowToStep",
-      name: step.title || `Step ${step.order}`,
-      text: step.text,
-      image: step.imageUrl,
-    })),
-  };
+  const schemaLd = buildRecipeJsonLd(recipe);
 
   return (
     <article className="page-container space-y-12 py-8">
       {/* Schema.org Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaLd).replace(/</g, "\\u003c") }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(schemaLd) }}
       />
 
       {/* Breadcrumbs */}
@@ -149,7 +103,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
       <RecipeHero recipe={recipe} />
 
       {/* Main Recipe Body: Left (Ingredients + Nutrition) & Right (StepByStepList) */}
-      <div className="grid gap-10 lg:grid-cols-12 items-start">
+      <div className="grid gap-10 xl:grid-cols-12 items-start">
         {/* Left Column: Ingredients Checklist & 6-attribute Nutrition card */}
         <aside className="space-y-8 lg:col-span-5 lg:sticky lg:top-24">
           <IngredientList
@@ -220,7 +174,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
             </Link>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {relatedRecipes.map((rel) => (
               <RecipeCard key={rel.id} recipe={rel} />
             ))}

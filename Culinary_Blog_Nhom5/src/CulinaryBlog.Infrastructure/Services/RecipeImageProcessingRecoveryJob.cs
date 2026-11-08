@@ -7,7 +7,8 @@ using Microsoft.Extensions.Logging;
 namespace CulinaryBlog.Infrastructure.Services;
 
 public sealed class RecipeImageProcessingRecoveryJob(ApplicationDbContext db, IBackgroundJobClient jobs, JobStorage storage,
-    ImageWorkLock locks, ImageGenerationCleanup cleanup, ImageVariantReconciler reconciler, TimeProvider clock, ILogger<RecipeImageProcessingRecoveryJob> logger)
+    ImageWorkLock locks, ImageGenerationCleanup cleanup, ImageVariantReconciler reconciler, TimeProvider clock, ILogger<RecipeImageProcessingRecoveryJob> logger,
+    RecipeImageUploadCleanup uploadCleanup)
 {
     [AutomaticRetry(Attempts = 0)]
     [DisableConcurrentExecution(300)]
@@ -44,5 +45,6 @@ public sealed class RecipeImageProcessingRecoveryJob(ApplicationDbContext db, IB
         }
         await cleanup.SweepAsync(locks, ct);
         await reconciler.ReconcileAsync(ct);
+        await uploadCleanup.SweepAsync(ct);
     }
 }

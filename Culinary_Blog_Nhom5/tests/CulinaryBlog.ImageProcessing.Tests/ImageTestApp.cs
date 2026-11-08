@@ -32,7 +32,7 @@ using Xunit;
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 namespace CulinaryBlog.ImageProcessing.Tests;
 
-internal sealed class ImageTestApp(WebApplication app, string admin, string database, string bucket) : IAsyncDisposable
+internal sealed class ImageTestApp(WebApplication app, string admin, string database, string bucket, Action<IServiceCollection>? customization) : IAsyncDisposable
 {
     public IServiceProvider Services => app.Services;
     public Guid RecipeId { get; private set; }
@@ -49,18 +49,34 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         }
         var connection = new NpgsqlConnectionStringBuilder(cs.ConnectionString) { Database = database }.ConnectionString;
         var bucket = "fr-job002-test-" + Guid.NewGuid().ToString("N");
+        var app = await BuildHostAsync(connection, bucket, worker, configure);
+        var test = new ImageTestApp(app, cs.ConnectionString, database, bucket, configure);
+        await test.Db(async db =>
+        {
+            var user = ApplicationUser.Create("author@image.test", "author@image.test", "Bếp Việt");
+            var category = Category.Create("Test", Guid.NewGuid().ToString("N"));
+            var recipe = new Recipe { Title = "Recipe", Slug = Guid.NewGuid().ToString("N"), Description = "Recipe", Instructions = "Instructions", AuthorId = user.Id, CategoryId = category.Id };
+            db.Users.Add(user); db.Categories.Add(category); db.Recipes.Add(recipe);
+            test.RecipeId = recipe.Id; test.UserId = user.Id; return await db.SaveChangesAsync();
+        });
+        await app.StartAsync(); return test;
+    }
+
+    private static async Task<WebApplication> BuildHostAsync(string connection, string bucket, bool worker,
+        Action<IServiceCollection>? configure, FakeClock? existingClock = null)
+    {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
             ["Jwt:Key"] = "image-tests-only-32-character-or-longer-key",
-            ["Minio:Endpoint"] = "127.0.0.1:9000", ["Minio:PublicBaseUrl"] = "http://127.0.0.1:9000", ["Minio:Bucket"] = bucket,
+            ["Minio:Endpoint"] = Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "127.0.0.1:9000", ["Minio:PublicBaseUrl"] = "http://" + (Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "127.0.0.1:9000"), ["Minio:Bucket"] = bucket,
             ["Minio:AccessKey"] = Environment.GetEnvironmentVariable("IMAGE_TEST_MINIO_ACCESS"),
             ["Minio:SecretKey"] = Environment.GetEnvironmentVariable("IMAGE_TEST_MINIO_SECRET")
         });
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
-        builder.Services.AddSingleton<FakeClock>(); builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeClock>());
+        builder.Services.AddSingleton(existingClock ?? new FakeClock()); builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeClock>());
         builder.Services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("test", _ => { });
         builder.Services.AddRateLimiter(options =>
         {
@@ -74,16 +90,16 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
         var app = builder.Build(); app.UseMiddleware<GlobalExceptionMiddleware>(); app.UseRateLimiter(); app.UseAuthentication(); app.UseAuthorization();
         app.MapGroup("/api/v1").MapRecipeEndpoints();
         using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
-        var test = new ImageTestApp(app, cs.ConnectionString, database, bucket);
-        await test.Db(async db =>
-        {
-            var user = ApplicationUser.Create("author@image.test", "author@image.test", "Bếp Việt");
-            var category = Category.Create("Test", Guid.NewGuid().ToString("N"));
-            var recipe = new Recipe { Title = "Recipe", Slug = Guid.NewGuid().ToString("N"), Description = "Recipe", Instructions = "Instructions", AuthorId = user.Id, CategoryId = category.Id };
-            db.Users.Add(user); db.Categories.Add(category); db.Recipes.Add(recipe);
-            test.RecipeId = recipe.Id; test.UserId = user.Id; return await db.SaveChangesAsync();
-        });
-        await app.StartAsync(); return test;
+        return app;
+    }
+
+    public async Task RestartAsync(bool worker = false)
+    {
+        var clock = Clock;
+        await app.StopAsync(); await app.DisposeAsync();
+        var connection = new NpgsqlConnectionStringBuilder(admin) { Database = database }.ConnectionString;
+        app = await BuildHostAsync(connection, bucket, worker, customization, clock);
+        await app.StartAsync();
     }
 
     public HttpClient Client(string? user = null, string role = "Author")
@@ -116,9 +132,9 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
     {
         using var image = new MagickImage(MagickColors.Orange, width, height); image.Format = format; return image.ToByteArray();
     }
-    public async Task WaitAsync(Func<Task<bool>> ready)
+    public async Task WaitAsync(Func<Task<bool>> ready, TimeSpan? maximumWait = null)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(50));
+        using var timeout = new CancellationTokenSource(maximumWait ?? TimeSpan.FromSeconds(50));
         while (!await ready()) await Task.Delay(100, timeout.Token);
     }
     public async ValueTask DisposeAsync()
@@ -139,10 +155,10 @@ internal sealed class ImageTestApp(WebApplication app, string admin, string data
 
 internal sealed class FakeClock : TimeProvider
 {
-    private DateTimeOffset now = DateTimeOffset.UtcNow.AddSeconds(10);
-    public override DateTimeOffset GetUtcNow() => now;
-    public void Reset() => now = DateTimeOffset.UtcNow.AddSeconds(1);
-    public void Advance(int seconds) => now = now.AddSeconds(seconds);
+    private long offsetTicks = TimeSpan.FromSeconds(10).Ticks;
+    public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow.AddTicks(Interlocked.Read(ref offsetTicks));
+    public void Reset() => Interlocked.Exchange(ref offsetTicks, TimeSpan.FromSeconds(1).Ticks);
+    public void Advance(int seconds) => Interlocked.Add(ref offsetTicks, TimeSpan.FromSeconds(seconds).Ticks);
 }
 
 internal sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)

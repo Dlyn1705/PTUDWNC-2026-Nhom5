@@ -1,0 +1,19 @@
+{
+  "retryDelaysSeconds": [
+    60,
+    120,
+    240
+  ],
+  "maximumAttempts": 4,
+  "project": "culinary-issue91-fca48415b65d",
+  "suites": [
+    {
+      "passed": 27,
+      "suite": "WelcomeEmail",
+      "exitCode": 0,
+      "failed": 0,
+      "notExecuted": 0,
+      "total": 27
+    }
+  ]
+}

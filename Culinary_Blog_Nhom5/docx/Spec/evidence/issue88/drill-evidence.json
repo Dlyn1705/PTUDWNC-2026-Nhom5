@@ -1,0 +1,391 @@
+{
+  "baseline": "ff66cd1",
+  "environment": "isolated synthetic fixtures; no development data used",
+  "full_failure_matrix": [
+    {
+      "test": "cache_cancellation_and_concurrent_epoch_fencing",
+      "utc": "2026-11-02T16:33:09.196137+00:00"
+    },
+    {
+      "test": "production_frontend_readme_smoke_maintenance_axe_320px",
+      "utc": "2026-11-02T16:33:40.530180+00:00",
+      "result": "PASS production home/login/list/detail/status, API health, 48h notice, banner axe and 320px."
+    },
+    {
+      "test": "unhandled_500_rfc7807_process_alive",
+      "utc": "2026-11-02T16:33:41.087948+00:00",
+      "pid": 23080
+    },
+    {
+      "test": "redis_down_fallback_mutation_recovery_restart_two_instances",
+      "utc": "2026-11-02T16:34:07.811088+00:00",
+      "pid": 23948
+    },
+    {
+      "test": "redis_blackhole_deadline_fallback",
+      "utc": "2026-11-02T16:34:08.438496+00:00",
+      "seconds": 0.375
+    },
+    {
+      "test": "minio_outage_health_degraded_public_available",
+      "utc": "2026-11-02T16:34:16.011089+00:00"
+    },
+    {
+      "test": "postgres_refused_reconnect_gateway_remove_restore",
+      "utc": "2026-11-02T16:34:38.774756+00:00",
+      "error_seconds": 10.439,
+      "pid": 23948
+    },
+    {
+      "test": "postgres_blackhole_bounded_timeout_process_alive",
+      "utc": "2026-11-02T16:34:49.370508+00:00",
+      "seconds": 10.346,
+      "pid": 23948
+    },
+    {
+      "test": "postgres_network_disconnect_reconnect",
+      "utc": "2026-11-02T16:34:52.506868+00:00"
+    },
+    {
+      "test": "encrypted_pg_dump_and_object_backup",
+      "utc": "2026-11-02T16:34:56.013969+00:00"
+    },
+    {
+      "test": "isolated_restore_count_sha256_metadata",
+      "utc": "2026-11-02T16:34:58.666489+00:00",
+      "result": {
+        "backup": "backup-20261102T163453Z-d2854f71",
+        "objects": 4,
+        "restore_seconds": 1.755,
+        "success": true,
+        "tables": {
+          "hangfire.aggregatedcounter": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.counter": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.hash": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.job": {
+            "count": 1,
+            "sha256": "b3909d73bdafcadffca9fb43b0d99c7521db44d15015359dbac705a810eab667"
+          },
+          "hangfire.jobparameter": {
+            "count": 2,
+            "sha256": "9589e3f576d527d16d56581979a244d78de045cf874b1335b3aa252d3761d4c0"
+          },
+          "hangfire.jobqueue": {
+            "count": 1,
+            "sha256": "0990c9dd97a89bd89a727476bcb2fb941fcde1a92843f0607948c3ad3a22ba35"
+          },
+          "hangfire.list": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.lock": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.schema": {
+            "count": 1,
+            "sha256": "57d75bbc6e01887778e422ae1eaf012a683360b97bc6ececc914ec5d0bb6d73b"
+          },
+          "hangfire.server": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.set": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.state": {
+            "count": 1,
+            "sha256": "30597a7c835e7bb379981db05ec0445ef778a3342325ca24eeaf3a2ccaff12c2"
+          },
+          "public.AspNetRoleClaims": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetRoles": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserClaims": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserLogins": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserRoles": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserTokens": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUsers": {
+            "count": 1,
+            "sha256": "a85dee207290ce71f483d16a34cc33f76dc393eeb9f35b5d55079e4c68d3266d"
+          },
+          "public.Categories": {
+            "count": 1,
+            "sha256": "062f08a869e5d77e5d6dc1f7f3bae03b7f24f3d8c676f8555c3d01d039760944"
+          },
+          "public.PasswordResetTokens": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.RecipeImageGenerations": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.RecipeImageWork": {
+            "count": 1,
+            "sha256": "25e8e7e95fbc419441ea778320afa3552b23e99f93728c1377e6343d1e55d87e"
+          },
+          "public.RecipeImages": {
+            "count": 1,
+            "sha256": "c768acdd7d707e518252175d89fee0be40d8528e9be1385eed3dd951c449b175"
+          },
+          "public.RecipeIngredients": {
+            "count": 1,
+            "sha256": "1c2874b78d5b71de1972b94e96ebdf4975376f969e036395ba16ffbca2c15a23"
+          },
+          "public.RecipeSteps": {
+            "count": 1,
+            "sha256": "946af7338752d12d833561fe3ddac78688334446621a87e75c0089bc5c572753"
+          },
+          "public.Recipes": {
+            "count": 1,
+            "sha256": "6d681c0f110da70677bf1ddf73e2667a36ab62012de2bd9f7163c9598f3bb379"
+          },
+          "public.RefreshTokens": {
+            "count": 1,
+            "sha256": "16e90723f880bceecd4ca2c446e92fca6f4ff36382639c63368cffab9a95d65a"
+          },
+          "public.WelcomeEmailDeliveries": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.__EFMigrationsHistory": {
+            "count": 17,
+            "sha256": "c2dd131097b041c888ca41dc71aa5f04e1474b71d242c42860c3c215693b0d76"
+          },
+          "public.cache_epoch": {
+            "count": 1,
+            "sha256": "247733a915a391df950a48b03a8a1ad3440708e8831ccd77b017f1ad54209590"
+          }
+        }
+      }
+    },
+    {
+      "test": "container_recreate_database_objects_hangfire_redis_aof_durable",
+      "utc": "2026-11-02T16:35:16.096305+00:00"
+    },
+    {
+      "test": "restored_api_migration_startup_live",
+      "utc": "2026-11-02T16:35:21.062726+00:00",
+      "pid": 12064
+    },
+    {
+      "test": "backup_failure_last_good_retained",
+      "utc": "2026-11-02T16:35:22.222142+00:00"
+    },
+    {
+      "test": "corrupt_backup_restore_rejected",
+      "utc": "2026-11-02T16:35:23.588501+00:00"
+    }
+  ],
+  "production_restore_image_and_object_recreate": [
+    {
+      "test": "cache_cancellation_and_concurrent_epoch_fencing",
+      "utc": "2026-11-02T16:43:57.142921+00:00"
+    },
+    {
+      "test": "production_frontend_readme_smoke_maintenance_axe_320px",
+      "utc": "2026-11-02T16:44:16.519216+00:00",
+      "result": "PASS production home/login/list/detail/status, API health, 48h notice, banner axe and 320px."
+    },
+    {
+      "test": "unhandled_500_rfc7807_process_alive",
+      "utc": "2026-11-02T16:44:17.045932+00:00",
+      "pid": 23800
+    },
+    {
+      "test": "encrypted_pg_dump_and_object_backup",
+      "utc": "2026-11-02T16:44:23.878746+00:00"
+    },
+    {
+      "test": "isolated_restore_count_sha256_metadata",
+      "utc": "2026-11-02T16:44:27.203321+00:00",
+      "result": {
+        "backup": "backup-20261102T164421Z-5921c8de",
+        "objects": 4,
+        "restore_seconds": 2.62,
+        "success": true,
+        "tables": {
+          "hangfire.aggregatedcounter": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.counter": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.hash": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.job": {
+            "count": 1,
+            "sha256": "f8c34bf846ff116eede2963de934b712baff8d7aaf34abb5d5b91991709e6006"
+          },
+          "hangfire.jobparameter": {
+            "count": 2,
+            "sha256": "9589e3f576d527d16d56581979a244d78de045cf874b1335b3aa252d3761d4c0"
+          },
+          "hangfire.jobqueue": {
+            "count": 1,
+            "sha256": "0990c9dd97a89bd89a727476bcb2fb941fcde1a92843f0607948c3ad3a22ba35"
+          },
+          "hangfire.list": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.lock": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.schema": {
+            "count": 1,
+            "sha256": "57d75bbc6e01887778e422ae1eaf012a683360b97bc6ececc914ec5d0bb6d73b"
+          },
+          "hangfire.server": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.set": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "hangfire.state": {
+            "count": 1,
+            "sha256": "1a68b8412ea9ca150be0616c4bcdc404d52b3fedcd308350d79208ecc8554862"
+          },
+          "public.AspNetRoleClaims": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetRoles": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserClaims": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserLogins": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserRoles": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUserTokens": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.AspNetUsers": {
+            "count": 1,
+            "sha256": "08627efd785a4778b48302a6222ad5b14a619753969236a57e2a81127697f694"
+          },
+          "public.Categories": {
+            "count": 1,
+            "sha256": "70f1a6163808bc7e8725f3bb0a7707fbe4859622adec71b482f52f3217cc9554"
+          },
+          "public.PasswordResetTokens": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.RecipeImageGenerations": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.RecipeImageWork": {
+            "count": 1,
+            "sha256": "c88a756564339551c312d65aa67e5fcd7a0176c753b6053ac05e8e7321dabadc"
+          },
+          "public.RecipeImages": {
+            "count": 1,
+            "sha256": "a9e66bc57cf39f93579643fd0e6b42d922eecc96f771ae7c1abced700d2eecc1"
+          },
+          "public.RecipeIngredients": {
+            "count": 1,
+            "sha256": "bb3c57dae0d6359f1a8a62661ea32283a7fa94d68696d17f14c41f4643dd0bd6"
+          },
+          "public.RecipeSteps": {
+            "count": 1,
+            "sha256": "4e01582ad3adfc8bbef78fafd18f2e85a7fc42d30a399f1077022f451009d12e"
+          },
+          "public.Recipes": {
+            "count": 1,
+            "sha256": "1804b20fd07671c00b51dda56d5788242258d5d5521bcf0a834aa5d81468e0c1"
+          },
+          "public.RefreshTokens": {
+            "count": 1,
+            "sha256": "04226f6bd90b51fc27c9802777d8ee4060acd42cd3ee6a0e0fdee94c5b0216a5"
+          },
+          "public.WelcomeEmailDeliveries": {
+            "count": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "public.__EFMigrationsHistory": {
+            "count": 17,
+            "sha256": "c2dd131097b041c888ca41dc71aa5f04e1474b71d242c42860c3c215693b0d76"
+          },
+          "public.cache_epoch": {
+            "count": 1,
+            "sha256": "fb9e8342ece9151a1b92838725937127a1968d69579c0c757a4d24396b3399dc"
+          }
+        }
+      }
+    },
+    {
+      "test": "container_recreate_database_objects_hangfire_redis_aof_durable",
+      "utc": "2026-11-02T16:44:43.681977+00:00"
+    },
+    {
+      "test": "restored_api_migration_startup_live",
+      "utc": "2026-11-02T16:44:47.470689+00:00",
+      "pid": 16340
+    },
+    {
+      "test": "production_api_image_restored_database_workers_disabled",
+      "utc": "2026-11-02T16:44:57.300197+00:00"
+    },
+    {
+      "test": "backup_failure_last_good_retained",
+      "utc": "2026-11-02T16:44:58.908318+00:00"
+    },
+    {
+      "test": "corrupt_backup_restore_rejected",
+      "utc": "2026-11-02T16:45:00.567159+00:00"
+    }
+  ],
+  "monitoring": {
+    "prometheus_config": "pass",
+    "down_50s_not_firing_70s_firing": "pass",
+    "backup_failure_rule": "pass",
+    "alertmanager_received": 2,
+    "utc": "2026-11-02T16:38:39.199235+00:00"
+  }
+}

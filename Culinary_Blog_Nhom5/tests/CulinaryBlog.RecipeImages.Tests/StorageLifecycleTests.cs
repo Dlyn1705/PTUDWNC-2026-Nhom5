@@ -36,13 +36,13 @@ public sealed class StorageLifecycleTests
             await create.ExecuteNonQueryAsync();
         }
 
-        using var client = new MinioClient().WithEndpoint("localhost:9000")
+        using var client = new MinioClient().WithEndpoint(Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000")
             .WithCredentials(Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_USER")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_USER."),
                 Environment.GetEnvironmentVariable("RECIPE_IMAGES_TEST_MINIO_PASSWORD")
                 ?? throw new InvalidOperationException("Set RECIPE_IMAGES_TEST_MINIO_PASSWORD."))
             .Build();
-        var minioOptions = Options.Create(new MinioOptions { PublicBaseUrl = "http://localhost:9000", Bucket = bucket });
+        var minioOptions = Options.Create(new MinioOptions { PublicBaseUrl = "http://" + (Environment.GetEnvironmentVariable("RECIPE_TEST_MINIO_ENDPOINT") ?? "localhost:9000"), Bucket = bucket });
         var storage = new MinioFileStorageService(client, minioOptions);
         var services = new ServiceCollection();
         services.AddLogging();
@@ -89,6 +89,10 @@ public sealed class StorageLifecycleTests
                 Assert.Equal("Pending", result.ProcessingStatus);
                 using var processingScope = provider.CreateScope();
                 var processingDb = processingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                // This test executes work directly, not the due-time dispatcher. Make its
+                // intent due on the host clock even when Docker's clock is slightly ahead.
+                await processingDb.RecipeImageWork.Where(x => x.ImageId == result.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(-1)));
                 var job = processingScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
                 await job.ProcessAsync(result.Id, default);
                 await job.ProcessAsync(result.Id, default); // Retry is idempotent.
@@ -114,11 +118,19 @@ public sealed class StorageLifecycleTests
                 Assert.Equal(System.Net.HttpStatusCode.NotFound, (await http.GetAsync(processed.ThumbnailUrl)).StatusCode);
             }
 
+            var imageCountBeforeInvalid = await db.RecipeImages.CountAsync();
             await using var invalid = new MemoryStream([1, 2, 3, 4]);
             await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
                 recipe.Id, invalid, "fake.jpg", "image/jpeg", invalid.Length, null), default));
             await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
                 recipe.Id, invalid, "fake.jpg", "image/jpeg", 5 * 1024 * 1024 + 1, null), default));
+
+            // A traversal filename is rejected before any object or metadata is persisted.
+            using var traversalSource = new MagickImage(MagickColors.Blue, 16, 16) { Format = MagickFormat.Png };
+            await using var traversalStream = new MemoryStream(traversalSource.ToByteArray());
+            await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new UploadRecipeImageCommand(
+                recipe.Id, traversalStream, "../../escape.png", "image/png", traversalStream.Length, null), default));
+            Assert.Equal(imageCountBeforeInvalid, await db.RecipeImages.CountAsync());
 
             // A valid signature alone cannot guarantee decoding: preserve the original on job failure.
             await using var corrupt = new MemoryStream([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -128,6 +140,8 @@ public sealed class StorageLifecycleTests
             using (var failedScope = provider.CreateScope())
             {
                 var failedDb = failedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await failedDb.RecipeImageWork.Where(x => x.ImageId == failed.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(-1)));
                 var failedJob = failedScope.ServiceProvider.GetRequiredService<RecipeImageProcessingJob>();
                 await failedJob.ProcessAsync(failed.Id, default);
                 failedDb.ChangeTracker.Clear();

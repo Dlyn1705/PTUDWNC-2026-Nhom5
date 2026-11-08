@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoginForm } from "@/components/forms/LoginForm";
+import { LoadingState } from "@/components/common/LoadingState";
+import { Skeleton } from "@/components/common/Skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,14 @@ export default function LoginPage() {
           <h2>Đăng nhập tài khoản</h2>
           <p>Nhập thông tin để tiếp tục hành trình cùng Culinary Blog.</p>
         </div>
-        <Suspense fallback={<div className="h-64" aria-hidden="true" />}>
+        <Suspense fallback={
+          <LoadingState label="Đang chuẩn bị biểu mẫu đăng nhập…" className="space-y-5">
+            <Skeleton className="mx-auto h-28 w-40" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </LoadingState>
+        }>
           <LoginForm />
         </Suspense>
       </section>

@@ -10,6 +10,7 @@ namespace CulinaryBlog.Domain.Interfaces;
 public interface IRecipeRepository : IRepository<Recipe>
 {
     Task<Recipe?> GetBySlugAsync(string slug, CancellationToken ct = default);
+    Task<Recipe?> GetPublishedBySlugHistoryAsync(string slug, CancellationToken ct = default);
     Task<Recipe?> GetDetailsByIdAsync(Guid id, CancellationToken ct = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken ct = default);
     Task<int> CountByCategoryIdAsync(Guid categoryId, CancellationToken ct = default);

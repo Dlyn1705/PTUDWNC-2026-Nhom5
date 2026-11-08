@@ -58,9 +58,10 @@ async function main() {
     export default async function Layout({children}:{children:React.ReactNode}){
       if((await cookies()).get('fault')?.value==='dashboard-layout')throw new Error('SECRET layout');
       return <Providers><header>Dashboard shell</header><main>{children}</main></Providers>;}`);
-  write("app/providers.tsx", `'use client';import {useState} from 'react';import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-    export default function Providers({children}:{children:React.ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:false}}}));
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;}`);
+   write("app/providers.tsx", `'use client';import {useEffect,useState} from 'react';import {QueryClient,QueryClientProvider} from '@tanstack/react-query';import {useAuthStore} from '${root.replaceAll("\\", "/")}/store/authStore';
+     export default function Providers({children}:{children:React.ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:false}}}));
+     useEffect(()=>{useAuthStore.getState().setSession({accessToken:'fixture-token',accessTokenExpiry:'2099-01-01T00:00:00Z',user:{id:'fixture-admin',email:'fixture@example.invalid',displayName:'Fixture Admin'},roles:['Admin']});},[]);
+     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;}`);
   write("app/dashboard/categories/page.tsx", "export {default} from '@/app/dashboard/categories/page';");
   write("app/retry/page.tsx", `'use client';import {ErrorState} from '@/components/common/ErrorState';
     export default function Page(){return <main><ErrorState correlationId="retry-id" onRetry={async()=>{await new Promise(r=>setTimeout(r,100));throw new Error('SECRET retry')}} /></main>}`);
@@ -138,14 +139,14 @@ async function main() {
     assert.ok(!(await page.textContent("body")).includes("Dashboard shell"));
     await fault("");
 
-    await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc&categoryId=category-1");
+    await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc&categoryId=11111111-1111-4111-8111-111111111111");
     await page.getByText("Mã hỗ trợ:", { exact: false }).waitFor();
     assert.ok((await page.textContent("body")).includes("search-request-id"));
     assert.ok(!(await page.textContent("body")).includes("SECRET")); await noNestedMain();
     mode = "success"; await page.getByRole("button", { name: "Thử lại", exact: true }).click();
     await page.getByRole("heading", { name: "Chưa tìm thấy công thức phù hợp" }).waitFor();
     const href = await page.getByRole("link", { name: "Trang 2", exact: true }).getAttribute("href");
-    for (const part of ["q=pho", "sortBy=title", "sortOrder=asc", "categoryId=category-1", "page=2"]) assert.ok(href.includes(part), href);
+    for (const part of ["q=pho", "sortBy=title", "sortOrder=asc", "categoryId=11111111-1111-4111-8111-111111111111", "page=2"]) assert.ok(href.includes(part), href);
     await page.getByRole("link", { name: "Trang 2", exact: true }).click();
     await page.waitForURL(/page=2/); await page.goBack(); await page.waitForURL(url => !url.searchParams.has("page"));
     await page.goto(origin + "/search?q=pho&sortBy=title&sortOrder=asc");

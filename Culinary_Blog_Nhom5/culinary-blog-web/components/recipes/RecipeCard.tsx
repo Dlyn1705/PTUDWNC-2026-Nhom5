@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChefHat, Clock, Flame, Users } from "lucide-react";
+import { Clock, Flame, Users } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -60,14 +60,14 @@ export function RecipeCard({
       role="article"
       className={cn(
         "group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5",
-        isList && "flex flex-col sm:flex-row items-stretch"
+        isList && "flex flex-col md:flex-row items-stretch"
       )}
     >
       <Link
         href={`/recipes/${recipe.slug}`}
         className={cn(
           "block w-full",
-          isList && "flex flex-col sm:flex-row w-full"
+          isList && "flex flex-col md:flex-row w-full"
         )}
       >
         {/* Thumbnail */}
@@ -75,7 +75,7 @@ export function RecipeCard({
           className={cn(
             "relative overflow-hidden bg-muted",
             isList
-              ? "aspect-[16/9] sm:aspect-square sm:w-64 sm:shrink-0"
+              ? "aspect-[16/9] md:aspect-square md:w-64 md:shrink-0"
               : "aspect-[16/9] w-full"
           )}
         >
@@ -88,7 +88,7 @@ export function RecipeCard({
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
           /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ChefHat aria-hidden="true" className="size-10 opacity-50" />
+            <span aria-hidden="true" className="text-4xl opacity-50">🍽</span>
             <span className="sr-only">Công thức chưa có ảnh đại diện</span>
           </div>}
 

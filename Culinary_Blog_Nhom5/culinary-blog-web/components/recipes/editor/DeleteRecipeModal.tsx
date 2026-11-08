@@ -23,7 +23,7 @@ export function DeleteRecipeModal({
 }: DeleteRecipeModalProps) {
   return (
     <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !busy) onCancel(); }}>
-      <AlertDialogContent onCloseAutoFocus={event => {
+      <AlertDialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto" onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onCloseAutoFocus={event => {
         if (returnFocusRef?.current) { event.preventDefault(); returnFocusRef.current.focus(); }
       }}>
         <AlertDialogHeader>

@@ -25,6 +25,14 @@ export interface AuthUser {
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  bio?: string | null;
+}
+
+export interface CurrentUser extends AuthUser {
+  bio: string | null;
+  roles: string[];
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface AuthSessionResponse {

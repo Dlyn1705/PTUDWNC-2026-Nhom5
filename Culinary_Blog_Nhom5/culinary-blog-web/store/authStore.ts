@@ -1,8 +1,8 @@
 "use client";
 
-import axios from "axios";
+import { clearRegistration } from "../lib/auth/registrationWelcome";
 import { create } from "zustand";
-import { login as loginApi, logout as logoutApi, refresh as refreshApi } from "../lib/api/authApi";
+import { login as loginApi, logout as logoutApi, refresh as refreshApi } from "../lib/api/authSessionApi";
 import type { AppRole, AuthSessionResponse, AuthUser, LoginRequest } from "../types/auth";
 
 export type SessionUser = AuthUser & { roles: AppRole[] };
@@ -14,6 +14,7 @@ type AuthState = {
   isInitializing: boolean;
   login: (request: LoginRequest) => Promise<void>;
   setSession: (session: AuthSessionResponse) => void;
+  updateUser: (user: AuthUser) => void;
   clearSession: () => void;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -49,13 +50,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isInitializing: false,
     });
   },
+  updateUser: (user) => set((state) => state.user?.id === user.id
+    ? { user: { ...state.user, ...user } } : state),
   clearSession: () => {
+    clearRegistration();
     sessionEpoch++;
     set(emptySession);
   },
   login: async (request) => {
     await waitForRefresh();
     get().setSession(await loginApi(request));
+    clearRegistration();
   },
   logout: async () => {
     // Wait for cookie rotation before asking the backend to revoke that cookie.
@@ -63,7 +68,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await logoutApi();
     } catch (error) {
-      if (!axios.isAxiosError(error) || ![401, 403].includes(error.response?.status ?? 0)) throw error;
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (![401, 403].includes(status ?? 0)) throw error;
     }
     get().clearSession();
   },
@@ -79,8 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// The backend refresh response includes the user and roles; there is no
-// separate /auth/me endpoint. One flight prevents cookie rotation reuse.
+// One flight prevents refresh-cookie rotation reuse.
 export function refreshSession(): Promise<string | null> {
   if (!refreshFlight) {
     const startedAt = sessionEpoch;

@@ -4,7 +4,7 @@ import { useCallback, useLayoutEffect, useRef } from "react";
 
 const message = "Bạn có thay đổi chưa lưu. Rời đi và bỏ các thay đổi này?";
 type HistoryPosition = { index: number };
-type WindowWithNavigation = Window & { navigation?: { currentEntry: HistoryPosition | null } };
+type WindowWithNavigation = Window & { navigation?: EventTarget & { currentEntry: HistoryPosition | null } };
 let activeHistoryGuard: ((event: PopStateEvent) => void) | undefined;
 
 /** Mount once in the root layout, before Next.js installs its history listener. */
@@ -29,8 +29,23 @@ export function useUnsavedRecipe(dirty: boolean) {
     let position = navigation?.currentEntry?.index;
     let currentUrl = window.location.href;
     let restoring = false;
+    let confirmedTraversal = false;
+    const navigate = (event: Event) => {
+      const traversal = event as Event & { navigationType?: string; destination?: { url: string } };
+      if (traversal.navigationType !== "traverse" || !event.cancelable || !traversal.destination) return;
+      const destination = new URL(traversal.destination.url);
+      if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      if (!confirmDiscard()) event.preventDefault();
+      else confirmedTraversal = true;
+    };
     const popState = (event: PopStateEvent) => {
       const next = navigation?.currentEntry?.index;
+      if (confirmedTraversal) {
+        confirmedTraversal = false;
+        position = next;
+        currentUrl = window.location.href;
+        return;
+      }
       if (restoring) {
         restoring = false;
         event.stopImmediatePropagation();
@@ -76,10 +91,12 @@ export function useUnsavedRecipe(dirty: boolean) {
       }
     };
     window.addEventListener("beforeunload", beforeUnload);
+    navigation?.addEventListener("navigate", navigate);
     activeHistoryGuard = popState;
     document.addEventListener("click", click, true);
     return () => {
       window.removeEventListener("beforeunload", beforeUnload);
+      navigation?.removeEventListener("navigate", navigate);
       if (activeHistoryGuard === popState) activeHistoryGuard = undefined;
       document.removeEventListener("click", click, true);
     };

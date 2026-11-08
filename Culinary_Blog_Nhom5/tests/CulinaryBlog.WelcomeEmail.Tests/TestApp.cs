@@ -1,4 +1,7 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using CulinaryBlog.API.Endpoints;
 using CulinaryBlog.API.Middlewares;
 using CulinaryBlog.Application;
@@ -23,7 +26,7 @@ using Npgsql;
 namespace CulinaryBlog.WelcomeEmail.Tests;
 
 // Each integration test owns a migrated PostgreSQL database; never use the application database.
-internal sealed class TestApp(WebApplication app, string connectionString, string adminConnection, string database) : IAsyncDisposable
+internal sealed class TestApp(WebApplication app, string connectionString, string adminConnection, string database, IEmailService? transport) : IAsyncDisposable
 {
     public WebApplication App => app;
     public IServiceProvider Services => app.Services;
@@ -46,6 +49,13 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
             await create.ExecuteNonQueryAsync();
         }
         var cs = new NpgsqlConnectionStringBuilder(admin.ConnectionString) { Database = database }.ConnectionString;
+        var app = await BuildHostAsync(cs, worker, transport);
+        await app.StartAsync();
+        return new TestApp(app, cs, admin.ConnectionString, database, transport);
+    }
+
+    private static async Task<WebApplication> BuildHostAsync(string cs, bool worker, IEmailService? transport, TestClock? existingClock = null)
+    {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
@@ -55,13 +65,14 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
             ["Jwt:Key"] = "only-for-isolated-welcome-tests-32-characters-long",
             ["Jwt:Issuer"] = "welcome-tests", ["Jwt:Audience"] = "welcome-tests",
             ["Minio:AccessKey"] = "test-only", ["Minio:SecretKey"] = "test-only",
-            ["Email:Enabled"] = "true", ["Email:Host"] = "127.0.0.1", ["Email:Port"] = "1025",
+            ["Email:Enabled"] = "true", ["Email:Host"] = "127.0.0.1", ["Email:Port"] = Environment.GetEnvironmentVariable("WELCOME_EMAIL_TEST_SMTP_PORT") ?? "1025",
             ["Email:SecurityMode"] = "None", ["Email:PublicWebBaseUrl"] = "http://localhost:3000"
         });
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
-        builder.Services.AddAuthentication().AddCookie();
+        builder.Services.AddAuthentication("ReviewTest").AddCookie()
+            .AddScheme<AuthenticationSchemeOptions, ReviewTestAuthentication>("ReviewTest", _ => { });
         builder.Services.AddRateLimiter(options => options.AddConcurrencyLimiter("auth", policy => policy.PermitLimit = 100));
-        builder.Services.AddSingleton<TestClock>();
+        builder.Services.AddSingleton(existingClock ?? new TestClock());
         builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<TestClock>());
         if (transport is not null) builder.Services.AddSingleton(transport);
         builder.Services.AddHangfire(config => config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(cs)));
@@ -70,10 +81,18 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
         app.UseMiddleware<GlobalExceptionMiddleware>();
         app.UseRateLimiter(); app.UseAuthentication(); app.UseAuthorization();
         app.MapGroup("/api/v1").MapAuthEndpoints();
+        app.MapGroup("/api/v1").MapWelcomeEmailAdminEndpoints();
         using (var scope = app.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+        return app;
+    }
+
+    public async Task RestartAsync(bool worker = false)
+    {
+        var clock = Clock;
+        await app.StopAsync(); await app.DisposeAsync();
+        app = await BuildHostAsync(connectionString, worker, transport, clock);
         await app.StartAsync();
-        return new TestApp(app, cs, admin.ConnectionString, database);
     }
 
     public async Task<WelcomeEmailDelivery> RegisterAsync(string? email = null)
@@ -109,6 +128,18 @@ internal sealed class TestApp(WebApplication app, string connectionString, strin
     }
 }
 
+internal sealed class ReviewTestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var role = Request.Headers["X-Test-Role"].ToString();
+        if (string.IsNullOrEmpty(role)) return Task.FromResult(AuthenticateResult.NoResult());
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "review-admin"), new Claim(ClaimTypes.Role, role)], Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+    }
+}
+
 internal sealed class TestClock : TimeProvider
 {
     // Delivery timestamps are created with DateTime.UtcNow. Keep elapsed real
@@ -120,6 +151,12 @@ internal sealed class TestClock : TimeProvider
 
 internal sealed class RecordingEmail : IEmailService
 {
+    public System.Collections.Concurrent.ConcurrentQueue<Guid> DeliveryKeys { get; } = new();
+    public Task SendWelcomeEmailAsync(Guid deliveryId, string toEmail, string userName, CancellationToken ct = default)
+    {
+        DeliveryKeys.Enqueue(deliveryId);
+        return SendWelcomeEmailAsync(toEmail, userName, ct);
+    }
     public int Calls;
     public bool Fail;
     public TaskCompletionSource? Gate;
@@ -128,6 +165,6 @@ internal sealed class RecordingEmail : IEmailService
     {
         Interlocked.Increment(ref Calls); Entered.TrySetResult();
         if (Gate is not null) await Gate.Task.WaitAsync(ct);
-        if (Fail) throw new InvalidOperationException("raw SMTP error containing recipient/private password must not escape");
+        if (Fail) throw new EmailNotSubmittedException();
     }
 }

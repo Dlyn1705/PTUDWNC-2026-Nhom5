@@ -1,0 +1,13 @@
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/build
+**/__pycache__
+.git
+**/.env*
+**/logs
+**/*.dump
+**/*.age
+**/Plan_*.md
+**/Bao_Cao*.md

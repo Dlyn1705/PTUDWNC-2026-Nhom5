@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-07",
+  "sourceRun": "culinary-quality-aaff2f89546f",
+  "sourceSummary": "quality/evidence/verification-20261106.json",
+  "scope": "Selected passing cases from historical local TRX. The overall initial run had an Auth failure. The suite files do not embed an exact tested SHA, so this is partial evidence and no reviewedCommit is inferred.",
+  "requirements": {
+    "FR-JOB-001": {
+      "suite": "WelcomeEmail",
+      "passedCasesBySymbol": {
+        "Registration_is_atomic_unique_and_keeps_auth_contract_without_waiting_for_email": 1,
+        "Job_has_three_retries_and_safe_failure_details": 1,
+        "Registration_to_real_worker_to_local_smtp_delivers_html_text_once": 1
+      }
+    },
+    "FR-JOB-002": {
+      "suite": "ImageProcessing",
+      "passedCasesBySymbol": {
+        "Real_worker_and_minio_produce_exact_jpeg_variants_and_preserve_original": 4,
+        "Hangfire_real_worker_schedules_retry_and_keeps_business_pending": 1,
+        "Backoff_cap_and_sanitized_failures_survive_duplicate_jobs": 1
+      }
+    },
+    "FR-RCP-003": {
+      "suite": "RecipeCreation",
+      "passedCasesBySymbol": {
+        "Rejects_invalid_nested_data": 9,
+        "Draft_accepts_empty_children_and_nullable_quantities": 1,
+        "PostgreSql_http_authorization_atomicity_and_concurrent_slugs": 1
+      }
+    },
+    "FR-RCP-004": {
+      "suite": "RecipeUpdate",
+      "passedCasesBySymbol": {
+        "Body_or_strong_etag_is_accepted": 3,
+        "Nutrition_update_validates_ownership_and_uses_recipe_version": 1,
+        "Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions": 1
+      }
+    },
+    "FR-RCP-007": {
+      "suite": "RecipeDeletion",
+      "passedCasesBySymbol": {
+        "Api_denies_unauthorized_deletion_without_mutation": 3,
+        "Api_soft_deletes_all_states_preserves_children_and_invalidates_cache": 4,
+        "Real_minio_objects_survive_soft_delete_and_are_removed_only_after_retention": 1
+      }
+    },
+    "FR-RCP-008": {
+      "suite": "RecipeImages",
+      "passedCasesBySymbol": {
+        "PostgreSql_gallery_serializes_mutations_and_preserves_primary": 1,
+        "Actual_image_routes_enforce_roles_ownership_and_primary_contract": 1
+      }
+    },
+    "FR-RCP-009": {
+      "suite": "Ingredients",
+      "passedCasesBySymbol": {
+        "Concurrent_writes_reject_stale_versions_and_soft_deleted_recipes": 1,
+        "Limits_foreign_ids_and_invalid_reorder_never_partially_change_data": 1
+      }
+    },
+    "FR-RCP-010": {
+      "suite": "Steps",
+      "passedCasesBySymbol": {
+        "Version_foreign_ids_and_reorder_validation_are_atomic": 1,
+        "Maximum_count_rejects_append_without_rotating_version": 1,
+        "Publish_racing_last_delete_never_commits_published_without_steps": 1,
+        "Reorder_phase_two_failure_rolls_back_every_number_and_version": 1
+      }
+    }
+  }
+}

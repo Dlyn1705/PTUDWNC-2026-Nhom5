@@ -282,6 +282,7 @@ public sealed class RefreshTokenTests(AuthFixture fixture) : IClassFixture<AuthF
             Content = JsonContent.Create(new { refreshToken = "invalid-body-token" })
         };
         request.Headers.Add("Cookie", $"culinary_refresh_token={Uri.EscapeDataString(login.RefreshToken)}");
+        request.Headers.Add("Origin", "https://localhost");
         Assert.Equal(HttpStatusCode.OK, (await fixture.Client.SendAsync(request)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await fixture.Client.PostAsync("/api/v1/auth/refresh",
             new StringContent("{bad-json", Encoding.UTF8, "application/json"))).StatusCode);

@@ -82,6 +82,119 @@ public sealed class PublicContentCacheTests
         Assert.Equal(first.Meta.PageSize, second.Meta.PageSize);
     }
 
+    [Fact]
+    public async Task Recipe_mutation_invalidates_both_recipe_and_category_versions()
+    {
+        var services = new ServiceCollection().AddDistributedMemoryCache().BuildServiceProvider();
+        var distributedCache = services.GetRequiredService<IDistributedCache>();
+        var publicCache = new PublicContentCache(distributedCache, NullLogger<PublicContentCache>.Instance);
+        var invalidator = new RecipeCacheInvalidator(
+            distributedCache,
+            publicCache,
+            NullLogger<RecipeCacheInvalidator>.Instance);
+
+        var recipeCalls = 0;
+        var categoryCalls = 0;
+        var recipeId = Guid.NewGuid();
+        var slug = "pho-bo-ha-noi";
+
+        Task<PagedResult<RecipeSummaryDto>> RecipeFactory(CancellationToken _)
+        {
+            recipeCalls++;
+            return Task.FromResult(new PagedResult<RecipeSummaryDto>([
+                new RecipeSummaryDto { Id = recipeId, Title = "Phở Bò Hà Nội", Slug = slug }
+            ], 1, 1, 12));
+        }
+
+        Task<IReadOnlyList<CategoryDto>> CategoryFactory(CancellationToken _)
+        {
+            categoryCalls++;
+            return Task.FromResult<IReadOnlyList<CategoryDto>>([
+                new CategoryDto { Id = Guid.NewGuid(), Name = "Món Nước", Slug = "mon-nuoc", RecipeCount = 5 }
+            ]);
+        }
+
+        // Initial populate
+        await publicCache.GetRecipesAsync("1:12::::createdAt:desc", RecipeFactory);
+        await publicCache.GetCategoriesAsync(CategoryFactory);
+        Assert.Equal(1, recipeCalls);
+        Assert.Equal(1, categoryCalls);
+
+        // Second fetch hits cache
+        await publicCache.GetRecipesAsync("1:12::::createdAt:desc", RecipeFactory);
+        await publicCache.GetCategoriesAsync(CategoryFactory);
+        Assert.Equal(1, recipeCalls);
+        Assert.Equal(1, categoryCalls);
+
+        // Perform mutation invalidation (e.g. Recipe published, archived, deleted or image changed)
+        await invalidator.InvalidateRecipeAsync(recipeId, slug);
+
+        // Subsequent fetch must trigger reload for both public recipe list and category projection
+        await publicCache.GetRecipesAsync("1:12::::createdAt:desc", RecipeFactory);
+        await publicCache.GetCategoriesAsync(CategoryFactory);
+        Assert.Equal(2, recipeCalls);
+        Assert.Equal(2, categoryCalls);
+    }
+
+    [Fact]
+    public async Task Recipe_detail_is_cached_and_reloaded_after_invalidation()
+    {
+        var services = new ServiceCollection().AddDistributedMemoryCache().BuildServiceProvider();
+        var distributedCache = services.GetRequiredService<IDistributedCache>();
+        var publicCache = new PublicContentCache(distributedCache, NullLogger<PublicContentCache>.Instance);
+        var invalidator = new RecipeCacheInvalidator(
+            distributedCache,
+            publicCache,
+            NullLogger<RecipeCacheInvalidator>.Instance);
+
+        var calls = 0;
+        var recipeId = Guid.NewGuid();
+        var slug = "bun-cha-ha-noi";
+
+        Task<RecipeDetailDto> Factory(CancellationToken _)
+        {
+            calls++;
+            return Task.FromResult(new RecipeDetailDto
+            {
+                Id = recipeId,
+                Title = "Bún Chả Hà Nội",
+                Slug = slug,
+                Description = "Đặc sản bún chả",
+                Status = 1
+            });
+        }
+
+        var first = await publicCache.GetRecipeAsync(slug, Factory);
+        var second = await publicCache.GetRecipeAsync(slug, Factory);
+
+        Assert.Equal(1, calls);
+        Assert.Equal("Bún Chả Hà Nội", second.Title);
+
+        await invalidator.InvalidateRecipeAsync(recipeId, slug);
+        var third = await publicCache.GetRecipeAsync(slug, Factory);
+
+        Assert.Equal(2, calls);
+        Assert.Equal(first.Id, third.Id);
+    }
+
+    [Fact]
+    public async Task Redis_write_failure_gracefully_returns_factory_result()
+    {
+        var cache = new PublicContentCache(
+            new FailingWriteDistributedCache(),
+            NullLogger<PublicContentCache>.Instance);
+
+        var calls = 0;
+        var result = await cache.GetRecipeAsync("test-slug", _ =>
+        {
+            calls++;
+            return Task.FromResult(new RecipeDetailDto { Title = "Resilient Item", Slug = "test-slug" });
+        });
+
+        Assert.Equal(1, calls);
+        Assert.Equal("Resilient Item", result.Title);
+    }
+
     private sealed class ThrowingDistributedCache : IDistributedCache
     {
         private static Exception Failure() => new InvalidOperationException("Redis unavailable");
@@ -94,5 +207,17 @@ public sealed class PublicContentCacheTests
         public Task RemoveAsync(string key, CancellationToken token = default) => throw Failure();
         public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => throw Failure();
         public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default) => throw Failure();
+    }
+
+    private sealed class FailingWriteDistributedCache : IDistributedCache
+    {
+        public byte[]? Get(string key) => null;
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => Task.FromResult<byte[]?>(null);
+        public void Refresh(string key) {}
+        public Task RefreshAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+        public void Remove(string key) {}
+        public Task RemoveAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => throw new InvalidOperationException("Write quota exceeded / Redis offline");
+        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default) => throw new InvalidOperationException("Write quota exceeded / Redis offline");
     }
 }

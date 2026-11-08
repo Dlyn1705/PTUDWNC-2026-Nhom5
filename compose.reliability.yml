@@ -1,0 +1,115 @@
+# Overlay: docker compose -f docker-compose.yml -f compose.reliability.yml ...
+services:
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY matching existing data}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY matching existing data}
+  postgres:
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+  redis:
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+  api:
+    build:
+      context: .
+      dockerfile: infra/reliability/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      HttpsRedirection__Enabled: 'false'
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=culinary_blog_db;Username=postgres;Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=5
+      ConnectionStrings__Redis: redis:6379,abortConnect=false,connectTimeout=300,syncTimeout=300,asyncTimeout=300,connectRetry=1
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY}
+      Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN with scheme and host, no trailing slash}
+      Minio__Endpoint: minio:9000
+      Minio__AccessKey: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}
+      Minio__SecretKey: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}
+      Database__MigrateOnStartup: 'false'
+      Email__Enabled: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -fsS, --max-time, '3', http://localhost:8080/health/ready]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 30s
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/reliability/frontend.Dockerfile
+      args:
+        PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:8080
+      NEXT_PUBLIC_API_URL: ${PUBLIC_ORIGIN}
+      MAINTENANCE_NOTICE_JSON: ${MAINTENANCE_NOTICE_JSON:-}
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/reliability/gateway/Dockerfile
+    restart: unless-stopped
+    ports: ['127.0.0.1:8088:8080']
+    depends_on: [api, frontend]
+  backup:
+    profiles: [ops]
+    build:
+      context: .
+      dockerfile: infra/reliability/Dockerfile
+    command: [backup]
+    environment:
+      BACKUP_DSN_FILE: /run/secrets/backup_dsn
+      BACKUP_S3_ENDPOINT: http://minio:9000
+      BACKUP_S3_ACCESS_KEY_FILE: /run/secrets/s3_access
+      BACKUP_S3_SECRET_KEY_FILE: /run/secrets/s3_secret
+      BACKUP_BUCKET: ${BACKUP_BUCKET:?Set BACKUP_BUCKET}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?Set age public recipient}
+      BACKUP_QUIESCE_COMMAND: '["python","-c","import os; assert os.environ.get(''BACKUP_QUIESCED'') == ''1''"]'
+      BACKUP_RESUME_COMMAND: '["true"]'
+    secrets: [backup_dsn, s3_access, s3_secret]
+    volumes: ['${BACKUP_DIRECTORY:?Set protected external backup directory}:/backups']
+  backup-metrics:
+    profiles: [monitoring]
+    build:
+      context: .
+      dockerfile: infra/reliability/Dockerfile
+    command: [metrics]
+    volumes: ['${BACKUP_DIRECTORY}:/backups:ro']
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.5.0
+    volumes: ['./infra/reliability/monitoring:/etc/prometheus:ro', 'reliability_metrics:/prometheus']
+    ports: ['127.0.0.1:9098:9090']
+  blackbox:
+    profiles: [monitoring]
+    image: prom/blackbox-exporter:v0.27.0
+    command: ['--config.file=/config/blackbox.yml']
+    volumes: ['./infra/reliability/monitoring/blackbox.yml:/config/blackbox.yml:ro']
+  alertmanager:
+    profiles: [monitoring]
+    image: prom/alertmanager:v0.28.1
+    command: ['--config.file=/config/alertmanager.yml']
+    volumes: ['${ALERTMANAGER_CONFIG_FILE:?Set protected Alertmanager config file}:/config/alertmanager.yml:ro', 'reliability_alerts:/alertmanager']
+    secrets: [alert_webhook_url]
+secrets:
+  alert_webhook_url:
+    file: ${ALERT_WEBHOOK_URL_FILE:?Set protected alert webhook URL file}
+  backup_dsn:
+    file: ${BACKUP_DSN_FILE:?Set protected backup DSN file}
+  s3_access:
+    file: ${S3_ACCESS_KEY_FILE:?Set protected S3 access-key file}
+  s3_secret:
+    file: ${S3_SECRET_KEY_FILE:?Set protected S3 secret-key file}
+volumes:
+  reliability_metrics:
+  reliability_alerts:

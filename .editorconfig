@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+indent_style = space
+
+[*.cs]
+indent_size = 4
+dotnet_analyzer_diagnostic.category-Style.severity = suggestion
+# Existing repository style is not reformatted as part of the quality gate.
+# Safety rules below run at build time; other Sonar rules remain IDE suggestions.
+dotnet_analyzer_diagnostic.severity = suggestion
+dotnet_diagnostic.S2259.severity = warning
+dotnet_diagnostic.S2190.severity = warning
+dotnet_diagnostic.S1862.severity = warning
+dotnet_diagnostic.S2755.severity = warning
+
+[**/Migrations/*.cs]
+generated_code = true
+
+[*.{ts,tsx,js,cjs,mjs,json,yml,yaml}]
+indent_size = 2

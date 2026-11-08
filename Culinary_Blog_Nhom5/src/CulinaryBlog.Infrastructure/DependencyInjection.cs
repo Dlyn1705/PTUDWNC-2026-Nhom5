@@ -38,6 +38,11 @@ public static class DependencyInjection
 
         // 1. Interceptors
         services.AddScoped<AuditInterceptor>();
+        services.AddSingleton<PerformanceCommandInterceptor>();
+        services.AddOptions<PublicCacheOptions>().Bind(configuration.GetSection("PublicCache"))
+            .Validate(x => x.CategoryMinutes is >= 30 and <= 60 && x.DetailMinutes is >= 1 and <= 1440
+                && x.ListMinutes is >= 1 and <= 5 && x.SearchMinutes is >= 1 and <= 5, "Invalid public cache TTL")
+            .ValidateOnStart();
         services.AddScoped<CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe.IRecipeUpdateStore, RecipeUpdateStore>();
 
         // 2. DbContext
@@ -51,9 +56,10 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
-                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+                npgsqlOptions.CommandTimeout(Math.Clamp(configuration.GetValue("Reliability:DatabaseCommandTimeoutSeconds", 5), 1, 30));
+                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(1), errorCodesToAdd: null);
             })
-            .AddInterceptors(auditInterceptor);
+            .AddInterceptors(auditInterceptor, sp.GetRequiredService<PerformanceCommandInterceptor>());
         });
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
@@ -63,6 +69,7 @@ public static class DependencyInjection
             options.Configuration = configuration.GetConnectionString("Redis") ?? "localhost:6379";
             options.InstanceName = "culinary-blog:";
         });
+        Services.Reliability.ReliabilityRegistration.AddReliability(services, configuration);
 
         // 3. ASP.NET Core Identity
         services.AddIdentityCore<ApplicationUser>(options =>
@@ -98,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRecipeIngredientStore, RecipeIngredientStore>();
         services.AddScoped<IRecipeStepStore, RecipeStepStore>();
+        services.AddScoped<CulinaryBlog.Application.Features.Recipes.Lifecycle.IRecipeLifecycleStore, RecipeLifecycleStore>();
 
         // 5. Common Infrastructure Services
         services.AddHttpContextAccessor();
@@ -116,6 +124,11 @@ public static class DependencyInjection
             .Build());
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IPublicContentCache, PublicContentCache>();
+        services.AddSingleton<PendingPublicCacheInvalidations>();
+        services.AddHttpClient<IFrontendRevalidationClient, FrontendRevalidationClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(2);
+        });
         services.AddScoped<IRecipeCacheInvalidator, RecipeCacheInvalidator>();
         services.AddScoped<IRecipeImageMutations, RecipeImageMutations>();
         services.AddScoped<IRecipeImageProcessingQueue, HangfireRecipeImageProcessingQueue>();

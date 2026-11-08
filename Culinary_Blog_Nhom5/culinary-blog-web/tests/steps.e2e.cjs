@@ -19,7 +19,7 @@ async function main() {
     env: { ...process.env, NEXT_PUBLIC_ENABLE_MOCKS: "false" },
   });
   let logs = ""; server.stdout.on("data", data => { logs = (logs + data).slice(-10000); }); server.stderr.on("data", data => { logs = (logs + data).slice(-10000); });
-  let browser;
+  let browser; let page;
   try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
@@ -87,7 +87,7 @@ async function main() {
       }
       return json({ data: [], meta: { page: 1, pageSize: 12, totalCount: 0, totalPages: 0 } });
     });
-    const page = await context.newPage(); const errors = []; page.on("pageerror", error => errors.push(error.message));
+    page = await context.newPage(); const errors = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto(origin + `/dashboard/recipes/${recipeId}/edit`);
     const manager = page.getByRole("region", { name: "Quản lý các bước thực hiện" });
     const add = manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true });
@@ -140,7 +140,14 @@ async function main() {
     await page.goto(origin + "/dashboard/recipes/new");
     await manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();
     await manager.getByLabel("Mô tả bước 1", { exact: true }).fill("Local draft");
-    await manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).click();
+    // A user can move to another field before deferred add-row focus executes.
+    await manager.getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true }).evaluate(button => {
+      button.focus(); button.click();
+      document.querySelector('[data-step-row] textarea').focus();
+    });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await manager.getByLabel("Mô tả bước 1", { exact: true }).evaluate(element => element === document.activeElement), true,
+      "Deferred collection focus must not steal focus after the user moves to another field");
     await manager.getByLabel("Mô tả bước 2", { exact: true }).fill("Local second");
     await manager.getByRole("button", { name: "Di chuyển bước 2 lên", exact: true }).click();
     assert.equal(await manager.getByLabel("Mô tả bước 1", { exact: true }).inputValue(), "Local second");
@@ -156,13 +163,18 @@ async function main() {
     await page.getByRole("combobox").first().selectOption(category.id);
     await page.getByPlaceholder("4", { exact: true }).fill("2");
     await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
-    await page.getByText("Đã lưu bản nháp.", { exact: false }).waitFor();
+    // Match the persistent page status, independently of the duplicate success toast.
+    await page.locator("p[role='status']").filter({ hasText: "Đã lưu bản nháp." }).waitFor();
     await manager.getByRole("button", { name: "Lưu bước 1", exact: true }).waitFor();
     assert.equal(createdPayload.steps[0].timerMinutes, 3); assert.equal(createdPayload.steps[0].title, "Chuẩn bị");
     assert.equal("stepNumber" in createdPayload.steps[0], false);
     assert.deepEqual(errors, []);
     console.log("PASS: production Next.js/Chrome step form validation, create-local mode, persistent CRUD/reorder, 0-minute timer, duplicate submit, preserved basic draft, 409 recovery and Published last-step protection.");
-  } catch (error) { console.error(logs); throw error; }
+  } catch (error) {
+    console.error(logs);
+    if (page) console.error("Step fixture UI:", await page.locator("body").innerText().catch(() => "unavailable"));
+    throw error;
+  }
   finally {
     if (browser) await browser.close();
     server.kill();

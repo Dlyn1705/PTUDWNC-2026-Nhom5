@@ -11,7 +11,7 @@ export default function RecipesLoading() {
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-5 w-full max-w-2xl" />
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {[1, 2, 3, 4, 5, 6].map((item) => (
           <div key={item} className="overflow-hidden rounded-2xl border border-border bg-card">
             <Skeleton className="aspect-[16/9] rounded-none" />

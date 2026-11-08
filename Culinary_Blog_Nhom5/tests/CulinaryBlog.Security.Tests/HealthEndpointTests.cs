@@ -17,6 +17,15 @@ namespace CulinaryBlog.Security.Tests;
 
 public sealed class HealthEndpointTests
 {
+    [Fact]
+    public async Task Liveness_rejects_unsupported_method_without_changing_probe_contract()
+    {
+        await using var app = await CreateAsync(new FakeProbe());
+        using var client = app.GetTestClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, (await client.PostAsync("/health/live", null)).StatusCode);
+    }
+
     [Theory]
     [InlineData(true, true, true, HttpStatusCode.OK, HttpStatusCode.OK)]
     [InlineData(false, true, true, HttpStatusCode.ServiceUnavailable, HttpStatusCode.ServiceUnavailable)]
@@ -54,6 +63,9 @@ public sealed class HealthEndpointTests
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal("liveness", (await ReadJsonAsync(live)).GetProperty("probe").GetString());
         Assert.Equal("no-store", live.Headers.CacheControl?.ToString());
+        using var traffic = await client.GetAsync("/health/traffic");
+        Assert.Equal(database ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable, traffic.StatusCode);
+        Assert.Equal("traffic", (await ReadJsonAsync(traffic)).GetProperty("probe").GetString());
     }
 
     [Fact]

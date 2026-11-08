@@ -13,7 +13,7 @@ public enum StepOperation { Add, Update, Delete, Reorder }
 public sealed record StepMutation(Guid RecipeId, StepOperation Operation, byte[] ExpectedVersion,
     Guid? StepId = null, StepInput? Input = null, IReadOnlyList<Guid>? StepIds = null);
 public sealed record RecipePublishResult(Guid Id, Domain.Enums.RecipeStatus Status, DateTime? PublishedAt,
-    [property: System.Text.Json.Serialization.JsonIgnore] bool WasPublished = false);
+    [property: System.Text.Json.Serialization.JsonIgnore] bool WasPublished = false, DateTime? UpdatedAt = null);
 
 public sealed class StepInputValidator : AbstractValidator<StepInput>
 {

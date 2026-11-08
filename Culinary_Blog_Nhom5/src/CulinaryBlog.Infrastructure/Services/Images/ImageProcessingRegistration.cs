@@ -1,4 +1,5 @@
 using Hangfire;
+using CulinaryBlog.Application.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -13,6 +14,9 @@ public static class ImageProcessingRegistration
         services.AddScoped<ImageVariantStorage>(); services.AddScoped<ImageGenerationCleanup>();
         services.AddScoped<ImageVariantReconciler>();
         services.AddTransient<IImageVariantRenderer, IsolatedImageRenderer>(); services.AddScoped<ImageProcessingPipeline>();
+        services.AddScoped<IRecipeImageUploadIntents, RecipeImageUploadIntents>();
+        services.AddScoped<RecipeImageUploadCleanup>();
+        services.AddScoped<ImageDeletionStore>();
         services.AddTransient<RecipeImageProcessingRecoveryJob>();
         return services;
     }

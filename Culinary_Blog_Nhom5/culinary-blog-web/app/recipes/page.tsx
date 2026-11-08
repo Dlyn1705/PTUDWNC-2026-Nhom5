@@ -6,19 +6,24 @@ import { Can } from "@/components/auth/Can";
 import { RecipesCatalogView } from "@/components/recipes/RecipesCatalogView";
 import { UtensilsCrossed, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { buildListingMetadata } from "@/lib/seo/metadata";
+import { hasQueryParams } from "@/lib/seo/canonical";
 
-export const revalidate = 120;
+export const revalidate = 180;
 
-export const metadata = {
-  title: "All Recipes — Culinary Blog",
-  description:
-    "Explore our complete collection of twice-tested recipes: handmade pasta, slow mains, artisan baking and crisp salads for real kitchens.",
-  openGraph: {
-    title: "All Recipes — Culinary Blog",
-    description: "Explore our complete collection of twice-tested recipes.",
-    type: "website",
-  },
-};
+const recipesTitle = "All Recipes";
+const recipesDescription = "Explore our complete collection of twice-tested recipes: handmade pasta, slow mains, artisan baking and crisp salads for real kitchens.";
+
+export async function generateMetadata({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return buildListingMetadata(
+    "/recipes",
+    recipesTitle,
+    recipesDescription,
+    hasQueryParams(await searchParams),
+  );
+}
 
 type CatalogSortBy = "createdAt" | "cookTime" | "title";
 type SortOrder = "asc" | "desc";
@@ -81,8 +86,11 @@ export default async function RecipesPage({ searchParams }: {
     sortOrder,
   };
   const [firstResult, categories] = await Promise.all([
-    publicApi.getRecipes(query),
-    publicApi.getCategories(),
+    publicApi.getRecipes(query).catch(() => ({
+      data: [],
+      meta: { page, pageSize: 12, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false },
+    })),
+    publicApi.getCategories().catch(() => []),
   ]);
   const result = firstResult.meta.totalPages > 0 && page > firstResult.meta.totalPages
     ? await publicApi.getRecipes({ ...query, page: firstResult.meta.totalPages })

@@ -66,7 +66,7 @@ public sealed class TemplateAndOptionsTests
         var policy = typeof(WelcomeEmailJob).GetMethod(nameof(WelcomeEmailJob.SendAsync))!.CustomAttributes.Single(x => x.AttributeType == typeof(AutomaticRetryAttribute));
         Assert.Equal(3, policy.NamedArguments.Single(x => x.MemberName == "Attempts").TypedValue.Value);
         var delays = (IEnumerable<CustomAttributeTypedArgument>)policy.NamedArguments.Single(x => x.MemberName == "DelaysInSeconds").TypedValue.Value!;
-        Assert.Equal(new[] { 60, 300, 900 }, delays.Select(x => (int)x.Value!));
+        Assert.Equal(new[] { 60, 120, 240 }, delays.Select(x => (int)x.Value!));
         Assert.Null(new WelcomeEmailSendException().InnerException);
     }
 }
@@ -92,6 +92,7 @@ public sealed class DeliveryIntegrationTests
         var cookie = login.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
         using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
         refreshRequest.Headers.Add("Cookie", cookie);
+        refreshRequest.Headers.Add("Origin", "http://localhost");
         using var refresh = await app.Client.SendAsync(refreshRequest);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
         Assert.Equal(1, await app.Db(db => db.WelcomeEmailDeliveries.CountAsync()));
@@ -168,13 +169,15 @@ public sealed class DeliveryIntegrationTests
             var error = await Assert.ThrowsAsync<WelcomeEmailSendException>(() => app.Get<WelcomeEmailJob>().SendAsync(item.Id, default));
             Assert.Null(error.InnerException); Assert.DoesNotContain("private", error.ToString());
             var current = await app.Delivery(item.Id);
-            Assert.Equal(attempt, current.AttemptCount); Assert.Equal("TransportFailure", current.LastErrorCode);
+            Assert.Equal(attempt, current.AttemptCount); Assert.Equal("TransportNotSubmitted", current.LastErrorCode);
             await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
             Assert.Equal(attempt, transport.Calls);
             app.Clock.Advance(WelcomeEmailStore.RetryDelays[Math.Min(attempt - 1, 2)] + 1);
         }
         await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
         Assert.Equal(WelcomeEmailStatus.Failed, (await app.Delivery(item.Id)).Status); Assert.Equal(4, transport.Calls);
+        Assert.Equal(4, transport.DeliveryKeys.Count);
+        Assert.All(transport.DeliveryKeys, key => Assert.Equal(item.Id, key));
     }
 
     [Fact]
@@ -273,7 +276,7 @@ public sealed class DeliveryIntegrationTests
     }
 
     [Fact]
-    public async Task Accepted_transport_then_db_failure_keeps_processing_and_documents_possible_duplicate_on_recovery()
+    public async Task Accepted_transport_then_db_failure_requires_evidence_and_never_automatically_resends()
     {
         var transport = new RecordingEmail();
         await using var app = await TestApp.CreateAsync(transport: transport);
@@ -287,18 +290,26 @@ public sealed class DeliveryIntegrationTests
             """));
         await Assert.ThrowsAnyAsync<Exception>(() => app.Get<WelcomeEmailJob>().SendAsync(item.Id, default));
         Assert.Equal(1, transport.Calls);
-        Assert.Equal(WelcomeEmailStatus.Processing, (await app.Delivery(item.Id)).Status);
+        Assert.Equal(WelcomeEmailStatus.NeedsReview, (await app.Delivery(item.Id)).Status);
         await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
         Assert.Equal(1, transport.Calls);
         await app.Db(db => db.Database.ExecuteSqlRawAsync("DROP TRIGGER fail_sent_test ON \"WelcomeEmailDeliveries\"; DROP FUNCTION fail_sent_test();"));
         app.Clock.Advance(app.Options.LeaseSeconds + 1);
+        await app.RestartAsync();
+        await app.Get<WelcomeEmailDispatcher>().DispatchAsync(default);
         await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
+        Assert.Equal(WelcomeEmailStatus.NeedsReview, (await app.Delivery(item.Id)).Status);
+        Assert.Equal(1, transport.Calls);
+        var resolved = await app.Get<IWelcomeEmailReconciliation>().ResolveAsync(item.Id, "Accepted", "MAILHOG-RECEIPT-1", "admin-test", default);
+        var duplicate = await app.Get<IWelcomeEmailReconciliation>().ResolveAsync(item.Id, "Accepted", "MAILHOG-RECEIPT-1", "admin-test", default);
+        Assert.Equal(resolved.AuditId, duplicate.AuditId);
         Assert.Equal(WelcomeEmailStatus.Sent, (await app.Delivery(item.Id)).Status);
-        Assert.Equal(2, transport.Calls); // SMTP and PostgreSQL have no shared commit: never promise exactly-once.
+        Assert.Equal(1, transport.Calls);
+        Assert.Equal(1, await app.Db(db => db.WelcomeEmailReconciliations.CountAsync()));
     }
 
     [Fact]
-    public async Task Worker_cancellation_releases_lease_with_backoff_and_never_marks_sent()
+    public async Task Worker_cancellation_during_submission_requires_review_and_never_marks_sent_or_resends()
     {
         var transport = new RecordingEmail { Gate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
         await using var app = await TestApp.CreateAsync(transport: transport);
@@ -309,7 +320,7 @@ public sealed class DeliveryIntegrationTests
         cancel.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running);
         var current = await app.Delivery(item.Id);
-        Assert.Equal(WelcomeEmailStatus.Pending, current.Status); Assert.Equal("TransportInterrupted", current.LastErrorCode);
+        Assert.Equal(WelcomeEmailStatus.NeedsReview, current.Status); Assert.Equal("TransportOutcomeUnknown", current.LastErrorCode);
         Assert.Null(current.LeaseToken); Assert.Null(current.SentAt);
         await app.Get<WelcomeEmailJob>().SendAsync(item.Id, default);
         Assert.Equal(1, transport.Calls);

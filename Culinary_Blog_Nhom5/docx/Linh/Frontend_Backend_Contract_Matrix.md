@@ -33,3 +33,11 @@
 1. Hiện thực `GET /api/v1/auth/me` và `PATCH /api/v1/auth/me` trước khi bật chỉnh sửa hồ sơ.
 2. Hiện thực `PUT /api/v1/recipes/{id}/nutrition` để cập nhật độc lập đủ sáu chỉ số.
 Hai mục trên không được tính là đã đạt đặc tả chỉ vì frontend build thành công.
+
+## Issue #90 update — 2026-11-04
+
+- Public SEO routes now use the shared `lib/seo` builders for canonical, metadata, Open Graph/Twitter and Recipe JSON-LD.
+- Public Next fetch policies are explicit: home 120s, category 300s, recipe list 180s and recipe detail 3600s. Search, auth, dashboard and owner/admin flows remain `no-store`.
+- `POST /api/revalidate` is the frontend ISR contract. Backend `FrontendRevalidationClient` calls it after public cache invalidation when `SEO_REVALIDATION_URL` and `SEO_REVALIDATION_SECRET` are configured; Redis/TTL remains the failure fallback.
+- `GET /api/v1/recipes/resolve/{slug}` and `RecipeSlugHistory` implement old Draft slug resolution. Published slug changes are not allowed; old slugs redirect permanently to the current canonical slug.
+- Migration `20261104120000_AddRecipeSlugHistory` must be applied in staging before release.

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatIngredientQuantity } from "@/lib/ingredient-form";
+import { formatIngredientQuantity } from "@/lib/ingredient-display";
 
 import React, { useState } from "react";
 import { Minus, Plus, RotateCcw, Check } from "lucide-react";

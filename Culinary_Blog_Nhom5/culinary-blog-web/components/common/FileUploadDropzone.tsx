@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import { getRecipeImages, uploadRecipeImage, waitForRecipeImage, type RecipeImageDto } from "@/lib/api/fileApi";
 import { imageErrorMessage, needsImageReconciliation, validateImageFile } from "@/lib/api/imageErrors";
 import { toApiProblemError } from "@/lib/api/problemDetails";
+import { toast } from "sonner";
 
 type Props = {
   recipeId: string;
@@ -16,6 +17,10 @@ type Props = {
 };
 
 export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess, onImageChange, onImagesChange, onBusyChange }: Props) {
+  const helpId = useId();
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const hadOperation = useRef(false);
   const [selected, setSelected] = useState<{ file: File; previewUrl: string } | null>(null);
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<"idle" | "uploading" | "processing" | "checking" | "success" | "error" | "cancelled">("idle");
@@ -27,6 +32,13 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
   const [retryAfterMs, setRetryAfterMs] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
   const busy = state === "uploading" || state === "processing" || state === "checking";
+  useEffect(() => {
+    if (busy) { hadOperation.current = true; return; }
+    if (hadOperation.current) {
+      hadOperation.current = false;
+      (actionRef.current?.disabled ? statusRef.current : actionRef.current)?.focus();
+    }
+  }, [busy]);
 
   useEffect(() => {
     if (!selected) return;
@@ -85,6 +97,7 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
       if (!current() || controller.signal.aborted) return;
       setState("success");
       setMessage("Ảnh đã tải lên và xử lý hoàn tất.");
+      toast.success("Ảnh đã tải lên và xử lý hoàn tất.");
       onUploadSuccess?.(image);
     } catch (cause) {
       if (!current()) return;
@@ -94,26 +107,27 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
       setRetryAfterMs(error.retryAfterMs ?? 0);
       setState(error.kind === "cancelled" ? "cancelled" : "error");
       setMessage(imageErrorMessage(error));
+      if (error.kind !== "cancelled") toast.error(imageErrorMessage(error));
     } finally {
       if (current()) { controllerRef.current = null; onBusyChange?.(false); }
     }
   };
 
   return (
-    <section className="space-y-3" aria-label="Tải ảnh công thức">
+    <section className="min-w-0 space-y-3" aria-label="Tải ảnh công thức" aria-busy={busy}>
       <label
-        className={`flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition ${dragging ? "border-primary bg-primary/5" : "border-border bg-muted/40 hover:border-primary"}`}
-        aria-describedby="recipe-image-upload-help"
+        className={`flex min-h-40 min-w-0 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition focus-within:outline-2 focus-within:outline-primary ${dragging ? "border-primary bg-primary/5" : "border-border bg-muted/40 hover:border-primary"}`}
+        aria-describedby={helpId}
         onDragOver={event => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={event => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); }}
       >
         {selected ? <Image src={selected.previewUrl} alt="Xem trước ảnh đã chọn" width={640} height={400} unoptimized className="mb-3 max-h-48 w-auto rounded-lg object-contain" />
           : <span className="mb-2 text-3xl" aria-hidden="true">📷</span>}
-        <span className="font-medium">{selected?.file.name ?? "Chọn ảnh hoặc kéo thả vào đây"}</span>
-        <span id="recipe-image-upload-help" className="mt-1 text-sm text-muted-foreground">JPEG, PNG, WebP, AVIF · tối đa 5 MiB</span>
+        <span className="max-w-full break-all font-medium">{selected?.file.name ?? "Chọn ảnh hoặc kéo thả vào đây"}</span>
+        <span id={helpId} className="mt-1 text-sm text-muted-foreground">JPEG, PNG, WebP, AVIF · tối đa 5 MiB</span>
         <input className="sr-only" type="file" disabled={busy || disabled} tabIndex={0}
-          accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" aria-label="Chọn ảnh công thức"
+          accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" aria-label="Chọn ảnh công thức" aria-describedby={helpId}
           onChange={event => { chooseFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
       </label>
       {state === "uploading" && <div>
@@ -123,10 +137,10 @@ export default function FileUploadDropzone({ recipeId, disabled, onUploadSuccess
       </div>}
       {state === "processing" && <p role="status">Ảnh gốc đã được lưu. Đang kiểm tra xử lý ảnh xem trước...</p>}
       {state === "checking" && <p role="status">Đang tải lại danh sách ảnh...</p>}
-      {message && <p role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{message}</p>}
-      <div className="flex gap-2">
+      {message && <p ref={statusRef} tabIndex={-1} role={state === "error" ? "alert" : "status"} className={state === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{message}</p>}
+      <div className="flex flex-wrap gap-2">
         {busy ? <button type="button" className="rounded-lg border px-4 py-2" onClick={() => controllerRef.current?.abort()}>Hủy</button>
-          : <button type="button" className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+          : <button ref={actionRef} type="button" className="max-w-full rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
             disabled={disabled || retryAfterMs > 0 || (!selected && !savedImage && !mustReconcile) || state === "success"} onClick={() => void upload()}>
             {mustReconcile ? "Kiểm tra danh sách trước khi thử lại" : savedImage ? "Kiểm tra lại trạng thái" : "Tải ảnh lên"}
           </button>}

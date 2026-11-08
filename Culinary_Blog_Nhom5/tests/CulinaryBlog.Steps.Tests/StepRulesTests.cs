@@ -24,6 +24,7 @@ public sealed class StepRulesTests
     {
         var recipe = new Recipe();
         recipe.Steps.Add(new RecipeStep { IsDeleted = true });
-        Assert.Throws<DomainException>(() => recipe.Publish());
+        var error = Assert.Throws<ValidationException>(() => recipe.Publish());
+        Assert.Contains("steps", error.Errors.Keys);
     }
 }

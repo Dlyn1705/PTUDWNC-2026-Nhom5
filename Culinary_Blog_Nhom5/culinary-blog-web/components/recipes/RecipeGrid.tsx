@@ -1,7 +1,6 @@
 import React from "react";
 import { RecipeCardDto } from "@/types/recipe.types";
 import { RecipeCard } from "./RecipeCard";
-import { ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/common/Skeleton";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -28,7 +27,7 @@ export function RecipeGrid({
         <div
           className={cn(
             "grid gap-6",
-            isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+            isList ? "grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3",
           )}
         >
           {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -36,7 +35,7 @@ export function RecipeGrid({
               key={idx}
               className={cn(
                 "overflow-hidden rounded-2xl border border-border bg-card shadow-soft",
-                isList && "flex flex-col sm:flex-row",
+                isList && "flex flex-col md:flex-row",
               )}
             >
               <Skeleton
@@ -66,7 +65,7 @@ export function RecipeGrid({
       <EmptyState
         title="Chưa có công thức nào"
         description={emptyMessage}
-        icon={<ChefHat className="size-7" />}
+        icon={<span aria-hidden="true" className="text-2xl">🍽</span>}
         className="my-8"
       />
     );
@@ -76,7 +75,7 @@ export function RecipeGrid({
     <div
       className={cn(
         "grid gap-6",
-        isList ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+        isList ? "grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3",
       )}
     >
       {recipes.map((recipe) => (

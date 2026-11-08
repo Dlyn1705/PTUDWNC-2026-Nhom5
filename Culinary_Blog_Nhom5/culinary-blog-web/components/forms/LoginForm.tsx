@@ -1,22 +1,46 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
-import { WelcomeBanner } from "@/components/auth/WelcomeBanner";
 import { LoginMascot, type MascotMood } from "@/components/forms/LoginMascot";
 import { PasswordField } from "@/components/forms/PasswordField";
-import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
-import { getApiErrorMessage, toApiProblemError } from "@/lib/api/problemDetails";
+import type { LoginFormData } from "@/lib/validations/auth";
+import { loginResolver } from "@/lib/validations/loginResolver";
 import { useAuth } from "@/hooks/useAuth";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
+import { getLoginRedirect } from "@/lib/auth/loginRedirect";
+import { useAuthStore } from "@/store/authStore";
 
-function FieldError({ message }: { message?: string }) {
+function authErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const response = (
+      error as {
+        response?: {
+          data?: { detail?: string; title?: string; message?: string };
+        };
+      }
+    ).response;
+    const data = response?.data;
+    if (data?.detail || data?.title || data?.message)
+      return data.detail || data.title || data.message || fallback;
+  }
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback;
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p className="mt-2 text-xs font-medium text-destructive">{message}</p>
+    <p
+      id={id}
+      role="alert"
+      className="mt-2 text-xs font-medium text-destructive"
+    >
+      {message}
+    </p>
   ) : null;
 }
 
@@ -27,12 +51,13 @@ export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [mascotMood, setMascotMood] = useState<MascotMood>("idle");
   const [emailProgress, setEmailProgress] = useState(0);
-  const registered = searchParams.get("registered") === "true";
   const sessionExpired =
     searchParams.get("reason") === "session-expired" ||
     searchParams.get("sessionExpired") === "true";
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl = safeCallbackUrl(requestedCallback);
+  // Admins enter the dashboard by default. When a protected page supplied a
+  // callback URL, preserve that destination instead.
+  const callbackUrl = safeCallbackUrl(requestedCallback, "/dashboard");
 
   const {
     register,
@@ -40,7 +65,7 @@ export function LoginForm() {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: loginResolver,
     defaultValues: { email: "", password: "" },
   });
   const emailRegistration = register("email");
@@ -52,24 +77,47 @@ export function LoginForm() {
     try {
       await login({ email: data.email, password: data.password });
       setMascotMood("success");
-      router.replace(callbackUrl);
+      router.replace(
+        getLoginRedirect(
+          useAuthStore.getState().user?.roles,
+          callbackUrl,
+          requestedCallback !== null,
+        ),
+      );
     } catch (error) {
       setMascotMood("error");
-      const problem = toApiProblemError(error);
-      if (problem.status === 401) {
-        setError("password", { type: "server", message: "Email hoặc mật khẩu không chính xác." });
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 401) {
+        setError(
+          "password",
+          { type: "server", message: "Email hoặc mật khẩu không chính xác." },
+          { shouldFocus: true },
+        );
       } else {
-        setServerError(getApiErrorMessage(problem, "Không thể đăng nhập. Vui lòng thử lại sau."));
+        setServerError(
+          authErrorMessage(error, "Không thể đăng nhập. Vui lòng thử lại sau."),
+        );
       }
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+      noValidate
+      aria-busy={isSubmitting}
+    >
       <LoginMascot mood={mascotMood} emailProgress={emailProgress} />
-      {registered && <WelcomeBanner />}
-      {(searchParams.get("passwordReset") === "true" || searchParams.get("passwordChanged") === "true") && (
-        <p role="status" className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.</p>
+      {(searchParams.get("passwordReset") === "true" ||
+        searchParams.get("passwordChanged") === "true") && (
+        <p
+          role="status"
+          className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm"
+        >
+          Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.
+        </p>
       )}
       {sessionExpired && (
         <div
@@ -78,6 +126,11 @@ export function LoginForm() {
         >
           Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.
         </div>
+      )}
+      {errors.root?.message && (
+        <p role="alert" className="text-sm text-destructive">
+          {errors.root.message}
+        </p>
       )}
       {serverError && (
         <div
@@ -107,9 +160,11 @@ export function LoginForm() {
             setEmailProgress(Math.min(event.target.value.length / 32, 1));
             emailRegistration.onChange(event);
           }}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "login-email-error" : undefined}
           className={`field-input ${errors.email ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.email?.message} />
+        <FieldError id="login-email-error" message={errors.email?.message} />
       </div>
 
       <div>
@@ -117,7 +172,10 @@ export function LoginForm() {
           <label htmlFor="login-password" className="field-label">
             Mật khẩu
           </label>
-          <Link href="/auth/forgot-password" className="mb-2 text-xs font-semibold text-primary hover:underline">
+          <Link
+            href="/auth/forgot-password"
+            className="mb-2 text-xs font-semibold text-primary hover:underline"
+          >
             Quên mật khẩu?
           </Link>
         </div>
@@ -128,15 +186,27 @@ export function LoginForm() {
           registration={register("password")}
           onFocus={() => setMascotMood("password")}
           onBlur={() => setMascotMood("idle")}
-          onVisibilityChange={(visible) => setMascotMood(visible ? "peek" : "password")}
+          onVisibilityChange={(visible) =>
+            setMascotMood(visible ? "peek" : "password")
+          }
+          aria-invalid={Boolean(errors.password)}
+          aria-describedby={
+            errors.password ? "login-password-error" : undefined
+          }
           className={`field-input ${errors.password ? "field-input-error" : ""}`}
         />
-        <FieldError message={errors.password?.message} />
+        <FieldError
+          id="login-password-error"
+          message={errors.password?.message}
+        />
       </div>
 
       <button type="submit" disabled={isSubmitting} className="submit-button">
         {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
+      <p role="status" className="sr-only">
+        {isSubmitting ? "Đang đăng nhập, vui lòng chờ." : ""}
+      </p>
 
       <div className="flex items-center gap-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="h-px flex-1 bg-border" />
@@ -144,7 +214,10 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <GoogleLoginButton callbackUrl={callbackUrl} />
+      <GoogleLoginButton
+        callbackUrl={callbackUrl}
+        hasExplicitCallback={requestedCallback !== null}
+      />
 
       <p className="text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{" "}

@@ -1,0 +1,305 @@
+[
+  {
+    "scenario": "retention-purge-generations",
+    "businessKey": "4ab1fb68-6e6d-4662-8bba-c66cba6803b2",
+    "state": {
+      "retainedDays": 29,
+      "purgeAfterDays": 31,
+      "status": "Completed"
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage.DeleteRecipeImageCommandHandler",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "4ab1fb68-6e6d-4662-8bba-c66cba6803b2"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Information",
+        "fields": {
+          "RecipeImageId": "4ab1fb68-6e6d-4662-8bba-c66cba6803b2",
+          "Attempt": "1",
+          "CorrelationId": "job-delete-4ab1fb686e6d46628bbac66cba6803b2"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "metadata-insert-compensation-restart",
+    "businessKey": "c19a4fea-8732-4602-953c-6f92af183f27",
+    "state": {
+      "orphanRemoved": true,
+      "status": "Cleaned"
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage.UploadRecipeImageCommandHandler",
+        "level": "Error",
+        "fields": {
+          "RecipeImageId": "c19a4fea-8732-4602-953c-6f92af183f27",
+          "RecipeId": "e85dbc55-70d9-4da2-b10b-77a3132dddb6",
+          "CorrelationId": "job-upload-c19a4fea87324602953c6f92af183f27"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "c19a4fea-8732-4602-953c-6f92af183f27",
+          "Attempt": "1",
+          "CorrelationId": "job-upload-c19a4fea87324602953c6f92af183f27"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "deletion-cancel-queue-outage-restart",
+    "businessKey": "7fd662b5-b848-4d9e-a261-cc25d6aa08d2",
+    "state": {
+      "status": "Completed",
+      "jobId": "2",
+      "attempts": 2
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage.DeleteRecipeImageCommandHandler",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "7fd662b5-b848-4d9e-a261-cc25d6aa08d2"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "7fd662b5-b848-4d9e-a261-cc25d6aa08d2",
+          "Attempt": "1",
+          "ErrorCategory": "DeletionInterrupted",
+          "CorrelationId": "job-delete-7fd662b5b8484d9ea261cc25d6aa08d2"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Information",
+        "fields": {
+          "RecipeImageId": "7fd662b5-b848-4d9e-a261-cc25d6aa08d2",
+          "Attempt": "2",
+          "CorrelationId": "job-delete-7fd662b5b8484d9ea261cc25d6aa08d2"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "original-cleanup-poison-restart-budget",
+    "businessKey": "96749c44-b86e-49b7-84f1-e96d54a447ff",
+    "state": {
+      "status": "Failed",
+      "attempts": 4,
+      "operatorRecoveryRequired": true
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "96749c44-b86e-49b7-84f1-e96d54a447ff",
+          "Attempt": "1",
+          "CorrelationId": "job-upload-96749c44b86e49b784f1e96d54a447ff"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "96749c44-b86e-49b7-84f1-e96d54a447ff",
+          "Attempt": "2",
+          "CorrelationId": "job-upload-96749c44b86e49b784f1e96d54a447ff"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "96749c44-b86e-49b7-84f1-e96d54a447ff",
+          "Attempt": "3",
+          "CorrelationId": "job-upload-96749c44b86e49b784f1e96d54a447ff"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "96749c44-b86e-49b7-84f1-e96d54a447ff",
+          "Attempt": "4",
+          "CorrelationId": "job-upload-96749c44b86e49b784f1e96d54a447ff"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "deletion-partial-io-db-restart",
+    "businessKey": "b7223201-7222-4fef-b1c7-1d2281550535",
+    "state": {
+      "status": "Completed",
+      "attempts": 3
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.ImageProcessingPipeline",
+        "level": "Information",
+        "fields": {
+          "RecipeImageId": "b7223201-7222-4fef-b1c7-1d2281550535",
+          "Attempt": "1",
+          "CorrelationId": "job-process-b722320172224fefb1c71d2281550535"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage.DeleteRecipeImageCommandHandler",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "b7223201-7222-4fef-b1c7-1d2281550535"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "b7223201-7222-4fef-b1c7-1d2281550535",
+          "Attempt": "1",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-b722320172224fefb1c71d2281550535"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "b7223201-7222-4fef-b1c7-1d2281550535",
+          "Attempt": "2",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-b722320172224fefb1c71d2281550535"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Information",
+        "fields": {
+          "RecipeImageId": "b7223201-7222-4fef-b1c7-1d2281550535",
+          "Attempt": "3",
+          "CorrelationId": "job-delete-b722320172224fefb1c71d2281550535"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "original-put-unknown-outcome-restart",
+    "businessKey": "03e66fbf-13f4-4773-bca6-c701b55f6d86",
+    "state": {
+      "orphanRemoved": true,
+      "status": "Cleaned"
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.Images.RecipeImageUploadCleanup",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "03e66fbf-13f4-4773-bca6-c701b55f6d86",
+          "Attempt": "1",
+          "CorrelationId": "job-upload-03e66fbf13f44773bca6c701b55f6d86"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "deletion-poison-cap-restart",
+    "businessKey": "354a7f12-205c-4130-9719-99a03f4dbaf4",
+    "state": {
+      "status": "Failed",
+      "attempts": 4
+    },
+    "events": [
+      {
+        "category": "CulinaryBlog.Application.Features.Recipes.Commands.DeleteRecipeImage.DeleteRecipeImageCommandHandler",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "354a7f12-205c-4130-9719-99a03f4dbaf4"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "354a7f12-205c-4130-9719-99a03f4dbaf4",
+          "Attempt": "1",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-354a7f12205c4130971999a03f4dbaf4"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "354a7f12-205c-4130-9719-99a03f4dbaf4",
+          "Attempt": "2",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-354a7f12205c4130971999a03f4dbaf4"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "354a7f12-205c-4130-9719-99a03f4dbaf4",
+          "Attempt": "3",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-354a7f12205c4130971999a03f4dbaf4"
+        }
+      },
+      {
+        "category": "CulinaryBlog.Infrastructure.Services.RecipeImageDeletionJob",
+        "level": "Warning",
+        "fields": {
+          "RecipeImageId": "354a7f12-205c-4130-9719-99a03f4dbaf4",
+          "Attempt": "4",
+          "ErrorCategory": "StorageOrDatabaseFailure",
+          "CorrelationId": "job-delete-354a7f12205c4130971999a03f4dbaf4"
+        }
+      }
+    ]
+  },
+  {
+    "scenario": "smtp-review-retention-preserves-unresolved-audit",
+    "businessKey": "7bdf2399-64a1-4ee6-96f7-bac558991033",
+    "correlationId": "job-welcome-7bdf239964a14ee696f7bac558991033",
+    "status": "NeedsReview",
+    "transportCalls": 2,
+    "unresolvedAuditRetained": true,
+    "expiredOrphanAuditRemoved": true
+  },
+  {
+    "scenario": "smtp-accepted-db-outage-restart-no-resend",
+    "businessKey": "b4da8633-b3ce-4345-ae3f-2318dae961a5",
+    "correlationId": "job-welcome-b4da8633b3ce4345ae3f2318dae961a5",
+    "capturedMessages": 1,
+    "attempts": 1,
+    "status": "SentAfterReceiptReconciliation",
+    "auditRows": 1
+  },
+  {
+    "scenario": "smtp-checkpoint-crash-no-resend",
+    "businessKey": "0bed9227-7e11-4956-ba3d-c91b51084503",
+    "correlationId": "job-welcome-0bed92277e114956ba3dc91b51084503",
+    "status": "NeedsReview",
+    "transportCalls": 0
+  },
+  {
+    "scenario": "welcome-outbox-api-hangfire-restart",
+    "businessKey": "6ea20438-af27-43f8-afde-83ea11f564d9",
+    "correlationId": "job-welcome-6ea20438af2743f8afde83ea11f564d9",
+    "status": "Sent",
+    "attempts": 1,
+    "capturedMessages": 1
+  }
+]

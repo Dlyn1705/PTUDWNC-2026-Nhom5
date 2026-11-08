@@ -34,21 +34,25 @@ public sealed class ImageProcessingPipeline(ImageWorkLock locks, ImageProcessing
             // Leave manifest durable if cleanup fails; recurring sweep retries without the user's request.
             try { using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15)); await cleanup.DeleteGenerationAsync(claim.Generation.Id, timeout.Token); }
             catch { logger.LogWarning("Image generation cleanup deferred for {RecipeImageId}", imageId); }
-            await store.FailAsync(claim, code, permanent, CancellationToken.None);
-            logger.LogWarning("Image processing {RecipeImageId} attempt {Attempt} failed with {ErrorCategory}", imageId, claim.Attempt, code);
+            try { await store.FailAsync(claim, code, permanent, CancellationToken.None); }
+            catch { throw new ImageProcessingException(); } // Leave Processing/manifest durable; don't leak DB errors into Hangfire.
+            logger.LogWarning("Image processing {RecipeImageId} attempt {Attempt} failed with {ErrorCategory} and {CorrelationId}", imageId, claim.Attempt, code, $"job-process-{imageId:N}");
             if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
             if (!permanent) throw new ImageProcessingException();
             return; // Business terminal Failed; no pointless retry of malformed content.
         }
         // Uncertain DB finalization must not delete outputs: commit may already have succeeded.
         // Processing/manifest remain recoverable if this throws; sweep checks the persisted references.
-        if (!await store.CompleteAsync(claim, medium, thumbnail, CancellationToken.None))
+        bool completed;
+        try { completed = await store.CompleteAsync(claim, medium, thumbnail, CancellationToken.None); }
+        catch { throw new ImageProcessingException(); }
+        if (!completed)
         {
             await cleanup.DeleteGenerationAsync(claim.Generation.Id, CancellationToken.None);
             await store.FailAsync(claim, "ImageUnavailable", permanent: true, CancellationToken.None);
             return;
         }
-        logger.LogInformation("Image variants completed for {RecipeImageId} attempt {Attempt} in {Elapsed} ms", imageId, claim.Attempt, elapsed.ElapsedMilliseconds);
+        logger.LogInformation("Image variants completed for {RecipeImageId} attempt {Attempt} in {Elapsed} ms with {CorrelationId}", imageId, claim.Attempt, elapsed.ElapsedMilliseconds, $"job-process-{imageId:N}");
     }
 }
 

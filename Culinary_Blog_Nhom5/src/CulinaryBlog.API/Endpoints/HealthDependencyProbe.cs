@@ -24,7 +24,8 @@ public sealed class HealthDependencyProbe(
     public async Task<bool> RedisAsync(CancellationToken cancellationToken)
     {
         // A cache miss is healthy: the call proves Redis accepted a command.
-        await cache.GetAsync("health:probe", cancellationToken);
+        var transport = services.GetKeyedService<IDistributedCache>("redis-transport") ?? cache;
+        await transport.GetAsync("health:probe", cancellationToken);
         return true;
     }
 
