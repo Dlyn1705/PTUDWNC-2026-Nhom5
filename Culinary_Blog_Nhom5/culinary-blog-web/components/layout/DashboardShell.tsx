@@ -3,14 +3,37 @@
 import { SkipLink } from "@/components/common/SkipLink";
 import React from "react";
 import Link from "next/link";
-import { ChefHat, FolderTree, BookOpen, ArrowLeft, Plus, LayoutDashboard, Users } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  ChefHat,
+  FolderTree,
+  BookOpen,
+  ArrowLeft,
+  LayoutDashboard,
+  Users,
+  Plus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
+export default function DashboardShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { isAdmin } = useAuth();
+  const pathname = usePathname();
+  const isOverviewActive = pathname === "/dashboard";
+  const isCategoriesActive = pathname.startsWith("/dashboard/categories");
+  const isUsersActive = pathname.startsWith("/dashboard/users");
+  const isRecipesActive = pathname.startsWith("/dashboard/recipes");
+
+  const navLinkClass = (active: boolean) =>
+    active
+      ? "rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5"
+      : "rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5";
 
   return (
     <AuthGuard roles={["Author", "Admin"]}>
@@ -19,7 +42,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-md">
           <div className="page-container flex h-16 items-center justify-between">
             <div className="flex items-center gap-6">
-              <Link href="/" aria-label="Culinary Studio — Trang chủ" className="flex items-center gap-2.5">
+              <Link
+                href="/"
+                aria-label="Culinary Studio — Trang chủ"
+                className="flex items-center gap-2.5"
+              >
                 <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
                   <ChefHat aria-hidden="true" className="size-5" />
                 </span>
@@ -28,24 +55,46 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </span>
               </Link>
 
-              <nav aria-label="Điều hướng quản lý" className="hidden xl:flex items-center gap-2 text-sm">
-                <Link href="/dashboard" className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5">
+              <nav
+                aria-label="Điều hướng quản lý"
+                className="hidden xl:flex items-center gap-2 text-sm"
+              >
+                <Link
+                  href="/dashboard"
+                  className={navLinkClass(isOverviewActive)}
+                  aria-current={isOverviewActive ? "page" : undefined}
+                >
                   <LayoutDashboard aria-hidden="true" className="size-4" />
                   <span>Tổng quan</span>
                 </Link>
 
                 {isAdmin && (
-                  <Link href="/dashboard/categories" className="rounded-full bg-accent px-3.5 py-1.5 font-semibold text-accent-foreground flex items-center gap-1.5">
+                  <Link
+                    href="/dashboard/categories"
+                    className={navLinkClass(isCategoriesActive)}
+                    aria-current={isCategoriesActive ? "page" : undefined}
+                  >
                     <FolderTree aria-hidden="true" className="size-4" />
                     <span>Categories</span>
                   </Link>
                 )}
 
-                {isAdmin && <Link href="/dashboard/users" className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5">
-                  <Users className="size-4" /><span>Người dùng</span>
-                </Link>}
+                {isAdmin && (
+                  <Link
+                    href="/dashboard/users"
+                    className={navLinkClass(isUsersActive)}
+                    aria-current={isUsersActive ? "page" : undefined}
+                  >
+                    <Users className="size-4" />
+                    <span>Người dùng</span>
+                  </Link>
+                )}
 
-                <Link href="/dashboard/recipes" className="rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center gap-1.5">
+                <Link
+                  href="/dashboard/recipes"
+                  className={navLinkClass(isRecipesActive)}
+                  aria-current={isRecipesActive ? "page" : undefined}
+                >
                   <BookOpen aria-hidden="true" className="size-4" />
                   <span>Recipes</span>
                 </Link>
@@ -53,14 +102,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </div>
 
             <div className="flex items-center gap-3">
-              <Button asChild size="sm" className="rounded-full gap-1.5 text-xs shadow-soft">
+              <Button
+                asChild
+                size="sm"
+                className="rounded-full gap-1.5 text-xs shadow-soft"
+              >
                 <Link href="/dashboard/recipes/new" aria-label="Tạo công thức">
                   <Plus aria-hidden="true" className="size-3.5" />
                   <span className="hidden sm:inline">Tạo công thức</span>
                 </Link>
               </Button>
 
-              <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex rounded-full gap-1.5 text-xs">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="hidden xl:inline-flex rounded-full gap-1.5 text-xs"
+              >
                 <Link href="/">
                   <ArrowLeft aria-hidden="true" className="size-3.5" />
                   <span>Back to Site</span>
@@ -71,7 +129,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="flex-1">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1">
+          {children}
+        </main>
       </div>
     </AuthGuard>
   );
