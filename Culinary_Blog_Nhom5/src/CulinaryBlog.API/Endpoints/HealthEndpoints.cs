@@ -4,10 +4,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
 
+/// <summary>Process liveness without dependency checks.</summary>
 public sealed record LivenessResponse(string Status, string Probe, DateTime Timestamp);
+/// <summary>Database and cache availability for the readiness probe.</summary>
 public sealed record ReadinessDependencies(string Database, string Cache);
+/// <summary>Whether this instance is ready for application traffic.</summary>
 public sealed record ReadinessResponse(string Status, string Probe, ReadinessDependencies Dependencies, DateTime Timestamp);
+/// <summary>Database, cache and object storage availability.</summary>
 public sealed record HealthDependencies(string Database, string Cache, string Storage);
+/// <summary>Combined service status and dependency results.</summary>
 public sealed record HealthResponse(string Status, HealthDependencies Dependencies, DateTime Timestamp);
 
 public static class HealthEndpoints
@@ -26,7 +31,10 @@ public static class HealthEndpoints
             var ready = await ProbeAsync(dependencies.DatabaseAsync, ct);
             return Results.Json(new { status = ready ? "Healthy" : "Unhealthy", probe = "traffic", timestamp = DateTime.UtcNow },
                 statusCode: ready ? 200 : 503);
-        });
+        }).WithName("TrafficReadinessCheck")
+            .WithSummary("Traffic admission: PostgreSQL phải sẵn sàng, cache là tùy chọn")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status503ServiceUnavailable);
 
         group.MapGet("/live", (HttpContext context) =>
         {

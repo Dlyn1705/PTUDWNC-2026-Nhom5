@@ -1,0 +1,21 @@
+{
+  "revision": "f0e00b311f5f625434e262d3bcfb146a9ad2503c",
+  "date": "2026-11-07",
+  "project": "culinary-setup-370f9f4289",
+  "mode": "clean source, installed tools, host caches and isolated Compose services",
+  "phasesSeconds": {
+    "composeReady": 5.0,
+    "restoreComplete": 11.66,
+    "npmComplete": 90.54,
+    "apiReady": 141.74,
+    "webReady": 250.53
+  },
+  "passed": true,
+  "openApi": {
+    "runtimeOperations": 56,
+    "withSummary": 40,
+    "missingInventoryOperationIds": [],
+    "scalarHttpStatus": 200
+  },
+  "durationSeconds": 257.73
+}

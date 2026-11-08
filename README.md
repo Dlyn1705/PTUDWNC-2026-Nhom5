@@ -4,6 +4,26 @@ Culinary Blog là ứng dụng web full-stack phục vụ việc chia sẻ, tìm
 
 Tài liệu nghiệp vụ và kiến trúc chính thức: [Culinary_Blog_Spec.md](Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md).
 
+## Quality và truy vết yêu cầu
+
+- [Ma trận đầy đủ 65 FR/NFR](Culinary_Blog_Nhom5/docx/Spec/Requirement_Traceability_Matrix.md): owner, code/API/UI, test, status và evidence. `NeedsOwnerReview`/`MissingEvidence` không có nghĩa Done.
+- [Lệnh quality gate và quy trình cập nhật evidence](quality/README.md), [ADR-0001](Culinary_Blog_Nhom5/docx/Spec/ADR-0001-Quality-Gates-And-Existing-Debt.md), [CHANGELOG](CHANGELOG.md).
+- CI kiểm tra build/analyzers, unit coverage Application riêng (baseline 84,55%), integration, typecheck/lint/format/build, API E2E và browser tests hiện có; artifact `quality-*` lưu 14 ngày. Coverage không gộp từ các checkout khác nhau để tăng số liệu.
+- Scalar ở `/scalar`, OpenAPI JSON `/openapi/v1.json` trong Development (port API xem `run-dev.ps1`). Không bật tài liệu Development công khai trong Production để vượt test.
+
+### Quy trình setup ngắn
+
+Sau khi đã cài SDK/Node/Docker và chuẩn bị `.env` theo hướng dẫn bên dưới:
+
+```powershell
+docker compose up -d --wait
+dotnet restore ./Culinary_Blog_Nhom5/Culinary_Blog_Nhom5.sln
+npm --prefix ./Culinary_Blog_Nhom5/culinary-blog-web ci
+./Culinary_Blog_Nhom5/run-dev.ps1
+```
+
+Lượt đo trên Windows ngày 07/11/2026 đạt 250,53 giây từ lúc khởi động Compose đến khi API và trang web phản hồi. Lượt đo dùng checkout sạch, SDK/Node/Docker đã cài, cache máy sẵn có và container cô lập. Thời gian tải mới dependency và Docker image phụ thuộc mạng. [Kết quả đo](quality/evidence/setup-openapi-20261107.json).
+
 ## Chức năng chính
 
 - Khách xem danh mục, xem chi tiết, tìm kiếm, lọc và phân trang công thức đã công khai.

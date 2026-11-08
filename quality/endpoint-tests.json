@@ -1,0 +1,674 @@
+{
+  "AdminListUsers": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AdminEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AdminUsersTests.cs::List_filters_and_pages_users_without_identity_secrets"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AdminUsersTests.cs::Guest_and_author_cannot_read_or_mutate_admin_users"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AdminSetUserRole": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AdminEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AdminUsersTests.cs::Role_change_blocks_self_and_last_admin_and_rolls_back_after_failure"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AdminUsersTests.cs::Guest_and_author_cannot_read_or_mutate_admin_users"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AuthPing": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"AuthPing\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"AuthPing\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GoogleLogin": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Google_endpoint_maps_validated_command_and_error_without_exposing_refresh_token"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Google_endpoint_maps_validated_command_and_error_without_exposing_refresh_token"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "Register": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::flow: \"register\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::flow: \"register\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "Login": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::flow: \"login\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::flow: \"login\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "RefreshAuthToken": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::ExpiredAccessTokenCanRefreshWithoutBearerAndRotateBothTokens"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::InvalidOrMissingTokenDoesNotRevokeAnotherUser"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "Logout": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/RefreshTokenTests.cs::LogoutWithOldTokenRevokesSuccessorWithoutValidAccessToken"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Forgot_and_logout_reject_invalid_inputs_with_problem_details"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "ForgotPassword": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Forgot_and_logout_reject_invalid_inputs_with_problem_details"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Forgot_and_logout_reject_invalid_inputs_with_problem_details"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "ResetPassword": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/PasswordResetTests.cs::ForgotIsNonDisclosingAndResetConsumesHashedTokenAndRevokesSession"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/PasswordResetTests.cs::ExpiredTokenCannotResetPassword"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "ChangePassword": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/PasswordResetTests.cs::ChangePasswordRequiresBearerAndRevokesRefreshCookie"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/PasswordResetTests.cs::ChangePasswordRequiresBearerAndRevokesRefreshCookie"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "GetCurrentUser": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CurrentUserProfileTests.cs::Me_returns_only_safe_profile_fields_and_can_patch_partial_fields"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CurrentUserProfileTests.cs::Me_rejects_invalid_patch_and_requires_authentication"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "UpdateCurrentUser": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CurrentUserProfileTests.cs::Me_returns_only_safe_profile_fields_and_can_patch_partial_fields"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CurrentUserProfileTests.cs::Me_rejects_invalid_patch_and_requires_authentication"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "GetProfileRecipeStats": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetProfileRecipeStats\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetProfileRecipeStats\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "UploadProfileAvatar": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/AuthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Profile_stats_and_avatar_cover_happy_authorization_and_invalid_content"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/AuthEndpointBoundaryTests.cs::Profile_stats_and_avatar_cover_happy_authorization_and_invalid_content"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GetCategories": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/CategoryEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetCategories\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetCategories\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GetCategoryBySlug": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/CategoryEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "CreateCategory": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/CategoryEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "UpdateCategory": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/CategoryEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "DeleteCategory": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/CategoryEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Auth.Tests/CategoryEndpointTests.cs::Category_routes_cover_crud_slug_stability_validation_and_guest_authorization"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "LivenessCheck": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/HealthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Liveness_rejects_unsupported_method_without_changing_probe_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Liveness_rejects_unsupported_method_without_changing_probe_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "ReadinessCheck": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/HealthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "HealthCheck": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/HealthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipeImages": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "SetRecipeImagePrimary": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "UploadRecipeImage": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "DeleteRecipeImage": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "DeleteRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_soft_deletes_all_states_preserves_children_and_invalidates_cache"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeDeletion.Tests/DeletionTests.cs::Api_denies_unauthorized_deletion_without_mutation"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipeImage": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeImages.Tests/ImageApiTests.cs::Actual_image_routes_enforce_roles_ownership_and_primary_contract"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipes": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipes\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipes\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GetRecipeById": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipeById\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipeById\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GetManagedRecipes": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetManagedRecipes\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetManagedRecipes\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "SearchRecipes": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests/SearchTests.cs::Contract_pagination_and_accents_are_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Search.Tests/SearchTests.cs::Invalid_query_returns_422"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "ArchiveRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_transition_table_and_soft_deleted_visibility_are_enforced"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_endpoints_authorize_owner_or_admin"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "UnarchiveRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_transition_table_and_soft_deleted_visibility_are_enforced"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_endpoints_authorize_owner_or_admin"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "PublishRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_transition_table_and_soft_deleted_visibility_are_enforced"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_endpoints_authorize_owner_or_admin"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "UnpublishRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_transition_table_and_soft_deleted_visibility_are_enforced"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/RecipeLifecycleTests.cs::Lifecycle_endpoints_authorize_owner_or_admin"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "ResolveRecipeSlug": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"ResolveRecipeSlug\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"ResolveRecipeSlug\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "GetRecipeBySlug": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipeBySlug\""
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/culinary-blog-web/tests/critical-api.e2e.mjs::\"GetRecipeBySlug\""
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Assertions and run evidence recorded; owner must review operation scope before Verified."
+  },
+  "CreateRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::PostgreSql_http_authorization_atomicity_and_concurrent_slugs"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeCreation.Tests/RecipeCreationTests.cs::PostgreSql_http_authorization_atomicity_and_concurrent_slugs"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Mapped source assertions; verify full operation scope and run evidence with owner."
+  },
+  "UpdateRecipe": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "UpdateRecipeNutrition": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.RecipeUpdate.Tests/RecipeUpdateTests.cs::Real_postgres_and_signed_jwt_cover_update_permissions_versions_and_transactions"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipeIngredients": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Crud_nullable_order_and_authorization_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AddRecipeIngredient": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Crud_nullable_order_and_authorization_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "UpdateRecipeIngredient": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Crud_nullable_order_and_authorization_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "DeleteRecipeIngredient": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Crud_nullable_order_and_authorization_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "ReorderRecipeIngredients": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeIngredientEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Crud_nullable_order_and_authorization_contract"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Ingredients.Tests/IngredientApiTests.cs::Limits_foreign_ids_and_invalid_reorder_never_partially_change_data"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipeSteps": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "GetRecipeStep": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AddRecipeStep": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "UpdateRecipeStep": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "DeleteRecipeStep": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "ReorderRecipeSteps": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/RecipeStepEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Crud_reorder_soft_delete_and_public_aliases_remain_consistent"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Steps.Tests/StepApiTests.cs::Authorization_protects_reads_and_writes"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AdminListWelcomeEmailReview": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/WelcomeEmailAdminEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/ReconciliationTests.cs::Admin_api_has_bounded_redacted_list_validation_conflict_and_audited_resolution"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/ReconciliationTests.cs::Reconciliation_api_rejects_guest_and_author"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "AdminReconcileWelcomeEmail": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/WelcomeEmailAdminEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/ReconciliationTests.cs::Admin_api_has_bounded_redacted_list_validation_conflict_and_audited_resolution"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.WelcomeEmail.Tests/ReconciliationTests.cs::Reconciliation_api_rejects_guest_and_author"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  },
+  "TrafficReadinessCheck": {
+    "source": "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints/HealthEndpoints.cs",
+    "happy": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "error": [
+      "Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests/HealthEndpointTests.cs::Readiness_depends_on_postgres_and_redis_but_liveness_only_on_process"
+    ],
+    "status": "NeedsOwnerReview",
+    "evidence": [],
+    "gap": "Exact assertions mapped; run evidence and owner review required before Verified."
+  }
+}

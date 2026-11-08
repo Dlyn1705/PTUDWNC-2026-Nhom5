@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Existing public infrastructure members are documented incrementally. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <UserSecretsId>e0540922-45e8-48ed-8a4d-b67a4e3730e1</UserSecretsId>
   </PropertyGroup>
 

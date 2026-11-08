@@ -1,0 +1,49 @@
+{
+  "baseCommit": "47c26ed",
+  "date": "2026-11-06",
+  "architectureTests": {
+    "passed": 11
+  },
+  "applicationUnitTests": {
+    "passed": 55,
+    "configuration": "Release",
+    "coveragePercent": 84.556787,
+    "covered": 1221,
+    "valid": 1444
+  },
+  "integration": {
+    "passedDistinct": 274,
+    "note": "186 recipe/media suites plus Search 46 from initial run; Auth rerun 42 after empty migration target-model fix. Initial run had 1 Auth migration assertion failure and is not claimed exit 0. Modified image API scenario rerun 1/1 is not counted twice.",
+    "sourceProjects": [
+      "culinary-quality-aaff2f89546f",
+      "culinary-quality-30c98f19dd26",
+      "culinary-quality-9cc568111f94"
+    ]
+  },
+  "criticalApiE2E": {
+    "flows": 5,
+    "boundaryPairs": 8,
+    "passed": true,
+    "kind": "API E2E, not UI"
+  },
+  "frontend": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "formatRegression": "passed",
+    "productionBuild": "passed with --webpack; default Turbopack hit Windows process panic"
+  },
+  "knownPending": [
+    "Owner review of requirement and endpoint evidence",
+    "Strict Domain package deviation review",
+    "Effective GitHub review protection could not be verified (branch-protection API 404, no rulesets returned)",
+    "Timed setup benchmark <5 minutes not recorded",
+    "Confirm acceptance of API E2E vs requiring all five flows through UI",
+    "XML comments coverage of API documentation not proven"
+  ],
+  "healthEndpointTests": {
+    "passed": 7
+  },
+  "pythonGateTests": {
+    "passed": 6
+  }
+}

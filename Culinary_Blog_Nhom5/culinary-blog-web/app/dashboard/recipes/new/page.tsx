@@ -12,7 +12,11 @@ import { type StepDraft } from "@/lib/step-form";
 import { recipeEditorApi } from "@/lib/api/recipeEditorApi";
 import { categoryApi } from "@/lib/api/categoryApi";
 import { buildCreateRecipePayload } from "@/lib/validations/createRecipe";
-import { RecipeFormValidationError, type RecipeEditorValues, type RecipeCollectionValidation } from "@/lib/validations/recipeEditor";
+import {
+  RecipeFormValidationError,
+  type RecipeEditorValues,
+  type RecipeCollectionValidation,
+} from "@/lib/validations/recipeEditor";
 import { recipeKeys } from "@/hooks/queries/recipeKeys";
 import { useUnsavedRecipe } from "@/hooks/useUnsavedRecipe";
 import type { RecipeImageDto } from "@/types/file.types";
@@ -20,8 +24,13 @@ import type { RecipePreviewData } from "@/components/recipes/editor/RecipePrevie
 
 export default function NewRecipePage() {
   const queryClient = useQueryClient();
-  const categories = useQuery({ queryKey: ["recipe-editor-categories"], queryFn: categoryApi.getAll });
-  const [created, setCreated] = useState<{ id: string; slug: string } | null>(null);
+  const categories = useQuery({
+    queryKey: ["recipe-editor-categories"],
+    queryFn: categoryApi.getAll,
+  });
+  const [created, setCreated] = useState<{ id: string; slug: string } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [basicDirty, setBasicDirty] = useState(false);
   const [ingredientDirty, setIngredientDirty] = useState(false);
@@ -32,49 +41,152 @@ export default function NewRecipePage() {
   const [images, setImages] = useState<RecipeImageDto[]>([]);
   const ingredientValidation = useRef<RecipeCollectionValidation>(null);
   const stepValidation = useRef<RecipeCollectionValidation>(null);
-  const dirty = (!created && (basicDirty || ingredients.length > 0 || steps.length > 0)) || ingredientDirty || stepDirty;
+  const dirty =
+    (!created && (basicDirty || ingredients.length > 0 || steps.length > 0)) ||
+    ingredientDirty ||
+    stepDirty;
   useUnsavedRecipe(dirty || galleryBusy);
 
   const save = async (values: RecipeEditorValues) => {
-    if (created) throw new RecipeFormValidationError("Bản nháp đã được tạo. Hãy mở trang chỉnh sửa để tiếp tục.");
-    if (!await ingredientValidation.current?.validate()) throw new RecipeFormValidationError("Vui lòng kiểm tra các ô nguyên liệu được đánh dấu.");
-    if (!await stepValidation.current?.validate()) throw new RecipeFormValidationError("Vui lòng kiểm tra các ô bước thực hiện được đánh dấu.");
-    const currentIngredients = (ingredientValidation.current?.getItems?.() as IngredientDraft[] | undefined) ?? ingredients;
-    const currentSteps = (stepValidation.current?.getItems?.() as StepDraft[] | undefined) ?? steps;
-    const payload = buildCreateRecipePayload({ ...values, category: values.categoryId, ingredients: currentIngredients, steps: currentSteps,
-      nutrition: { calories: values.calories, protein: values.protein, carbohydrates: values.carbohydrates,
-        fat: values.fat, fiber: values.fiber, sodium: values.sodium } });
+    if (created)
+      throw new RecipeFormValidationError(
+        "Bản nháp đã được tạo. Hãy mở trang chỉnh sửa để tiếp tục.",
+      );
+    if (!(await ingredientValidation.current?.validate()))
+      throw new RecipeFormValidationError(
+        "Vui lòng kiểm tra các ô nguyên liệu được đánh dấu.",
+      );
+    if (!(await stepValidation.current?.validate()))
+      throw new RecipeFormValidationError(
+        "Vui lòng kiểm tra các ô bước thực hiện được đánh dấu.",
+      );
+    const currentIngredients =
+      (ingredientValidation.current?.getItems?.() as
+        | IngredientDraft[]
+        | undefined) ?? ingredients;
+    const currentSteps =
+      (stepValidation.current?.getItems?.() as StepDraft[] | undefined) ??
+      steps;
+    const payload = buildCreateRecipePayload({
+      ...values,
+      category: values.categoryId,
+      ingredients: currentIngredients,
+      steps: currentSteps,
+      nutrition: {
+        calories: values.calories,
+        protein: values.protein,
+        carbohydrates: values.carbohydrates,
+        fat: values.fat,
+        fiber: values.fiber,
+        sodium: values.sodium,
+      },
+    });
     setSaving(true);
     try {
       const result = await recipeEditorApi.create(payload);
       setCreated({ id: result.id, slug: result.slug });
       void queryClient.invalidateQueries({ queryKey: recipeKeys.managed() });
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return <div className="min-h-screen bg-background py-10"><div className="page-container max-w-5xl space-y-6">
-    <header><p className="text-sm font-medium text-primary">Dashboard / Recipes / New</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Tạo công thức mới</h1>
-      <p className="mt-2 text-muted-foreground">Chia sẻ công thức món ăn của bạn với mọi người.</p>
-      {dirty && <p role="status" className="mt-2 text-sm text-warning">Có thay đổi chưa lưu.</p>}</header>
-    {created && <p role="status" className="text-success">Đã lưu bản nháp. <Link className="underline" href={`/dashboard/recipes/${created.id}/edit`}>Tiếp tục chỉnh sửa</Link></p>}
-    <RecipeForm mode="create" categories={categories.data ?? []} categoriesLoading={categories.isPending}
-      categoryError={categories.isError ? categories.error : undefined} onRetryCategories={() => { void categories.refetch(); }}
-      previewData={{ ingredients, steps, images } satisfies RecipePreviewData}
-      onSave={save} onDirtyChange={setBasicDirty} busy={saving} disabled={Boolean(created)} createdSlug={created?.slug}
-      onCollectionErrors={(errors, focus) => {
-        const ingredientCount = ingredientValidation.current?.setServerErrors(errors, focus) ?? 0;
-        stepValidation.current?.setServerErrors(errors, focus && !ingredientCount);
-      }}>
-      <section aria-label="Ảnh món ăn" className="rounded-2xl border border-border bg-card p-6 shadow-soft"><h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Lưu công thức trước, sau đó tải ảnh lên MinIO.</p>
-        {created && <ImageGalleryManager key={created.id} recipeId={created.id} onBusyChange={setGalleryBusy} onImagesChange={setImages} />}</section>
-      <fieldset disabled={saving} aria-label="Nguyên liệu công thức" className="min-w-0">
-        <IngredientManager key={created?.id ?? "new"} recipeId={created?.id} initialItems={ingredients} onChange={setIngredients}
-          onDirtyChange={setIngredientDirty} validationRef={ingredientValidation} />
-      </fieldset>
-      <StepManager key={`steps-${created?.id ?? "new"}`} recipeId={created?.id} onChange={setSteps}
-        onDirtyChange={setStepDirty} validationRef={stepValidation} disabled={saving} />
-    </RecipeForm>
-  </div></div>;
+  return (
+    <div className="min-h-screen bg-background py-10">
+      <div className="page-container max-w-5xl space-y-6">
+        <header>
+          <p className="text-sm font-medium text-primary">
+            Dashboard / Recipes / New
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold text-foreground">
+            Tạo công thức mới
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Chia sẻ công thức món ăn của bạn với mọi người.
+          </p>
+          {dirty && (
+            <p role="status" className="mt-2 text-sm text-warning">
+              Có thay đổi chưa lưu.
+            </p>
+          )}
+        </header>
+        {created && (
+          <p role="status" className="text-success">
+            Đã lưu bản nháp.{" "}
+            <Link
+              className="underline"
+              href={`/dashboard/recipes/${created.id}/edit`}
+            >
+              Tiếp tục chỉnh sửa
+            </Link>
+          </p>
+        )}
+        <RecipeForm
+          mode="create"
+          categories={categories.data ?? []}
+          categoriesLoading={categories.isPending}
+          categoryError={categories.isError ? categories.error : undefined}
+          onRetryCategories={() => {
+            void categories.refetch();
+          }}
+          previewData={
+            { ingredients, steps, images } satisfies RecipePreviewData
+          }
+          onSave={save}
+          onDirtyChange={setBasicDirty}
+          busy={saving}
+          disabled={Boolean(created)}
+          createdSlug={created?.slug}
+          onCollectionErrors={(errors, focus) => {
+            const ingredientCount =
+              ingredientValidation.current?.setServerErrors(errors, focus) ?? 0;
+            stepValidation.current?.setServerErrors(
+              errors,
+              focus && !ingredientCount,
+            );
+          }}
+        >
+          <section
+            aria-label="Ảnh món ăn"
+            className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+          >
+            <h2 className="font-display text-xl font-semibold">Ảnh món ăn</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Lưu công thức trước, sau đó tải ảnh lên MinIO.
+            </p>
+            {created && (
+              <ImageGalleryManager
+                key={created.id}
+                recipeId={created.id}
+                onBusyChange={setGalleryBusy}
+                onImagesChange={setImages}
+              />
+            )}
+          </section>
+          <fieldset
+            disabled={saving}
+            aria-label="Nguyên liệu công thức"
+            className="min-w-0"
+          >
+            <IngredientManager
+              key={created?.id ?? "new"}
+              recipeId={created?.id}
+              initialItems={ingredients}
+              onChange={setIngredients}
+              onDirtyChange={setIngredientDirty}
+              validationRef={ingredientValidation}
+            />
+          </fieldset>
+          <StepManager
+            key={`steps-${created?.id ?? "new"}`}
+            recipeId={created?.id}
+            onChange={setSteps}
+            onDirtyChange={setStepDirty}
+            validationRef={stepValidation}
+            disabled={saving}
+          />
+        </RecipeForm>
+      </div>
+    </div>
+  );
 }

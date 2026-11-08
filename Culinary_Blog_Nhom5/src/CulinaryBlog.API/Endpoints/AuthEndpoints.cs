@@ -190,6 +190,7 @@ public static class AuthEndpoints
                 }));
             })
             .WithName("ForgotPassword")
+            .WithSummary("Yêu cầu gửi hướng dẫn đặt lại mật khẩu")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
@@ -205,6 +206,7 @@ public static class AuthEndpoints
                 return Results.NoContent();
             })
             .WithName("ResetPassword")
+            .WithSummary("Đặt lại mật khẩu bằng token xác nhận")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
@@ -228,6 +230,7 @@ public static class AuthEndpoints
             })
             .RequireAuthorization("AuthorPolicy")
             .WithName("ChangePassword")
+            .WithSummary("Đổi mật khẩu của người dùng hiện tại")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -285,6 +288,7 @@ public static class AuthEndpoints
             })
             .RequireAuthorization("AuthorPolicy")
             .WithName("GetProfileRecipeStats")
+            .WithSummary("Xem thống kê công thức của người dùng hiện tại")
             .Produces<ApiResponse<ProfileRecipeStats>>(StatusCodes.Status200OK);
 
         group.MapPost("/me/avatar", async (
@@ -323,6 +327,7 @@ public static class AuthEndpoints
             .DisableAntiforgery()
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024))
             .WithName("UploadProfileAvatar")
+            .WithSummary("Tải ảnh đại diện của người dùng hiện tại")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<ApiResponse<CurrentUserDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
@@ -395,6 +400,7 @@ public static class AuthEndpoints
             });
 }
 
+/// <summary>Recipe counts for the current user's profile.</summary>
 public sealed record ProfileRecipeStats(int Created, int Published);
 
 public static class LogoutAuthorization
@@ -411,12 +417,20 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 /// <summary>Google ID token produced by Google Sign-In on the frontend.</summary>
 public sealed record GoogleIdTokenLoginRequest(string IdToken);
+/// <summary>Email address for a password reset request.</summary>
 public sealed record ForgotPasswordRequest(string Email);
+/// <summary>Reset token and replacement password for the named account.</summary>
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
+/// <summary>Current and replacement passwords for the authenticated account.</summary>
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+/// <summary>Editable profile fields for the authenticated user.</summary>
 public sealed record UpdateProfileRequest(string? DisplayName, string? Bio, string? AvatarUrl);
 
 /// <summary>Public authentication response; the refresh token is only sent as an HttpOnly cookie.</summary>
+/// <param name="AccessToken">Bearer token for authenticated API calls.</param>
+/// <param name="AccessTokenExpiry">UTC expiration of the access token.</param>
+/// <param name="User">Public profile of the authenticated user.</param>
+/// <param name="Roles">Roles granted to the authenticated user.</param>
 public sealed record AuthSessionResponseDto(
     string AccessToken,
     DateTime AccessTokenExpiry,

@@ -64,11 +64,13 @@ export function GoogleLoginButton({
         await waitForRefresh();
         const session = await googleLogin({ idToken: response.credential });
         useAuthStore.getState().setSession(session);
-        router.replace(getLoginRedirect(
-          session.roles,
-          safeCallbackUrl(callbackUrl),
-          hasExplicitCallback,
-        ));
+        router.replace(
+          getLoginRedirect(
+            session.roles,
+            safeCallbackUrl(callbackUrl),
+            hasExplicitCallback,
+          ),
+        );
       } catch {
         setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
       } finally {

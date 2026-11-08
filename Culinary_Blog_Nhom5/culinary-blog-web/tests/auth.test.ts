@@ -1,23 +1,51 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import axios, { AxiosError, AxiosHeaders, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
+import axios, {
+  AxiosError,
+  AxiosHeaders,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import { installSessionAuth } from "../lib/api/sessionAuth";
 import { safeCallbackUrl } from "../lib/auth/callbackUrl";
 import { getLoginRedirect } from "../lib/auth/loginRedirect";
-import { validWelcomeReceipt, WELCOME_TTL } from "../lib/auth/registrationWelcome";
+import {
+  validWelcomeReceipt,
+  WELCOME_TTL,
+} from "../lib/auth/registrationWelcome";
 
 test("welcome requires a recent registration receipt for the same user", () => {
   const now = 1000000;
-  const receipt = (userId: string, createdAt: number) => JSON.stringify({ userId, createdAt });
-  assert.equal(validWelcomeReceipt(receipt("new-user", now), "new-user", now), true);
-  for (const raw of [null, "registered=true", "{}", receipt("other-user", now), receipt("new-user", now + 1), receipt("new-user", now - WELCOME_TTL)])
+  const receipt = (userId: string, createdAt: number) =>
+    JSON.stringify({ userId, createdAt });
+  assert.equal(
+    validWelcomeReceipt(receipt("new-user", now), "new-user", now),
+    true,
+  );
+  for (const raw of [
+    null,
+    "registered=true",
+    "{}",
+    receipt("other-user", now),
+    receipt("new-user", now + 1),
+    receipt("new-user", now - WELCOME_TTL),
+  ])
     assert.equal(validWelcomeReceipt(raw, "new-user", now), false);
   assert.equal(validWelcomeReceipt(receipt("new-user", now), "", now), false);
 });
 
 test("callback URL accepts local paths and rejects external or slash variants", () => {
-  assert.equal(safeCallbackUrl("/dashboard/recipes?tab=drafts"), "/dashboard/recipes?tab=drafts");
-  for (const unsafe of ["https://evil.test", "//evil.test", "/\\evil.test", "/\nevil.test", "javascript:alert(1)"])
+  assert.equal(
+    safeCallbackUrl("/dashboard/recipes?tab=drafts"),
+    "/dashboard/recipes?tab=drafts",
+  );
+  for (const unsafe of [
+    "https://evil.test",
+    "//evil.test",
+    "/\\evil.test",
+    "/\nevil.test",
+    "javascript:alert(1)",
+  ])
     assert.equal(safeCallbackUrl(unsafe), "/");
 });
 
@@ -26,11 +54,21 @@ test("only admin login goes to the dashboard by default", () => {
   assert.equal(getLoginRedirect(["Member"], "/dashboard", false), "/");
   assert.equal(getLoginRedirect([], "/dashboard", false), "/");
   assert.equal(getLoginRedirect(["Admin"], "/dashboard", false), "/dashboard");
-  assert.equal(getLoginRedirect(["Author"], "/dashboard/recipes", true), "/dashboard/recipes");
+  assert.equal(
+    getLoginRedirect(["Author"], "/dashboard/recipes", true),
+    "/dashboard/recipes",
+  );
 });
 
-const reply = (config: InternalAxiosRequestConfig, status: number): AxiosResponse => ({
-  config, status, statusText: status === 401 ? "Unauthorized" : "OK", data: {}, headers: new AxiosHeaders(),
+const reply = (
+  config: InternalAxiosRequestConfig,
+  status: number,
+): AxiosResponse => ({
+  config,
+  status,
+  statusText: status === 401 ? "Unauthorized" : "OK",
+  data: {},
+  headers: new AxiosHeaders(),
 });
 
 test("two rejected requests share one refresh and retry once with the new bearer", async () => {
@@ -51,13 +89,22 @@ test("two rejected requests share one refresh and retry once with the new bearer
   client.defaults.adapter = async (config) => {
     if (config.headers.get("Authorization") === "Bearer old-access") {
       oldAttempts++;
-      throw new AxiosError("Unauthorized", "ERR_BAD_REQUEST", config, undefined, reply(config, 401));
+      throw new AxiosError(
+        "Unauthorized",
+        "ERR_BAD_REQUEST",
+        config,
+        undefined,
+        reply(config, 401),
+      );
     }
     assert.equal(config.headers.get("Authorization"), "Bearer new-access");
     return reply(config, 200);
   };
   const results = await Promise.all([client.get("/one"), client.get("/two")]);
-  assert.deepEqual(results.map((result) => result.status), [200, 200]);
+  assert.deepEqual(
+    results.map((result) => result.status),
+    [200, 200],
+  );
   assert.equal(oldAttempts, 2);
   assert.equal(refreshes, 1);
 });
@@ -69,12 +116,22 @@ test("a rejected retry stops and an anonymous request never refreshes", async ()
   installSessionAuth(client, {
     getToken: () => token,
     initialize: async () => {},
-    refresh: async () => { refreshes++; token = "new-access"; return token; },
+    refresh: async () => {
+      refreshes++;
+      token = "new-access";
+      return token;
+    },
   });
   let attempts = 0;
   client.defaults.adapter = async (config) => {
     attempts++;
-    throw new AxiosError("Unauthorized", "ERR_BAD_REQUEST", config, undefined, reply(config, 401));
+    throw new AxiosError(
+      "Unauthorized",
+      "ERR_BAD_REQUEST",
+      config,
+      undefined,
+      reply(config, 401),
+    );
   };
   await assert.rejects(client.get("/protected"));
   assert.equal(attempts, 2);
