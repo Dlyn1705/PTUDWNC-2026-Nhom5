@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Users,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardMobileNav } from "@/components/layout/DashboardMobileNav";
@@ -101,6 +102,17 @@ export default function DashboardShell({
             </div>
 
             <div className="flex items-center gap-3">
+              <Button
+                asChild
+                size="sm"
+                className="rounded-full gap-1.5 text-xs shadow-soft"
+              >
+                <Link href="/dashboard/recipes/new" aria-label="Tạo công thức">
+                  <Plus aria-hidden="true" className="size-3.5" />
+                  <span className="hidden sm:inline">Tạo công thức</span>
+                </Link>
+              </Button>
+
               <Button
                 asChild
                 variant="ghost"
