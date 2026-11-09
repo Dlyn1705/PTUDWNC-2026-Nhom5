@@ -35,7 +35,10 @@ export async function saveDraftMedia(
       );
     } catch (cause) {
       const error = toApiProblemError(cause);
-      paused = error.status === 429;
+      // Do not let a step image become the recipe primary when the cover
+      // upload failed or has an ambiguous outcome. Keep all remaining files
+      // queued until the user can retry the cover upload.
+      paused = true;
       if (!accepted && !error.image && !needsImageReconciliation(error))
         retryCover = cover;
       warnings.push(`Ảnh bìa: ${imageErrorMessage(error)}`);

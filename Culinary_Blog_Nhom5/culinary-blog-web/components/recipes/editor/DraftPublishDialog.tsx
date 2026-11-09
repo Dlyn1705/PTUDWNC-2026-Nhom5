@@ -42,6 +42,7 @@ export function DraftPublishDialog({
   const cover = images.find((image) => image.isPrimary) ?? images[0];
   const ingredients = recipe?.ingredients ?? [];
   const steps = recipe?.steps ?? [];
+  const nutrition = recipe?.nutrition;
   const error = publish.error ? errorPresentation(publish.error) : null;
   const close = () => {
     if (locked.current) return;
@@ -127,6 +128,12 @@ export function DraftPublishDialog({
             )}
             <h3 className="text-xl font-semibold">{recipe.title}</h3>
             <p className="whitespace-pre-wrap">{recipe.description}</p>
+            {recipe.instructions?.trim() && (
+              <div>
+                <h4 className="font-semibold">Hướng dẫn</h4>
+                <p className="whitespace-pre-wrap">{recipe.instructions}</p>
+              </div>
+            )}
             <div>
               <h4 className="font-semibold">Nguyên liệu</h4>
               <ul className="list-disc ps-5">
@@ -159,6 +166,39 @@ export function DraftPublishDialog({
                 ))}
               </ol>
             </div>
+            {nutrition && (
+              <div>
+                <h4 className="font-semibold">Dinh dưỡng</h4>
+                <dl className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ["Calories", nutrition.calories, "kcal"],
+                      ["Protein", nutrition.protein, "g"],
+                      [
+                        "Carbohydrates",
+                        nutrition.carbohydrates ?? nutrition.carbs,
+                        "g",
+                      ],
+                      ["Chất béo", nutrition.fat, "g"],
+                      ["Chất xơ", nutrition.fiber, "g"],
+                      ["Natri", nutrition.sodium, "mg"],
+                    ] as const
+                  )
+                    .filter(([, value]) => value != null)
+                    .map(([label, value, unit]) => (
+                      <div
+                        key={label}
+                        className="flex items-baseline justify-between gap-3 rounded-md bg-muted px-3 py-2"
+                      >
+                        <dt>{label}</dt>
+                        <dd className="font-medium">
+                          {value} {unit}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              </div>
+            )}
             {(!ingredients.length || !steps.length) && (
               <p role="status">
                 Cần ít nhất một nguyên liệu và một bước trước khi xuất bản.
