@@ -27,7 +27,11 @@ import {
 } from "@/lib/validations/recipeEditor";
 import { useCollectionFocus } from "@/hooks/useCollectionFocus";
 import { toast } from "sonner";
+import { imageErrorMessage, validateImageFile } from "@/lib/api/imageErrors";
 
+export type StepCollectionValidation = RecipeCollectionValidation & {
+  getStepFiles: () => (File | undefined)[];
+};
 type Props = {
   recipeId?: string;
   published?: boolean;
@@ -36,7 +40,8 @@ type Props = {
   onChange?: (items: StepDraft[]) => void;
   onMutation?: () => Promise<void> | void;
   onDirtyChange?: (dirty: boolean) => void;
-  validationRef?: Ref<RecipeCollectionValidation>;
+  validationRef?: Ref<StepCollectionValidation>;
+  initialStepFiles?: (File | undefined)[];
   disabled?: boolean;
 };
 const toDraft = (step: StepDto): StepDraft => ({
@@ -70,6 +75,7 @@ export default function StepManager({
   onMutation,
   onDirtyChange,
   validationRef,
+  initialStepFiles,
   disabled = false,
 }: Props) {
   const form = useForm<{ items: StepDraft[] }>({
@@ -87,6 +93,12 @@ export default function StepManager({
     register,
     formState: { errors },
   } = form;
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "items",
+  });
+  const [stepFiles, setStepFiles] = useState<Record<string, File>>({});
+  const initialFiles = useRef(initialStepFiles);
   useImperativeHandle(
     validationRef,
     () => ({
@@ -108,13 +120,10 @@ export default function StepManager({
         return entries.length;
       },
       getItems: () => getValues("items"),
+      getStepFiles: () => fields.map((field) => stepFiles[field.id]),
     }),
-    [trigger, getValues, setFieldError],
+    [trigger, getValues, setFieldError, fields, stepFiles],
   );
-  const { fields, append, remove, move } = useFieldArray({
-    control,
-    name: "items",
-  });
   const items = useWatch({ control, name: "items" });
   const [version, setVersion] = useState("");
   const [acknowledgedParent, setAcknowledgedParent] = useState(parentVersion);
@@ -144,8 +153,8 @@ export default function StepManager({
     changeCallback.current = onChange;
   }, [onChange]);
   useEffect(() => {
-    changeCallback.current?.(items);
-  }, [items]);
+    if (!recipeId) changeCallback.current?.(items);
+  }, [items, recipeId]);
   const isDirty = (rows: StepDraft[]) =>
     rows.some(
       (row) =>
@@ -158,10 +167,11 @@ export default function StepManager({
           items.some(
             (row) =>
               !row.stepId ||
+              stepFiles[row.stepId] ||
               signature(row) !== baselines.current.get(row.stepId),
           ),
       );
-  }, [recipeId, items, version, mediaBusy, onDirtyChange]);
+  }, [recipeId, items, version, mediaBusy, onDirtyChange, stepFiles]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   useEffect(() => {
@@ -176,6 +186,19 @@ export default function StepManager({
           baselines.current = new Map(
             rows.map((row) => [row.stepId!, signature(row)]),
           );
+          const staged = initialFiles.current;
+          if (staged) {
+            const entries = result.items.flatMap((step) => {
+              const file = staged[step.stepNumber - 1];
+              return file ? [[step.id, file] as const] : [];
+            });
+            setStepFiles(Object.fromEntries(entries));
+            const first = rows.findIndex((row) =>
+              entries.some(([id]) => id === row.stepId),
+            );
+            if (first >= 0) setImageTarget(first);
+            initialFiles.current = undefined;
+          }
           reset({ items: rows });
           setVersion(result.etag);
         })
@@ -253,6 +276,14 @@ export default function StepManager({
     },
     [recipeId],
   );
+  const clearStepFile = (id: string) =>
+    setStepFiles((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  const targetStep = fields[Math.min(imageTarget, fields.length - 1)];
+  const stagedFile = stepFiles[targetStep?.stepId ?? ""];
   const chooseImage = (image: RecipeImageDto) => {
     const target = Math.min(imageTarget, getValues("items").length - 1);
     if (image.processingStatus !== "Completed" || target < 0) return;
@@ -260,6 +291,8 @@ export default function StepManager({
       shouldDirty: true,
       shouldValidate: true,
     });
+    const id = getValues(`items.${target}.stepId`);
+    if (id) clearStepFile(id);
     setMessage(
       `Đã chọn ảnh cho bước ${target + 1}. Bấm Lưu bước để lưu liên kết.`,
     );
@@ -577,6 +610,46 @@ export default function StepManager({
               Chọn hoặc tải ảnh trong mục Ảnh minh họa bước nấu bên dưới. URL
               ngoài phải là HTTP/HTTPS, không chứa thông tin đăng nhập.
             </p>
+            {!recipeId && (
+              <label className="block text-sm">
+                Chọn tệp ảnh bước {index + 1}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  className="mt-1 block max-w-full"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      validateImageFile(file);
+                      setError("");
+                      setStepFiles((current) => ({
+                        ...current,
+                        [field.id]: file,
+                      }));
+                    } catch (cause) {
+                      setError(imageErrorMessage(cause));
+                    }
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+            {!recipeId && stepFiles[field.id] && (
+              <div className="text-xs">
+                <p className="break-all">
+                  Đã chọn {stepFiles[field.id].name}. Tệp sẵn sàng tải lên sau
+                  khi lưu bản nháp.
+                </p>
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => clearStepFile(field.id)}
+                >
+                  Bỏ tệp ảnh bước {index + 1}
+                </button>
+              </div>
+            )}
             {items[index]?.imageUrl && imagePreview(items[index].imageUrl) && (
               <Image
                 src={items[index].imageUrl}
@@ -732,7 +805,9 @@ export default function StepManager({
             </p>
           ) : (
             <FileUploadDropzone
+              key={initialStepFiles?.some(Boolean) ? targetStep?.id : undefined}
               recipeId={recipeId}
+              initialFile={stagedFile}
               disabled={
                 disabled ||
                 busy ||
@@ -746,6 +821,16 @@ export default function StepManager({
               onBusyChange={mediaBusyChange}
             />
           )}
+          {stagedFile && targetStep?.stepId && (
+            <button
+              type="button"
+              disabled={blocked}
+              className="text-sm underline"
+              onClick={() => clearStepFile(targetStep.stepId!)}
+            >
+              Bỏ tệp đang chờ tải
+            </button>
+          )}
           <p className="text-xs text-muted-foreground">
             Ảnh dùng chung với thư viện công thức. Xóa bước chỉ bỏ liên kết,
             không xóa tệp ảnh. Chỉ ảnh xử lý hoàn tất mới được tự điền; lưu bước
@@ -755,7 +840,8 @@ export default function StepManager({
       ) : (
         !recipeId && (
           <p className="text-sm text-muted-foreground">
-            Lưu bản nháp trước để tải/chọn ảnh cho từng bước.
+            Bạn có thể chọn tệp cho từng bước ngay bây giờ. Lưu bản nháp để tải
+            ảnh đã chọn lên.
           </p>
         )
       )}

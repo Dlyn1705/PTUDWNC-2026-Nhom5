@@ -6,6 +6,8 @@ using CulinaryBlog.Domain.Entities;
 using CulinaryBlog.Infrastructure;
 using CulinaryBlog.Infrastructure.Persistence;
 using CulinaryBlog.Testing;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -19,25 +21,52 @@ var connection = Environment.GetEnvironmentVariable("CRITICAL_TEST_CONNECTION")
     ?? throw new InvalidOperationException("Set CRITICAL_TEST_CONNECTION for an isolated PostgreSQL server.");
 await using var database = await PostgresTestDatabase.CreateAsync(connection, "culinary_critical_test_");
 const string key = "Isolated-critical-tests-key-at-least-64-characters-not-a-production-secret";
+var browserOrigin = Environment.GetEnvironmentVariable("CRITICAL_BROWSER_ORIGIN");
+var minioEndpoint = Environment.GetEnvironmentVariable("CRITICAL_TEST_MINIO_ENDPOINT");
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.WebHost.UseUrls("http://127.0.0.1:0");
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
     ["ConnectionStrings:DefaultConnection"] = database.ConnectionString,
     ["Jwt:Key"] = key, ["Jwt:Issuer"] = "critical-tests", ["Jwt:Audience"] = "critical-tests",
-    ["Minio:AccessKey"] = "test-only", ["Minio:SecretKey"] = "test-only", ["Email:Enabled"] = "false" });
+    ["Minio:Endpoint"] = minioEndpoint ?? "127.0.0.1:9000",
+    ["Minio:PublicBaseUrl"] = "http://" + (minioEndpoint ?? "127.0.0.1:9000"),
+    ["Minio:Bucket"] = $"critical-e2e-{Guid.NewGuid():N}",
+    ["Minio:AccessKey"] = Environment.GetEnvironmentVariable("CRITICAL_TEST_MINIO_USER") ?? "test-only",
+    ["Minio:SecretKey"] = Environment.GetEnvironmentVariable("CRITICAL_TEST_MINIO_PASSWORD") ?? "test-only",
+    ["Email:Enabled"] = "false" });
 builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
-var browserOrigin = Environment.GetEnvironmentVariable("CRITICAL_BROWSER_ORIGIN");
 if (browserOrigin is not null)
+{
+    if (minioEndpoint is null)
+        throw new InvalidOperationException("Set CRITICAL_TEST_MINIO_ENDPOINT for the isolated browser upload test.");
     builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-        policy.WithOrigins(browserOrigin).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+        policy.WithOrigins(browserOrigin).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+            .WithExposedHeaders("ETag", "X-Correlation-ID", "Retry-After")));
+    builder.Services.AddHangfire(config => config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(database.ConnectionString)));
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.WorkerCount = 2;
+        options.SchedulePollingInterval = TimeSpan.FromSeconds(1);
+    });
+}
 builder.Services.AddRecipeApiConfiguration();
-builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("auth", policy => {
-    // The browser and HTTP journeys share a fixture and run from the same loopback address.
-    policy.PermitLimit = browserOrigin is null ? 10 : 20;
-    policy.Window = TimeSpan.FromMinutes(1);
-    policy.QueueLimit = 0;
-}));
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("upload", policy =>
+    {
+        policy.PermitLimit = 30;
+        policy.Window = TimeSpan.FromMinutes(1);
+        policy.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("auth", policy =>
+    {
+        // The browser and HTTP journeys share a fixture and run from the same loopback address.
+        policy.PermitLimit = browserOrigin is null ? 10 : 20;
+        policy.Window = TimeSpan.FromMinutes(1);
+        policy.QueueLimit = 0;
+    });
+});
 builder.Services.AddSingleton<IDistributedCache>(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
     options.TokenValidationParameters = new TokenValidationParameters {

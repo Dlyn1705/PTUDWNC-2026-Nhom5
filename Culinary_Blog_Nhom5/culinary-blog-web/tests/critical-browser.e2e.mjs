@@ -50,6 +50,7 @@ export async function runCriticalBrowser(api, origin) {
         ...process.env,
         NEXT_PUBLIC_API_URL: api,
         API_INTERNAL_URL: api,
+        CSP_IMAGE_ORIGINS: `http://${process.env.CRITICAL_TEST_MINIO_ENDPOINT}`,
         NEXT_TELEMETRY_DISABLED: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -114,7 +115,7 @@ export async function runCriticalBrowser(api, origin) {
     await page.waitForURL("**/dashboard/recipes/new");
     console.log("PASS browser: login and protected editor");
 
-    const title = `Phở bò trình duyệt ${randomUUID().slice(0, 8)}`;
+    const title = "Chè đậu đỏ";
     await page.locator('[id$="-new-title"]:visible').fill(title);
     await page
       .locator('select[id$="-new-category"]:visible')
@@ -130,6 +131,52 @@ export async function runCriticalBrowser(api, origin) {
     await page
       .getByLabel("Mô tả bước 1", { exact: true })
       .fill("Chuẩn bị nước dùng.");
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAIAAAAUMWhjAAAANElEQVR4nGNcGW7AQEvARFPTGUYtIAKMxgFBMBpEBMFoEBEEo0FEEIwGEUEwGkQEAc2DCACulgFg/lAOyAAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page
+      .getByLabel("Chọn tệp ảnh bước 1", { exact: true })
+      .setInputFiles({
+        name: "buoc-nau.png",
+        mimeType: "image/png",
+        buffer: png,
+      });
+    await page.getByLabel("Chọn ảnh bìa", { exact: true }).setInputFiles({
+      name: "anh-bia.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    for (let step = 2; step <= 5; step++) {
+      await page
+        .getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true })
+        .click();
+      await page
+        .getByLabel(`Mô tả bước ${step}`, { exact: true })
+        .fill(`Thực hiện bước ${step}.`);
+      await page
+        .getByLabel(`Chọn tệp ảnh bước ${step}`, { exact: true })
+        .setInputFiles({
+          name: `buoc-${step}.png`,
+          mimeType: "image/png",
+          buffer: png,
+        });
+    }
+    let rejectedUpload = false;
+    await page.route("**/api/v1/recipes/*/images", async (route) => {
+      if (route.request().method() !== "POST" || rejectedUpload)
+        return route.continue();
+      rejectedUpload = true;
+      await route.fulfill({
+        status: 429,
+        headers: {
+          "access-control-allow-origin": origin,
+          "access-control-allow-credentials": "true",
+        },
+        contentType: "application/problem+json",
+        body: JSON.stringify({ status: 429, title: "Too Many Requests" }),
+      });
+    });
     const created = await submit(
       page,
       api,
@@ -138,25 +185,37 @@ export async function runCriticalBrowser(api, origin) {
       201,
     );
     const { data: recipe } = await created.json();
-    await page.getByRole("link", { name: "Tiếp tục chỉnh sửa" }).waitFor();
-    console.log("PASS browser: create draft with active children");
+    await page
+      .getByRole("button", { name: "Thử lại tải các ảnh bị lỗi" })
+      .click();
+    assert.ok(rejectedUpload);
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByRole("heading", { name: "Đã lưu công thức" })
+      .waitFor({ timeout: 90000 });
+    await dialog.getByRole("button", { name: "Giữ bản nháp" }).click();
+    await page.getByRole("button", { name: "Xem trước để xuất bản" }).click();
+    await dialog.getByRole("button", { name: "Xuất bản", exact: true }).click();
+    await dialog
+      .getByRole("heading", { name: "Xem trước công thức" })
+      .waitFor();
+    await dialog.getByText("Chuẩn bị nước dùng.", { exact: true }).waitFor();
+    const previewImages = dialog.locator("article img");
+    await previewImages.nth(5).waitFor();
+    for (const img of await previewImages.elementHandles())
+      await page.waitForFunction(
+        (element) => element.complete && element.naturalWidth > 0,
+        img,
+      );
+    console.log(
+      "PASS browser: create draft, upload cover and step image, and preview both",
+    );
 
-    const allowNavigation = (dialog) => dialog.accept();
-    page.on("dialog", allowNavigation);
-    try {
-      await page.getByRole("link", { name: "Tiếp tục chỉnh sửa" }).click();
-      await page.waitForURL(`**/dashboard/recipes/${recipe.id}/edit`);
-    } finally {
-      page.off("dialog", allowNavigation);
-    }
-    await page.getByRole("button", { name: "Xuất bản", exact: true }).click();
     await submit(
       page,
       api,
       `/api/v1/recipes/${recipe.id}/publish`,
-      page
-        .getByRole("alertdialog")
-        .getByRole("button", { name: "Xác nhận", exact: true }),
+      dialog.getByRole("button", { name: "Xác nhận xuất bản", exact: true }),
       200,
       "PATCH",
     );
@@ -170,6 +229,33 @@ export async function runCriticalBrowser(api, origin) {
     await guest
       .getByRole("heading", { name: title, exact: true })
       .waitFor({ timeout: 45000 });
+    const cover = guest
+      .getByRole("article")
+      .filter({
+        has: guest.getByRole("heading", { name: title, exact: true }),
+      })
+      .locator("img");
+    await cover.scrollIntoViewIfNeeded();
+    await guest.waitForFunction(
+      (element) => element.complete && element.naturalWidth > 0,
+      await cover.elementHandle(),
+    );
+    assert.equal(
+      new URL(await cover.getAttribute("src"), origin).host,
+      process.env.CRITICAL_TEST_MINIO_ENDPOINT,
+    );
+    const sampleImages = await guest.evaluate(async () => {
+      const slugs = ["che-dau-do", "ga-nuong-mat-ong", "banh-xeo-tom-thit"];
+      return Promise.all(
+        slugs.map(async (slug) => {
+          const image = new Image();
+          image.src = `/samples/recipes/${slug}.svg`;
+          await image.decode();
+          return image.naturalWidth;
+        }),
+      );
+    });
+    assert.ok(sampleImages.every((width) => width > 0));
     console.log("PASS browser: guest search finds the published recipe");
     return ["register", "login", "create recipe", "publish", "search"];
   } finally {
