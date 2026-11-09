@@ -45,6 +45,10 @@ export default function NewRecipePage() {
   const [cover, setCover] = useState<File | null>(null);
   const [coverError, setCoverError] = useState("");
   const [mediaWarnings, setMediaWarnings] = useState<string[]>([]);
+  const [progress, setProgress] = useState("");
+  const [galleryRevision, setGalleryRevision] = useState(0);
+  const retryInFlight = useRef(false);
+  const stepIds = useRef<(string | undefined)[]>([]);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [published, setPublished] = useState(false);
   const ingredientValidation = useRef<RecipeCollectionValidation>(null);
@@ -57,7 +61,46 @@ export default function NewRecipePage() {
         Boolean(cover))) ||
     ingredientDirty ||
     stepDirty;
-  useUnsavedRecipe(dirty || galleryBusy || saving);
+  const hasPendingMedia = Boolean(cover) || stepFiles.some(Boolean);
+  useUnsavedRecipe(
+    dirty || galleryBusy || saving || Boolean(created && hasPendingMedia),
+  );
+
+  const uploadMedia = async (
+    id: string,
+    coverFile: File | null,
+    files: (File | undefined)[],
+  ) => {
+    try {
+      const media = await saveDraftMedia(
+        id,
+        coverFile,
+        files,
+        (current, total) => setProgress(`Đang tải ảnh ${current}/${total}…`),
+        stepIds.current,
+      );
+      setCover(media.retryCover);
+      setStepFiles(media.retryFiles);
+      setMediaWarnings(media.warnings);
+      setChoiceOpen(!media.warnings.length);
+      setGalleryRevision((revision) => revision + 1);
+    } finally {
+      setProgress("");
+    }
+  };
+
+  const retryMedia = async () => {
+    if (!created || saving || galleryBusy || dirty || retryInFlight.current)
+      return;
+    retryInFlight.current = true;
+    setSaving(true);
+    try {
+      await uploadMedia(created.id, cover, stepFiles);
+    } finally {
+      retryInFlight.current = false;
+      setSaving(false);
+    }
+  };
 
   const save = async (values: RecipeEditorValues) => {
     if (created)
@@ -97,11 +140,8 @@ export default function NewRecipePage() {
     setSaving(true);
     try {
       const result = await recipeEditorApi.create(payload);
-      const media = await saveDraftMedia(result.id, cover, pendingStepFiles);
-      setStepFiles(media.retryFiles);
-      setMediaWarnings(media.warnings);
+      await uploadMedia(result.id, cover, pendingStepFiles);
       setCreated({ id: result.id, slug: result.slug });
-      setChoiceOpen(!media.warnings.length);
       void queryClient.invalidateQueries({ queryKey: recipeKeys.managed() });
     } finally {
       setSaving(false);
@@ -127,6 +167,9 @@ export default function NewRecipePage() {
             </p>
           )}
         </header>
+        <p role="status" aria-atomic="true">
+          {progress}
+        </p>
         {created && (
           <div className="space-y-2 rounded-2xl border bg-card p-4">
             <p
@@ -157,10 +200,20 @@ export default function NewRecipePage() {
                 ))}
               </ul>
             )}
+            {!published && hasPendingMedia && (
+              <button
+                type="button"
+                disabled={saving || dirty || galleryBusy}
+                onClick={() => void retryMedia()}
+                className="rounded-lg border px-4 py-2 disabled:opacity-50"
+              >
+                Thử lại tải các ảnh bị lỗi
+              </button>
+            )}
             {!published && (
               <button
                 type="button"
-                disabled={dirty || galleryBusy}
+                disabled={saving || dirty || galleryBusy || hasPendingMedia}
                 onClick={() => setChoiceOpen(true)}
                 className="rounded-lg border px-4 py-2 disabled:opacity-50"
               >
@@ -253,7 +306,8 @@ export default function NewRecipePage() {
             )}
             {created && (
               <ImageGalleryManager
-                key={created.id}
+                disabled={saving}
+                key={`${created.id}-${galleryRevision}`}
                 recipeId={created.id}
                 onBusyChange={setGalleryBusy}
               />
@@ -274,9 +328,8 @@ export default function NewRecipePage() {
             />
           </fieldset>
           <StepManager
-            key={`steps-${created?.id ?? "new"}`}
+            key={`steps-${created?.id ?? "new"}-${galleryRevision}`}
             recipeId={created?.id}
-            initialStepFiles={stepFiles}
             onChange={setSteps}
             onDirtyChange={setStepDirty}
             validationRef={stepValidation}

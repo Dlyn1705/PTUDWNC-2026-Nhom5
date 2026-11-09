@@ -82,6 +82,7 @@ export default async function HomePage() {
                 featuredImage?.alt || featured?.title || "Freshly prepared food"
               }
               fill
+              unoptimized
               sizes="(max-width: 1199px) 100vw, 960px"
               loading="eager"
               fetchPriority="high"

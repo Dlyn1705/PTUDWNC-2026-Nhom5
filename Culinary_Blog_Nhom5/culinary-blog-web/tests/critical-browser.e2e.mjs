@@ -147,6 +147,36 @@ export async function runCriticalBrowser(api, origin) {
       mimeType: "image/png",
       buffer: png,
     });
+    for (let step = 2; step <= 5; step++) {
+      await page
+        .getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true })
+        .click();
+      await page
+        .getByLabel(`Mô tả bước ${step}`, { exact: true })
+        .fill(`Thực hiện bước ${step}.`);
+      await page
+        .getByLabel(`Chọn tệp ảnh bước ${step}`, { exact: true })
+        .setInputFiles({
+          name: `buoc-${step}.png`,
+          mimeType: "image/png",
+          buffer: png,
+        });
+    }
+    let rejectedUpload = false;
+    await page.route("**/api/v1/recipes/*/images", async (route) => {
+      if (route.request().method() !== "POST" || rejectedUpload)
+        return route.continue();
+      rejectedUpload = true;
+      await route.fulfill({
+        status: 429,
+        headers: {
+          "access-control-allow-origin": origin,
+          "access-control-allow-credentials": "true",
+        },
+        contentType: "application/problem+json",
+        body: JSON.stringify({ status: 429, title: "Too Many Requests" }),
+      });
+    });
     const created = await submit(
       page,
       api,
@@ -155,6 +185,10 @@ export async function runCriticalBrowser(api, origin) {
       201,
     );
     const { data: recipe } = await created.json();
+    await page
+      .getByRole("button", { name: "Thử lại tải các ảnh bị lỗi" })
+      .click();
+    assert.ok(rejectedUpload);
     const dialog = page.getByRole("dialog");
     await dialog
       .getByRole("heading", { name: "Đã lưu công thức" })
@@ -167,7 +201,7 @@ export async function runCriticalBrowser(api, origin) {
       .waitFor();
     await dialog.getByText("Chuẩn bị nước dùng.", { exact: true }).waitFor();
     const previewImages = dialog.locator("article img");
-    await previewImages.nth(1).waitFor();
+    await previewImages.nth(5).waitFor();
     for (const img of await previewImages.elementHandles())
       await page.waitForFunction(
         (element) => element.complete && element.naturalWidth > 0,

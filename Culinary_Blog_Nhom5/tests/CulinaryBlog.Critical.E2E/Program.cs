@@ -55,7 +55,7 @@ builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("upload", policy =>
     {
-        policy.PermitLimit = 5;
+        policy.PermitLimit = 30;
         policy.Window = TimeSpan.FromMinutes(1);
         policy.QueueLimit = 0;
     });

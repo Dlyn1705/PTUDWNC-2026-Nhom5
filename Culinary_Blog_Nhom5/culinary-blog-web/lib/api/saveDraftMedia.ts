@@ -7,11 +7,19 @@ export async function saveDraftMedia(
   recipeId: string,
   cover: File | null,
   stepFiles: (File | undefined)[],
+  onProgress: (current: number, total: number) => void,
+  stepIds: (string | undefined)[],
 ) {
   const warnings: string[] = [];
   const retryFiles: (File | undefined)[] = [];
-  let throttled = false;
+  let retryCover: File | null = null;
+  let paused = false;
+  let current = 0;
+  const total = Number(Boolean(cover)) + stepFiles.filter(Boolean).length;
+
   if (cover) {
+    onProgress(++current, total);
+    let accepted = false;
     try {
       await uploadRecipeImage(
         recipeId,
@@ -19,30 +27,32 @@ export async function saveDraftMedia(
         undefined,
         undefined,
         "Ảnh bìa công thức",
+        {
+          onImage: () => {
+            accepted = true;
+          },
+        },
       );
-    } catch (error) {
-      throttled = toApiProblemError(error).status === 429;
-      warnings.push(
-        `Ảnh bìa: ${imageErrorMessage(error)} Kiểm tra thư viện ảnh trước khi tải lại.`,
-      );
+    } catch (cause) {
+      const error = toApiProblemError(cause);
+      paused = error.status === 429;
+      if (!accepted && !error.image && !needsImageReconciliation(error))
+        retryCover = cover;
+      warnings.push(`Ảnh bìa: ${imageErrorMessage(error)}`);
     }
   }
+
+  // Uploads rotate the recipe version. Read the step ETag after all uploads.
+  const uploaded: { index: number; url: string }[] = [];
   for (const [index, file] of stepFiles.entries()) {
     if (!file) continue;
-    if (throttled) {
+    if (paused) {
       retryFiles[index] = file;
       continue;
     }
+    onProgress(++current, total);
     let accepted = false;
     try {
-      const before = await stepApi.list(recipeId);
-      const step = before.items.find((item) => item.stepNumber === index + 1);
-      if (!step) {
-        warnings.push(
-          `Không tìm thấy bước ${index + 1} để gắn ảnh. Kiểm tra lại danh sách bước.`,
-        );
-        continue;
-      }
       const image = await uploadRecipeImage(
         recipeId,
         file,
@@ -55,37 +65,48 @@ export async function saveDraftMedia(
           },
         },
       );
-      accepted = true;
-      const after = await stepApi.list(recipeId);
-      const current = after.items.find((item) => item.id === step.id);
-      if (!current || JSON.stringify(current) !== JSON.stringify(step)) {
-        warnings.push(
-          `Bước ${index + 1} đã thay đổi khi tải ảnh. Chọn lại ảnh trong thư viện để gắn vào bước.`,
-        );
-        continue;
-      }
-      await stepApi.save(
-        recipeId,
-        step.id,
-        {
-          title: step.title,
-          description: step.description,
-          timerMinutes: step.timerMinutes,
-          imageUrl: image.originalUrl,
-        },
-        after.etag,
-      );
+      uploaded.push({ index, url: image.originalUrl });
     } catch (cause) {
       const error = toApiProblemError(cause);
-      throttled = error.status === 429;
+      paused = error.status === 429;
       if (!accepted && !error.image && !needsImageReconciliation(error))
         retryFiles[index] = file;
+      warnings.push(`Ảnh bước ${index + 1}: ${imageErrorMessage(error)}`);
+    }
+  }
+
+  if (uploaded.length) {
+    try {
+      const snapshot = await stepApi.list(recipeId);
+      for (const step of snapshot.items) {
+        stepIds[step.stepNumber - 1] ??= step.id;
+      }
+      for (const { index, url } of uploaded) {
+        const step = snapshot.items.find((item) => item.id === stepIds[index]);
+        if (!step) {
+          warnings.push(
+            `Không tìm thấy bước ${index + 1}. Ảnh vẫn có trong thư viện.`,
+          );
+          continue;
+        }
+        const result = await stepApi.save(
+          recipeId,
+          step.id,
+          {
+            title: step.title,
+            description: step.description,
+            timerMinutes: step.timerMinutes,
+            imageUrl: url,
+          },
+          snapshot.etag,
+        );
+        snapshot.etag = result.etag;
+      }
+    } catch (error) {
       warnings.push(
-        accepted
-          ? `Ảnh bước ${index + 1} có trong thư viện. Hãy kiểm tra liên kết trước khi thử lại.`
-          : `Ảnh bước ${index + 1}: ${imageErrorMessage(error)}`,
+        `Ảnh đã có trong thư viện. Kiểm tra và gắn các ảnh còn thiếu vào bước. ${imageErrorMessage(error)}`,
       );
     }
   }
-  return { warnings, retryFiles };
+  return { warnings, retryFiles, retryCover };
 }

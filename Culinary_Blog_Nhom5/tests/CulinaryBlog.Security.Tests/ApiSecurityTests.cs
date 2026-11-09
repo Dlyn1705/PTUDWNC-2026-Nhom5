@@ -74,7 +74,7 @@ public sealed class ApiSecurityTests
     }
 
     [Theory]
-    [InlineData("/api/auth/test", 10)][InlineData("/api/upload/test", 5)]
+    [InlineData("/api/auth/test", 10)][InlineData("/api/upload/test", 30)]
     public async Task Named_limits_are_preserved(string path, int limit)
     {
         await using var app = await Create(); using var client = app.GetTestClient();

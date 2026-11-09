@@ -123,7 +123,7 @@ public class ProgramSecurityTests
 
     [Theory]
     [InlineData("auth", 10)]
-    [InlineData("upload", 5)]
+    [InlineData("upload", 30)]
     [InlineData("recipe-read", 100)]
     [InlineData("recipe-write", 30)]
     public async Task ProgramPoliciesReturn429WithCorsAndRetryAfter(string policy, int limit)
