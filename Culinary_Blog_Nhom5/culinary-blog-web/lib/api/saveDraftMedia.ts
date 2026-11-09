@@ -11,6 +11,7 @@ export async function saveDraftMedia(
   const warnings: string[] = [];
   const retryFiles: (File | undefined)[] = [];
   let throttled = false;
+  let coverFailed = false;
   if (cover) {
     try {
       await uploadRecipeImage(
@@ -21,6 +22,7 @@ export async function saveDraftMedia(
         "Ảnh bìa công thức",
       );
     } catch (error) {
+      coverFailed = true;
       throttled = toApiProblemError(error).status === 429;
       warnings.push(
         `Ảnh bìa: ${imageErrorMessage(error)} Kiểm tra thư viện ảnh trước khi tải lại.`,
@@ -29,7 +31,7 @@ export async function saveDraftMedia(
   }
   for (const [index, file] of stepFiles.entries()) {
     if (!file) continue;
-    if (throttled) {
+    if (coverFailed || throttled) {
       retryFiles[index] = file;
       continue;
     }
