@@ -2,7 +2,7 @@
 
 Culinary Blog là ứng dụng web full-stack phục vụ việc chia sẻ, tìm kiếm và quản lý công thức nấu ăn. Hệ thống tách frontend và backend qua REST API, được xây dựng theo Clean Architecture kết hợp CQRS.
 
-Tài liệu nghiệp vụ và kiến trúc chính thức: [Culinary_Blog_Spec.md](Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md).
+Tài liệu nghiệp vụ và kiến trúc chính thức: [Culinary_Blog_Spec.md](docs/Spec/Culinary_Blog_Spec.md).
 
 ## Quality và truy vết yêu cầu
 
@@ -52,12 +52,12 @@ PTUDWNC-2026-Nhom5/
 ├── docker-compose.yml                 # PostgreSQL, Redis, MinIO và Seq
 ├── README.md                          # Tổng quan và hướng dẫn chạy
 ├── CONTRIBUTING.md                    # Quy định branch, commit, push và pull request
+├── docs/
+│   └── Spec/
+│       └── Culinary_Blog_Spec.md  # Đặc tả nghiệp vụ và kiến trúc
 └── Culinary_Blog_Nhom5/
     ├── Culinary_Blog_Nhom5.sln        # .NET solution
     ├── run-dev.ps1                    # Chạy full-stack bằng PowerShell
-    ├── docx/
-    │   └── Spec/
-    │       └── Culinary_Blog_Spec.md  # Đặc tả nghiệp vụ và kiến trúc
     ├── src/
     │   ├── CulinaryBlog.Domain/       # Entity, enum, exception và quy tắc nghiệp vụ
     │   ├── CulinaryBlog.Application/  # Use case, CQRS, DTO và contract

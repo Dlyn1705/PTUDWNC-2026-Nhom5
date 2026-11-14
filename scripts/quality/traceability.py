@@ -7,9 +7,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 QUALITY = ROOT / 'quality'
-SRS = 'Culinary_Blog_Nhom5/docx/SRS_Culinary_Blog_v1.0.0.pdf'
-ASSIGNMENT = 'Culinary_Blog_Nhom5/docx/Spec/Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md'
-SPEC = 'Culinary_Blog_Nhom5/docx/Spec/Culinary_Blog_Spec.md'
+SRS = 'docs/SRS_Culinary_Blog_v1.0.0.pdf'
+ASSIGNMENT = 'docs/Spec/Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md'
+SPEC = 'docs/Spec/Culinary_Blog_Spec.md'
 SOURCES = (SRS, ASSIGNMENT, SPEC)
 STATUSES = {'NeedsOwnerReview', 'MissingEvidence', 'Verified'}
 
@@ -167,7 +167,7 @@ def main():
     for criterion, requirements in data['specChecklist'].items():
         output.append(f'| {criterion.replace("|", "&#124;")} | {", ".join(requirements)} |')
     text = '\n'.join(output) + '\n'
-    target = ROOT / 'Culinary_Blog_Nhom5/docx/Spec/Requirement_Traceability_Matrix.md'
+    target = ROOT / 'docs/Spec/Requirement_Traceability_Matrix.md'
     if '--check' in sys.argv:
         if not target.exists() or target.read_text(encoding='utf-8') != text:
             raise ValueError('Generated Markdown matrix is stale')
