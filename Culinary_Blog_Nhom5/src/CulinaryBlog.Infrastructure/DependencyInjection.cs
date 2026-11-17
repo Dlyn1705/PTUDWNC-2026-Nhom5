@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IJwtService, JwtService>();
         services.Configure<MinioOptions>(configuration.GetSection(MinioOptions.SectionName));
         var minio = configuration.GetSection(MinioOptions.SectionName).Get<MinioOptions>() ?? new MinioOptions();

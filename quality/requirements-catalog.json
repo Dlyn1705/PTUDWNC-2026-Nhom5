@@ -2,18 +2,22 @@
   "sourceHashes": {
     "docs/SRS_Culinary_Blog_v1.0.0.pdf": "8a82ccf3771918797f304117179c7a3b1086abfed8735ca42e9cd070f3461063",
     "docs/Spec/Bang_Phan_Cong_Va_Mo_Ta_Chi_Tiet_Cong_Viec.md": "be4cd7c87fb8ff980b9bde6b6957fe1abdb8855f5f2741f448c6462f68eaeb55",
-    "docs/Spec/Culinary_Blog_Spec.md": "c8a34bd19e5d167d8d49465e6fe8ec8ed5a4e04b9b2dc0aea90379b3fe8752de"
+    "docs/Spec/Culinary_Blog_Spec.md": "0c441432bb1089dc911281dad640ca54e7bbcfc7707fa0e2f0b3f69efb11bb56"
   },
   "sourceCount": 64,
   "assignmentAdditions": [
     "FR-JOB-004"
   ],
   "specIds": [
+    "FR-JOB-003",
     "FR-RCP-005",
     "FR-RCP-009",
     "FR-RCP-010",
     "FR-SRCH-001",
-    "NFR-REL-003"
+    "NFR-MAINT-004",
+    "NFR-REL-003",
+    "NFR-SEC-005",
+    "NFR-SEO-003"
   ],
   "specAdditions": [],
   "ids": [

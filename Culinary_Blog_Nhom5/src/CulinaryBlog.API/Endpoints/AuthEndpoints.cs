@@ -9,11 +9,18 @@ using System.Threading.Tasks;
 using CulinaryBlog.Application.Common.Models;
 using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
+using CulinaryBlog.Application.Features.Auth.Commands.ChangePassword;
+using CulinaryBlog.Application.Features.Auth.Commands.ForgotPassword;
 using CulinaryBlog.Application.Features.Auth.Commands.GoogleIdTokenLogin;
 using CulinaryBlog.Application.Features.Auth.Commands.Login;
+using CulinaryBlog.Application.Features.Auth.Commands.Logout;
 using CulinaryBlog.Application.Features.Auth.Commands.Refresh;
 using CulinaryBlog.Application.Features.Auth.Commands.Register;
+using CulinaryBlog.Application.Features.Auth.Commands.ResetPassword;
+using CulinaryBlog.Application.Features.Auth.Commands.UpdateProfile;
+using CulinaryBlog.Application.Features.Auth.Queries.GetCurrentUser;
 using CulinaryBlog.Application.Features.Recipes.Commands.UploadRecipeImage;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetProfileRecipeStats;
 using CulinaryBlog.API.Security;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
@@ -144,7 +151,7 @@ public static class AuthEndpoints
 
         group.MapPost("/logout", async (
                 HttpContext context,
-                IAuthService authService,
+                ISender sender,
                 IConfiguration configuration,
                 CancellationToken cancellationToken) =>
             {
@@ -156,20 +163,18 @@ public static class AuthEndpoints
                     throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
                 }
 
-                var revocation = await authService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+                var revocation = await sender.Send(new LogoutCommand(refreshToken), cancellationToken);
+                ClearRefreshCookie(context);
                 if (revocation == RefreshTokenRevocationResult.Forbidden)
                 {
-                    ClearRefreshCookie(context);
                     throw new ForbiddenException("Chỉ Author hoặc Admin mới được đăng xuất.");
                 }
 
                 if (revocation != RefreshTokenRevocationResult.Revoked)
                 {
-                    ClearRefreshCookie(context);
                     throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
                 }
 
-                ClearRefreshCookie(context);
                 return Results.NoContent();
             })
             .WithName("Logout")
@@ -180,10 +185,9 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         group.MapPost("/forgot-password", async (
-                ForgotPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+                ForgotPasswordRequest request, ISender sender, CancellationToken cancellationToken) =>
             {
-                ValidateEmail(request.Email);
-                await authService.RequestPasswordResetAsync(request.Email, cancellationToken);
+                await sender.Send(new ForgotPasswordCommand(request.Email), cancellationToken);
                 return Results.Accepted(value: ApiResponse<object>.Ok(new
                 {
                     message = "Nếu email có tài khoản, hướng dẫn đặt lại mật khẩu sẽ được gửi."
@@ -195,14 +199,9 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapPost("/reset-password", async (
-                ResetPasswordRequest request, IAuthService authService, CancellationToken cancellationToken) =>
+                ResetPasswordRequest request, ISender sender, CancellationToken cancellationToken) =>
             {
-                ValidateEmail(request.Email);
-                if (string.IsNullOrWhiteSpace(request.Token) || request.Token.Length > 256)
-                    throw new ValidationException("Token", "Invalid reset token.");
-                if (string.IsNullOrWhiteSpace(request.NewPassword))
-                    throw new ValidationException("NewPassword", "New password is required.");
-                await authService.ResetPasswordAsync(request.Email, request.Token, request.NewPassword, cancellationToken);
+                await sender.Send(new ResetPasswordCommand(request.Email, request.Token, request.NewPassword), cancellationToken);
                 return Results.NoContent();
             })
             .WithName("ResetPassword")
@@ -212,19 +211,12 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapPost("/change-password", async (
-                ChangePasswordRequest request, HttpContext context, IAuthService authService,
-                IValidator<ChangePasswordDto> validator,
+                ChangePasswordRequest request, HttpContext context, ISender sender,
                 CancellationToken cancellationToken) =>
             {
                 var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? throw new UnauthorizedAccessException("Authentication required.");
-                var validation = await validator.ValidateAsync(
-                    new ChangePasswordDto(request.CurrentPassword, request.NewPassword), cancellationToken);
-                if (!validation.IsValid)
-                    throw new ValidationException(validation.Errors
-                        .GroupBy(error => error.PropertyName)
-                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
-                await authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, cancellationToken);
+                await sender.Send(new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword), cancellationToken);
                 ClearRefreshCookie(context);
                 return Results.NoContent();
             })
@@ -237,11 +229,11 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapGet("/me", async (
-                ClaimsPrincipal principal, IAuthService authService, CancellationToken cancellationToken) =>
+                ClaimsPrincipal principal, ISender sender, CancellationToken cancellationToken) =>
             {
                 var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? throw new UnauthorizedAccessException("Authentication required.");
-                var profile = await authService.GetCurrentUserAsync(userId, cancellationToken);
+                var profile = await sender.Send(new GetCurrentUserQuery(userId), cancellationToken);
                 return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
             })
             .RequireAuthorization()
@@ -252,18 +244,17 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPatch("/me", async (
-                UpdateProfileRequest request, ClaimsPrincipal principal, IAuthService authService,
-                IValidator<UpdateProfileDto> validator, CancellationToken cancellationToken) =>
+                UpdateProfileRequest request, ClaimsPrincipal principal, ISender sender,
+                CancellationToken cancellationToken) =>
             {
                 var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? throw new UnauthorizedAccessException("Authentication required.");
-                var update = new UpdateProfileDto(request.DisplayName, request.Bio, request.AvatarUrl);
-                var validation = await validator.ValidateAsync(update, cancellationToken);
-                if (!validation.IsValid)
-                    throw new ValidationException(validation.Errors
-                        .GroupBy(error => error.PropertyName)
-                        .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray()));
-                var profile = await authService.UpdateCurrentUserAsync(userId, update, cancellationToken);
+                var profile = await sender.Send(new UpdateCurrentUserProfileCommand(
+                    userId,
+                    request.DisplayName,
+                    request.Bio,
+                    request.AvatarUrl),
+                    cancellationToken);
                 return Results.Ok(ApiResponse<CurrentUserDto>.Ok(profile));
             })
             .RequireAuthorization()
@@ -276,15 +267,10 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapGet("/me/recipe-stats", async (
-                ClaimsPrincipal principal, IRecipeRepository recipes, CancellationToken cancellationToken) =>
+                ISender sender, CancellationToken cancellationToken) =>
             {
-                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? throw new UnauthorizedAccessException("Authentication required.");
-                var (_, created) = await recipes.GetPagedAsync(1, 1, authorId: userId,
-                    includeDrafts: true, ct: cancellationToken);
-                var (_, published) = await recipes.GetPagedAsync(1, 1, authorId: userId,
-                    includeDrafts: true, status: RecipeStatus.Published, ct: cancellationToken);
-                return Results.Ok(ApiResponse<ProfileRecipeStats>.Ok(new(created, published)));
+                var result = await sender.Send(new GetProfileRecipeStatsQuery(), cancellationToken);
+                return Results.Ok(ApiResponse<ProfileRecipeStats>.Ok(result));
             })
             .RequireAuthorization("AuthorPolicy")
             .WithName("GetProfileRecipeStats")
@@ -292,7 +278,7 @@ public static class AuthEndpoints
             .Produces<ApiResponse<ProfileRecipeStats>>(StatusCodes.Status200OK);
 
         group.MapPost("/me/avatar", async (
-                IFormFile? file, ClaimsPrincipal principal, IAuthService authService,
+                IFormFile? file, ClaimsPrincipal principal, ISender sender,
                 IFileStorageService storage, CancellationToken cancellationToken) =>
             {
                 var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -301,20 +287,24 @@ public static class AuthEndpoints
                     throw new ValidationException("file", "Ảnh phải có dung lượng từ 1 byte đến 5 MiB.");
                 await using var stream = file.OpenReadStream();
                 var detected = await ImageFileValidation.DetectAsync(stream, file.FileName, file.ContentType, cancellationToken);
-                await authService.GetCurrentUserAsync(userId, cancellationToken);
+                await sender.Send(new GetCurrentUserQuery(userId), cancellationToken);
                 var objectKey = $"avatars/{userId}/{Guid.NewGuid():N}.{detected.Extension}";
                 var url = await storage.UploadAsync(stream, objectKey, detected.ContentType, cancellationToken);
                 try
                 {
-                    var updated = await authService.UpdateCurrentUserAsync(userId,
-                        new UpdateProfileDto(null, null, url), cancellationToken);
+                    var updated = await sender.Send(new UpdateCurrentUserProfileCommand(
+                        userId,
+                        null,
+                        null,
+                        url),
+                        cancellationToken);
                     return Results.Ok(ApiResponse<CurrentUserDto>.Ok(updated));
                 }
                 catch
                 {
                     try
                     {
-                        var current = await authService.GetCurrentUserAsync(userId, CancellationToken.None);
+                        var current = await sender.Send(new GetCurrentUserQuery(userId), CancellationToken.None);
                         if (!string.Equals(current.AvatarUrl, url, StringComparison.Ordinal))
                             await storage.DeleteAsync(url, CancellationToken.None);
                     }
@@ -334,14 +324,6 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
 
         return app;
-    }
-
-    private static void ValidateEmail(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email) || email.Length > 256
-            || !MailAddress.TryCreate(email, out var parsed)
-            || !string.Equals(parsed.Address, email.Trim(), StringComparison.OrdinalIgnoreCase))
-            throw new ValidationException("Email", "Valid email is required.");
     }
 
     private static async Task<string?> ReadRefreshTokenAsync(
@@ -399,9 +381,6 @@ public static class AuthEndpoints
                 Path = "/api/v1/auth"
             });
 }
-
-/// <summary>Recipe counts for the current user's profile.</summary>
-public sealed record ProfileRecipeStats(int Created, int Published);
 
 public static class LogoutAuthorization
 {

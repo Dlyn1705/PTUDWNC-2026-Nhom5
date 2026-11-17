@@ -35,7 +35,8 @@ export const RecipeStatus = {
   Published: 1,
   Archived: 2,
 } as const;
-export type RecipeStatusValue = (typeof RecipeStatus)[keyof typeof RecipeStatus];
+export type RecipeStatusValue =
+  (typeof RecipeStatus)[keyof typeof RecipeStatus];
 
 export const difficultyLabel: Record<DifficultyValue, string> = {
   1: "Dễ",
@@ -65,13 +66,12 @@ export interface RecipeImageDto {
 }
 
 export interface RecipeNutritionDto {
-  calories: number;
-  protein: number;
-  carbohydrates?: number;
-  carbs?: number; // legacy alias
-  fat: number;
-  fiber?: number | null;
-  sodium: number;
+  calories: number | null;
+  protein: number | null;
+  carbohydrates: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sodium: number | null;
 }
 
 export interface RecipeStepDto {
@@ -158,7 +158,8 @@ export interface RecipeWritePayload {
   rowVersion?: string;
 }
 
-export interface CreateRecipeRequest extends Omit<RecipeWritePayload, "rowVersion"> {
+export interface CreateRecipeRequest
+  extends Omit<RecipeWritePayload, "rowVersion"> {
   ingredients?: CreateRecipeIngredientRequest[];
   steps?: CreateRecipeStepRequest[];
   nutrition?: CreateRecipeNutritionRequest;

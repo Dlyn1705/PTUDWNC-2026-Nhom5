@@ -63,7 +63,7 @@ public sealed class GetRecipeBySlugQueryHandler
                 cancellationToken);
         }
 
-        return Map(recipe);
+        return MapRecipe(recipe);
     }
 
     private async Task<RecipeDetailDto> MapPublishedAsync(string slug, CancellationToken cancellationToken)
@@ -72,10 +72,10 @@ public sealed class GetRecipeBySlugQueryHandler
         if (recipe is null || recipe.IsDeleted || recipe.Status != RecipeStatus.Published)
             throw new NotFoundException("Recipe", slug);
 
-        return Map(recipe);
+        return MapRecipe(recipe);
     }
 
-    private static RecipeDetailDto Map(CulinaryBlog.Domain.Entities.Recipe recipe)
+    public static RecipeDetailDto MapRecipe(CulinaryBlog.Domain.Entities.Recipe recipe)
     {
 
         return new RecipeDetailDto
@@ -106,12 +106,12 @@ public sealed class GetRecipeBySlugQueryHandler
             },
             Nutrition = new RecipeDetailNutritionDto
             {
-                Calories = recipe.Nutrition.Calories ?? 0,
-                Protein = recipe.Nutrition.Protein ?? 0,
-                Carbs = recipe.Nutrition.Carbohydrates ?? 0,
-                Fat = recipe.Nutrition.Fat ?? 0,
-                Fiber = recipe.Nutrition.Fiber ?? 0,
-                Sodium = recipe.Nutrition.Sodium ?? 0
+                Calories = recipe.Nutrition.Calories,
+                Protein = recipe.Nutrition.Protein,
+                Carbohydrates = recipe.Nutrition.Carbohydrates,
+                Fat = recipe.Nutrition.Fat,
+                Fiber = recipe.Nutrition.Fiber,
+                Sodium = recipe.Nutrition.Sodium
             },
             Images = recipe.Images
                 .OrderByDescending(image => image.IsPrimary)

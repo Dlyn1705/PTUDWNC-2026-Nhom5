@@ -3,6 +3,7 @@ using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeById;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Categories.Queries.GetCategoryBySlug;
 using CulinaryBlog.Domain.Entities;
@@ -92,6 +93,83 @@ public sealed class PublicQueryTests
         recipe.IsDeleted = true;
         await Assert.ThrowsAsync<NotFoundException>(() => detail.Handle(new("pho-bo"), default));
         await work.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+    }
+
+    [Theory]
+    [InlineData(false, false, false, typeof(UnauthorizedAccessException))]
+    [InlineData(true, false, false, typeof(ForbiddenException))]
+    [InlineData(true, true, false, null)]
+    [InlineData(true, false, true, null)]
+    public async Task Detail_by_id_is_restricted_to_owner_or_admin(
+        bool authenticated,
+        bool owner,
+        bool admin,
+        Type? expectedException)
+    {
+        var recipe = Sample();
+        work.Recipes.GetDetailsByIdAsync(recipe.Id, default).Returns(recipe);
+        user.IsAuthenticated.Returns(authenticated);
+        user.UserId.Returns(owner ? "owner" : "other");
+        user.IsAdmin.Returns(admin);
+        var handler = new GetRecipeByIdQueryHandler(work.Recipes, user);
+
+        if (expectedException is not null)
+        {
+            var error = await Record.ExceptionAsync(() => handler.Handle(new(recipe.Id), default));
+            Assert.IsType(expectedException, error);
+            return;
+        }
+
+        Assert.Equal(recipe.Id, (await handler.Handle(new(recipe.Id), default)).Id);
+    }
+
+    [Theory]
+    [InlineData(RecipeStatus.Draft)]
+    [InlineData(RecipeStatus.Published)]
+    [InlineData(RecipeStatus.Archived)]
+    public async Task Detail_by_id_does_not_relax_ownership_for_any_status(RecipeStatus status)
+    {
+        var recipe = Sample();
+        recipe.Status = status;
+        work.Recipes.GetDetailsByIdAsync(recipe.Id, default).Returns(recipe);
+        user.IsAuthenticated.Returns(true);
+        user.UserId.Returns("other");
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            new GetRecipeByIdQueryHandler(work.Recipes, user).Handle(new(recipe.Id), default));
+    }
+
+    [Fact]
+    public async Task Detail_by_id_hides_missing_and_deleted_records()
+    {
+        user.IsAuthenticated.Returns(true);
+        user.UserId.Returns("owner");
+        var handler = new GetRecipeByIdQueryHandler(work.Recipes, user);
+        await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new(Guid.NewGuid()), default));
+
+        var deleted = Sample();
+        deleted.IsDeleted = true;
+        work.Recipes.GetDetailsByIdAsync(deleted.Id, default).Returns(deleted);
+        await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new(deleted.Id), default));
+    }
+
+    [Fact]
+    public async Task Detail_preserves_missing_nutrition_and_real_zero_values()
+    {
+        var recipe = Sample();
+        recipe.Status = RecipeStatus.Published;
+        recipe.SetNutrition(null, 0m, 1.5m, null, 0m, null);
+        work.Recipes.GetBySlugAsync(recipe.Slug, default).Returns(recipe);
+
+        var detail = await new GetRecipeBySlugQueryHandler(work, user, cache)
+            .Handle(new(recipe.Slug), default);
+
+        Assert.Null(detail.Nutrition.Calories);
+        Assert.Equal(0m, detail.Nutrition.Protein);
+        Assert.Equal(1.5m, detail.Nutrition.Carbohydrates);
+        Assert.Null(detail.Nutrition.Fat);
+        Assert.Equal(0m, detail.Nutrition.Fiber);
+        Assert.Null(detail.Nutrition.Sodium);
     }
 
     [Fact]

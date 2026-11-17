@@ -1,9 +1,13 @@
 # Culinary Blog - Business and Architecture Specification
 
-**Tài liệu nguồn:** `docx/SRS_Culinary_Blog_v1.0.0.pdf`  
-**Phiên bản tổng hợp:** 1.2.0 (Bổ sung kiểm tra kiến trúc và phân tích frontend)  
-**Ngày phân tích:** 2026-09-21  
+**Tài liệu nguồn:** `docs/SRS_Culinary_Blog_v1.0.0.pdf`
+**Phiên bản tổng hợp:** 1.4.0 (Đồng bộ kiến trúc đang triển khai và các quyết định tháng 11)
+**Ngày cập nhật:** 2026-11-16; baseline lịch sử: 2026-09-21
 **Phạm vi:** Làm rõ logic nghiệp vụ, kiến trúc mục tiêu, công nghệ frontend, chuẩn hóa các mâu thuẫn đặc tả và hiện trạng mã nguồn.
+
+> Bản 1.4.0 áp dụng điều chỉnh yêu cầu được người dùng cho phép ngày 16/11/2026 theo [ADR-0003](../adr/ADR-0003-acceptance-baseline-amendments.md). Đặc tả này cùng các điều chỉnh là căn cứ nghiệm thu hiện hành; SRS PDF giữ vai trò nguồn gốc lịch sử tại các điều khoản được thay thế. Không tuyên bố tuân thủ nguyên văn các điều khoản cũ.
+
+> Bản 1.3.0 giữ kiến trúc phân tầng hiện tại, chấp nhận ngoại lệ Domain theo [ADR-0001](../adr/ADR-0001-domain-persistence-exceptions.md) và cache service theo [ADR-0002](../adr/ADR-0002-public-cache-services.md). Đây là thay đổi thiết kế chuẩn hóa, không sửa SRS PDF gốc và không tự xác nhận các yêu cầu SRS là Verified.
 
 > Tài liệu này là bản tổng hợp và diễn giải chuẩn hóa từ SRS, đóng vai trò căn cứ kỹ thuật chính xác cho Domain model, API contract, UI flow, Database migrations và test acceptance.
 
@@ -114,6 +118,8 @@ Quy tắc vòng đời:
 
 **Chuẩn hóa triển khai FR-RCP-009:** Tối đa 100 nguyên liệu/công thức; `Unit` tối đa 50 ký tự; Quantity khớp `decimal(10,3)` (tối đa 9999999.999, không tự làm tròn số có quá 3 chữ số thập phân có nghĩa). Server quản lý thứ tự liên tục từ 0; thêm ở cuối, xóa tự đánh lại thứ tự, đổi vị trí qua endpoint reorder. Owner/Admin được quản lý nguyên liệu trên Draft/Published/Archived chưa xóa mềm; được xóa nguyên liệu cuối. Xóa một nguyên liệu là soft-delete. Mutation nguyên liệu của recipe đã lưu yêu cầu `If-Match` chứa ETag Recipe hiện tại; GET quản lý và các mutation thành công trả ETag mới. Version cũ trả 409, thiếu/sai version hoặc tập id reorder không hợp lệ trả 422. Quantity/Unit/Notes rỗng được chuẩn hóa về null; không tự gộp nguyên liệu trùng tên.
 
+Điều kiện “có ít nhất một nguyên liệu active” là gate tại thời điểm chuyển từ Draft sang Published, không phải invariant liên tục. Vì vậy API hiện cho phép Owner/Admin xóa nguyên liệu cuối của bài đã Published; bài chỉ bị chặn khi thực hiện một lần publish tiếp theo mà vẫn thiếu nguyên liệu. Đây là contract có chủ ý và phải được kiểm thử như hai hành vi riêng.
+
 **Bước thực hiện (RecipeStep):**
 - `Title`: Bắt buộc, độ dài 1–200 ký tự (nếu client để trống, backend tự động gán mặc định `$"Bước {stepNumber}"`).
 - `Description`: Bắt buộc, không rỗng, tối đa 2.000 ký tự.
@@ -183,6 +189,8 @@ Hệ thống áp dụng mô hình **Xóa 2 giai đoạn (Two-Stage Deletion Life
 
 ### Cache
 
+Thiết kế cache service theo ADR-0002: `PublicCacheOptions` mặc định category 45 phút, detail 60 phút, list/search 3 phút. TTL được cấu hình và validation tại Infrastructure. Dùng version keys cho public cache; không cache dữ liệu quản lý theo user vào shared cache. Xem §7.2 về ranh giới handler/service và xử lý lỗi sau commit.
+
 **Contract riêng cho search (`FR-SRCH-001`, chuẩn hóa 01/11/2026):** `/api/v1/recipes/search` mặc định relevance (`ts_rank`) giảm dần; mặc định `createdAt desc` bên trên áp dụng cho listing `/recipes`. Search chấp nhận `sortBy=relevance|createdAt|title|cookTime`, `sortOrder=asc|desc`; relevance luôn giảm dần, sort tường minh thay thế relevance làm thứ tự chính. Khi có `sortBy` hoặc `sortOrder`, bỏ qua alias `sort`. `servings` là lọc bằng chính xác và tương đương `minServings=maxServings`; alias mâu thuẫn với range trả 422. q thiếu/rỗng/trắng hoặc chỉ dấu câu sau chuẩn hóa trả 200 với `{ data: [], meta }`; q sau trim có 1 ký tự hoặc dài hơn 100 ký tự trả 422. Input sai kiểu ở HTTP binding có thể trả 400; input sai ngữ nghĩa qua validator trả 422. Page vượt kết quả trả danh sách rỗng với page đã yêu cầu; không tự chuyển về trang cuối. Chi tiết và kiểm thử xem [Search_API_Contract.md](./Search_API_Contract.md).
 
 - Category list: Cache Redis/IMemoryCache với TTL mục tiêu 30–60 phút.
@@ -198,7 +206,7 @@ Hệ thống áp dụng mô hình **Xóa 2 giai đoạn (Two-Stage Deletion Life
 - User đăng ký tài khoản mới mặc định nhận role **Author**. Role **Admin** chỉ gán qua database seeding hoặc quy trình quản trị nội bộ.
 - Access JWT stateless: TTL 15 phút, claim tối thiểu: `userId`, `email`, `roles`, `jti`. Lưu trữ tại client trong memory / React state.
 - Refresh token: 128-bit cryptographically secure random bytes, chỉ lưu SHA-256 hash trong CSDL, TTL 7 ngày.
-- **Lưu trữ Refresh Token an toàn:** Lưu trong **httpOnly, Secure, SameSite=Lax (hoặc Strict) Cookie** để triệt tiêu nguy cơ đánh cắp token qua XSS.
+- **Lưu trữ Refresh Token an toàn:** Lưu trong **httpOnly, Secure, SameSite=Lax Cookie**. Đây là policy đã chốt, thay cho SameSite=Strict của SRS gốc theo ADR-0003. HttpOnly hạn chế JavaScript đọc refresh token, không loại bỏ XSS hoặc CSRF; refresh/logout dùng cookie phải kiểm tra origin và cross-site request theo allowlist, kết hợp CORS chặt chẽ. Production phải dùng HTTPS và kiểm chứng cookie trên topology triển khai thực tế.
 - **Refresh Token Rotation & Reuse Detection:** Token cũ bị revoke ngay sau khi sử dụng; nếu phát hiện token đã bị revoke được gửi lại (dấu hiệu replay attack), hệ thống lập tức thu hồi toàn bộ token family của tài khoản đó.
 - Đăng xuất (`POST /auth/logout`): Xóa cookie và thu hồi refresh token trong CSDL.
 - Rate limiting: auth 10 request/phút/IP, API chung 100 request/phút/IP, upload 5 request/phút/IP.
@@ -259,7 +267,7 @@ HTTP status codes quan trọng:
 - `403 Forbidden`: Đã xác thực nhưng không có quyền (Author thao tác bài người khác, truy cập endpoint Admin).
 - `404 Not Found`: Không tìm thấy tài nguyên (hoặc tài nguyên đã bị xóa mềm `IsDeleted = true`).
 - `409 Conflict`: Trùng lặp dữ liệu unique, xung đột concurrency `RowVersion`, xóa Category đang chứa recipes.
-- `422 Unprocessable Entity`: Vi phạm quy tắc nghiệp vụ domain (publish bài không có step, xóa bước duy nhất của bài published).
+- `422 Unprocessable Entity`: Vi phạm quy tắc nghiệp vụ domain (publish bài thiếu active step hoặc ingredient, xóa bước duy nhất của bài published).
 - `429 Too Many Requests`: Vượt quá giới hạn rate limit.
 - `500 Internal Server Error`: Lỗi hệ thống chưa được bắt (không lộ stack trace ở production).
 - `503 Service Unavailable`: Thành phần phụ thuộc (DB/Redis) tạm thời không sẵn sàng.
@@ -284,7 +292,7 @@ flowchart LR
 
 ### 7.1 Backend Clean Architecture
 
-- **Domain (`CulinaryBlog.Domain`):** Chứa entities, value objects, enums, domain exceptions/events và abstraction repository; không phụ thuộc Infrastructure/API hay các thư viện ngoài .NET BCL.
+- **Domain (`CulinaryBlog.Domain`):** Chứa entities, value objects, enums, domain exceptions/events và abstraction repository; không phụ thuộc Application/Infrastructure/API. Mặc định chỉ dùng .NET BCL; đúng hai ngoại lệ persistence được giới hạn bởi ADR-0001: Identity trong `Entities/ApplicationUser.cs` và Npgsql trong `Entities/Recipe.cs` cho SearchVector. Không mở rộng package hoặc vị trí sử dụng. Tiêu chí nghiệm thu hiện hành là tuân thủ phân tầng và khóa đúng hai ngoại lệ theo ADR-0001/ADR-0003; thay thế điều khoản Domain thuần BCL ban đầu, không tuyên bố đã loại bỏ hai phụ thuộc.
 - **Application (`CulinaryBlog.Application`):** Commands/Queries, handlers, DTOs, FluentValidation validators, interfaces và MediatR pipeline behaviors. Chỉ phụ thuộc Domain.
 - **Infrastructure (`CulinaryBlog.Infrastructure`):** EF Core DbContext, configurations, migrations, repositories, UnitOfWork, Identity, JWT, Redis, MinIO, email, Hangfire background jobs. Implement interfaces của Application.
 - **Presentation (`CulinaryBlog.API`):** Minimal API endpoint groups, middleware, DI composition root, auth policies, OpenAPI/Scalar và HTTP mapping.
@@ -299,15 +307,14 @@ Application -X-> Infrastructure/API
 
 ### 7.2 CQRS pipeline
 
-Thứ tự thực thi đề xuất:
+Thiết kế được chọn: MediatR đăng ký `LoggingBehavior` rồi `ValidationBehavior`; handler điều phối use case, authorization, transaction và các port của Application. Infrastructure triển khai persistence/cache. Không thêm `CachingBehavior` hoặc `CacheInvalidationBehavior` trùng với service hiện hữu; xem ADR-0002.
 
-1. `LoggingBehavior`: Log request, user, correlation id, elapsed time; ghi cảnh báo khi thời gian thực thi > 1.000 ms (tương thích với NFR p99 <= 1s).
-2. `ValidationBehavior`: FluentValidation chạy trước khi vào handler; ném ngoại lệ trả về 422 Problem Details nếu lỗi.
-3. `CachingBehavior`: Đọc Redis cache cho các Query có cài đặt interface `ICacheable`.
-4. Handler: Thực thi use case, quy tắc nghiệp vụ domain, repository và ánh xạ DTO.
-5. `CacheInvalidationBehavior`: Xóa cache tag liên quan sau khi Command thay đổi dữ liệu thành công.
+1. Logging ghi request name, user, correlation/trace và elapsed time, không serialize command/response chứa dữ liệu nhạy cảm. Ngưỡng cảnh báo chậm mặc định **500 ms**, cấu hình `StructuredLogging:SlowRequestThresholdMs`; đây là ngưỡng cảnh báo, không thay đổi mục tiêu p99 <= 1.000 ms.
+2. Validation chạy trước handler; lỗi ngữ nghĩa trả 422 Problem Details.
+3. Query public dùng `IPublicContentCache` theo cache-aside; query quản lý theo user không đi qua shared public cache.
+4. Mutation commit dữ liệu rồi gọi invalidation qua các service chuyên biệt. Không rollback dữ liệu đã commit chỉ vì Redis hoặc frontend revalidation lỗi.
 
-Command không đọc kết hợp với Query trong cùng use case; Query không thay đổi state.
+Command được đọc dữ liệu để kiểm tra quyền, invariant và thực hiện cập nhật trong transaction. Query không thay đổi trạng thái nghiệp vụ; việc điền cache/ghi telemetry không phải mutation nghiệp vụ.
 
 ### 7.3 Frontend Next.js
 
@@ -337,55 +344,25 @@ flowchart LR
 
 #### 7.3.2 Công nghệ frontend và trạng thái sử dụng thực tế
 
-Phiên bản dưới đây lấy trực tiếp từ `culinary-blog-web/package.json` tại ngày phân tích:
-
-| Công nghệ | Phiên bản khai báo | Vai trò kiến trúc | Trạng thái trong mã nguồn |
-|---|---:|---|---|
-| Next.js | `16.3.5` | Framework React full-stack, App Router, routing, metadata, Server/Client Components | **Đang dùng**: root layout, route group `(public)`, route động `[slug]`, `redirect`, `notFound`, metadata tĩnh/động. |
-| React / React DOM | `19.2.8` | UI component và hydration | **Đang dùng**; state cục bộ xuất hiện trong `Footer`. |
-| TypeScript | `^5` | Kiểm tra kiểu tĩnh | **Đang dùng**, `strict: true`, alias `@/*`; vẫn bật `allowJs: true` nên chưa phải chế độ TypeScript-only. |
-| Tailwind CSS | `^4` | Utility-first CSS và design tokens | **Đang dùng** qua `@import "tailwindcss"` và `@tailwindcss/postcss`; màu thương hiệu khai báo bằng CSS variables nhưng nhiều component còn hard-code mã màu. |
-| Axios | `^1.20.0` | HTTP client tới ASP.NET Core API | **Đang dùng** cho category; có request interceptor gắn Bearer token nhưng chưa có refresh/retry/error normalization. |
-| TanStack Query / Devtools | `^5.102.8` | Cache, đồng bộ và mutation server state ở client | **Đã cài, chưa tích hợp**: chưa có `QueryClientProvider`, query key factory, hook query/mutation hoặc Devtools. |
-| React Hook Form | `^7.88.0` | Quản lý form | **Đã cài, chưa dùng**. |
-| Zod / Hook Form Resolvers | `^3.25.76` / `^5.9.1` | Schema validation và nối Zod với form | **Đã cài, chưa dùng**. |
-| Zustand | `^5.0.15` | Trạng thái auth/UI toàn cục tối thiểu | **Đã cài, chưa dùng**; chưa có `authStore`. |
-| NextAuth/Auth.js | `^5.0.0-beta.32` | Thư viện phiên/OAuth tùy chọn | **Đã cài, chưa cấu hình**; `lib/auth.ts` rỗng. Kiến trúc hiện tại lại định hướng JWT do ASP.NET Core phát hành, vì vậy phải chốt dùng Auth.js hay loại bỏ dependency để tránh hai nguồn quản lý phiên. |
-| Lucide React | `^1.47.0` | Bộ icon | **Đã cài, chưa dùng**; UI hiện dùng SVG tự định nghĩa trong `components/common/Icons.tsx`. |
-| ESLint / eslint-config-next | `^9` / `16.3.5` | Static analysis, Core Web Vitals và quy tắc TypeScript | **Đang cấu hình** qua `eslint.config.mjs`. |
+Nguồn phiên bản là `culinary-blog-web/package.json` và lockfile, không dùng bảng phiên bản tháng 9 làm contract. Next.js App Router/React/TypeScript là nền tảng; TanStack Query quản lý server state; Zustand quản lý auth/UI state; React Hook Form và Zod quản lý form. Sự hiện diện trong code không thay thế kiểm chứng UI, accessibility hoặc hiệu năng.
 
 #### 7.3.3 Routing và chiến lược render
 
-| Route/nhóm route | Hiện trạng | Cơ chế render và ghi chú |
-|---|---|---|
-| `/` | Đã có | Server redirect sang `/categories`; chưa phải landing page như kiến trúc mục tiêu. |
-| `/(public)/categories` | Đã có | Async Server Component gọi API category. Hiện chưa cấu hình `revalidate`, cache tag hoặc static generation; vì vậy **không được xem là ISR đã hoàn thành**. |
-| `/(public)/categories/[slug]` | Đã có một phần | Server Component và `generateMetadata`; chỉ hiển thị thông tin category/placeholder, chưa gọi endpoint chi tiết category và chưa hiển thị danh sách recipe. |
-| `/recipes`, `/recipes/[slug]`, `/search` | Chưa có | Mục tiêu là SSR/ISR cho nội dung công khai; filter/sort/page phải phản ánh vào URL search params. |
-| `/auth/*`, `/profile` | Chưa có | Form là Client Component; phiên do backend JWT/refresh cookie quản lý. |
-| `/dashboard/*` | Chưa có | CSR/hybrid với TanStack Query cho bảng, mutation và optimistic invalidation; bắt buộc kiểm tra quyền ở cả UI lẫn API. |
-
-Các trang recipe đã Published phải có metadata riêng, canonical URL, Open Graph và JSON-LD `Recipe`. Draft/Archived phải `noindex`. `sitemap.ts` và `robots.ts` hiện chưa tồn tại.
+Đã có các route public category/recipe/search, auth/profile và dashboard quản lý. Public content lấy qua server API client; dashboard và form dùng client hooks. Metadata, Recipe JSON-LD, sitemap và robots có implementation; chỉ kết luận đạt SEO sau review và kiểm chứng trên commit nghiệm thu. Draft/Archived không xuất hiện ở public listing, search hoặc sitemap.
 
 #### 7.3.4 Luồng dữ liệu, API contract và xác thực
 
-- `categoryApi.getAll()` hiện gọi `GET /api/v1/categories` và mong response là mảng `CategoryDto[]`. Backend hiện cũng trả trực tiếp mảng, trong khi mục 6 quy định success wrapper `{ "data": ... }`. Cần chọn một contract và áp dụng đồng nhất trước khi mở rộng frontend.
-- `getBySlug()` hiện tải toàn bộ category rồi tìm slug ở frontend; cần chuyển sang `GET /api/v1/categories/{slug}` để tránh tải thừa và để trang chi tiết nhận đúng dữ liệu recipe phân trang.
-- Dữ liệu fallback hard-code giúp dựng giao diện khi API chưa sẵn sàng nhưng đang bắt mọi lỗi. Production không được biến lỗi 401/403/500/timeout thành dữ liệu giả; fallback chỉ bật bằng cờ development/mock rõ ràng.
-- `CategoryDto` phía frontend có `avgCookTimeMinutes`, nhưng DTO backend chưa có trường này. Đây là chênh lệch contract cần bổ sung ở backend hoặc loại khỏi frontend.
-- Access token theo quyết định ở mục 5 phải giữ trong memory/Zustand; mã hiện tại đọc `localStorage.getItem("accessToken")`, trái với đặc tả bảo mật và làm tăng tác động của XSS.
-- Refresh token là cookie `httpOnly`; Axios browser phải bật `withCredentials: true`, backend giữ CORS credentials/allowlist, và response interceptor chỉ thử refresh một lần để tránh vòng lặp vô hạn.
-- `middleware.ts` hiện chỉ `NextResponse.next()` nên **chưa bảo vệ route**. Middleware có thể làm coarse-grained redirect dựa trên cookie/session mà nó đọc được; authorization thực sự vẫn phải do ASP.NET Core kiểm tra role và ownership.
-- Với request chạy trong Server Component, `NEXT_PUBLIC_API_URL=http://localhost:5000` chỉ phù hợp khi chạy trực tiếp trên máy. Khi frontend nằm trong container, cần biến server-only như `API_INTERNAL_URL=http://api:8080`; browser dùng public origin/reverse proxy riêng.
+- API client tập trung trong `lib/api`; DTO và pagination theo contract backend. Dữ liệu mock không được che lỗi production.
+- Access token ở memory/auth store; refresh token ở HttpOnly cookie. Browser gửi credentials, refresh/retry có giới hạn; API kiểm tra quyền và ownership trong Application workflow.
+- `GET /recipes/{id}` là API quản lý Owner/Admin: Guest 401, người khác 403, thiếu/đã xóa 404. Đọc public dùng slug.
+- Sáu chỉ số dinh dưỡng giữ nullable xuyên database/API/UI; chưa nhập không biến thành 0. JSON-LD bỏ giá trị thiếu.
+- Tách URL nội bộ server và URL công khai browser. Không đưa token/secrets vào HTML, logs hoặc NEXT_PUBLIC variables.
 
 #### 7.3.5 UI, hiệu năng, SEO và khả năng truy cập
 
-- Component đã được chia theo `components/layout`, `components/categories`, `components/common`; route group `(public)` dùng chung Navbar/Footer. Đây là hướng tổ chức phù hợp, nhưng cần bổ sung `features` hoặc API hooks theo domain khi số màn hình tăng.
-- `CategoryCard` và hero đang dùng thẻ `<img>` với ảnh Unsplash. Nên dùng `next/image`, cấu hình `images.remotePatterns`, kích thước/sizes và ảnh fallback nội bộ để tối ưu LCP/CLS.
-- Root layout khai báo `font-geist-*` và `font-playfair` trong CSS nhưng chưa nạp font bằng `next/font`; trình duyệt hiện rơi về system/Georgia fallback.
-- Navbar ẩn menu ở màn hình nhỏ nhưng chưa có mobile navigation; trạng thái focus/ARIA và keyboard flow cần được kiểm thử theo WCAG 2.1 AA.
-- Footer newsletter chỉ đổi state cục bộ, chưa gọi API; không được mô tả là tính năng đăng ký newsletter đã hoàn thành.
-- Metadata category đã có title/description/Open Graph cơ bản; chưa có canonical, ảnh OG, JSON-LD, sitemap và robots.
+Các yêu cầu responsive từ 320px, keyboard/focus/label/contrast và WCAG 2.1 AA vẫn là tiêu chí nghiệm thu. Browser E2E và axe tự động cần kết hợp kiểm tra thủ công phù hợp; không suy toàn bộ WCAG từ axe pass. Phân biệt kết quả development browser E2E với bản production.
+
+Cache có ba lớp cần kiểm chứng riêng: backend public Redis, Next.js server cache theo tag/path và TanStack Query theo query key. `serverClient.ts` định nghĩa TTL/tag phía server; mutation hooks invalidate query keys liên quan. Không giả định invalidate Redis tự động làm mới mọi browser session.
 
 #### 7.3.6 Quy ước triển khai frontend
 
@@ -407,7 +384,7 @@ Các trang recipe đã Published phải có metadata riêng, canonical URL, Open
 | `RecipeStep` | 1:N với Recipe; cascade delete; thuộc tính: `Title` (varchar 200, bắt buộc), `Description` (text, bắt buộc), `TimerMinutes` (integer NULL), `ImageUrl` (varchar 500 NULL), `StepNumber` (integer, partial unique index trên `(RecipeId, StepNumber)` với `IsDeleted = false`). |
 | `RecipeIngredient` | 1:N với Recipe; cascade delete; thuộc tính: `Name` (varchar 200, bắt buộc), `Quantity` (decimal(10,3) NULL), `Unit` (varchar 50 NULL), `Notes` (varchar 500 NULL), `OrderIndex` (integer DEFAULT 0). |
 | `RecipeImage` | 1:N với Recipe; cascade delete; thuộc tính: `OriginalUrl`, `MediumUrl`, `ThumbnailUrl`, `AltText`, `IsPrimary`, `OrderIndex` (integer DEFAULT 0). |
-| `Category` | N:1 với Recipe. Thuộc tính: `Name` (unique), `Slug` (unique filtered index `WHERE "IsDeleted" = false`), `Description`, `ImageUrl`, `OrderIndex`. Không xóa được nếu còn recipe. |
+| `Category` | 1:N với Recipe. Thuộc tính: `Name` (unique), `Slug` (unique filtered index `WHERE "IsDeleted" = false`), `Description`, `ImageUrl`, `OrderIndex`. Không xóa được nếu còn recipe. |
 | `ApplicationUser` | Kế thừa IdentityUser. Thêm: `DisplayName`, `AvatarUrl`, `Bio`, `IsActive`, `CreatedAt`. |
 | `RefreshToken` | `TokenHash` (SHA-256 unique), `ExpiresAt`, `RevokedAt`, `ReplacedByTokenHash`, `CreatedAt`, `CreatedByIp`. |
 
@@ -434,11 +411,13 @@ Observability bắt buộc:
 - Giao diện responsive từ 320 px trở lên, đạt chuẩn WCAG 2.1 AA, hỗ trợ điều hướng bàn phím.
 - Uptime mục tiêu >= 99.5%; retry job và global exception handling theo chuẩn RFC 7807.
 - Unit coverage tối thiểu 80% cho tầng Application; mọi endpoint có happy path và error case; kiểm thử E2E cho luồng trọng yếu.
-- SEO: JSON-LD Schema.org, meta tags / Open Graph, sitemap XML tự động và robots.txt.
+- SEO: JSON-LD Schema.org, meta tags / Open Graph, sitemap XML động tại `/sitemap.xml` do Next.js cung cấp và robots.txt. FR-JOB-003/NFR-SEO-003 áp dụng contract ADR-0003: không yêu cầu Hangfire sinh/lưu file sitemap lúc 02:00 UTC. Sitemap chỉ chứa URL public hợp lệ, duyệt các trang dữ liệu, loại Draft/Archived/đã xóa, phản ánh thay đổi theo cache policy và có fallback an toàn khi upstream lỗi; không coi fallback tĩnh là bằng chứng sitemap đầy đủ.
 
-## 9. Hiện trạng mã nguồn tại thời điểm phân tích
+## 9. Baseline lịch sử mã nguồn ngày 2026-09-21
 
-Kết quả đối chiếu với workspace hiện tại:
+**Lưu trữ lịch sử, không phải hiện trạng 16/11/2026.** Các mô tả thiếu chức năng bên dưới chỉ áp dụng ngày 21/09. Hiện trạng và công việc còn lại theo `docs/Ke_Hoach_Hoan_Thien_He_Thong.md`, traceability và evidence theo commit.
+
+Kết quả đối chiếu tại ngày baseline:
 
 - **Domain:** Đã có `BaseEntity`, user/category/recipe và các child entity, enum, domain exception cùng repository interfaces. Đây mới là nền domain; nhiều invariant/use case trong các mục 3–6 chưa có bằng chứng hiện thực đầy đủ.
 - **Application:** Đã cấu hình MediatR, logging/validation behavior, DTO và một phần use case category (`Get`, `Create`, `Delete`). Các use case auth, recipe lifecycle, ảnh, step, ingredient, nutrition, cache behavior/invalidation còn thiếu hoặc chưa hoàn chỉnh.
@@ -459,7 +438,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 6. **Bước thực hiện (RecipeStep):** `StepNumber` do Server tự động sinh và đánh số liên tục `1..N`; cấm sửa `StepNumber` qua PUT step đơn lẻ; bổ sung endpoint `PUT /recipes/{id}/steps/reorder` để đổi thứ tự bước an toàn; chuẩn hóa tên trường `TimerMinutes` và `Title`; chặn xóa nếu là bước duy nhất của bài `Published`.
 7. **Cache TTL:** Thống nhất TTL cho Recipe detail là **60 phút** cấu hình qua `appsettings.json`, kết hợp cơ chế xóa cache theo tag khi có write operation.
 8. **Luồng Google OAuth:** Thống nhất frontend dùng Google Sign-In gửi `idToken`, backend xác thực token qua thư viện `Google.Apis.Auth`.
-9. **Lưu trữ Token:** Access Token lưu ở client memory; Refresh Token lưu trong **httpOnly, Secure, SameSite=Lax Cookie** để triệt tiêu nguy cơ XSS.
+9. **Lưu trữ Token:** Access Token lưu ở client memory; Refresh Token lưu trong **httpOnly, Secure, SameSite=Lax Cookie** để hạn chế JavaScript đọc refresh token. HttpOnly không loại bỏ XSS; vẫn cần CSP, kiểm soát nội dung đầu ra và kiểm tra origin/CSRF cho các thao tác dùng cookie.
 10. **Mã lỗi phân quyền:** Vi phạm ownership trả về HTTP `403 Forbidden` (chuẩn RESTful), xung đột concurrency hoặc ràng buộc dữ liệu trả về `409 Conflict`.
 
 ## 11. Thứ tự hiện thực đề xuất
@@ -479,6 +458,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 - [ ] Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).
 - [ ] Admin quản lý được category và recipe của mọi owner.
 - [ ] Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).
+- [ ] Điều kiện ingredient áp dụng lúc publish; xóa ingredient cuối của bài Published vẫn thành công theo contract FR-RCP-009.
 - [ ] Không thể xóa bước duy nhất của bài viết đang ở trạng thái Published (trả về 422).
 - [ ] Category còn recipe bị từ chối xóa với mã lỗi 409 Conflict.
 - [ ] Chỉ có duy nhất một ảnh primary; upload validate kích thước, MIME type và magic bytes.
@@ -492,4 +472,8 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 - [ ] Write operation tự động invalidate cache liên quan; xung đột concurrency trả về 409 Conflict.
 - [ ] Lỗi API tuân thủ đúng RFC 7807 Problem Details, có Correlation ID và không lộ stack trace.
 - [ ] Endpoints `/health/live` và `/health/ready` phân biệt đúng mục đích vận hành.
-- [ ] Kiến trúc Clean Architecture tuân thủ nghiêm ngặt quy tắc Dependency Rule.
+- [ ] Kiến trúc phân tầng tuân thủ Dependency Rule và khóa đúng hai ngoại lệ Domain theo ADR-0001/ADR-0003; không mở rộng package hoặc vị trí sử dụng.
+
+### Nhật ký điều chỉnh yêu cầu 1.4.0 — 16/11/2026
+
+Người dùng đã cho phép điều chỉnh đặc tả trong phiên làm việc sau đề xuất giữ sitemap động Next.js, ngoại lệ Domain có giới hạn và refresh cookie SameSite=Lax. ADR-0003 ghi contract, điều khoản được thay thế và phép kiểm chứng. Chỉ thay đổi tiêu chí thiết kế của FR-JOB-003, NFR-SEO-003, NFR-MAINT-004 và phần cookie của NFR-SEC-005; các yêu cầu chức năng, bảo mật, hiệu năng và vận hành còn lại vẫn giữ nguyên. Không tự chuyển trạng thái sang Verified; cần review/test trên phiên bản nghiệm thu.

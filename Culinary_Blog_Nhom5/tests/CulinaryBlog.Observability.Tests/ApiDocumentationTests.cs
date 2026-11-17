@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CulinaryBlog.Application;
 using Asp.Versioning;
 using CulinaryBlog.API.Documentation;
 using CulinaryBlog.API.Endpoints;
@@ -23,6 +24,7 @@ public sealed class ApiDocumentationTests
         builder.Logging.ClearProviders();
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(
             "Host=localhost;Database=openapi_only;Username=openapi;Password=openapi"));
+        builder.Services.AddApplication();
         builder.Services.AddSingleton<IHealthDependencyProbe, DocumentationProbe>();
         builder.Services.AddAuthentication().AddJwtBearer();
         builder.Services.AddAuthorization(options => options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin")));

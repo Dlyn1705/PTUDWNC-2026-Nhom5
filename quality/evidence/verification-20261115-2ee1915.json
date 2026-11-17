@@ -1,0 +1,74 @@
+{
+  "baseCommit": "2ee1915",
+  "date": "2026-11-15",
+  "environment": {
+    "os": "Windows 10.0.19043",
+    "dotnetSdk": "10.0.401",
+    "node": "22.19.0",
+    "npm": "10.9.3",
+    "python": "3.13.15",
+    "dockerServer": "20.10.12",
+    "dockerCompose": "2.2.3"
+  },
+  "commands": [
+    "dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Architecture.Tests --configuration Release",
+    "dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Application.Tests --configuration Release --collect:XPlat Code Coverage --settings Culinary_Blog_Nhom5/tests/application.runsettings",
+    "dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Security.Tests --configuration Release",
+    "dotnet test Culinary_Blog_Nhom5/tests/CulinaryBlog.Observability.Tests --configuration Release",
+    "Culinary_Blog_Nhom5/tests/run-integration.ps1 -Suites RecipeCreation,RecipeUpdate,RecipeDeletion,RecipeImages,ImageProcessing,WelcomeEmail,Ingredients,Steps,Auth,Search",
+    "Culinary_Blog_Nhom5/tests/run-critical.ps1 -Browser",
+    "npm ci; npm run typecheck; npm run lint; npm run format:check; npm run build -- --webpack",
+    "npm run test:seo; npm run test:sitemap; npm run test:search; npm run test:recipe-editor; npm run test:security; npm run test:logging; npm run test:api; npm run test:ui-store; npm run test:ui-contract; npm run test:common; npm run test:auth; npm run test:file-api"
+  ],
+  "results": {
+    "architecture": { "passed": 11, "failed": 0 },
+    "application": {
+      "passed": 55,
+      "failed": 0,
+      "coverage": { "covered": 1221, "valid": 1444, "percent": 84.556787, "requiredPercent": 84.55, "passed": true }
+    },
+    "security": { "passed": 41, "failed": 0 },
+    "observability": { "passed": 78, "failed": 0 },
+    "integration": {
+      "passed": 274,
+      "failed": 0,
+      "suites": {
+        "RecipeCreation": 12,
+        "RecipeUpdate": 21,
+        "RecipeDeletion": 14,
+        "RecipeImages": 7,
+        "ImageProcessing": 35,
+        "WelcomeEmail": 37,
+        "Ingredients": 21,
+        "Steps": 39,
+        "Auth": 42,
+        "Search": 46
+      },
+      "services": ["PostgreSQL", "MinIO", "MailHog"]
+    },
+    "criticalApiE2E": { "passed": true, "flows": 5, "endpointPairs": 8 },
+    "criticalBrowserE2E": { "passed": true, "flows": ["register", "login", "create recipe", "publish", "search"] },
+    "frontend": {
+      "npmAuditVulnerabilities": 0,
+      "typecheck": "passed",
+      "lint": "passed",
+      "formatRegression": "passed",
+      "productionBuildWebpack": "passed",
+      "unitAndContractTests": { "passed": 119, "failed": 0 }
+    }
+  },
+  "artifacts": {
+    "trxDirectory": "artifacts/quality/ht02-2ee1915",
+    "integrationDirectories": [
+      "Culinary_Blog_Nhom5/tests/TestResults/culinary-ht02-c5243df14504",
+      "Culinary_Blog_Nhom5/tests/TestResults/culinary-ht02-f7924f3d87da"
+    ],
+    "criticalApi": "artifacts/quality/critical-api-e2e.json",
+    "criticalBrowser": "artifacts/quality/critical-browser-e2e.json"
+  },
+  "limitations": [
+    "Codex reviewed all 65 requirements and all 56 endpoint mappings: 40 requirements and 56 endpoints were Verified; 25 requirements remain MissingEvidence with requirement-specific blockers in quality/traceability.json.",
+    "Performance/load, full accessibility/responsive review, reliability restore drill, external Google/SMTP acceptance, and production-environment operations were not rerun in this verification.",
+    "The acceptance gate must remain non-zero until the 25 MissingEvidence requirements are remediated, rerun where required, and Verified."
+  ]
+}

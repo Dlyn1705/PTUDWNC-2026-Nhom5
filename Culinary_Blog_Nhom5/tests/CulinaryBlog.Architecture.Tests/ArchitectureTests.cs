@@ -58,6 +58,41 @@ public sealed class ArchitectureTests
         var packages = XDocument.Load(file).Descendants("PackageReference").Select(x => x.Attribute("Include")!.Value).Order().ToArray();
         // ADR-0001 records these existing violations; this does not mean strict SRS compliance.
         Assert.Equal(new[] { "Microsoft.Extensions.Identity.Stores", "Npgsql" }, packages);
+        Assert.True(File.Exists(Path.Combine(Root, "docs/adr/ADR-0001-domain-persistence-exceptions.md")));
+    }
+
+    [Fact]
+    public void Domain_persistence_exceptions_cannot_spread_beyond_adr_scope()
+    {
+        var domain = Path.Combine(Root, "Culinary_Blog_Nhom5/src/CulinaryBlog.Domain");
+        var files = Directory.GetFiles(domain, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"));
+
+        foreach (var file in files)
+        {
+            var relative = Path.GetRelativePath(domain, file).Replace('\\', '/');
+            var source = File.ReadAllText(file);
+            if (source.Contains("Microsoft.AspNetCore.Identity", StringComparison.Ordinal))
+                Assert.Equal("Entities/ApplicationUser.cs", relative);
+            if (source.Contains("Npgsql", StringComparison.Ordinal))
+                Assert.Equal("Entities/Recipe.cs", relative);
+        }
+    }
+
+    [Fact]
+    public void Http_endpoints_do_not_orchestrate_application_persistence()
+    {
+        var endpoints = Path.Combine(Root, "Culinary_Blog_Nhom5/src/CulinaryBlog.API/Endpoints");
+        foreach (var file in Directory.GetFiles(endpoints, "*.cs"))
+        {
+            if (Path.GetFileName(file) == "HealthDependencyProbe.cs") continue;
+            var source = File.ReadAllText(file);
+            Assert.DoesNotContain("ApplicationDbContext", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("IRecipeRepository", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("IUnitOfWork", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("BeginTransaction", source, StringComparison.Ordinal);
+        }
     }
 
     internal static IReadOnlyList<string> QueryViolations(string source)

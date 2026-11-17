@@ -5,19 +5,22 @@ export const mockAuthors = {
   mira: {
     id: "u-1",
     displayName: "Mira Alvarez",
-    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
     bio: "Pasta obsessive and weeknight cook. Writes about slow sauces and fast dinners.",
   },
   tomas: {
     id: "u-2",
     displayName: "Tomás Fields",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop",
     bio: "Roasts, broths and anything that rewards patience. Former line cook, full-time eater.",
   },
   linh: {
     id: "u-3",
     displayName: "Diệu Linh",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop",
     bio: "Chuyên gia ẩm thực truyền thống & fusion. Yêu thích các món hầm và tráng miệng thanh mát.",
   },
 };
@@ -27,8 +30,10 @@ export const mockCategories: CategoryDto[] = [
     id: "c-1",
     name: "Pasta",
     slug: "pasta",
-    description: "Hand-rolled, baked and skillet pastas for every night of the week.",
-    imageUrl: "https://images.unsplash.com/photo-1621996346565-e3d5d6281292?q=80&w=800&auto=format&fit=crop",
+    description:
+      "Hand-rolled, baked and skillet pastas for every night of the week.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1621996346565-e3d5d6281292?q=80&w=800&auto=format&fit=crop",
     recipeCount: 2,
     orderIndex: 1,
   },
@@ -36,8 +41,10 @@ export const mockCategories: CategoryDto[] = [
     id: "c-2",
     name: "Mains",
     slug: "mains",
-    description: "Centerpiece dishes worth gathering around for family and feasts.",
-    imageUrl: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?q=80&w=800&auto=format&fit=crop",
+    description:
+      "Centerpiece dishes worth gathering around for family and feasts.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?q=80&w=800&auto=format&fit=crop",
     recipeCount: 3,
     orderIndex: 2,
   },
@@ -45,8 +52,10 @@ export const mockCategories: CategoryDto[] = [
     id: "c-3",
     name: "Baking",
     slug: "baking",
-    description: "Cakes, breads and slow afternoons with the oven warming the home.",
-    imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop",
+    description:
+      "Cakes, breads and slow afternoons with the oven warming the home.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop",
     recipeCount: 1,
     orderIndex: 3,
   },
@@ -54,8 +63,10 @@ export const mockCategories: CategoryDto[] = [
     id: "c-4",
     name: "Salads",
     slug: "salads",
-    description: "Crisp, herby plates built on whatever vibrant greens are in season.",
-    imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop",
+    description:
+      "Crisp, herby plates built on whatever vibrant greens are in season.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop",
     recipeCount: 1,
     orderIndex: 4,
   },
@@ -99,14 +110,22 @@ export const mockRecipes: RecipeDto[] = [
         alt: "Simmering tomato sauce in skillet",
       },
     ],
-    nutrition: { calories: 612, protein: 18, carbs: 74, fat: 26, fiber: 5, sodium: 480 },
+    nutrition: {
+      calories: 612,
+      protein: 18,
+      carbohydrates: 74,
+      fat: 26,
+      fiber: 5,
+      sodium: 480,
+    },
     steps: [
       {
         id: "s-1",
         order: 1,
         title: "Blister the tomatoes",
         text: "Heat olive oil in a wide skillet over medium-high heat. Add the cherry tomatoes and garlic, cooking until skins blister, burst, and caramelize at the edges.",
-        imageUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?q=80&w=800&auto=format&fit=crop",
+        imageUrl:
+          "https://images.unsplash.com/photo-1551183053-bf91a1d81141?q=80&w=800&auto=format&fit=crop",
         timerMinutes: 10,
       },
       {
@@ -114,7 +133,8 @@ export const mockRecipes: RecipeDto[] = [
         order: 2,
         title: "Build the creamy sauce",
         text: "Pour in the heavy cream and gently crush the softened tomatoes with the back of a wooden spoon. Lower heat and simmer until smooth and rich.",
-        imageUrl: "https://images.unsplash.com/photo-1608897013039-887f21d8c804?q=80&w=800&auto=format&fit=crop",
+        imageUrl:
+          "https://images.unsplash.com/photo-1608897013039-887f21d8c804?q=80&w=800&auto=format&fit=crop",
         timerMinutes: 6,
       },
       {
@@ -126,13 +146,43 @@ export const mockRecipes: RecipeDto[] = [
       },
     ],
     ingredients: [
-      { id: "g-1", name: "Rigatoni Pasta", quantity: 400, unit: "g", notes: "bronze-die cut preferred" },
-      { id: "g-2", name: "Cherry Tomatoes", quantity: 500, unit: "g", notes: "ripe on the vine" },
+      {
+        id: "g-1",
+        name: "Rigatoni Pasta",
+        quantity: 400,
+        unit: "g",
+        notes: "bronze-die cut preferred",
+      },
+      {
+        id: "g-2",
+        name: "Cherry Tomatoes",
+        quantity: 500,
+        unit: "g",
+        notes: "ripe on the vine",
+      },
       { id: "g-3", name: "Heavy Cream", quantity: 150, unit: "ml" },
-      { id: "g-4", name: "Fresh Basil", quantity: 1, unit: "bunch", notes: "hand torn" },
-      { id: "g-5", name: "Garlic Cloves", quantity: 4, unit: "cloves", notes: "thinly sliced" },
+      {
+        id: "g-4",
+        name: "Fresh Basil",
+        quantity: 1,
+        unit: "bunch",
+        notes: "hand torn",
+      },
+      {
+        id: "g-5",
+        name: "Garlic Cloves",
+        quantity: 4,
+        unit: "cloves",
+        notes: "thinly sliced",
+      },
       { id: "g-6", name: "Extra Virgin Olive Oil", quantity: 3, unit: "tbsp" },
-      { id: "g-7", name: "Parmigiano Reggiano", quantity: 60, unit: "g", notes: "freshly grated" },
+      {
+        id: "g-7",
+        name: "Parmigiano Reggiano",
+        quantity: 60,
+        unit: "g",
+        notes: "freshly grated",
+      },
     ],
   },
   {
@@ -142,7 +192,8 @@ export const mockRecipes: RecipeDto[] = [
     createdAt: "2026-07-14T09:00:00.000Z",
     description:
       "A classic Sunday bird with shattering crisp skin, fragrant lemon steam in the cavity, and rich pan drippings you will want to drizzle over everything.",
-    instructions: "Dry-brine chicken overnight, roast hot at 220°C, and rest long before carving.",
+    instructions:
+      "Dry-brine chicken overnight, roast hot at 220°C, and rest long before carving.",
     prepTimeMinutes: 20,
     cookTimeMinutes: 75,
     servings: 6,
@@ -159,7 +210,14 @@ export const mockRecipes: RecipeDto[] = [
         alt: "Golden roast chicken with lemon and thyme",
       },
     ],
-    nutrition: { calories: 540, protein: 46, carbs: 6, fat: 36, fiber: 2, sodium: 720 },
+    nutrition: {
+      calories: 540,
+      protein: 46,
+      carbohydrates: 6,
+      fat: 36,
+      fiber: 2,
+      sodium: 720,
+    },
     steps: [
       {
         id: "s-4",
@@ -185,9 +243,21 @@ export const mockRecipes: RecipeDto[] = [
     ],
     ingredients: [
       { id: "g-8", name: "Whole Chicken", quantity: 1.8, unit: "kg" },
-      { id: "g-9", name: "Organic Lemons", quantity: 2, unit: "whole", notes: "halved" },
+      {
+        id: "g-9",
+        name: "Organic Lemons",
+        quantity: 2,
+        unit: "whole",
+        notes: "halved",
+      },
       { id: "g-10", name: "Fresh Thyme", quantity: 8, unit: "sprigs" },
-      { id: "g-11", name: "Unsalted Butter", quantity: 50, unit: "g", notes: "softened" },
+      {
+        id: "g-11",
+        name: "Unsalted Butter",
+        quantity: 50,
+        unit: "g",
+        notes: "softened",
+      },
       { id: "g-12", name: "Kosher Salt", quantity: 2, unit: "tsp" },
     ],
   },
@@ -198,7 +268,8 @@ export const mockRecipes: RecipeDto[] = [
     createdAt: "2026-05-02T09:00:00.000Z",
     description:
       "One bowl, no mixer, and a tender crumb that stays delightfully moist for days. Dust with bitter cocoa and flaky sea salt.",
-    instructions: "Whisk wet ingredients into dry, bake gently, cool completely in the tin.",
+    instructions:
+      "Whisk wet ingredients into dry, bake gently, cool completely in the tin.",
     prepTimeMinutes: 15,
     cookTimeMinutes: 40,
     servings: 8,
@@ -215,7 +286,14 @@ export const mockRecipes: RecipeDto[] = [
         alt: "Chocolate olive oil cake with slice cut",
       },
     ],
-    nutrition: { calories: 384, protein: 5, carbs: 45, fat: 21, fiber: 4, sodium: 210 },
+    nutrition: {
+      calories: 384,
+      protein: 5,
+      carbohydrates: 45,
+      fat: 21,
+      fiber: 4,
+      sodium: 210,
+    },
     steps: [
       {
         id: "s-7",
@@ -247,7 +325,8 @@ export const mockRecipes: RecipeDto[] = [
     createdAt: "2026-09-01T09:00:00.000Z",
     description:
       "Thin ribbons of crisp Persian cucumbers, creamy ripe avocado, and a generous fistful of soft garden herbs, dressed with lemon and shallot vinaigrette.",
-    instructions: "Shave vegetables, toss with herbs, dress immediately prior to serving.",
+    instructions:
+      "Shave vegetables, toss with herbs, dress immediately prior to serving.",
     prepTimeMinutes: 10,
     cookTimeMinutes: 0,
     servings: 2,
@@ -264,7 +343,14 @@ export const mockRecipes: RecipeDto[] = [
         alt: "Green salad with avocado and cucumber",
       },
     ],
-    nutrition: { calories: 268, protein: 4, carbs: 14, fat: 22, fiber: 7, sodium: 160 },
+    nutrition: {
+      calories: 268,
+      protein: 4,
+      carbohydrates: 14,
+      fat: 22,
+      fiber: 7,
+      sodium: 160,
+    },
     steps: [
       {
         id: "s-9",
@@ -284,7 +370,13 @@ export const mockRecipes: RecipeDto[] = [
     ingredients: [
       { id: "g-18", name: "Ripe Avocados", quantity: 2, unit: "whole" },
       { id: "g-19", name: "Persian Cucumbers", quantity: 3, unit: "whole" },
-      { id: "g-20", name: "Dill & Mint", quantity: 30, unit: "g", notes: "freshly picked" },
+      {
+        id: "g-20",
+        name: "Dill & Mint",
+        quantity: 30,
+        unit: "g",
+        notes: "freshly picked",
+      },
       { id: "g-21", name: "Lemon Juice", quantity: 2, unit: "tbsp" },
     ],
   },
@@ -295,7 +387,8 @@ export const mockRecipes: RecipeDto[] = [
     createdAt: "2026-09-10T09:00:00.000Z",
     description:
       "Nước dùng trong vắt thơm nồng hương gừng nướng, hoa hồi, thảo quả quyện cùng bánh phở mềm mướt và những lát bắp bò hoa thơm ngọt đậm đà.",
-    instructions: "Nướng thơm gừng hành, hầm xương bò liu riu vớt bọt, chần phở và chan nước dùng sôi sùng sục.",
+    instructions:
+      "Nướng thơm gừng hành, hầm xương bò liu riu vớt bọt, chần phở và chan nước dùng sôi sùng sục.",
     prepTimeMinutes: 30,
     cookTimeMinutes: 180,
     servings: 6,
@@ -312,7 +405,14 @@ export const mockRecipes: RecipeDto[] = [
         alt: "Bát Phở bò truyền thống bốc khói nghi ngút",
       },
     ],
-    nutrition: { calories: 520, protein: 38, carbs: 58, fat: 12, fiber: 3, sodium: 960 },
+    nutrition: {
+      calories: 520,
+      protein: 38,
+      carbohydrates: 58,
+      fat: 12,
+      fiber: 3,
+      sodium: 960,
+    },
     steps: [
       {
         id: "s-11",
@@ -337,12 +437,34 @@ export const mockRecipes: RecipeDto[] = [
       },
     ],
     ingredients: [
-      { id: "g-22", name: "Xương ống bò", quantity: 2, unit: "kg", notes: "chặt khúc, rửa sạch" },
+      {
+        id: "g-22",
+        name: "Xương ống bò",
+        quantity: 2,
+        unit: "kg",
+        notes: "chặt khúc, rửa sạch",
+      },
       { id: "g-23", name: "Bắp bò / Nạm bò", quantity: 800, unit: "g" },
       { id: "g-24", name: "Bánh phở tươi", quantity: 1, unit: "kg" },
-      { id: "g-25", name: "Gừng & Hành khô", quantity: 200, unit: "g", notes: "nướng xém" },
-      { id: "g-26", name: "Hoa hồi, Quế, Thảo quả", quantity: 1, unit: "gói gia vị" },
-      { id: "g-27", name: "Hành lá, Ngò gai, Chanh ớt", quantity: 1, unit: "phần ăn kèm" },
+      {
+        id: "g-25",
+        name: "Gừng & Hành khô",
+        quantity: 200,
+        unit: "g",
+        notes: "nướng xém",
+      },
+      {
+        id: "g-26",
+        name: "Hoa hồi, Quế, Thảo quả",
+        quantity: 1,
+        unit: "gói gia vị",
+      },
+      {
+        id: "g-27",
+        name: "Hành lá, Ngò gai, Chanh ớt",
+        quantity: 1,
+        unit: "phần ăn kèm",
+      },
     ],
   },
 ];

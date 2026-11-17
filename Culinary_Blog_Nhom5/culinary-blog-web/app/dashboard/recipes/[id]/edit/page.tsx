@@ -61,9 +61,9 @@ const editorValues = (recipe: RecipeDto): Partial<RecipeEditorValues> => ({
   protein:
     recipe.nutrition?.protein == null ? "" : String(recipe.nutrition.protein),
   carbohydrates:
-    (recipe.nutrition?.carbohydrates ?? recipe.nutrition?.carbs) == null
+    recipe.nutrition?.carbohydrates == null
       ? ""
-      : String(recipe.nutrition.carbohydrates ?? recipe.nutrition?.carbs),
+      : String(recipe.nutrition.carbohydrates),
   fat: recipe.nutrition?.fat == null ? "" : String(recipe.nutrition.fat),
   fiber: recipe.nutrition?.fiber == null ? "" : String(recipe.nutrition.fiber),
   sodium:
@@ -88,8 +88,7 @@ const nutritionPayload = (values: RecipeEditorValues) =>
 const nutritionFromRecipe = (recipe: RecipeDto) => ({
   calories: recipe.nutrition?.calories ?? null,
   protein: recipe.nutrition?.protein ?? null,
-  carbohydrates:
-    recipe.nutrition?.carbohydrates ?? recipe.nutrition?.carbs ?? null,
+  carbohydrates: recipe.nutrition?.carbohydrates ?? null,
   fat: recipe.nutrition?.fat ?? null,
   fiber: recipe.nutrition?.fiber ?? null,
   sodium: recipe.nutrition?.sodium ?? null,
@@ -239,12 +238,12 @@ export default function EditRecipePage({ params }: RouteProps) {
             ? {
                 ...current,
                 nutrition: {
-                  calories: nutrition.calories ?? 0,
-                  protein: nutrition.protein ?? 0,
-                  carbohydrates: nutrition.carbohydrates ?? 0,
-                  fat: nutrition.fat ?? 0,
-                  fiber: nutrition.fiber ?? 0,
-                  sodium: nutrition.sodium ?? 0,
+                  calories: nutrition.calories,
+                  protein: nutrition.protein,
+                  carbohydrates: nutrition.carbohydrates,
+                  fat: nutrition.fat,
+                  fiber: nutrition.fiber,
+                  sodium: nutrition.sodium,
                 },
                 rowVersion: nutritionResult.rowVersion,
               }
