@@ -29,13 +29,16 @@ export function CategoryCard({ category }: CategoryCardProps) {
             alt={category.name}
             width={800}
             height={450}
-            unoptimized
+            unoptimized={imageUrl.startsWith("http")}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 motion-reduce:group-hover:scale-100"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <ChefHat aria-hidden="true" className="size-10 text-muted-foreground/40" />
+            <ChefHat
+              aria-hidden="true"
+              className="size-10 text-muted-foreground/40"
+            />
             <span className="sr-only">Danh mục chưa có ảnh đại diện</span>
           </div>
         )}

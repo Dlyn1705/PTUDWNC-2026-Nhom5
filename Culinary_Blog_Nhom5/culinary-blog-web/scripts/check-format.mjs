@@ -25,6 +25,7 @@ const candidates = new Set(
 let failures = 0;
 for (const file of [...candidates].sort()) {
   if (file === "package-lock.json" || file === "format-baseline.json") continue;
+  if (!fs.existsSync(path.join(root, file))) continue;
   const source = fs
     .readFileSync(path.join(root, file), "utf8")
     .replace(/\r\n/g, "\n");

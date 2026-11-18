@@ -14,14 +14,12 @@ export const metadata: Metadata = buildListingMetadata(
 );
 
 export default async function CategoriesPage() {
-  // Keep the production build independent from API availability. In a live
-  // deployment the route revalidates and repopulates once the API is ready.
-  const categories = await publicApi.getCategories().catch(() => []);
+  const categories = await publicApi.getCategories();
 
   const totalCategories = categories.length;
   const totalRecipes = categories.reduce(
     (acc, cat) => acc + (cat.recipeCount || 0),
-    0
+    0,
   );
 
   return (

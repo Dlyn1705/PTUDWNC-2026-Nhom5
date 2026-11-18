@@ -33,25 +33,13 @@ export const metadata = buildListingMetadata(
 
 export default async function HomePage() {
   const [categories, recipeResult] = await Promise.all([
-    publicApi.getCategories().catch(() => []),
-    publicApi
-      .getRecipes({
-        page: 1,
-        pageSize: 7,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      })
-      .catch(() => ({
-        data: [],
-        meta: {
-          page: 1,
-          pageSize: 7,
-          totalCount: 0,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPreviousPage: false,
-        },
-      })),
+    publicApi.getCategories(),
+    publicApi.getRecipes({
+      page: 1,
+      pageSize: 7,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    }),
   ]);
   const recipes = recipeResult.data;
 
@@ -74,15 +62,13 @@ export default async function HomePage() {
             className="relative isolate overflow-hidden rounded-3xl bg-maroon text-brand-contrast shadow-soft"
           >
             <Image
-              src={
-                featuredImage?.url ||
-                "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1600&auto=format&fit=crop"
-              }
+              src={featuredImage?.url || "/og/recipe-default.svg"}
               alt={
                 featuredImage?.alt || featured?.title || "Freshly prepared food"
               }
               fill
-              unoptimized
+              // Uploaded MinIO/blob URLs may not be reachable by the Next optimizer.
+              unoptimized={Boolean(featuredImage?.url?.startsWith("http"))}
               sizes="(max-width: 1199px) 100vw, 960px"
               loading="eager"
               fetchPriority="high"
