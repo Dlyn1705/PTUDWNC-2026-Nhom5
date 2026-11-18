@@ -75,6 +75,9 @@ def validate(data):
                     path, symbol = reference.split('::', 1)
                     if not symbol.strip() or not (ROOT / path).is_file() or symbol not in (ROOT / path).read_text(encoding='utf-8-sig'):
                         raise ValueError(f'Unknown test symbol: {reference}')
+        if (any(not (ROOT / reference).is_file() for reference in row['code']) or
+                any('::' not in reference for reference in row['tests'])):
+            raise ValueError(f'Every requirement requires concrete code files and test symbols: {row["id"]}')
         if row['status'] == 'Verified' and (not all(row[key] for key in ('code', 'tests', 'evidence')) or not (row.get('reviewedBy') or '').strip() or not row.get('reviewedCommit')):
             raise ValueError(f'Verified requires code/test/evidence, reviewer, and commit: {row["id"]}')
         if row['status'] == 'Verified' and (any('::' not in reference for reference in row['tests']) or

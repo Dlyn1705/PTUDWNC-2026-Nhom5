@@ -27,11 +27,29 @@ function Get-Port([string]$Service, [int]$Internal) {
     if ($LASTEXITCODE -ne 0 -or $binding -notmatch '127\.0\.0\.1:(\d+)') { throw "Cannot resolve $Service port." }
     return [int]$Matches[1]
 }
+function Get-ContainerEnvironment([string]$Service, [string]$Name) {
+    $containerId = & docker compose -p $project -f $compose ps -q $Service
+    if ($LASTEXITCODE -ne 0 -or -not $containerId) { throw "Cannot resolve $Service container." }
+    $entry = & docker inspect $containerId --format '{{range .Config.Env}}{{println .}}{{end}}' |
+        Where-Object { $_ -like "$Name=*" } | Select-Object -First 1
+    if (-not $entry) { throw "Cannot resolve $Name for $Service container." }
+    return $entry.Substring($Name.Length + 1)
+}
 try {
     # Random credentials live only in this process and disposable container configuration.
-    Set-TestVariable 'ISSUE84_PASSWORD' ([Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N'))
-    & docker compose -p $project -f $compose up -d --wait --wait-timeout 120
+    $testPassword = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    Set-TestVariable 'ISSUE84_PASSWORD' $testPassword
+    $composeUpHelp = (& docker compose up --help 2>&1) -join "`n"
+    $composeUpArguments = @('compose', '-p', $project, '-f', $compose, 'up', '-d', '--wait')
+    if ($composeUpHelp -match '(?m)^\s+--wait-timeout\b') {
+        $composeUpArguments += @('--wait-timeout', '120')
+    }
+    & docker @composeUpArguments
     if ($LASTEXITCODE -ne 0) { throw 'Cannot start isolated services. Start Docker Desktop first.' }
+    # Older Compose releases can prefer an inherited value during interpolation.
+    # Use the effective disposable-container credentials without printing them.
+    $postgresPassword = Get-ContainerEnvironment 'postgres' 'POSTGRES_PASSWORD'
+    $minioPassword = Get-ContainerEnvironment 'minio' 'MINIO_ROOT_PASSWORD'
     $pgPort = Get-Port 'postgres' 5432
     $minioPort = Get-Port 'minio' 9000
     $smtpPort = Get-Port 'mailhog' 1025
@@ -47,9 +65,9 @@ try {
         Start-Sleep -Seconds 1
     }
     if (-not $ready) { throw 'MinIO/MailHog did not become ready.' }
-    $connection = "Host=127.0.0.1;Port=$pgPort;Database=postgres;Username=postgres;Password=$env:ISSUE84_PASSWORD"
+    $connection = "Host=127.0.0.1;Port=$pgPort;Database=postgres;Username=postgres;Password=$postgresPassword"
     foreach ($name in @('RECIPE_CREATE_TEST_CONNECTION','RECIPE_UPDATE_TEST_CONNECTION','RECIPE_DELETION_TEST_CONNECTION','RECIPE_IMAGES_TEST_CONNECTION','IMAGE_TEST_CONNECTION','WELCOME_EMAIL_TEST_CONNECTION','INGREDIENTS_TEST_CONNECTION','STEPS_TEST_CONNECTION','AUTH_TEST_POSTGRES','SEARCH_TEST_CONNECTION')) { Set-TestVariable $name $connection }
-    foreach ($name in @('RECIPE_IMAGES_TEST_MINIO_PASSWORD','RECIPE_DELETION_TEST_MINIO_PASSWORD','IMAGE_TEST_MINIO_SECRET')) { Set-TestVariable $name $env:ISSUE84_PASSWORD }
+    foreach ($name in @('RECIPE_IMAGES_TEST_MINIO_PASSWORD','RECIPE_DELETION_TEST_MINIO_PASSWORD','IMAGE_TEST_MINIO_SECRET')) { Set-TestVariable $name $minioPassword }
     foreach ($name in @('RECIPE_IMAGES_TEST_MINIO_USER','RECIPE_DELETION_TEST_MINIO_USER','IMAGE_TEST_MINIO_ACCESS')) { Set-TestVariable $name 'issue84local' }
     Set-TestVariable 'RECIPE_TEST_MINIO_ENDPOINT' "127.0.0.1:$minioPort"
     Set-TestVariable 'WELCOME_EMAIL_TEST_SMTP_PORT' "$smtpPort"

@@ -51,7 +51,7 @@ public sealed class RecipeUpdateStore(
             {
                 var baseSlug = desired.Slug;
                 await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT pg_advisory_xact_lock(hashtext({baseSlug}))", ct);
+                    $"SELECT pg_advisory_xact_lock(('x' || substr(md5({baseSlug}), 1, 16))::bit(64)::bigint)", ct);
                 var suffix = 1;
                 var candidate = baseSlug;
                 while (await db.Recipes.AnyAsync(x => x.Slug == candidate && x.Id != recipe.Id, ct))

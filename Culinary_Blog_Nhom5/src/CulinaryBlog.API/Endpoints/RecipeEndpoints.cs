@@ -12,6 +12,9 @@ using CulinaryBlog.Application.Contracts;
 using CulinaryBlog.Application.DTOs;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetPublicRecipes;
 using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeBySlug;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetRecipeById;
+using CulinaryBlog.Application.Features.Recipes.Queries.GetManagedRecipes;
+using CulinaryBlog.Application.Features.Recipes.Queries.ResolveRecipeSlug;
 using CulinaryBlog.Application.Features.Recipes.Queries.SearchRecipes;
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipe;
 using CulinaryBlog.Application.Features.Recipes.Commands.UpdateRecipeNutrition;
@@ -25,7 +28,6 @@ using CulinaryBlog.Application.Features.Recipes.Ingredients;
 using CulinaryBlog.Domain.Enums;
 using CulinaryBlog.Domain.Exceptions;
 using CulinaryBlog.Domain.Interfaces;
-using CulinaryBlog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -34,25 +36,8 @@ using Microsoft.AspNetCore.Routing;
 
 namespace CulinaryBlog.API.Endpoints;
 
-/// <summary>Category identifier and label for the author dashboard.</summary>
-public sealed record ManagedRecipeCategoryDto(Guid Id, string Name);
-/// <summary>Author identifier and display name for the management view.</summary>
-public sealed record ManagedRecipeAuthorDto(string Id, string DisplayName);
 /// <summary>Recipe state and timestamps returned after a lifecycle operation.</summary>
 public sealed record RecipeStateDto(Guid Id, RecipeStatus Status, DateTime? PublishedAt, DateTime? UpdatedAt = null);
-/// <summary>Canonical recipe slug and whether the requested slug changed.</summary>
-public sealed record RecipeSlugResolutionDto(string CurrentSlug, bool Redirected);
-/// <summary>Recipe list item for an authorized author or administrator.</summary>
-public sealed record ManagedRecipeSummaryDto(
-    Guid Id,
-    string Title,
-    string Slug,
-    string? Description,
-    RecipeStatus Status,
-    DateTime? UpdatedAt,
-    ManagedRecipeCategoryDto? Category,
-    ManagedRecipeAuthorDto? Author,
-    string? PrimaryImageUrl);
 
 public static class RecipeEndpoints
 {
@@ -200,22 +185,11 @@ public static class RecipeEndpoints
 
         group.MapGet("/{id:guid}", async (
             Guid id,
-            IRecipeRepository recipes,
-            ICurrentUserService currentUser,
             ISender sender,
             HttpContext context,
             CancellationToken ct) =>
         {
-            var recipe = await recipes.GetDetailsByIdAsync(id, ct);
-            if (recipe is null || recipe.IsDeleted)
-                throw new NotFoundException("Recipe", id);
-
-            var canViewUnpublished = currentUser.IsAdmin
-                || string.Equals(recipe.AuthorId, currentUser.UserId, StringComparison.Ordinal);
-            if (recipe.Status != RecipeStatus.Published && !canViewUnpublished)
-                throw new NotFoundException("Recipe", id);
-
-            var detail = await sender.Send(new GetRecipeBySlugQuery(recipe.Slug), ct);
+            var detail = await sender.Send(new GetRecipeByIdQuery(id), ct);
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.ETag = $"\"{detail.RowVersion}\"";
             return Results.Ok(ApiResponse<RecipeDetailDto>.Ok(detail));
@@ -223,8 +197,11 @@ public static class RecipeEndpoints
         .WithName("GetRecipeById")
         .RequireRateLimiting("recipe-read")
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
-        .WithSummary("Láº¥y chi tiáº¿t cÃ´ng thá»©c theo ID; Owner/Admin xem Ä‘Æ°á»£c Draft vÃ  Archived")
+        .WithSummary("Lấy chi tiết công thức theo ID; chỉ Owner/Admin")
+        .RequireAuthorization("AuthorPolicy")
         .Produces<ApiResponse<RecipeDetailDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/mine", async (
@@ -232,40 +209,12 @@ public static class RecipeEndpoints
             int? pageSize,
             RecipeStatus? status,
             string? sortBy,
-            IRecipeRepository recipeRepo,
-            ICurrentUserService currentUser,
+            ISender sender,
             CancellationToken ct) =>
         {
-            int p = Math.Max(1, page.GetValueOrDefault(1));
-            int ps = Math.Clamp(pageSize.GetValueOrDefault(12), 1, 50);
-            var (items, totalCount) = await recipeRepo.GetPagedAsync(
-                p,
-                ps,
-                sortBy: sortBy,
-                authorId: currentUser.IsAdmin ? null : currentUser.UserId,
-                includeDrafts: true,
-                status: status,
-                ct: ct);
-
-            var data = items.Select(recipe => new ManagedRecipeSummaryDto(
-                recipe.Id,
-                recipe.Title,
-                recipe.Slug,
-                recipe.Description,
-                recipe.Status,
-                recipe.UpdatedAt,
-                recipe.Category is null
-                    ? null
-                    : new ManagedRecipeCategoryDto(recipe.Category.Id, recipe.Category.Name),
-                recipe.Author is null
-                    ? null
-                    : new ManagedRecipeAuthorDto(recipe.Author.Id, recipe.Author.DisplayName),
-                recipe.Images
-                    .Where(image => image.IsPrimary && !image.IsDeleted)
-                    .Select(image => image.ThumbnailUrl ?? image.MediumUrl ?? image.OriginalUrl)
-                    .FirstOrDefault())).ToArray();
-
-            return Results.Ok(new PagedResult<ManagedRecipeSummaryDto>(data, totalCount, p, ps));
+            var result = await sender.Send(new GetManagedRecipesQuery(
+                page.GetValueOrDefault(1), pageSize.GetValueOrDefault(12), status, sortBy), ct);
+            return Results.Ok(result);
         })
         .WithName("GetManagedRecipes")
         .RequireRateLimiting("recipe-read")
@@ -373,15 +322,11 @@ public static class RecipeEndpoints
 
         group.MapGet("/resolve/{slug}", async (
             string slug,
-            IRecipeRepository recipes,
+            ISender sender,
             CancellationToken ct) =>
         {
-            var recipe = await recipes.GetPublishedBySlugHistoryAsync(slug, ct);
-            if (recipe is null)
-                throw new NotFoundException("Recipe", slug);
-
-            return Results.Ok(ApiResponse<RecipeSlugResolutionDto>.Ok(
-                new RecipeSlugResolutionDto(recipe.Slug, true)));
+            var result = await sender.Send(new ResolveRecipeSlugQuery(slug), ct);
+            return Results.Ok(ApiResponse<RecipeSlugResolutionDto>.Ok(result));
         })
         .WithName("ResolveRecipeSlug")
         .WithSummary("Resolve slug cũ của recipe Published về slug hiện tại")
@@ -497,54 +442,6 @@ public static class RecipeEndpoints
 
         return app;
     }
-
-    private static string GenerateSlug(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return $"recipe-{Guid.NewGuid():N}";
-
-        var normalized = text.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
-        var result = new System.Text.StringBuilder();
-
-        foreach (var c in normalized)
-        {
-            var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
-            if (category == System.Globalization.UnicodeCategory.NonSpacingMark)
-                continue;
-
-            if (char.IsLetterOrDigit(c))
-                result.Append(c);
-            else
-                result.Append('-');
-        }
-
-        var slug = result.ToString();
-        while (slug.Contains("--"))
-        {
-            slug = slug.Replace("--", "-");
-        }
-
-        slug = slug.Trim('-');
-        return string.IsNullOrWhiteSpace(slug)
-            ? $"recipe-{Guid.NewGuid():N}"
-            : slug;
-    }
-
-    private static async Task<string> GenerateUniqueSlugAsync(
-        string baseSlug,
-        IRecipeRepository recipes,
-        CancellationToken ct)
-    {
-        var slug = baseSlug;
-        var suffix = 2;
-        while (await recipes.ExistsBySlugAsync(slug, ct))
-        {
-            slug = $"{baseSlug}-{suffix++}";
-        }
-
-        return slug;
-    }
-
 
 }
 

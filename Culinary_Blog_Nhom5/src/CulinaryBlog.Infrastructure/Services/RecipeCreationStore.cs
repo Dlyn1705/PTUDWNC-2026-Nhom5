@@ -37,9 +37,9 @@ public sealed class RecipeCreationStore(IServiceScopeFactory scopes, IRecipeCach
                     .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
                 if (category is null) throw new NotFoundException("Category", recipe.CategoryId);
 
-                // Serialize creations with the same base slug; the unique index also protects other writers.
+                // Serialize creations with the same base slug using 64-bit advisory lock to prevent 32-bit hash collisions.
                 await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT pg_advisory_xact_lock(hashtext({baseSlug}))", cancellationToken);
+                    $"SELECT pg_advisory_xact_lock(('x' || substr(md5({baseSlug}), 1, 16))::bit(64)::bigint)", cancellationToken);
                 var suffix = 1;
                 recipe.Slug = baseSlug;
                 while (await db.Recipes.AnyAsync(x => x.Slug == recipe.Slug, cancellationToken))

@@ -120,6 +120,8 @@ export async function runCriticalBrowser(api, origin) {
     await page
       .locator('select[id$="-new-category"]:visible')
       .selectOption({ label: "Critical E2E" });
+    await page.locator('[id$="-new-prepTime"]:visible').fill("10");
+    await page.locator('[id$="-new-cookTime"]:visible').fill("20");
     await page.locator('[id$="-new-servings"]:visible').fill("2");
     await page
       .getByRole("button", { name: "+ Thêm nguyên liệu", exact: true })

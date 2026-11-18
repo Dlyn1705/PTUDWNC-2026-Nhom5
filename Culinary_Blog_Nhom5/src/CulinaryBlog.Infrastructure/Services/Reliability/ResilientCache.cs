@@ -32,10 +32,10 @@ public sealed class ResilientCache(IDistributedCache transport, string connectio
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(timeoutMs);
         try { return await action(deadline.Token).WaitAsync(TimeSpan.FromMilliseconds(timeoutMs), ct); }
-        catch (Exception) when (!ct.IsCancellationRequested)
+        catch (Exception exception) when (!ct.IsCancellationRequested)
         {
             bypass = true;
-            logger.LogWarning("Cache unavailable; using database for this scope");
+            logger.LogWarning(exception, "Cache unavailable; using database for this scope");
             return fallback;
         }
     }

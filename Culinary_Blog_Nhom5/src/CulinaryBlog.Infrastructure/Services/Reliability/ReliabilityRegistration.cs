@@ -17,7 +17,7 @@ public static class ReliabilityRegistration
             sp.GetRequiredKeyedService<IDistributedCache>("redis-transport"),
             config.GetConnectionString("DefaultConnection")!,
             sp.GetRequiredService<ILogger<ResilientCache>>(),
-            Math.Clamp(config.GetValue("Reliability:CacheTimeoutMs", 300), 50, 2000)));
+            Math.Clamp(config.GetValue("Reliability:CacheTimeoutMs", 1000), 50, 2000)));
         return services;
     }
 }

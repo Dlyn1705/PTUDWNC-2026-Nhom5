@@ -151,6 +151,9 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             r.SearchVector != null &&
             r.SearchVector.Matches(
                 EF.Functions.ToTsQuery("simple", sanitizedTsQuery)));
+
+        var totalCount = await query.CountAsync(ct);
+
         var rankedQuery = query.Select(r => new
         {
             Recipe = r,
@@ -171,7 +174,6 @@ public class RecipeRepository : Repository<Recipe>, IRecipeRepository
             _ => rankedQuery.OrderByDescending(x => x.Score).ThenByDescending(x => x.Recipe.CreatedAt).ThenByDescending(x => x.Recipe.Id)
         };
 
-        var totalCount = await rankedQuery.CountAsync(ct);
         var pageItems = await rankedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

@@ -25,6 +25,17 @@ class TraceabilityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             traceability.validate(changed)
 
+    def test_every_requirement_requires_concrete_code_file_and_test_symbol(self):
+        for field, value in (
+            ('code', ['Culinary_Blog_Nhom5/src/CulinaryBlog.Infrastructure']),
+            ('tests', ['scripts/quality/test_traceability.py']),
+        ):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(self.data)
+                changed['requirements'][0][field] = value
+                with self.assertRaisesRegex(ValueError, 'concrete code files and test symbols'):
+                    traceability.validate(changed)
+
     def test_normalized_spec_change_requires_catalog_review(self):
         def digest(path):
             if path == traceability.ROOT / traceability.SPEC:

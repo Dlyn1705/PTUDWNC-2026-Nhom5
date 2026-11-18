@@ -185,7 +185,7 @@ try {
     "GetRecipeById",
     author.get(`/api/v1/recipes/${recipe.id}`),
     guest.get(`/api/v1/recipes/${randomUUID()}`),
-    404,
+    401,
   );
   await endpointPair(
     "GetManagedRecipes",

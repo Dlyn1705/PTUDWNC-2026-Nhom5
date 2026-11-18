@@ -174,11 +174,7 @@ export function DraftPublishDialog({
                     [
                       ["Calories", nutrition.calories, "kcal"],
                       ["Protein", nutrition.protein, "g"],
-                      [
-                        "Carbohydrates",
-                        nutrition.carbohydrates ?? nutrition.carbs,
-                        "g",
-                      ],
+                      ["Carbohydrates", nutrition.carbohydrates, "g"],
                       ["Chất béo", nutrition.fat, "g"],
                       ["Chất xơ", nutrition.fiber, "g"],
                       ["Natri", nutrition.sodium, "mg"],

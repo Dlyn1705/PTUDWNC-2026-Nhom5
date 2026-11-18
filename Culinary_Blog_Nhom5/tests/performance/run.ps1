@@ -3,7 +3,8 @@ param(
     [string]$Mode = 'smoke',
     [ValidateRange(100,50000)][int]$Recipes = 5000,
     [ValidateRange(1,10)][int]$Repeat = 1,
-    [ValidateSet('single','dual')][string]$Topology = 'dual'
+    [ValidateSet('single','dual')][string]$Topology = 'dual',
+    [ValidatePattern('^(issue85|culinary-[a-z0-9-]{1,32})$')][string]$ProjectName = 'issue85'
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
@@ -27,7 +28,7 @@ $env:PERF_RECIPES = "$Recipes"
 $composeFiles = @('-f', 'compose.performance.yml')
 if ($Topology -eq 'single') { $composeFiles += @('-f', 'compose.performance.single.yml') }
 function Compose {
-    & docker compose -p issue85 --env-file $envFile @composeFiles @args
+    & docker compose -p $ProjectName --env-file $envFile @composeFiles @args
     if ($LASTEXITCODE -ne 0) { throw "Compose failed: $($args[0])" }
 }
 function Tool([string]$Operation) {
@@ -51,8 +52,11 @@ function Ready {
 }
 if ($Mode -eq 'stop') { Compose down; return } # Preserves volumes/evidence.
 if ($Mode -in @('prepare','start')) {
+    # `stop` removes containers but preserves the named volumes. Recreate every
+    # dependency required by a later measurement; `start` must not assume that
+    # collector/MinIO containers from `prepare` still exist.
+    Compose up -d postgres redis minio collector
     if ($Mode -eq 'prepare') {
-        Compose up -d postgres redis minio collector
         Tool seed
         Tool plans
         Compose build api-a frontend
@@ -107,7 +111,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
         quotaCaveat = 'Capacity mode bypasses process-local quotas only in Performance environment; not a production quota result'
     }
     $manifest | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $run 'manifest.json')
-    $budgetIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
+    $budgetIds = & docker compose -p $ProjectName --env-file $envFile @composeFiles ps -q
     & docker inspect --format '{"name":{{json .Name}},"cpuNanos":{{.HostConfig.NanoCpus}},"memoryBytes":{{.HostConfig.Memory}},"image":{{json .Image}}}' @budgetIds | Set-Content (Join-Path $run 'resource-limits.jsonl')
     Copy-Item Culinary_Blog_Nhom5/tests/performance/scenarios.js $run
     # Compose v2.2 (the minimum supported local Docker Desktop version) does not
@@ -124,7 +128,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
     $runMount = $run.Replace('\','/')
     $runUser = @()
     if ($IsLinux) { $runUser = @('--user', "$(id -u):$(id -g)") }
-    $containerIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
+    $containerIds = & docker compose -p $ProjectName --env-file $envFile @composeFiles ps -q
     $monitorArgs = @('Culinary_Blog_Nhom5/tests/performance/monitor.mjs', ('"' + $run + '"')) + $containerIds
     $startOptions = @{ FilePath = 'node'; ArgumentList = $monitorArgs; PassThru = $true; WorkingDirectory = $root }
     if ($IsWindows) { $startOptions.WindowStyle = 'Hidden' }
@@ -140,7 +144,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
     # Docker Compose writes pull/progress messages to stderr. Treat those as
     # ordinary k6 output; the explicit native exit code below remains the gate.
     $ErrorActionPreference = 'Continue'
-    & docker compose -p issue85 --env-file $envFile @composeFiles run --rm --no-deps `
+    & docker compose -p $ProjectName --env-file $envFile @composeFiles run --rm --no-deps `
         @runUser -v "${runMount}:/results" k6 run --quiet -e "MODE=$Mode" -e "RUN_ID=$runId" /scripts/scenarios.js 2>&1 |
         ForEach-Object {
             $line = "$_"; $line | Add-Content (Join-Path $run 'k6.log')
@@ -161,7 +165,7 @@ for ($i = 1; $i -le $Repeat; $i++) {
     Start-Sleep 3
     Metrics (Join-Path $run 'metrics-after.txt')
     Compose exec -T redis redis-cli INFO stats | Set-Content (Join-Path $run 'redis-after.txt')
-    $containerIds = & docker compose -p issue85 --env-file $envFile @composeFiles ps -q
+    $containerIds = & docker compose -p $ProjectName --env-file $envFile @composeFiles ps -q
     & docker stats --no-stream --format '{{json .}}' @containerIds | Set-Content (Join-Path $run 'resources-final.jsonl')
     & node Culinary_Blog_Nhom5/tests/performance/summarize.mjs $run
     $summaryExit = $LASTEXITCODE
