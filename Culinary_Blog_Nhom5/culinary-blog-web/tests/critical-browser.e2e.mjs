@@ -149,7 +149,9 @@ export async function runCriticalBrowser(api, origin) {
       mimeType: "image/png",
       buffer: png,
     });
-    for (let step = 2; step <= 5; step++) {
+    // Cover + four step images fit the real five-uploads/minute policy.
+    // The injected 429 below is intercepted before reaching the API limiter.
+    for (let step = 2; step <= 4; step++) {
       await page
         .getByRole("button", { name: "+ Thêm bước tiếp theo", exact: true })
         .click();
@@ -203,7 +205,7 @@ export async function runCriticalBrowser(api, origin) {
       .waitFor();
     await dialog.getByText("Chuẩn bị nước dùng.", { exact: true }).waitFor();
     const previewImages = dialog.locator("article img");
-    await previewImages.nth(5).waitFor();
+    await previewImages.nth(4).waitFor();
     for (const img of await previewImages.elementHandles())
       await page.waitForFunction(
         (element) => element.complete && element.naturalWidth > 0,
