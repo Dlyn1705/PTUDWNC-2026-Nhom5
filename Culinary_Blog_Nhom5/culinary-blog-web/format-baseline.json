@@ -84,7 +84,6 @@
   "components/providers/QueryProvider.tsx": "aaa5b727b90bdb74040983038b971e223837fa8e139eb262c2f27eda32ed54d3",
   "components/recipes/IngredientList.tsx": "83d79c1ad5f60626576a70c689cb179d10a24d3f5ddde86b35c296943baf3fb9",
   "components/recipes/NutritionCard.tsx": "2f8d4385b5597e6a43eae6d80526a9ce86fa8bebd6c3a0570cf33aa1934e5a10",
-  "components/recipes/RecipeBookmark.tsx": "08dc1f123127e415ac1e1cd0cceec06ce217da19d7fcb1949febb14058ce2580",
   "components/recipes/RecipeCard.tsx": "914a86652034724d65e7c8807089f5dd82d24e47783191d836ed10bf9195ddf2",
   "components/recipes/RecipeGrid.tsx": "9766acc57a5ac4820baf77ec52985a814dec428056a29ce41d0da7ab64e129ce",
   "components/recipes/RecipeHero.tsx": "50a77324e47357b8f7c5441d76c03ca2d7b836e6822445bc66bed41048178413",

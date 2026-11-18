@@ -86,7 +86,7 @@ export function RecipeCard({
               alt={image.alt || recipe.title}
               width={800}
               height={450}
-              unoptimized
+              unoptimized={image.url.startsWith("http")}
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.05] motion-reduce:group-hover:scale-100"
             />

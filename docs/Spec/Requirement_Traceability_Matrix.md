@@ -86,6 +86,7 @@ Section links identify review scope. Verify individual clauses and assertions be
 | §3.1 Recipe là Aggregate Root | Aggregate children, ordering, six nutrition fields, references and mutation transaction, validation, authorization and cache invalidation. | FR-RCP-003, FR-RCP-004, FR-RCP-008, FR-RCP-009, FR-RCP-010, NFR-PERF-003, NFR-MAINT-004 |
 | §3.2 Vòng đời Recipe | Draft, Published and Archived transitions; visibility; idempotent publish/unpublish; active children; stable published slug. | FR-RCP-001, FR-RCP-002, FR-RCP-003, FR-RCP-004, FR-RCP-005, FR-RCP-006, FR-RCP-007, FR-RCP-010, NFR-SEO-004 |
 | §3.3 Luồng tạo và công khai recipe | Draft creation, field validation, category, unique slug suffix, atomic aggregate and publication effects. | FR-RCP-003, FR-RCP-005, FR-RCP-008, FR-RCP-009, FR-RCP-010, NFR-PERF-003 |
+| §3.3.1 Mức độ khó | Difficulty accepts Easy=1, Medium=2, Hard=3 and Expert=4 consistently across create, update, listing and search; reject values outside 1..4. | FR-RCP-003, FR-RCP-004, FR-SRCH-002 |
 | §3.4 Category | Public reads, admin writes, stable slug, referenced recipe conflict, soft deletion and active-only slug uniqueness. | FR-CAT-001, FR-CAT-002, FR-CAT-003, FR-CAT-004, FR-CAT-005 |
 | §3.5 Ảnh | Owner/Admin, 5 MB, JPEG/PNG/WebP/AVIF, magic bytes, GUID object paths, primary replacement and image variants. | FR-RCP-008, FR-FILE-001, FR-JOB-002, NFR-SEC-004 |
 | §3.6 Nguyên liệu và bước thực hiện (Chuẩn hóa giải pháp) | Child validation, nullable fields, bounds, access, ETags, soft delete, atomic reorder, step images and public DTO compatibility. | FR-RCP-009, FR-RCP-010, FR-RCP-005 |
@@ -115,6 +116,8 @@ Section links identify review scope. Verify individual clauses and assertions be
 
 | Criterion from §12 | Requirements |
 | --- | --- |
+| `/recipes` và `/categories/{slug}` chỉ trả recipe Published kể cả khi request có token Author/Admin; Author xem Draft/Archived qua workspace quản lý, không qua public shared cache. | FR-RCP-001, FR-CAT-002, NFR-PERF-003 |
+| Difficulty `Expert=4` tạo, cập nhật, listing và search đúng; các giá trị ngoài `1..4` bị từ chối. | FR-RCP-003, FR-RCP-004, FR-SRCH-002 |
 | Khách (Guest) không xem được bài Draft/Archived của tác giả khác. | FR-RCP-002 |
 | Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden). | FR-RCP-004, FR-RCP-005, FR-RCP-007, NFR-SEC-005 |
 | Admin quản lý được category và recipe của mọi owner. | FR-CAT-003, FR-CAT-004, FR-CAT-005, NFR-SEC-005 |

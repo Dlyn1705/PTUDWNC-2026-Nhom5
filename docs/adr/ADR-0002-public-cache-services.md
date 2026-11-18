@@ -10,6 +10,7 @@ Giữ `IPublicContentCache`/`PublicContentCache` và `IRecipeCacheInvalidator`/`
 ## Contract
 
 - Chỉ cache public projections. Dữ liệu Owner/Admin theo ID và dashboard dùng luồng quản lý riêng.
+- Public `/recipes` và `/categories/{slug}` chỉ trả recipe `Published`, kể cả khi request mang token Author/Admin. Draft/Archived của owner chỉ đi qua các endpoint quản lý không dùng shared public cache.
 - TTL mặc định từ PublicCacheOptions: category 45, detail 60, list/search 3 phút. Next.js có policy riêng trong serverClient.ts; TanStack Query dùng query keys riêng.
 - Invalidation sau commit: version key đổi cho public projections; recipe mutation làm mới recipe và category counts. FrontendRevalidationClient yêu cầu Next.js revalidate tag/path; browser mutation hooks invalidate query keys.
 - Redis read/write lỗi có đường fallback về dữ liệu; mutation đã commit không biến thành thất bại chỉ vì cache invalidation lỗi. Pending invalidations hiện giữ trong process và được thử lại khi đọc version; không được mô tả là durable queue qua restart hoặc toàn cluster.

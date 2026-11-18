@@ -41,6 +41,22 @@ public sealed class RecipeCommandTests
     }
 
     [Fact]
+    public async Task Expert_difficulty_is_accepted_by_create_and_update_contracts()
+    {
+        var store = Substitute.For<IRecipeCreationStore>();
+        var create = new CreateRecipeCommand(" Chuyên gia ", "", "", 1, 2, 2,
+            RecipeDifficulty.Expert, recipe.CategoryId);
+        await new CreateRecipeCommandHandler(user, store).Handle(create, default);
+        var saved = (Recipe)Assert.Single(store.ReceivedCalls()).GetArguments()[0]!;
+        Assert.Equal(RecipeDifficulty.Expert, saved.Difficulty);
+
+        var update = new UpdateRecipeCommand(recipe.Id, " Chuyên gia ", "", "", 1, 2, 2,
+            RecipeDifficulty.Expert, recipe.CategoryId, version);
+        await new UpdateRecipeCommandHandler(user, updates).Handle(update, default);
+        Assert.Equal(RecipeDifficulty.Expert, recipe.Difficulty);
+    }
+
+    [Fact]
     public async Task Update_and_nutrition_preserve_version_and_enforce_owner_before_save()
     {
         var command = new UpdateRecipeCommand(recipe.Id, " Phở mới ", " mô tả ", " Nấu ", 2, 3, 4, RecipeDifficulty.Medium, recipe.CategoryId, version);

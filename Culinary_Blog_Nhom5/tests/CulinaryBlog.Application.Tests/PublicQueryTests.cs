@@ -95,6 +95,23 @@ public sealed class PublicQueryTests
         await work.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
     }
 
+    [Fact]
+    public async Task Public_listing_passes_expert_difficulty_to_the_published_query()
+    {
+        var recipe = Sample();
+        recipe.Status = RecipeStatus.Published;
+        recipe.Difficulty = RecipeDifficulty.Expert;
+        work.Recipes.GetPagedAsync(default, default).ReturnsForAnyArgs(((IReadOnlyList<Recipe>)new[] { recipe }, 1));
+
+        var result = await new GetPublicRecipesQueryHandler(work, cache)
+            .Handle(new(Difficulty: RecipeDifficulty.Expert), default);
+
+        Assert.Equal(RecipeDifficulty.Expert, (RecipeDifficulty)Assert.Single(result.Data).Difficulty);
+        var call = Assert.Single(work.Recipes.ReceivedCalls().Where(x => x.GetMethodInfo().Name == "GetPagedAsync"));
+        Assert.Equal(RecipeDifficulty.Expert, call.GetArguments()[3]);
+        Assert.False((bool)call.GetArguments()[7]!);
+    }
+
     [Theory]
     [InlineData(false, false, false, typeof(UnauthorizedAccessException))]
     [InlineData(true, false, false, typeof(ForbiddenException))]
@@ -184,6 +201,23 @@ public sealed class PublicQueryTests
         Assert.Equal(recipe.Id, Assert.Single(detail.Recipes.Data).Id);
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new("missing", 1, 12), default));
         await work.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+    }
+
+    [Fact]
+    public async Task Public_category_detail_uses_published_scope_for_shared_cache()
+    {
+        var recipe = Sample();
+        recipe.Status = RecipeStatus.Published;
+        work.Categories.GetBySlugAsync("mon-nuoc", default).Returns(recipe.Category);
+        work.Recipes.GetPagedAsync(default, default).ReturnsForAnyArgs(((IReadOnlyList<Recipe>)new[] { recipe }, 1));
+
+        var result = await new GetCategoryBySlugQueryHandler(work, cache)
+            .Handle(new("mon-nuoc", 1, 12), default);
+
+        Assert.All(result.Recipes.Data, item => Assert.Equal((int)RecipeStatus.Published, item.Status));
+        var call = Assert.Single(work.Recipes.ReceivedCalls().Where(x => x.GetMethodInfo().Name == "GetPagedAsync"));
+        Assert.False((bool)call.GetArguments()[7]!);
+        Assert.Null(call.GetArguments()[6]);
     }
 
     internal sealed class PassThroughCache : IPublicContentCache

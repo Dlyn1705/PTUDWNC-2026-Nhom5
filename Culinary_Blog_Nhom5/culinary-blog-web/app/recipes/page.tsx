@@ -12,9 +12,12 @@ import { hasQueryParams } from "@/lib/seo/canonical";
 export const revalidate = 180;
 
 const recipesTitle = "All Recipes";
-const recipesDescription = "Explore our complete collection of twice-tested recipes: handmade pasta, slow mains, artisan baking and crisp salads for real kitchens.";
+const recipesDescription =
+  "Explore our complete collection of twice-tested recipes: handmade pasta, slow mains, artisan baking and crisp salads for real kitchens.";
 
-export async function generateMetadata({ searchParams }: {
+export async function generateMetadata({
+  searchParams,
+}: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   return buildListingMetadata(
@@ -34,7 +37,10 @@ const sortByMap: Record<string, CatalogSortBy> = {
   title: "title",
 };
 
-const legacySortMap: Record<string, { sortBy: CatalogSortBy; sortOrder: SortOrder }> = {
+const legacySortMap: Record<
+  string,
+  { sortBy: CatalogSortBy; sortOrder: SortOrder }
+> = {
   newest: { sortBy: "createdAt", sortOrder: "desc" },
   time: { sortBy: "cookTime", sortOrder: "asc" },
   title: { sortBy: "title", sortOrder: "asc" },
@@ -45,24 +51,42 @@ const legacySortMap: Record<string, { sortBy: CatalogSortBy; sortOrder: SortOrde
   "-title": { sortBy: "title", sortOrder: "desc" },
 };
 
-export default async function RecipesPage({ searchParams }: {
+export default async function RecipesPage({
+  searchParams,
+}: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
   const rawPage = Number(first(params.page));
-  const page = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 100000 ? rawPage : 1;
+  const page =
+    Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 100000
+      ? rawPage
+      : 1;
   const categoryId = first(params.categoryId) || "all";
   const rawDifficulty = first(params.difficulty);
-  const difficulty = rawDifficulty && ["1", "2", "3", "4"].includes(rawDifficulty) ? rawDifficulty : "all";
+  const difficulty =
+    rawDifficulty && ["1", "2", "3", "4"].includes(rawDifficulty)
+      ? rawDifficulty
+      : "all";
   const rawSortBy = (first(params.sortBy) ?? "").toLowerCase();
   const rawSortOrder = first(params.sortOrder);
   const legacySort = (first(params.sort) ?? "").toLowerCase();
   const canonicalSortBy = sortByMap[rawSortBy];
-  const canonicalSortOrder = rawSortOrder === "asc" || rawSortOrder === "desc" ? rawSortOrder : undefined;
+  const canonicalSortOrder =
+    rawSortOrder === "asc" || rawSortOrder === "desc"
+      ? rawSortOrder
+      : undefined;
   const resolvedSort = canonicalSortBy
-    ? { sortBy: canonicalSortBy, sortOrder: canonicalSortOrder ?? "desc" as SortOrder }
-    : legacySortMap[legacySort] ?? { sortBy: "createdAt" as CatalogSortBy, sortOrder: "desc" as SortOrder };
+    ? {
+        sortBy: canonicalSortBy,
+        sortOrder: canonicalSortOrder ?? ("desc" as SortOrder),
+      }
+    : (legacySortMap[legacySort] ?? {
+        sortBy: "createdAt" as CatalogSortBy,
+        sortOrder: "desc" as SortOrder,
+      });
   const { sortBy, sortOrder } = resolvedSort;
 
   if (legacySort) {
@@ -86,16 +110,20 @@ export default async function RecipesPage({ searchParams }: {
     sortOrder,
   };
   const [firstResult, categories] = await Promise.all([
-    publicApi.getRecipes(query).catch(() => ({
-      data: [],
-      meta: { page, pageSize: 12, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false },
-    })),
-    publicApi.getCategories().catch(() => []),
+    publicApi.getRecipes(query),
+    publicApi.getCategories(),
   ]);
-  const result = firstResult.meta.totalPages > 0 && page > firstResult.meta.totalPages
-    ? await publicApi.getRecipes({ ...query, page: firstResult.meta.totalPages })
-    : firstResult;
-  const totalPublished = categories.reduce((total, category) => total + category.recipeCount, 0);
+  const result =
+    firstResult.meta.totalPages > 0 && page > firstResult.meta.totalPages
+      ? await publicApi.getRecipes({
+          ...query,
+          page: firstResult.meta.totalPages,
+        })
+      : firstResult;
+  const totalPublished = categories.reduce(
+    (total, category) => total + category.recipeCount,
+    0,
+  );
 
   return (
     <div className="page-container space-y-8 py-8">
@@ -111,13 +139,13 @@ export default async function RecipesPage({ searchParams }: {
       {/* Header Banner */}
       <div className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-8">
         <div className="space-y-2">
-          
           <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
             All Recipes
           </h1>
 
           <p className="max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Slow, twice-tested recipes written for real home kitchens and everyday ingredients. Switch between grid and list view below.
+            Slow, twice-tested recipes written for real home kitchens and
+            everyday ingredients. Switch between grid and list view below.
           </p>
         </div>
 
@@ -130,7 +158,10 @@ export default async function RecipesPage({ searchParams }: {
           </div>
 
           <Can role="Author">
-            <Button asChild className="rounded-2xl gap-2 shadow-soft h-11 px-5 font-medium">
+            <Button
+              asChild
+              className="rounded-2xl gap-2 shadow-soft h-11 px-5 font-medium"
+            >
               <Link href="/dashboard/recipes/new">
                 <Plus className="size-4" />
                 <span>Tạo công thức</span>
@@ -141,7 +172,16 @@ export default async function RecipesPage({ searchParams }: {
       </div>
 
       {/* Catalog View with Interactive Grid/List toggle & Category filters */}
-      <RecipesCatalogView initialRecipes={result.data} meta={result.meta} totalPublished={totalPublished} categories={categories} selectedCategory={categoryId} selectedDifficulty={difficulty} sortBy={sortBy} sortOrder={sortOrder} />
+      <RecipesCatalogView
+        initialRecipes={result.data}
+        meta={result.meta}
+        totalPublished={totalPublished}
+        categories={categories}
+        selectedCategory={categoryId}
+        selectedDifficulty={difficulty}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+      />
     </div>
   );
 }

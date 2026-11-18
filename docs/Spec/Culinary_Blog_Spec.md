@@ -1,8 +1,8 @@
 # Culinary Blog - Business and Architecture Specification
 
 **Tài liệu nguồn:** `docs/SRS_Culinary_Blog_v1.0.0.pdf`
-**Phiên bản tổng hợp:** 1.4.0 (Đồng bộ kiến trúc đang triển khai và các quyết định tháng 11)
-**Ngày cập nhật:** 2026-11-16; baseline lịch sử: 2026-09-21
+**Phiên bản tổng hợp:** 1.5.0 (Đồng bộ kiến trúc đang triển khai và các quyết định tháng 11)
+**Ngày cập nhật:** 2026-11-18; baseline lịch sử: 2026-09-21
 **Phạm vi:** Làm rõ logic nghiệp vụ, kiến trúc mục tiêu, công nghệ frontend, chuẩn hóa các mâu thuẫn đặc tả và hiện trạng mã nguồn.
 
 > Bản 1.4.0 áp dụng điều chỉnh yêu cầu được người dùng cho phép ngày 16/11/2026 theo [ADR-0003](../adr/ADR-0003-acceptance-baseline-amendments.md). Đặc tả này cùng các điều chỉnh là căn cứ nghiệm thu hiện hành; SRS PDF giữ vai trò nguồn gốc lịch sử tại các điều khoản được thay thế. Không tuyên bố tuân thủ nguyên văn các điều khoản cũ.
@@ -90,6 +90,19 @@ Quy tắc vòng đời:
 6. Khi publish từ Draft, kiểm tra active steps > 0 và active ingredients > 0 trong cùng transaction/khóa Recipe.
 7. Nếu hợp lệ, status chuyển Published, gán `PublishedAt`, invalidate cache và cập nhật search visibility.
 
+### 3.3.1 Mức độ khó
+
+`Difficulty` là enum số dùng chung giữa Domain, API, TypeScript và bộ lọc tìm kiếm. API chỉ chấp nhận các giá trị sau; giá trị khác phải bị validator từ chối với lỗi `422`:
+
+| Giá trị API | Tên enum | Nhãn giao diện |
+|---:|---|---|
+| 1 | `Easy` | Dễ |
+| 2 | `Medium` | Trung bình |
+| 3 | `Hard` | Khó |
+| 4 | `Expert` | Chuyên gia |
+
+`Expert` là phần mở rộng hợp lệ của contract hiện hành so với mô tả ba mức trong SRS PDF lịch sử. Create, update, public listing và search phải giữ nguyên giá trị này, không chuyển thành mức khác hoặc loại bỏ khỏi kết quả lọc.
+
 ### 3.4 Category
 
 - Admin tạo category; slug sinh từ name và tự động thêm suffix số nếu trùng (`-2`, `-3`...).
@@ -97,6 +110,7 @@ Quy tắc vòng đời:
 - Không được xóa category khi còn bất kỳ recipe nào, kể cả Draft/Archived; trả về `409 Conflict` và số lượng recipe hiện có.
 - Xóa category áp dụng **Soft Delete** (`IsDeleted = true`). CSDL cấu hình Filtered Unique Index trên `Slug` (`WHERE "IsDeleted" = false`) để tránh xung đột khi tạo mới.
 - Danh sách category và chi tiết category là public.
+- Các route public `/recipes` và `/categories/{slug}` chỉ hiển thị recipe `Published`, không phụ thuộc việc request có kèm token Author/Admin hay không. Draft/Archived của Author được xem và quản lý tại dashboard, `/recipes/mine` và endpoint quản lý theo ID; không đưa dữ liệu theo user vào shared public cache.
 
 ### 3.5 Ảnh
 
@@ -225,11 +239,11 @@ Base URL: `/api/v1`. Authentication dùng `Authorization: Bearer <access_token>`
 | | `GET /auth/me` | Author/Admin | Xem thông tin hồ sơ tài khoản hiện tại |
 | | `PATCH /auth/me` | Author/Admin | Cập nhật hồ sơ (displayName, bio, avatarUrl) |
 | **Categories** | `GET /categories` | Public | Lấy danh sách danh mục (cache-aside) |
-| | `GET /categories/{slug}` | Public | Chi tiết danh mục kèm danh sách recipes phân trang |
+| | `GET /categories/{slug}` | Public | Chi tiết danh mục kèm danh sách recipes `Published` phân trang; không vary theo user/token |
 | | `POST /categories` | Admin | Tạo danh mục mới |
 | | `PUT /categories/{id}` | Admin | Cập nhật tên/mô tả danh mục |
 | | `DELETE /categories/{id}` | Admin | Xóa mềm danh mục (chặn nếu còn chứa recipes) |
-| **Recipes** | `GET /recipes` | Public | Danh sách recipes (lọc, phân trang, `sortBy`, `sortOrder`) |
+| **Recipes** | `GET /recipes` | Public | Danh sách recipes `Published` (lọc, phân trang, `sortBy`, `sortOrder`) |
 | | `GET /recipes/{slug}` | Public / Owner | Chi tiết recipe theo slug (kèm đầy đủ nested data) |
 | | `GET /recipes/{id}` | Owner/Admin | Chi tiết recipe theo ID để quản lý Draft/Published/Archived |
 | | `GET /recipes/mine` | Author/Admin | Danh sách recipe quản lý, gồm Draft/Published/Archived, có phân trang |
@@ -455,6 +469,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 ## 12. Acceptance checklist cốt lõi
 
 - [ ] Khách (Guest) không xem được bài Draft/Archived của tác giả khác.
+- [ ] `/recipes` và `/categories/{slug}` chỉ trả recipe Published kể cả khi request có token Author/Admin; Author xem Draft/Archived qua workspace quản lý, không qua public shared cache.
 - [ ] Author không thể sửa/xóa/publish recipe của author khác (trả về 403 Forbidden).
 - [ ] Admin quản lý được category và recipe của mọi owner.
 - [ ] Draft thiếu active step hoặc ingredient không publish được; 422 có errors.steps/errors.ingredients (Issue #83).
@@ -469,6 +484,7 @@ Vì vậy, các mục từ 1 đến 8 là **kiến trúc và hành vi mục tiê
 - [ ] Xóa recipe thực hiện Soft Delete và xóa sạch ảnh MinIO sau 30 ngày qua Hangfire.
 - [ ] Refresh token được lưu trong httpOnly cookie, hash SHA-256 trong DB, rotate và phát hiện reuse.
 - [ ] Search không dấu tiếng Việt trả kết quả Published theo relevance rank (`ts_rank`).
+- [ ] Difficulty `Expert=4` tạo, cập nhật, listing và search đúng; các giá trị ngoài `1..4` bị từ chối.
 - [ ] Write operation tự động invalidate cache liên quan; xung đột concurrency trả về 409 Conflict.
 - [ ] Lỗi API tuân thủ đúng RFC 7807 Problem Details, có Correlation ID và không lộ stack trace.
 - [ ] Endpoints `/health/live` và `/health/ready` phân biệt đúng mục đích vận hành.
