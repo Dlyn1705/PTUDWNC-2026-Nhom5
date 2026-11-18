@@ -98,6 +98,11 @@ async function main() {
     "app/page.tsx",
     "export default function Page(){return <main><h1>Fixture ready</h1></main>}",
   );
+  write("app/public-home/page.tsx", "export {default} from '@/app/page';");
+  write(
+    "app/public-categories/page.tsx",
+    "export {default} from '@/app/categories/page';",
+  );
   write(
     "app/search/layout.tsx",
     "export default function Layout({children}:{children:React.ReactNode}){return <main>{children}</main>}",
@@ -199,7 +204,10 @@ async function main() {
       }),
     );
   });
-  const apiPort = await listen(backend);
+  // Build the real public pages with the API offline, as in CI/Docker builds.
+  const apiReservation = http.createServer();
+  const apiPort = await listen(apiReservation);
+  await new Promise((resolve) => apiReservation.close(resolve));
   const env = {
     ...process.env,
     API_INTERNAL_URL: `http://127.0.0.1:${apiPort}`,
@@ -215,6 +223,9 @@ async function main() {
       build.child.once("exit", resolve),
     );
     assert.equal(code, 0, build.output());
+    await new Promise((resolve) =>
+      backend.listen(apiPort, "127.0.0.1", resolve),
+    );
     const reservation = http.createServer();
     const port = await listen(reservation);
     await new Promise((resolve) => reservation.close(resolve));
@@ -245,6 +256,28 @@ async function main() {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
+    // A build-time fallback must not hide runtime API failures as empty data.
+    mode = "failure";
+    await page.goto(origin + "/public-home");
+    await page
+      .getByRole("heading", { name: "Không thể tải trang", exact: true })
+      .waitFor();
+    mode = "empty";
+    for (const route of ["/public-home", "/public-categories"]) {
+      await page.goto(origin + route);
+      await page.getByRole("heading", { level: 1 }).first().waitFor();
+      assert.equal(await page.getByRole("heading", { level: 1 }).count(), 1);
+      assert.equal(
+        await page
+          .getByRole("heading", { name: "Không thể tải trang", exact: true })
+          .count(),
+        0,
+      );
+    }
+    process.stdout.write(
+      "PASS: real public pages build offline and render runtime success/errors.\n",
+    );
+    mode = "failure";
     const fault = (value) =>
       context.addCookies([{ name: "fault", value, url: origin }]);
     const noNestedMain = async () =>

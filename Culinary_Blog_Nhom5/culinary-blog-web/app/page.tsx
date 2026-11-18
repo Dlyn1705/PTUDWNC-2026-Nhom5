@@ -1,5 +1,6 @@
 import { recipeDisplayImages } from "@/lib/sampleRecipeImages";
 import React from "react";
+import { connection } from "next/server";
 import { DiscoverySidebar } from "@/components/search/DiscoverySidebar";
 import Link from "next/link";
 import Image from "next/image";
@@ -32,6 +33,8 @@ export const metadata = buildListingMetadata(
 );
 
 export default async function HomePage() {
+  // The API is a runtime dependency, including when producing a Docker image.
+  await connection();
   const [categories, recipeResult] = await Promise.all([
     publicApi.getCategories(),
     publicApi.getRecipes({

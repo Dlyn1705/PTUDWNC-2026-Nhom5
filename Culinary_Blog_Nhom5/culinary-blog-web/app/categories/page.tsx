@@ -1,4 +1,5 @@
 import React from "react";
+import { connection } from "next/server";
 import type { Metadata } from "next";
 import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
@@ -14,6 +15,8 @@ export const metadata: Metadata = buildListingMetadata(
 );
 
 export default async function CategoriesPage() {
+  // Keep the public data cache, but do not contact the API during the build.
+  await connection();
   const categories = await publicApi.getCategories();
 
   const totalCategories = categories.length;
